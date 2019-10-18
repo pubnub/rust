@@ -1,0 +1,22 @@
+[package]
+name = "grpcnub"
+version = "0.1.0"
+authors = ["Jay Oster <jay@pubnub.com>"]
+edition = "2018"
+build = "build.rs"
+
+[dependencies]
+actix = "0.8"
+actix-web = { version = "1.0", features = ["rust-tls"] }
+actix-service = "0.4"
+bytes = "0.4"
+env_logger = "0.6"
+futures = "0.1"
+log = "0.4"
+prost = "0.5"
+prost-types = "0.5"
+rustls = "0.15"
+hyper = "0.12"
+
+[build-dependencies]
+prost-build = "0.5"
