@@ -1,16 +1,15 @@
-use tokio::sync::mpsc;
+extern crate hyper;
+
 use uuid::Uuid;
+use std::io::{self, Write};
+use tokio::sync::mpsc;
+use hyper::Client;
+use hyper::rt::{self, Future, Stream};
+
 //use hyper;
 //use std::collections::HashMap;
 //use std::{env, process, thread, time};
 
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// 
-//           grpc.pubnub.com  | this file          | pubnub network
-// Client -> gRPC+HTTP/2.0 -> pubnub.rs pool proxy -> ps.pndsn.com
-// 
-// 
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /// # PubNub Client
