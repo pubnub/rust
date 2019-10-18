@@ -27,7 +27,6 @@ pub struct Client {
     pub user_id       : String, // Client UserId "UUID" for Presence
     pub filters       : String, // Metadata Filters on Messages
     pub presence      : bool,   // Enable presence events
-    pub agent         : String, // "Rust-Generic"
     pub since         : u64,    // Unix Timestamp Fetch History + Subscribe
     timetoken         : String, // Current Queue Line-in-Sand for Subscription
 }
@@ -66,7 +65,8 @@ pub struct Message {
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 pub struct PubNub {
-    origin: String, // "ps.pndsn.com:443"
+    origin : String, // "ps.pndsn.com:443"
+    agent  : String, // "Rust-Agent"
     // vec of 
     //requests: Hyper,
     // hyper client ( use .clone to add new pool entry )
@@ -96,35 +96,6 @@ pub enum Error {
 /// Publish and Subscribe.
 ///
 /// ```
-/// use PubNub, Client, Message, MessageType;
-///
-/// let channels      = "demo,demolition-man";
-/// let publish_key   = "demo";
-/// let subscribe_key = "demo";
-/// let secret_key    = "";
-/// let origin        = "ps.pndsn.com:443";
-/// let agent         = "Rust-Agent";
-/// 
-/// let mut pubnub = PubNub::new(
-///     origin : &origin,
-/// ).expect("Failed to create PubNub.");
-/// 
-/// let mut client = Client::new(
-///     publish_key   : publish_key,
-///     subscribe_key : subscribe_key,
-///     secret_key    : secret_key,
-///     channels      : channels,
-///     groups        : "",
-///     userId        : "12345",
-///     auth_key      : "",
-///     filters       : "",
-///     presence      : true,
-///     timetoken     : "0",
-/// );
-/// 
-/// pubnub.add(client);
-/// client.publish("demo", "demo");
-/// 
 /// while let Some(message) = pubnub.next().await {
 ///     // TODO Match on MessageType match message.message_type {}
 ///     // Print message and channel name.
@@ -138,18 +109,26 @@ pub enum Error {
 /// ```
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl PubNub {
-    pub fn new(origin : Option<&str>) -> Result<PubNub, Error> {
+    pub fn new(
+        origin : Option<&str>,
+        agent  : Option<&str>,
+    ) -> Result<PubNub, Error> {
+        let default_origin = "ps.pndsn.com:443";
+        let default_agent  = "Rust-Agent";
         // TODO Start mpsc tokyo things
         // TODO Subscribe tokyo things
         // TODO Publish tokyo things
+
         Ok(PubNub {
-            origin : origin.unwrap_or("ps.pndsn.com:443").to_string(),
+            origin : origin.unwrap_or(default_origin).to_string(),
+            agent  : agent.unwrap_or(default_agent).to_string(),
         })
     }
+
     pub fn add(self, client: Client) {}
+
     pub fn remove(self, client: Client) {}
-    // https://github.com/actix/examples/blob/master/http-proxy/src/main.rs
-    // https://docs.rs/futures-preview/0.3.0-alpha.18/futures/stream/trait.Stream.html
+
     pub fn next(self) {}
 }
 
@@ -160,32 +139,11 @@ impl PubNub {
 /// for both Publish and Subscribe.
 ///
 /// ```
-/// use PubNub, Client, Message, MessageType;
-///
-/// let channels      = "demo,demolition-man";
-/// let publish_key   = "demo";
-/// let subscribe_key = "demo";
-/// let auth_key      = "";
-/// let origin        = "ps.pndsn.com:443";
-/// let agent         = "Rust-Agent";
-/// 
-/// let mut pubnub = PubNub::new(
-///     origin : &origin,
-/// ).expect("Failed to create PubNub.");
-/// 
-/// let mut client = Client::new(
-///     publish_key   : publish_key,
-///     subscribe_key : subscribe_key,
-///     auth_key      : auth_key,
-/// );
-/// 
-/// pubnub.add(client);
-/// client.publish("demo", "demo");
 /// ```
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl Client {
     pub fn new(
-        subscribe_key : String,
+        subscribe_key : &str,
         publish_key   : Option<&str>,
         secret_key    : Option<&str>,
         auth_key      : Option<&str>,
@@ -194,7 +152,6 @@ impl Client {
         filters       : Option<&str>, // subscription filters
         presence      : Option<bool>, // enable presence events
         user_id       : Option<&str>,
-        agent         : Option<&str>,
         since         : Option<u64>, // TODO
         timetoken     : Option<&str>,
     ) -> Result<Client, Error> {
@@ -215,7 +172,6 @@ impl Client {
             user_id       : user_id.unwrap_or("").to_string(),
             filters       : filters.unwrap_or("").to_string(),
             presence      : presence.unwrap_or(false),
-            agent         : agent.unwrap_or("Rust-Agent").to_string(),
             since         : since.unwrap_or(0),
             timetoken     : timetoken.unwrap_or("0").to_string(),
         })
@@ -242,31 +198,35 @@ mod tests {
 
     #[test]
     async fn pubnub_publish_ok() {
-        let origin        = "ps.pndsn.com:443";
         let publish_key   = "demo";
         let subscribe_key = "demo";
-        let channel       = "demo";
+        let channels      = "demo";
+        let origin        = "ps.pndsn.com:443";
         let agent         = "Rust-Agent-Test";
 
         let mut pubnub = PubNub::new(
-            origin : origin,
+            origin : Some(&origin),
+            agent  : Some(&agent),
         ).expect("Failed to create PubNub.");
 
         let mut client = Client::new(
-            publish_key   : publish_key,
-            subscribe_key : Some(subscribe_key),
-            channels      : Some(channels),
-            secret_key    : None,
-            user_id       : None,
-            auth_key      : None,
-            filters       : None,
-            presence      : None,
-            timetoken     : None,
-        );
+            &subscribe_key,
+            Some(&publish_key),
+            None,
+            None,
+            Some(&channels),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ).expect("Error creating PubNub Client");
 
         pubnub.add(client);
         client.publish("demo", "demo", None);
 
+        /*
         while let Some(message) = pubnub.next().await {
             // TODO Match on MessageType match message.message_type {}
             // Print message and channel name.
@@ -277,5 +237,6 @@ mod tests {
             // return `None` and the loop will exit.
             pubnub.remove(message.client);
         }
+        */
     }
 }
