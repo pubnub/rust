@@ -3,6 +3,10 @@
 Tokio Asyn `0.2` based.
 
 ```
+cargo doc
+```
+
+```
 cargo test
 ```
 

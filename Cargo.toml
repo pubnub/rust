@@ -1,22 +1,14 @@
 [package]
-name = "grpcnub"
+name = "pubnub-rust"
 version = "0.1.0"
-authors = ["Jay Oster <jay@pubnub.com>"]
+description = "PubNub Async lib based on Tokio 0.2"
+repository = "https://github.com/stephenlb/pubnub-rust"
+keywords = ["pubnub", "publish-subscribe", "subscribe"]
+authors = ["Stephen Blum <stephen@pubnub.com>"]
+readme = "readme.md"
 edition = "2018"
-build = "build.rs"
 
 [dependencies]
-actix = "0.8"
-actix-web = { version = "1.0", features = ["rust-tls"] }
-actix-service = "0.4"
-bytes = "0.4"
-env_logger = "0.6"
-futures = "0.1"
-log = "0.4"
-prost = "0.5"
-prost-types = "0.5"
-rustls = "0.15"
-hyper = "0.12"
-
-[build-dependencies]
-prost-build = "0.5"
+hyper = "=0.12"
+tokio-io = "=0.2.0-alpha.6"
+tokio-sync = "=0.2.0-alpha.6"
