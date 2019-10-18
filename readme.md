@@ -5,11 +5,12 @@ The PubNub Rust SDK is based on Tokio Asyn `0.2`.
 Since we are using Async/Await, a feature soon to be relased,
 we need to update the version of rust installed.
 
-``
+```
 rustup toolchain install nightly
 rustup default nightly
 ```
 
+The lib successfully builds on `rustc 1.40.0-nightly (fa0f7d008 2019-10-17)`.
 We will continue to update the version definitions as they become available.
 
 ### Trying Examples
