@@ -9,6 +9,7 @@ readme = "readme.md"
 edition = "2018"
 
 [dependencies]
+log = "=0.4"
+uuid = "=0.8.1"
 hyper = "=0.12"
-tokio-io = "=0.2.0-alpha.6"
-tokio-sync = "=0.2.0-alpha.6"
+tokio = "=0.2.0-alpha.6"

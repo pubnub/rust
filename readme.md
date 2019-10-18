@@ -1,6 +1,7 @@
 # PubNub Rust SDK
 
 The PubNub Rust SDK is based on Tokio Asyn `0.2`.
+This library uses `HTTP/2.0` to communitate with the PubNub Network.
 
 Since we are using Async/Await, a feature soon to be relased,
 we need to update the version of rust installed.
@@ -52,7 +53,7 @@ cargo run --example publish-subscribe
 cargo run --example presence
 ```
 
-### Rust Docss
+### Rust Docs
 
 ```shell
 cargo doc

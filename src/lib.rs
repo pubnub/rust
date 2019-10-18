@@ -1,14 +1,12 @@
 extern crate hyper;
+extern crate uuid;
 
+use log::debug; // debug!(...);
 use uuid::Uuid;
 use std::io::{self, Write};
 use tokio::sync::mpsc;
-use hyper::Client;
 use hyper::rt::{self, Future, Stream};
-
-//use hyper;
 //use std::collections::HashMap;
-//use std::{env, process, thread, time};
 
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -28,6 +26,7 @@ pub struct Client {
     pub groups        : String, // Client Channel Groups Comma Sepparated
     pub user_id       : String, // Client UserId "UUID" for Presence
     pub filters       : String, // Metadata Filters on Messages
+    pub presence      : bool,   // Enable presence events
     pub agent         : String, // "Rust-Generic"
     pub since         : u64,    // Unix Timestamp Fetch History + Subscribe
     timetoken         : String, // Current Queue Line-in-Sand for Subscription
@@ -36,7 +35,7 @@ pub struct Client {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /// # PubNub Message Types
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-enum MessageType {
+pub enum MessageType {
     Publish,     // Response of Publish (Success/Fail)
     Subscribe,   // Response of Subscription ( Usually a Message Payload )
     Presence,    // Presence Event from Channel ( Another Client Joined )
@@ -62,7 +61,7 @@ pub struct Message {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /// # PubNub
 ///
-/// The PubNub is an implementation of socket pools to represent a client
+/// The PubNub lib implements socket pools to relay data requests as a client
 /// connection to the PubNub Network.
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -97,7 +96,7 @@ pub enum Error {
 /// Publish and Subscribe.
 ///
 /// ```
-/// use PubNub, Client, Message;
+/// use PubNub, Client, Message, MessageType;
 ///
 /// let channels      = "demo,demolition-man";
 /// let publish_key   = "demo";
@@ -119,6 +118,7 @@ pub enum Error {
 ///     userId        : "12345",
 ///     auth_key      : "",
 ///     filters       : "",
+///     presence      : true,
 ///     timetoken     : "0",
 /// );
 /// 
@@ -126,6 +126,7 @@ pub enum Error {
 /// client.publish("demo", "demo");
 /// 
 /// while let Some(message) = pubnub.next().await {
+///     // TODO Match on MessageType match message.message_type {}
 ///     // Print message and channel name.
 ///     println!("{}: {}", message.channel, message.data);
 ///     
@@ -138,18 +139,18 @@ pub enum Error {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl PubNub {
     pub fn new(origin : Option<&str>) -> Result<PubNub, Error> {
-        // TODO Start mpsc threads
-        // TODO Subscribe thread
-        // TODO Publish thread
+        // TODO Start mpsc tokyo things
+        // TODO Subscribe tokyo things
+        // TODO Publish tokyo things
         Ok(PubNub {
             origin : origin.unwrap_or("ps.pndsn.com:443").to_string(),
         })
     }
-    pub fn add(client: Client) {}
-    pub fn remove(client: Client) {}
+    pub fn add(self, client: Client) {}
+    pub fn remove(self, client: Client) {}
     // https://github.com/actix/examples/blob/master/http-proxy/src/main.rs
     // https://docs.rs/futures-preview/0.3.0-alpha.18/futures/stream/trait.Stream.html
-    pub fn next() {}
+    pub fn next(self) {}
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -159,7 +160,7 @@ impl PubNub {
 /// for both Publish and Subscribe.
 ///
 /// ```
-/// use Client;
+/// use PubNub, Client, Message, MessageType;
 ///
 /// let channels      = "demo,demolition-man";
 /// let publish_key   = "demo";
@@ -191,15 +192,18 @@ impl Client {
         channels      : Option<&str>, // subscription channels
         groups        : Option<&str>, // subscription channel groups
         filters       : Option<&str>, // subscription filters
+        presence      : Option<bool>, // enable presence events
         user_id       : Option<&str>,
         agent         : Option<&str>,
+        since         : Option<u64>, // TODO
         timetoken     : Option<&str>,
     ) -> Result<Client, Error> {
         // TODO Start mpsc threads NO - can not have 1 thread per client...
         // Maybe we can have it dedicated to a PubNub pool...
         // AH!! Gets a clone() of the mpsc sender for PubNub for publishing.
 
-        let default_user_id = Uuid::new_v4().hyphenated();
+        // TODO
+        //let default_user_id = Uuid::new_v4().hyphenated();
 
         Ok(Client {
             subscribe_key : subscribe_key.to_string(),
@@ -208,14 +212,16 @@ impl Client {
             auth_key      : auth_key.unwrap_or("").to_string(),
             channels      : channels.unwrap_or(",").to_string(),
             groups        : groups.unwrap_or("").to_string(),
-            user_id       : user_id.unwrap_or(default_user_id).to_string(),
+            user_id       : user_id.unwrap_or("").to_string(),
             filters       : filters.unwrap_or("").to_string(),
+            presence      : presence.unwrap_or(false),
             agent         : agent.unwrap_or("Rust-Agent").to_string(),
+            since         : since.unwrap_or(0),
             timetoken     : timetoken.unwrap_or("0").to_string(),
         })
     }
 
-    pub fn publish(channel: &str, data: &str, metadata: Option<&str>) {
+    pub fn publish(self, channel: &str, data: &str, metadata: Option<&str>) {
         // sends mpsc to a loop generated in new()
     }
 }
@@ -235,8 +241,41 @@ mod tests {
     }
 
     #[test]
-    fn pubnub_publish_ok() {
-        assert!(true);
-        assert!(true);
+    async fn pubnub_publish_ok() {
+        let origin        = "ps.pndsn.com:443";
+        let publish_key   = "demo";
+        let subscribe_key = "demo";
+        let channel       = "demo";
+        let agent         = "Rust-Agent-Test";
+
+        let mut pubnub = PubNub::new(
+            origin : origin,
+        ).expect("Failed to create PubNub.");
+
+        let mut client = Client::new(
+            publish_key   : publish_key,
+            subscribe_key : Some(subscribe_key),
+            channels      : Some(channels),
+            secret_key    : None,
+            user_id       : None,
+            auth_key      : None,
+            filters       : None,
+            presence      : None,
+            timetoken     : None,
+        );
+
+        pubnub.add(client);
+        client.publish("demo", "demo", None);
+
+        while let Some(message) = pubnub.next().await {
+            // TODO Match on MessageType match message.message_type {}
+            // Print message and channel name.
+            println!("{}: {}", message.channel, message.data);
+            
+            // Remove clients only when you no longer need them
+            // When no more clients are in the pool, then `pubnub.next()` will
+            // return `None` and the loop will exit.
+            pubnub.remove(message.client);
+        }
     }
 }
