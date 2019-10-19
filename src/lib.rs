@@ -75,25 +75,29 @@ pub struct Message {
 /// a message to the PubNub Edge Messaging Network.
 ///
 /// ```no_run
-/// use pubnub::{PubNub, Client, PublishMessage};
+/// use pubnub::{PubNub, Client};
 /// let mut pubnub = PubNub::new().origin("ps.pndsn.com:443").agent("Rust");
 /// let mut client = Client::new()
 ///     .subscribe_key("demo")
 ///     .publish_key("demo");
 ///
 /// pubnub.add(&client);
-/// let _publish = PublishMessage::new()
-///     .client(&client)
+///
+/// client.publish() // TODO (returns PublishMessage builder )
 ///     .channel("demo")
 ///     .data("Hi!")
 ///     .metadata("")
 ///     .send();
 /// ```
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-pub struct PublishMessage {
+struct PublishMessage {
     pub channel  : String, // Destination Channel
     pub data     : String, // Message Payload ( JSON )
     pub metadata : String, // Metadata for Message ( JSON )
+}
+
+impl PublishMessage {
+    // TODO 
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
