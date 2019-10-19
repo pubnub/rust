@@ -65,8 +65,8 @@ pub struct Message {
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 pub struct PubNub {
-    origin : String, // "ps.pndsn.com:443"
-    agent  : String, // "Rust-Agent"
+    pub origin : String, // "ps.pndsn.com:443"
+    pub agent  : String, // "Rust-Agent"
     // vec of 
     //requests: Hyper,
     // hyper client ( use .clone to add new pool entry )
@@ -125,7 +125,7 @@ impl PubNub {
         })
     }
 
-    pub fn add(self, client: Client) {}
+    pub fn add(self, client: &Client) {}
 
     pub fn remove(self, client: Client) {}
 
@@ -197,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    async fn pubnub_publish_ok() {
+    fn pubnub_publish_ok() {
         let publish_key   = "demo";
         let subscribe_key = "demo";
         let channels      = "demo";
@@ -205,8 +205,8 @@ mod tests {
         let agent         = "Rust-Agent-Test";
 
         let mut pubnub = PubNub::new(
-            origin : Some(&origin),
-            agent  : Some(&agent),
+            Some(&origin),
+            Some(&agent),
         ).expect("Failed to create PubNub.");
 
         let mut client = Client::new(
@@ -223,7 +223,7 @@ mod tests {
             None,
         ).expect("Error creating PubNub Client");
 
-        pubnub.add(client);
+        pubnub.add(&client);
         client.publish("demo", "demo", None);
 
         /*
