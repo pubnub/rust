@@ -6,6 +6,7 @@ use uuid::Uuid;
 use std::io::{self, Write};
 use tokio::sync::mpsc;
 use hyper::rt::{self, Future, Stream};
+use json::JsonValue;
 //use std::collections::HashMap;
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -38,6 +39,7 @@ pub struct Client {
     pub groups        : String, // Client Channel Groups Comma Sepparated
     pub filters       : String, // Metadata Filters on Messages
     pub presence      : bool,   // Enable presence events
+    pub json          : bool,   // Enable JSON Decoding
     pub since         : u64,    // Unix Timestamp Fetch History + Subscribe
     pub timetoken     : String, // Current Queue Line-in-Sand for Subscription
 }
@@ -62,7 +64,8 @@ pub struct Message {
     pub client       : Client,      // Copy of Client - for pubnub.remove() 
     pub message_type : MessageType, // Enum Type of Message
     pub channel      : String,      // Origin Channel of Message Receipt
-    pub data         : String,      // Data Payload of Channel
+    pub data         : String,      // Payload from Channel
+    pub json         : String,      // Decoded JSON Payload from Channel
     pub metadata     : String,      // Metadata of Message
     pub timetoken    : String,      // Message ID Timetoken
     pub success      : bool,        // Useful to see if Publish was Successful
@@ -74,7 +77,9 @@ pub struct Message {
 /// This is the message structure that includes information needed to publish
 /// a message to the PubNub Edge Messaging Network.
 ///
-/// ```no_run
+/// ```
+/// ///kpub mod pubnub;
+/// ///extern crate pubnub;
 /// use pubnub::{PubNub, Client};
 /// let mut pubnub = PubNub::new().origin("ps.pndsn.com:443").agent("Rust");
 /// let mut client = Client::new()
@@ -83,21 +88,46 @@ pub struct Message {
 ///
 /// pubnub.add(&client);
 ///
-/// client.publish() // TODO (returns PublishMessage builder )
+/// client.publish()
 ///     .channel("demo")
 ///     .data("Hi!")
 ///     .metadata("")
 ///     .send();
 /// ```
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-struct PublishMessage {
+pub struct PublishMessage {
+    pub client   : Client, // Copy of Client - for pubnub.publish() 
     pub channel  : String, // Destination Channel
     pub data     : String, // Message Payload ( JSON )
     pub metadata : String, // Metadata for Message ( JSON )
 }
 
 impl PublishMessage {
-    // TODO 
+    pub fn channel(mut self, channel: &str) -> PublishMessage {
+        self.channel = channel.to_string();
+        self
+    }
+
+    pub fn data(mut self, data: &str) -> PublishMessage {
+        self.data = data.to_string();
+        self
+    }
+
+    pub fn json(mut self, data: JsonValue) -> PublishMessage {
+        self.data = json::stringify(data);
+        self
+    }
+
+    pub fn metadata(mut self, metadata: &str) -> PublishMessage {
+        self.metadata = metadata.to_string();
+        self
+    }
+
+    pub fn send(self) {
+        // TODO
+        // sends mpsc ?
+
+    }
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -158,6 +188,10 @@ impl PubNub {
 /// for both Publish and Subscribe.
 ///
 /// ```
+/// 
+/// 
+/// 
+/// 
 /// ```
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl Client {
@@ -179,6 +213,7 @@ impl Client {
             groups        : "".to_string(),
             filters       : "".to_string(),
             presence      : false,
+            json          : false,
             since         : 0,
             timetoken     : "0".to_string(),
         }
@@ -239,8 +274,13 @@ impl Client {
         self
     }
 
-    pub fn publish(self, message: PublishMessage) {
-        // sends mpsc to a loop generated in new()
+    pub fn publish(self) -> PublishMessage {
+        PublishMessage {
+            client   : self,
+            channel  : "".to_string(),
+            data     : "".to_string(),
+            metadata : "".to_string(),
+        }
     }
 }
 
@@ -264,24 +304,32 @@ mod tests {
         let subscribe_key = "demo";
         let channels      = "demo";
 
-        let mut pubnub = PubNub::new()
-            .origin("ps.pndsn.com:443")
-            .agent("Rust-Agent-Test");
+        let origin = "ps.pndsn.com:443";
+        let agent  = "ps.pndsn.com:443";
 
-        assert!(pubnub.origin == "ps.pndsn.com:443");
-        assert!(pubnub.agent == "Rust-Agent-Test");
+        let mut pubnub = PubNub::new()
+            .origin(&origin.to_string())
+            .agent(&agent.to_string());
+
+        assert!(pubnub.origin == origin);
+        assert!(pubnub.agent == agent);
 
         let mut client = Client::new()
             .subscribe_key(&subscribe_key)
             .publish_key(&publish_key)
             .channels(&channels);
 
+        assert!(client.subscribe_key == subscribe_key);
+        assert!(client.publish_key == publish_key);
+        assert!(client.channels == channels);
+
         pubnub.add(&client);
-        client.publish(PublishMessage{
-            channel  : "demo".to_string(),
-            data     : "Hi!".to_string(),
-            metadata : "".to_string(),
-        });
+
+        client.publish()
+            .channel("demo")
+            .data("Hi!")
+            .metadata("")
+            .send();
 
         /*
         while let Some(message) = pubnub.next().await {
