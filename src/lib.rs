@@ -78,9 +78,8 @@ pub struct Message {
 /// a message to the PubNub Edge Messaging Network.
 ///
 /// ```
-/// ///kpub mod pubnub;
-/// ///extern crate pubnub;
 /// use pubnub::{PubNub, Client};
+/// 
 /// let mut pubnub = PubNub::new().origin("ps.pndsn.com:443").agent("Rust");
 /// let mut client = Client::new()
 ///     .subscribe_key("demo")
@@ -126,7 +125,7 @@ impl PublishMessage {
     pub fn send(self) {
         // TODO
         // sends mpsc ?
-
+        // return PublishMessage? OR async await, how?
     }
 }
 
@@ -174,11 +173,21 @@ impl PubNub {
         self
     }
 
-    pub fn add(self, client: &Client) {}
+    pub fn add(self, client: &Client) {
+        // - add client to hashmap (error if already exists?)
+        // - subscribe to channels
+        // - 
+        self.subscribe(client);
+    }
 
-    pub fn remove(self, client: Client) {}
+    pub fn remove(self, client: &Client) {}
 
     pub fn next(self) {}
+
+    fn subscribe(self, client: &Client) {
+        // - construct URI
+        // - add requet to HTTP/2 Pool
+    }
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -209,7 +218,7 @@ impl Client {
             secret_key    : "".to_string(),
             auth_key      : "".to_string(),
             user_id       : "".to_string(),
-            channels      : ",".to_string(),
+            channels      : "demo".to_string(),
             groups        : "".to_string(),
             filters       : "".to_string(),
             presence      : false,
@@ -277,8 +286,8 @@ impl Client {
     pub fn publish(self) -> PublishMessage {
         PublishMessage {
             client   : self,
-            channel  : "".to_string(),
-            data     : "".to_string(),
+            channel  : "demo".to_string(),
+            data     : "test".to_string(),
             metadata : "".to_string(),
         }
     }
@@ -299,13 +308,35 @@ mod tests {
     }
 
     #[test]
+    fn pubnub_subscribe_ok() {
+        let publish_key   = "demo";
+        let subscribe_key = "demo";
+        let channels      = "demo";
+        let origin        = "ps.pndsn.com:443";
+        let agent         = "Rust-Agent-Test";
+
+        let mut pubnub = PubNub::new()
+            .origin(&origin.to_string())
+            .agent(&agent.to_string());
+
+        let mut client = Client::new()
+            .subscribe_key(&subscribe_key)
+            .publish_key(&publish_key)
+            .channels(&channels);
+
+        pubnub.add(&client);
+
+        // pubnub.next()
+    }
+
+    #[test]
     fn pubnub_publish_ok() {
         let publish_key   = "demo";
         let subscribe_key = "demo";
         let channels      = "demo";
 
         let origin = "ps.pndsn.com:443";
-        let agent  = "ps.pndsn.com:443";
+        let agent  = "Rust-Agent-Test";
 
         let mut pubnub = PubNub::new()
             .origin(&origin.to_string())
