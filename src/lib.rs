@@ -66,7 +66,7 @@ pub struct Message {
 ///     .subscribe_key("demo")
 ///     .publish_key("demo");
 ///
-/// pubnub.add(client);
+/// pubnub.add(&client);
 ///
 /// /* TODO
 /// let message = pubnub.message().channel("demo").data("Hi!");
@@ -101,8 +101,12 @@ impl PublishMessage {
         self
     }
 
-    pub fn submit(self, pubnub: PubNub) {
-        pubnub.publish(self);
+    // Add PublishMessage to the publish stream.
+    pub fn publish(self, pubnub: &mut PubNub) -> Result<(), Error> {
+        match pubnub.submit_publish.try_send(self) {
+            Ok(())     => Ok(()),
+            Err(error) => Err(Error::PublishChannelWrite(error)),
+        }
     }
 }
 
@@ -210,7 +214,7 @@ impl Client {
         self
     }
 
-    pub fn message(self) -> PublishMessage {
+    pub fn message(&self) -> PublishMessage {
         PublishMessage {
             // TODO probabaly need Pubkey/SubKey/ect...
             channel  : "demo".to_string(),
@@ -280,25 +284,16 @@ impl PubNub {
         self
     }
 
-    pub fn add(self, client: Client) {
+    pub fn add(&self, client: &Client) {
         // TODO store client based on subkey/etc...
-        self.subscribe(&client);
+        self.subscribe(client.clone());
     }
 
-    pub fn remove(self, client: Client) {}
+    pub fn remove(&self, client: Client) {}
 
-    pub fn next(self) {}
+    pub fn next(&self) {}
 
-    // Add PublishMessage to the publish stream.
-    pub fn publish(mut self, message: PublishMessage)
-    -> Result<(), Error> {
-        match self.submit_publish.try_send(message) {
-            Ok(success) => Ok(()),
-            Err(error)  => Err(Error::PublishChannelWrite(error)),
-        }
-    }
-
-    fn subscribe(self, client: &Client) {
+    fn subscribe(&self, client: Client) {
         // - Construct URI
         // - add requet to HTTP/2 Pool
 
@@ -358,7 +353,7 @@ mod tests {
             .publish_key(&publish_key)
             .channels(&channels);
 
-        pubnub.add(client);
+        pubnub.add(&client);
 
         // pubnub.next()
     }
@@ -372,7 +367,7 @@ mod tests {
         let origin = "ps.pndsn.com:443";
         let agent  = "Rust-Agent-Test";
 
-        let pubnub = PubNub::new()
+        let mut pubnub = PubNub::new()
             .origin(&origin.to_string())
             .agent(&agent.to_string());
 
@@ -388,10 +383,9 @@ mod tests {
         assert!(client.publish_key == publish_key);
         assert!(client.channels == channels);
 
-        pubnub.add(client.clone());
+        pubnub.add(&client);
 
-        let message = client.message().channel("demo").data("Hi!");
-        //pubnub.publish(message);
+        client.message().channel("demo").data("Hi!").publish(&mut pubnub);
 
         /*
         while let Some(message) = pubnub.next().await {
