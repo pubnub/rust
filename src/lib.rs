@@ -1,47 +1,28 @@
 extern crate hyper;
 extern crate uuid;
 
-use log::debug; // debug!(...);
-use uuid::Uuid;
-use std::io::{self, Write};
+//use log::debug; // debug!(...);
+use thiserror::Error;
+//use uuid::Uuid;
+//use std::io::{self, Write};
 use tokio::sync::mpsc;
-use hyper::rt::{self, Future, Stream};
+//use std::thread;
+//use std::sync::mpsc;
+//use hyper::rt::{self, Future, Stream};
 use json::JsonValue;
 //use std::collections::HashMap;
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Error Enumerator
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum Error {
-    Initialize,
-    Publish,
-    Subscribe,
-    Ping,
-    Exit,
-}
-
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-/// # PubNub Client
-///
-/// This is the structure that is used to add and remove client connections
-/// for channels and channel groups using additional parameters for filtering.
-/// The `userID` is the same as the UUID used in PubNub SDKs.
-///
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-pub struct Client {
-    pub publish_key   : String, // Customer's Publish Key
-    pub subscribe_key : String, // Customer's Subscribe Key
-    pub secret_key    : String, // Customer's Secret Key
-    pub auth_key      : String, // Client Auth Key for R+W Access
-    pub user_id       : String, // Client UserId "UUID" for Presence
-    pub channels      : String, // Client Channels Comma Separated
-    pub groups        : String, // Client Channel Groups Comma Sepparated
-    pub filters       : String, // Metadata Filters on Messages
-    pub presence      : bool,   // Enable presence events
-    pub json          : bool,   // Enable JSON Decoding
-    pub since         : u64,    // Unix Timestamp Fetch History + Subscribe
-    pub timetoken     : String, // Current Queue Line-in-Sand for Subscription
+    #[error("Publish MPSC Channel write error")]
+    PublishChannelWrite(#[source] mpsc::error::TrySendError<PublishMessage>),
+    #[error("Publish Socket write error")]
+    PublishSocketWrite(#[source] Box<Error>),
+    // #[error("Subscribe write error")]
+    // SubscribeWrite(#[source] Box<Error>),
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -61,7 +42,6 @@ pub enum MessageType {
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 pub struct Message {
-    pub client       : Client,      // Copy of Client - for pubnub.remove() 
     pub message_type : MessageType, // Enum Type of Message
     pub channel      : String,      // Origin Channel of Message Receipt
     pub data         : String,      // Payload from Channel
@@ -70,6 +50,7 @@ pub struct Message {
     pub timetoken    : String,      // Message ID Timetoken
     pub success      : bool,        // Useful to see if Publish was Successful
 }
+
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /// # PubNub Publish Message
@@ -85,17 +66,15 @@ pub struct Message {
 ///     .subscribe_key("demo")
 ///     .publish_key("demo");
 ///
-/// pubnub.add(&client);
+/// pubnub.add(client);
 ///
-/// client.publish()
-///     .channel("demo")
-///     .data("Hi!")
-///     .metadata("")
-///     .send();
+/// /* TODO
+/// let message = pubnub.message().channel("demo").data("Hi!");
+/// pubnub.publish(message);*/
 /// ```
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+#[derive(Debug, Clone)]
 pub struct PublishMessage {
-    pub client   : Client, // Copy of Client - for pubnub.publish() 
     pub channel  : String, // Destination Channel
     pub data     : String, // Message Payload ( JSON )
     pub metadata : String, // Metadata for Message ( JSON )
@@ -122,112 +101,35 @@ impl PublishMessage {
         self
     }
 
-    pub fn send(self) {
-        // TODO
-        // sends mpsc ?
-        // return PublishMessage? OR async await, how?
+    pub fn submit(self, pubnub: PubNub) {
+        pubnub.publish(self);
     }
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-/// # PubNub
+/// # PubNub Client
 ///
-/// The PubNub lib implements socket pools to relay data requests as a client
-/// connection to the PubNub Network.
+/// This is the structure that is used to add and remove client connections
+/// for channels and channel groups using additional parameters for filtering.
+/// The `userID` is the same as the UUID used in PubNub SDKs.
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-pub struct PubNub {
-    pub origin : String,        // "ps.pndsn.com:443"
-    pub agent  : String,        // "Rust-Agent"
-        //http   : hyper::Client, // HTTP 2.0 Pool
+#[derive(Debug, Clone)]
+pub struct Client {
+    pub publish_key    : String, // Customer's Publish Key
+    pub subscribe_key  : String, // Customer's Subscribe Key
+    pub secret_key     : String, // Customer's Secret Key
+    pub auth_key       : String, // Client Auth Key for R+W Access
+    pub user_id        : String, // Client UserId "UUID" for Presence
+    pub channels       : String, // Client Channels Comma Separated
+    pub groups         : String, // Client Channel Groups Comma Sepparated
+    pub filters        : String, // Metadata Filters on Messages
+    pub presence       : bool,   // Enable presence events
+    pub json           : bool,   // Enable JSON Decoding
+    pub since          : u64,    // Unix Timestamp Fetch History + Subscribe
+    pub timetoken      : String, // Current Line-in-Sand for Subscription
 }
 
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-/// # PubNub Pool
-///
-/// This client lib offers publish and subscribe support to PubNub.
-/// Additionally creates an upstream pool and maintains connectivity for
-/// thousands of clients.  Client count limited to machine resources.
-/// Autoscale resources as needed.
-///
-/// This is the base structure which creates two threads for
-/// Publish and Subscribe.
-///
-/// ```
-/// ```
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-impl PubNub {
-    pub fn new() -> PubNub {
-        PubNub {
-            origin : "ps.pndsn.com:443".to_string(),
-            agent  : "Rust-Agent".to_string(),
-            //http   : hyper::Client::new(),
-        }
-    }
-
-    pub fn origin(mut self, origin: &str) -> PubNub {
-        self.origin = origin.to_string();
-        self
-    }
-
-    pub fn agent(mut self, agent: &str) -> PubNub {
-        self.agent = agent.to_string();
-        self
-    }
-
-    pub fn add(self, client: &Client) {
-        // - add client to hashmap (error if already exists?)
-        // - subscribe to channels
-        // - 
-        self.subscribe(client);
-    }
-
-    pub fn remove(self, client: &Client) {}
-
-    pub fn next(self) {}
-
-    fn subscribe(self, client: &Client) {
-        // - construct URI
-        // - add requet to HTTP/2 Pool
-
-	//let uri = "http://httpbin.org/ip".parse().unwrap();
-
-        /*
-	self.http
-	    .get(uri)
-	    .and_then(|res| {
-		println!("Response: {}", res.status());
-		res
-		    .into_body()
-		    // Body is a stream, so as each chunk arrives...
-		    .for_each(|chunk| {
-			io::stdout()
-			    .write_all(&chunk)
-			    .map_err(|e| {
-				panic!("example expects stdout is open, error={}", e)
-			    })
-		    })
-	    })
-	    .map_err(|err| {
-		println!("Error: {}", err);
-	    })
-            */
-    }
-}
-
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-/// # Publish/Subscribe Client
-///
-/// This client lib offers publish must be added to PubNub
-/// for both Publish and Subscribe.
-///
-/// ```
-/// 
-/// 
-/// 
-/// 
-/// ```
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl Client {
     pub fn new() -> Client {
         // TODO Start mpsc threads NO - can not have 1 thread per client...
@@ -238,18 +140,18 @@ impl Client {
         //let default_user_id = Uuid::new_v4().hyphenated();
 
         Client {
-            subscribe_key : "demo".to_string(),
-            publish_key   : "demo".to_string(),
-            secret_key    : "".to_string(),
-            auth_key      : "".to_string(),
-            user_id       : "".to_string(),
-            channels      : "demo".to_string(),
-            groups        : "".to_string(),
-            filters       : "".to_string(),
-            presence      : false,
-            json          : false,
-            since         : 0,
-            timetoken     : "0".to_string(),
+            subscribe_key  : "demo".to_string(),
+            publish_key    : "demo".to_string(),
+            secret_key     : "".to_string(),
+            auth_key       : "".to_string(),
+            user_id        : "".to_string(),
+            channels       : "demo".to_string(),
+            groups         : "".to_string(),
+            filters        : "".to_string(),
+            presence       : false,
+            json           : false,
+            since          : 0,
+            timetoken      : "0".to_string(),
         }
     }
 
@@ -308,13 +210,120 @@ impl Client {
         self
     }
 
-    pub fn publish(self) -> PublishMessage {
+    pub fn message(self) -> PublishMessage {
         PublishMessage {
-            client   : self,
+            // TODO probabaly need Pubkey/SubKey/ect...
             channel  : "demo".to_string(),
             data     : "test".to_string(),
             metadata : "".to_string(),
         }
+    }
+}
+
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+/// # PubNub
+///
+/// The PubNub lib implements socket pools to relay data requests as a client
+/// connection to the PubNub Network.
+///
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+pub struct PubNub {
+    pub origin          : String,                         // "domain.com:443"
+    pub agent           : String,                         // "Rust-Agent"
+    pub submit_publish  : mpsc::Sender<PublishMessage>,   // Submit Publish
+    pub process_publish : mpsc::Receiver<PublishMessage>, // Process Publish
+    pub submit_client   : mpsc::Sender<Client>,           // Add Client
+    pub process_client  : mpsc::Receiver<Client>,         // Add Client
+    pub submit_result   : mpsc::Sender<Message>,          // Send to App
+    pub process_result  : mpsc::Receiver<Message>,        // App Receiver
+}
+
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+/// # PubNub Pool
+///
+/// This client lib offers publish and subscribe support to PubNub.
+/// Additionally creates an upstream pool and maintains connectivity for
+/// thousands of clients.  Client count limited to machine resources.
+/// Autoscale resources as needed.
+///
+/// This is the base structure which creates two threads for
+/// Publish and Subscribe.
+///
+/// ```
+/// ```
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+impl PubNub {
+    pub fn new() -> PubNub {
+        let (submit_publish, process_publish) = mpsc::channel(100);
+        let (submit_client,  process_client)  = mpsc::channel(100);
+        let (submit_result,  process_result)  = mpsc::channel(999);
+
+        PubNub {
+            origin : "ps.pndsn.com:443".to_string(),
+            agent  : "Rust-Agent".to_string(),
+            submit_publish,  // Publish a Message
+            process_publish, // Process Message Publish
+            submit_client,   // Add a Client
+            process_client,  // Process Client Addition
+            submit_result,   // Send Result to Application Consumer
+            process_result,  // Receiver for Application Consumer
+        }
+    }
+
+    pub fn origin(mut self, origin: &str) -> PubNub {
+        self.origin = origin.to_string();
+        self
+    }
+
+    pub fn agent(mut self, agent: &str) -> PubNub {
+        self.agent = agent.to_string();
+        self
+    }
+
+    pub fn add(self, client: Client) {
+        // TODO store client based on subkey/etc...
+        self.subscribe(&client);
+    }
+
+    pub fn remove(self, client: Client) {}
+
+    pub fn next(self) {}
+
+    // Add PublishMessage to the publish stream.
+    pub fn publish(mut self, message: PublishMessage)
+    -> Result<(), Error> {
+        match self.submit_publish.try_send(message) {
+            Ok(success) => Ok(()),
+            Err(error)  => Err(Error::PublishChannelWrite(error)),
+        }
+    }
+
+    fn subscribe(self, client: &Client) {
+        // - Construct URI
+        // - add requet to HTTP/2 Pool
+
+	//let uri = "http://httpbin.org/ip".parse().unwrap();
+
+        /*
+	self.http
+	    .get(uri)
+	    .and_then(|res| {
+		println!("Response: {}", res.status());
+		res
+		    .into_body()
+		    // Body is a stream, so as each chunk arrives...
+		    .for_each(|chunk| {
+			io::stdout()
+			    .write_all(&chunk)
+			    .map_err(|e| {
+				panic!("example expects stdout is open, error={}", e)
+			    })
+		    })
+	    })
+	    .map_err(|err| {
+		println!("Error: {}", err);
+	    })
+            */
     }
 }
 
@@ -340,16 +349,16 @@ mod tests {
         let origin        = "ps.pndsn.com:443";
         let agent         = "Rust-Agent-Test";
 
-        let mut pubnub = PubNub::new()
+        let pubnub = PubNub::new()
             .origin(&origin.to_string())
             .agent(&agent.to_string());
 
-        let mut client = Client::new()
+        let client = Client::new()
             .subscribe_key(&subscribe_key)
             .publish_key(&publish_key)
             .channels(&channels);
 
-        pubnub.add(&client);
+        pubnub.add(client);
 
         // pubnub.next()
     }
@@ -363,14 +372,14 @@ mod tests {
         let origin = "ps.pndsn.com:443";
         let agent  = "Rust-Agent-Test";
 
-        let mut pubnub = PubNub::new()
+        let pubnub = PubNub::new()
             .origin(&origin.to_string())
             .agent(&agent.to_string());
 
         assert!(pubnub.origin == origin);
         assert!(pubnub.agent == agent);
 
-        let mut client = Client::new()
+        let client = Client::new()
             .subscribe_key(&subscribe_key)
             .publish_key(&publish_key)
             .channels(&channels);
@@ -379,13 +388,10 @@ mod tests {
         assert!(client.publish_key == publish_key);
         assert!(client.channels == channels);
 
-        pubnub.add(&client);
+        pubnub.add(client.clone());
 
-        client.publish()
-            .channel("demo")
-            .data("Hi!")
-            .metadata("")
-            .send();
+        let message = client.message().channel("demo").data("Hi!");
+        //pubnub.publish(message);
 
         /*
         while let Some(message) = pubnub.next().await {
