@@ -137,8 +137,9 @@ impl PublishMessage {
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 pub struct PubNub {
-    pub origin : String, // "ps.pndsn.com:443"
-    pub agent  : String, // "Rust-Agent"
+    pub origin : String,        // "ps.pndsn.com:443"
+    pub agent  : String,        // "Rust-Agent"
+        //http   : hyper::Client, // HTTP 2.0 Pool
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -160,6 +161,7 @@ impl PubNub {
         PubNub {
             origin : "ps.pndsn.com:443".to_string(),
             agent  : "Rust-Agent".to_string(),
+            //http   : hyper::Client::new(),
         }
     }
 
@@ -187,6 +189,29 @@ impl PubNub {
     fn subscribe(self, client: &Client) {
         // - construct URI
         // - add requet to HTTP/2 Pool
+
+	//let uri = "http://httpbin.org/ip".parse().unwrap();
+
+        /*
+	self.http
+	    .get(uri)
+	    .and_then(|res| {
+		println!("Response: {}", res.status());
+		res
+		    .into_body()
+		    // Body is a stream, so as each chunk arrives...
+		    .for_each(|chunk| {
+			io::stdout()
+			    .write_all(&chunk)
+			    .map_err(|e| {
+				panic!("example expects stdout is open, error={}", e)
+			    })
+		    })
+	    })
+	    .map_err(|err| {
+		println!("Error: {}", err);
+	    })
+            */
     }
 }
 
