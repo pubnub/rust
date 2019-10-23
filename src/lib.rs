@@ -51,7 +51,6 @@ pub struct Message {
     pub success      : bool,        // Useful to see if Publish was Successful
 }
 
-
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /// # PubNub Publish Message
 ///
@@ -61,16 +60,10 @@ pub struct Message {
 /// ```
 /// use pubnub::{PubNub, Client};
 /// 
-/// let mut pubnub = PubNub::new().origin("ps.pndsn.com:443").agent("Rust");
-/// let mut client = Client::new()
-///     .subscribe_key("demo")
-///     .publish_key("demo");
+/// let mut pubnub = PubNub::new();
+/// let mut client = Client::new().subscribe_key("demo").publish_key("demo");
 ///
-/// pubnub.add(&client);
-///
-/// /* TODO
-/// let message = pubnub.message().channel("demo").data("Hi!");
-/// pubnub.publish(message);*/
+/// client.message().channel("demo").data("Hi!").publish(&mut pubnub);
 /// ```
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #[derive(Debug, Clone)]
@@ -232,14 +225,14 @@ impl Client {
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 pub struct PubNub {
-    pub origin          : String,                         // "domain.com:443"
-    pub agent           : String,                         // "Rust-Agent"
-    pub submit_publish  : mpsc::Sender<PublishMessage>,   // Submit Publish
-    pub process_publish : mpsc::Receiver<PublishMessage>, // Process Publish
-    pub submit_client   : mpsc::Sender<Client>,           // Add Client
-    pub process_client  : mpsc::Receiver<Client>,         // Add Client
-    pub submit_result   : mpsc::Sender<Message>,          // Send to App
-    pub process_result  : mpsc::Receiver<Message>,        // App Receiver
+    pub origin            : String,                         // "domain:port"
+    pub agent             : String,                         // "Rust-Agent"
+    pub submit_publish    : mpsc::Sender<PublishMessage>,   // Publish Tx
+    pub process_publish   : mpsc::Receiver<PublishMessage>, // Publish Rx
+    pub submit_subscribe  : mpsc::Sender<Client>,           // Subscribe Tx
+    pub process_subscrube : mpsc::Receiver<Client>,         // Subscribe Rx
+    pub submit_result     : mpsc::Sender<Message>,          // Send to App
+    pub process_result    : mpsc::Receiver<Message>,        // App Receiver
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -253,24 +246,27 @@ pub struct PubNub {
 /// This is the base structure which creates two threads for
 /// Publish and Subscribe.
 ///
+/// TODO
+/// TODO
+/// TODO
 /// ```
 /// ```
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl PubNub {
     pub fn new() -> PubNub {
-        let (submit_publish, process_publish) = mpsc::channel(100);
-        let (submit_client,  process_client)  = mpsc::channel(100);
-        let (submit_result,  process_result)  = mpsc::channel(999);
+        let (submit_publish,   process_publish)   = mpsc::channel(100);
+        let (submit_subscribe, process_subscrube) = mpsc::channel(100);
+        let (submit_result,    process_result)    = mpsc::channel(999);
 
         PubNub {
             origin : "ps.pndsn.com:443".to_string(),
             agent  : "Rust-Agent".to_string(),
-            submit_publish,  // Publish a Message
-            process_publish, // Process Message Publish
-            submit_client,   // Add a Client
-            process_client,  // Process Client Addition
-            submit_result,   // Send Result to Application Consumer
-            process_result,  // Receiver for Application Consumer
+            submit_publish,    // Publish a Message
+            process_publish,   // Process Message Publish
+            submit_subscribe,  // Add a Client
+            process_subscrube, // Process Client Addition
+            submit_result,     // Send Result to Application Consumer
+            process_result,    // Receiver for Application Consumer
         }
     }
 
@@ -284,15 +280,17 @@ impl PubNub {
         self
     }
 
-    pub fn add(&self, client: &Client) {
-        // TODO store client based on subkey/etc...
-        self.subscribe(client.clone());
-    }
-
-    pub fn remove(&self, client: Client) {}
-
     pub fn next(&self) {}
 
+    // Add PublishMessage to the publish stream.
+    pub fn publish(&mut self, message: PublishMessage) -> Result<(), Error> {
+        match self.submit_publish.try_send(message) {
+            Ok(())     => Ok(()),
+            Err(error) => Err(Error::PublishChannelWrite(error)),
+        }
+    }
+
+    pub fn unsubscribe(&self, client: Client) {}
     fn subscribe(&self, client: Client) {
         // - Construct URI
         // - add requet to HTTP/2 Pool
@@ -353,7 +351,7 @@ mod tests {
             .publish_key(&publish_key)
             .channels(&channels);
 
-        pubnub.add(&client);
+        pubnub.subscribe(client);
 
         // pubnub.next()
     }
@@ -374,7 +372,7 @@ mod tests {
         assert!(pubnub.origin == origin);
         assert!(pubnub.agent == agent);
 
-        let client = Client::new()
+        let mut client = Client::new()
             .subscribe_key(&subscribe_key)
             .publish_key(&publish_key)
             .channels(&channels);
@@ -382,8 +380,6 @@ mod tests {
         assert!(client.subscribe_key == subscribe_key);
         assert!(client.publish_key == publish_key);
         assert!(client.channels == channels);
-
-        pubnub.add(&client);
 
         client.message().channel("demo").data("Hi!").publish(&mut pubnub);
 
