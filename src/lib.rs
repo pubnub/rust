@@ -297,8 +297,9 @@ impl PubNub {
         }
     }
 
-    pub fn unsubscribe(&self, client: Client) {}
-    fn subscribe(&self, client: Client) {
+    pub fn unsubscribe(&self, _client: Client) {}
+
+    pub fn subscribe(&self, _client: Client) {
         // - Construct URI
         // - add requet to HTTP/2 Pool
 
@@ -336,7 +337,7 @@ mod tests {
 
     #[test]
     fn pubnub_time_ok() {
-        let host = "0.0.0.0:3000";
+        let _host = "0.0.0.0:3000";
         assert!(true);
         assert!(true);
     }
@@ -379,7 +380,7 @@ mod tests {
         assert!(pubnub.origin == origin);
         assert!(pubnub.agent == agent);
 
-        let mut client = Client::new()
+        let client = Client::new()
             .subscribe_key(&subscribe_key)
             .publish_key(&publish_key)
             .channels(&channels);
@@ -388,7 +389,12 @@ mod tests {
         assert!(client.publish_key == publish_key);
         assert!(client.channels == channels);
 
-        client.message().channel("demo").data("Hi!").publish(&mut pubnub);
+        let result = client.message()
+            .channel("demo")
+            .data("Hi!")
+            .publish(&mut pubnub);
+
+        assert!(result.is_ok());
 
         // TODO recieve publish response.
 
