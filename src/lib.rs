@@ -24,6 +24,9 @@ pub enum Error {
     #[error("Publish Socket write error")]
     PublishSocketWrite(#[source] Box<Error>),
 
+    #[error("Subscribe MPSC Channel write error")]
+    SubscribeChannelWrite(#[source] mpsc::error::TrySendError<Client>),
+    
     #[error("Result Available on Channel write error")]
     ResultChannelWrite(#[source] mpsc::error::TrySendError<Message>),
 
@@ -239,7 +242,7 @@ pub struct PubNub {
     pub agent: String,                                // "Rust-Agent"
     pub runtime: Runtime,                             // Tokio Runtime
     pub submit_publish: mpsc::Sender<PublishMessage>, // Publish Tx
-    pub submit_subscribe: mpsc::Sender<Message>,      // Subscribe Tx
+    pub submit_subscribe: mpsc::Sender<Client>,       // Subscribe Tx
     pub submit_result: mpsc::Sender<Message>,         // Send to App
     pub process_result: mpsc::Receiver<Message>,      // App Receiver
 }
@@ -264,7 +267,7 @@ pub struct PubNub {
 impl PubNub {
     pub fn new() -> PubNub {
         let (submit_publish, mut process_publish) = mpsc::channel::<PublishMessage>(100);
-        let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Message>(100);
+        let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Client>(100);
         let (submit_result, process_result) = mpsc::channel::<Message>(100);
 
         let rt = match Runtime::new() {
@@ -303,6 +306,7 @@ impl PubNub {
                 };
 
                 // TODO Hyper/Networking Call
+                // TODO ...
 
                 // Send Publish Result to End-user via MPSC
                 // TODO handle errors
@@ -318,7 +322,7 @@ impl PubNub {
         // Messages available via pubnub.next()
         let mut subscribe_result = submit_result.clone();
         rt.spawn(async move {
-            while let Some(_subscription) = process_subscribe.recv().await {
+            while let Some(_client) = process_subscribe.recv().await {
                 let message = Message {
                     message_type: MessageType::Subscribe,
                     channel: "???".to_string(), // TODO real result
@@ -340,13 +344,13 @@ impl PubNub {
         });
 
         PubNub {
-            origin: "ps.pndsn.com:443".to_string(),
-            agent: "Rust-Agent".to_string(),
-            runtime: rt,                            // Panics unless we keep an RT
-            submit_publish, // Publish a Message
-            submit_subscribe,                       // Add a Client
-            submit_result,                          // Send Result to Application Consumer
-            process_result,                         // Receiver for Application Consumer
+            origin: "ps.pndsn.com:443".to_string(), // Change via pubnub.origin()
+            agent: "Rust-Agent".to_string(),        // Change via pubnub.agent()
+            runtime: rt,      // Panics unless we keep an RT
+            submit_publish,   // Publish a Message
+            submit_subscribe, // Add a Client
+            submit_result,    // Send Result to Application Consumer
+            process_result,   // Receiver for Application Consumer
         }
     }
 
@@ -372,34 +376,15 @@ impl PubNub {
         }
     }
 
-    pub fn unsubscribe(&self, _client: Client) {}
+    pub fn unsubscribe(&self, _client: Client) {
+        // TODO
+    }
 
-    pub fn subscribe(&self, _client: Client) {
-        // - Construct URI
-        // - add requet to HTTP/2 Pool
-
-        //let uri = "http://httpbin.org/ip".parse().unwrap();
-
-        /*
-        self.http
-            .get(uri)
-            .and_then(|res| {
-            println!("Response: {}", res.status());
-            res
-                .into_body()
-                // Body is a stream, so as each chunk arrives...
-                .for_each(|chunk| {
-                io::stdout()
-                    .write_all(&chunk)
-                    .map_err(|e| {
-                    panic!("example expects stdout is open, error={}", e)
-                    })
-                })
-            })
-            .map_err(|err| {
-            println!("Error: {}", err);
-            })
-                */
+    pub fn subscribe(&mut self, client: &Client) -> Result<(), Error> {
+        match self.submit_subscribe.try_send(client.clone()) {
+            Ok(()) => Ok(()),
+            Err(error) => Err(Error::SubscribeChannelWrite(error)),
+        }
     }
 }
 
@@ -426,7 +411,7 @@ mod tests {
         let origin = "ps.pndsn.com:443";
         let agent = "Rust-Agent-Test";
 
-        let pubnub = PubNub::new()
+        let mut pubnub = PubNub::new()
             .origin(&origin.to_string())
             .agent(&agent.to_string());
 
@@ -435,7 +420,7 @@ mod tests {
             .publish_key(&publish_key)
             .channels(&channels);
 
-        pubnub.subscribe(client);
+        pubnub.subscribe(&client);
 
         // pubnub.next()
     }
