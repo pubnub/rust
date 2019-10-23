@@ -1,4 +1,4 @@
-extern crate hyper;
+//extern crate hyper;
 extern crate uuid;
 
 //use log::debug; // debug!(...);
@@ -6,6 +6,7 @@ use thiserror::Error;
 //use uuid::Uuid;
 //use std::io::{self, Write};
 use tokio::sync::mpsc;
+use tokio::runtime::Runtime;
 //use std::thread;
 //use std::sync::mpsc;
 //use hyper::rt::{self, Future, Stream};
@@ -23,16 +24,17 @@ pub enum Error {
     #[error("Publish Socket write error")]
     PublishSocketWrite(#[source] Box<Error>),
 
+    #[error("Result Available on Channel write error")]
+    ResultChannelWrite(#[source] mpsc::error::TrySendError<Message>),
+
     #[error("Next Message Channel read error")]
     NextMessageChannelRead(#[source] Box<Error>)
-
-    // #[error("Subscribe write error")]
-    // SubscribeWrite(#[source] Box<Error>),
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /// # PubNub Message Types
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+#[derive(Debug, Clone)]
 pub enum MessageType {
     Publish,     // Response of Publish (Success/Fail)
     Subscribe,   // Response of Subscription ( Usually a Message Payload )
@@ -46,6 +48,7 @@ pub enum MessageType {
 /// message received via `pubnub.next()`.
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+#[derive(Debug, Clone)]
 pub struct Message {
     pub message_type : MessageType, // Enum Type of Message
     pub channel      : String,      // Origin Channel of Message Receipt
@@ -233,9 +236,8 @@ pub struct PubNub {
     pub origin            : String,                         // "domain:port"
     pub agent             : String,                         // "Rust-Agent"
     pub submit_publish    : mpsc::Sender<PublishMessage>,   // Publish Tx
-    pub process_publish   : mpsc::Receiver<PublishMessage>, // Publish Rx
-    pub submit_subscribe  : mpsc::Sender<Client>,           // Subscribe Tx
-    pub process_subscrube : mpsc::Receiver<Client>,         // Subscribe Rx
+    pub submit_subscribe  : mpsc::Sender<Message>,          // Subscribe Tx
+    pub process_subscribe : mpsc::Receiver<Message>,        // Subscribe Rx
     pub submit_result     : mpsc::Sender<Message>,          // Send to App
     pub process_result    : mpsc::Receiver<Message>,        // App Receiver
 }
@@ -259,17 +261,39 @@ pub struct PubNub {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl PubNub {
     pub fn new() -> PubNub {
-        let (submit_publish,   process_publish)   = mpsc::channel(100);
-        let (submit_subscribe, process_subscrube) = mpsc::channel(100);
-        let (submit_result,    process_result)    = mpsc::channel(999);
+        let (submit_publish,   mut process_publish)   = mpsc::channel::<PublishMessage>(100);
+        let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Message>(100);
+        let (submit_result,    mut process_result)    = mpsc::channel::<Message>(100);
+
+        // Start Publish Worker
+        let rt = Runtime::new().unwrap();
+        let mut append_result = submit_result.clone();
+        rt.spawn(async move {
+            while let Some(publish_message) = process_publish.recv().await {
+                let message = Message {
+                    message_type : MessageType::Publish,
+                    channel      : publish_message.channel.to_string(), // TODO real result
+                    data         : publish_message.data.to_string(), // TODO real result
+                    json         : "".to_string(),
+                    metadata     : "".to_string(),
+                    timetoken    : "".to_string(),
+                    success      : true,
+                };
+
+                match append_result.try_send(message) {
+                    Ok(())     => {},
+                    //Err(error) => {Err(Error::ResultChannelWrite(error));},
+                    Err(_error) => {},
+                };
+            };
+        });
 
         PubNub {
             origin : "ps.pndsn.com:443".to_string(),
             agent  : "Rust-Agent".to_string(),
-            submit_publish,    // Publish a Message
-            process_publish,   // Process Message Publish
+            submit_publish : submit_publish.clone(),    // Publish a Message
             submit_subscribe,  // Add a Client
-            process_subscrube, // Process Client Addition
+            process_subscribe, // Process Client Addition
             submit_result,     // Send Result to Application Consumer
             process_result,    // Receiver for Application Consumer
         }
@@ -286,7 +310,7 @@ impl PubNub {
     }
 
     pub async fn next(&mut self) -> Option<Message> {
-        self.process_result.recv().await 
+        self.process_result.recv().await
     }
 
     // Add PublishMessage to the publish stream.
@@ -334,6 +358,7 @@ impl PubNub {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::runtime::Runtime;
 
     #[test]
     fn pubnub_time_ok() {
@@ -389,12 +414,28 @@ mod tests {
         assert!(client.publish_key == publish_key);
         assert!(client.channels == channels);
 
-        let result = client.message()
-            .channel("demo")
-            .data("Hi!")
-            .publish(&mut pubnub);
+        let message = client.message().channel("demo").data("Hi!");
+        let result = pubnub.publish(message);
 
+        println!("===============================");
+        println!("{:?}", result);
+        println!("{:?}", result);
+        println!("{:?}", result);
+        println!("{:?}", result);
+        println!("===============================");
         assert!(result.is_ok());
+
+        let rt = Runtime::new().unwrap();
+        let message_future = pubnub.next();
+        let message = rt.block_on(message_future).unwrap();
+
+        assert_eq!("demo", message.channel);
+
+        //println!("{:?}",message);
+
+        //assert!(message.message_type == MessageType::Publish);
+
+        //assert!(None == Some(pubnub.next()));
 
         // TODO recieve publish response.
 
