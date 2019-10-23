@@ -238,13 +238,12 @@ pub struct PubNub {
     pub runtime: Runtime,                             // Tokio Runtime
     pub submit_publish: mpsc::Sender<PublishMessage>, // Publish Tx
     pub submit_subscribe: mpsc::Sender<Message>,      // Subscribe Tx
-    pub process_subscribe: mpsc::Receiver<Message>,   // Subscribe Rx
     pub submit_result: mpsc::Sender<Message>,         // Send to App
     pub process_result: mpsc::Receiver<Message>,      // App Receiver
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-/// # PubNub Pool
+/// # PubNub Tokio Runtime w/ Hyper Worker
 ///
 /// This client lib offers publish and subscribe support to PubNub.
 /// Additionally creates an upstream pool and maintains connectivity for
@@ -263,7 +262,7 @@ pub struct PubNub {
 impl PubNub {
     pub fn new() -> PubNub {
         let (submit_publish, mut process_publish) = mpsc::channel::<PublishMessage>(100);
-        let (submit_subscribe, process_subscribe) = mpsc::channel::<Message>(100);
+        let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Message>(100);
         let (submit_result, process_result) = mpsc::channel::<Message>(100);
 
         let rt = match Runtime::new() {
@@ -274,7 +273,10 @@ impl PubNub {
         };
 
         // Start Publish Worker
-        let mut append_result = submit_result.clone();
+        // This worker will Publish messages to PubNub
+        // Then it will capture the HTTP resposne and provide a message
+        // back to the end user via pubnub.next()
+        let mut publish_result = submit_result.clone();
         rt.spawn(async move {
             while let Some(publish_message) = process_publish.recv().await {
                 let message = Message {
@@ -287,7 +289,34 @@ impl PubNub {
                     success: true,
                 };
 
-                match append_result.try_send(message) {
+                // Send Publish Result to End-user via MPSC
+                // TODO handle things
+                match publish_result.try_send(message) {
+                    Ok(()) => {}
+                    //Err(error) => {Err(Error::ResultChannelWrite(error));},
+                    Err(_error) => {}
+                };
+            }
+        });
+
+        // Start Subscribe Worker
+        // Messages available via pubnub.next()
+        let mut subscribe_result = submit_result.clone();
+        rt.spawn(async move {
+            while let Some(_subscription) = process_subscribe.recv().await {
+                let message = Message {
+                    message_type: MessageType::Publish,
+                    channel: "???".to_string(), // TODO real result
+                    data: "???".to_string(),       // TODO real result
+                    json: "".to_string(),
+                    metadata: "".to_string(),
+                    timetoken: "".to_string(),
+                    success: true,
+                };
+
+                // Relay Subscription Result to End-user via MPSC pubnub.next()
+                // TODO handle things
+                match subscribe_result.try_send(message) {
                     Ok(()) => {}
                     //Err(error) => {Err(Error::ResultChannelWrite(error));},
                     Err(_error) => {}
@@ -298,10 +327,9 @@ impl PubNub {
         PubNub {
             origin: "ps.pndsn.com:443".to_string(),
             agent: "Rust-Agent".to_string(),
-            runtime: rt,
+            runtime: rt,                            // Panics unless we keep an RT
             submit_publish: submit_publish.clone(), // Publish a Message
             submit_subscribe,                       // Add a Client
-            process_subscribe,                      // Process Client Addition
             submit_result,                          // Send Result to Application Consumer
             process_result,                         // Receiver for Application Consumer
         }
