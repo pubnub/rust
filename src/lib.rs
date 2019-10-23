@@ -4,7 +4,6 @@ extern crate uuid;
 //use log::debug; // debug!(...);
 use thiserror::Error;
 //use uuid::Uuid;
-use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 //use hyper::rt::{self, Future, Stream};
 use json::JsonValue;
@@ -232,7 +231,6 @@ impl Client {
 pub struct PubNub {
     pub origin: String,                               // "domain:port"
     pub agent: String,                                // "Rust-Agent"
-    pub runtime: Runtime,                             // Tokio Runtime
     pub submit_publish: mpsc::Sender<PublishMessage>, // Publish Tx
     pub submit_subscribe: mpsc::Sender<Client>,       // Subscribe Tx
     pub submit_result: mpsc::Sender<Message>,         // Send to App
@@ -263,19 +261,12 @@ impl PubNub {
         let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Client>(100);
         let (submit_result, process_result) = mpsc::channel::<Message>(100);
 
-        let rt = match Runtime::new() {
-            Ok(rt) => rt,
-            Err(error) => {
-                panic!(Error::RuntimeStart(error));
-            }
-        };
-
         // Start Publish Worker
         // This worker will Publish messages to PubNub
         // Then it will capture the HTTP resposne and provide a message
         // back to the end user via pubnub.next()
         let mut publish_result = submit_result.clone();
-        rt.spawn(async move {
+        tokio::spawn(async move {
             while let Some(message) = process_publish.recv().await {
                 // Construct URI
                 let _url = format!(
@@ -314,7 +305,7 @@ impl PubNub {
         // Start Subscribe Worker
         // Messages available via pubnub.next()
         let mut subscribe_result = submit_result.clone();
-        rt.spawn(async move {
+        tokio::spawn(async move {
             while let Some(client) = process_subscribe.recv().await {
                 // Construct URI
                 let _url = format!(
@@ -353,7 +344,6 @@ impl PubNub {
         PubNub {
             origin: "ps.pndsn.com:443".to_string(), // Change via pubnub.origin()
             agent: "Rust-Agent".to_string(),        // Change via pubnub.agent()
-            runtime: rt,      // Panics unless we keep an RT
             submit_publish,   // Publish a Message
             submit_subscribe, // Add a Client
             submit_result,    // Send Result to Application Consumer
@@ -428,9 +418,18 @@ mod tests {
             .publish_key(&publish_key)
             .channels(&channels);
 
-        pubnub.subscribe(&client);
+        let result = pubnub.subscribe(&client);
+        assert!(result.is_ok());
 
-        // pubnub.next()
+        let rt = Runtime::new().unwrap();
+        let message_future = pubnub.next();
+        let message = rt.block_on(message_future).unwrap();
+
+        assert!(message.success);
+        /*
+        while let Some(message) = pubnub.next() {
+            
+        }*/
     }
 
     #[test]
