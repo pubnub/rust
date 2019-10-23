@@ -19,7 +19,7 @@ use json::JsonValue;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Starting the Tokio Runtime resulted in an error")]
-    RuntimeStart(#[source] Box<Error>),
+    RuntimeStart(#[source] std::io::Error),
 
     #[error("Publish MPSC Channel write error")]
     PublishChannelWrite(#[source] mpsc::error::TrySendError<PublishMessage>),
@@ -238,6 +238,7 @@ impl Client {
 pub struct PubNub {
     pub origin            : String,                         // "domain:port"
     pub agent             : String,                         // "Rust-Agent"
+    pub runtime           : Runtime,                        // Tokio Runtime
     pub submit_publish    : mpsc::Sender<PublishMessage>,   // Publish Tx
     pub submit_subscribe  : mpsc::Sender<Message>,          // Subscribe Tx
     pub process_subscribe : mpsc::Receiver<Message>,        // Subscribe Rx
@@ -270,7 +271,7 @@ impl PubNub {
 
         let rt = match Runtime::new() {
             Ok(rt)     => rt,
-            Err(error) => {Error::RuntimeStart(error);},
+            Err(error) => {panic!(Error::RuntimeStart(error));},
         };
 
         // Start Publish Worker
@@ -298,6 +299,7 @@ impl PubNub {
         PubNub {
             origin : "ps.pndsn.com:443".to_string(),
             agent  : "Rust-Agent".to_string(),
+            runtime : rt,
             submit_publish : submit_publish.clone(),    // Publish a Message
             submit_subscribe,  // Add a Client
             process_subscribe, // Process Client Addition
@@ -424,12 +426,6 @@ mod tests {
         let message = client.message().channel("demo").data("Hi!");
         let result = pubnub.publish(message);
 
-        println!("===============================");
-        println!("{:?}", result);
-        println!("{:?}", result);
-        println!("{:?}", result);
-        println!("{:?}", result);
-        println!("===============================");
         assert!(result.is_ok());
 
         let rt = Runtime::new().unwrap();
@@ -437,6 +433,7 @@ mod tests {
         let message = rt.block_on(message_future).unwrap();
 
         assert_eq!("demo", message.channel);
+        assert_eq!("Hi!", message.data);
 
         //println!("{:?}",message);
 
