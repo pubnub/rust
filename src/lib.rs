@@ -5,8 +5,8 @@ extern crate uuid;
 use thiserror::Error;
 //use uuid::Uuid;
 //use std::io::{self, Write};
-use tokio::sync::mpsc;
 use tokio::runtime::Runtime;
+use tokio::sync::mpsc;
 //use std::thread;
 //use std::sync::mpsc;
 //use hyper::rt::{self, Future, Stream};
@@ -31,17 +31,17 @@ pub enum Error {
     ResultChannelWrite(#[source] mpsc::error::TrySendError<Message>),
 
     #[error("Next Message Channel read error")]
-    NextMessageChannelRead(#[source] Box<Error>)
+    NextMessageChannelRead(#[source] Box<Error>),
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /// # PubNub Message Types
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MessageType {
-    Publish,     // Response of Publish (Success/Fail)
-    Subscribe,   // Response of Subscription ( Usually a Message Payload )
-    Presence,    // Presence Event from Channel ( Another Client Joined )
+    Publish,   // Response of Publish (Success/Fail)
+    Subscribe, // Response of Subscription ( Usually a Message Payload )
+    Presence,  // Presence Event from Channel ( Another Client Joined )
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -53,13 +53,13 @@ pub enum MessageType {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #[derive(Debug, Clone)]
 pub struct Message {
-    pub message_type : MessageType, // Enum Type of Message
-    pub channel      : String,      // Origin Channel of Message Receipt
-    pub data         : String,      // Payload from Channel
-    pub json         : String,      // Decoded JSON Payload from Channel
-    pub metadata     : String,      // Metadata of Message
-    pub timetoken    : String,      // Message ID Timetoken
-    pub success      : bool,        // Useful to see if Publish was Successful
+    pub message_type: MessageType, // Enum Type of Message
+    pub channel: String,           // Origin Channel of Message Receipt
+    pub data: String,              // Payload from Channel
+    pub json: String,              // Decoded JSON Payload from Channel
+    pub metadata: String,          // Metadata of Message
+    pub timetoken: String,         // Message ID Timetoken
+    pub success: bool,             // Useful to see if Publish was Successful
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -70,7 +70,7 @@ pub struct Message {
 ///
 /// ```
 /// use pubnub::{PubNub, Client};
-/// 
+///
 /// let mut pubnub = PubNub::new();
 /// let mut client = Client::new().subscribe_key("demo").publish_key("demo");
 ///
@@ -79,9 +79,9 @@ pub struct Message {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #[derive(Debug, Clone)]
 pub struct PublishMessage {
-    pub channel  : String, // Destination Channel
-    pub data     : String, // Message Payload ( JSON )
-    pub metadata : String, // Metadata for Message ( JSON )
+    pub channel: String,  // Destination Channel
+    pub data: String,     // Message Payload ( JSON )
+    pub metadata: String, // Metadata for Message ( JSON )
 }
 
 impl PublishMessage {
@@ -108,7 +108,7 @@ impl PublishMessage {
     // Add PublishMessage to the publish stream.
     pub fn publish(self, pubnub: &mut PubNub) -> Result<(), Error> {
         match pubnub.submit_publish.try_send(self) {
-            Ok(())     => Ok(()),
+            Ok(()) => Ok(()),
             Err(error) => Err(Error::PublishChannelWrite(error)),
         }
     }
@@ -124,18 +124,18 @@ impl PublishMessage {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #[derive(Debug, Clone)]
 pub struct Client {
-    pub publish_key    : String, // Customer's Publish Key
-    pub subscribe_key  : String, // Customer's Subscribe Key
-    pub secret_key     : String, // Customer's Secret Key
-    pub auth_key       : String, // Client Auth Key for R+W Access
-    pub user_id        : String, // Client UserId "UUID" for Presence
-    pub channels       : String, // Client Channels Comma Separated
-    pub groups         : String, // Client Channel Groups Comma Sepparated
-    pub filters        : String, // Metadata Filters on Messages
-    pub presence       : bool,   // Enable presence events
-    pub json           : bool,   // Enable JSON Decoding
-    pub since          : u64,    // Unix Timestamp Fetch History + Subscribe
-    pub timetoken      : String, // Current Line-in-Sand for Subscription
+    pub publish_key: String,   // Customer's Publish Key
+    pub subscribe_key: String, // Customer's Subscribe Key
+    pub secret_key: String,    // Customer's Secret Key
+    pub auth_key: String,      // Client Auth Key for R+W Access
+    pub user_id: String,       // Client UserId "UUID" for Presence
+    pub channels: String,      // Client Channels Comma Separated
+    pub groups: String,        // Client Channel Groups Comma Sepparated
+    pub filters: String,       // Metadata Filters on Messages
+    pub presence: bool,        // Enable presence events
+    pub json: bool,            // Enable JSON Decoding
+    pub since: u64,            // Unix Timestamp Fetch History + Subscribe
+    pub timetoken: String,     // Current Line-in-Sand for Subscription
 }
 
 impl Client {
@@ -148,18 +148,18 @@ impl Client {
         //let default_user_id = Uuid::new_v4().hyphenated();
 
         Client {
-            subscribe_key  : "demo".to_string(),
-            publish_key    : "demo".to_string(),
-            secret_key     : "".to_string(),
-            auth_key       : "".to_string(),
-            user_id        : "".to_string(),
-            channels       : "demo".to_string(),
-            groups         : "".to_string(),
-            filters        : "".to_string(),
-            presence       : false,
-            json           : false,
-            since          : 0,
-            timetoken      : "0".to_string(),
+            subscribe_key: "demo".to_string(),
+            publish_key: "demo".to_string(),
+            secret_key: "".to_string(),
+            auth_key: "".to_string(),
+            user_id: "".to_string(),
+            channels: "demo".to_string(),
+            groups: "".to_string(),
+            filters: "".to_string(),
+            presence: false,
+            json: false,
+            since: 0,
+            timetoken: "0".to_string(),
         }
     }
 
@@ -221,9 +221,9 @@ impl Client {
     pub fn message(&self) -> PublishMessage {
         PublishMessage {
             // TODO probabaly need Pubkey/SubKey/ect...
-            channel  : "demo".to_string(),
-            data     : "test".to_string(),
-            metadata : "".to_string(),
+            channel: "demo".to_string(),
+            data: "test".to_string(),
+            metadata: "".to_string(),
         }
     }
 }
@@ -236,14 +236,14 @@ impl Client {
 ///
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 pub struct PubNub {
-    pub origin            : String,                         // "domain:port"
-    pub agent             : String,                         // "Rust-Agent"
-    pub runtime           : Runtime,                        // Tokio Runtime
-    pub submit_publish    : mpsc::Sender<PublishMessage>,   // Publish Tx
-    pub submit_subscribe  : mpsc::Sender<Message>,          // Subscribe Tx
-    pub process_subscribe : mpsc::Receiver<Message>,        // Subscribe Rx
-    pub submit_result     : mpsc::Sender<Message>,          // Send to App
-    pub process_result    : mpsc::Receiver<Message>,        // App Receiver
+    pub origin: String,                               // "domain:port"
+    pub agent: String,                                // "Rust-Agent"
+    pub runtime: Runtime,                             // Tokio Runtime
+    pub submit_publish: mpsc::Sender<PublishMessage>, // Publish Tx
+    pub submit_subscribe: mpsc::Sender<Message>,      // Subscribe Tx
+    pub process_subscribe: mpsc::Receiver<Message>,   // Subscribe Rx
+    pub submit_result: mpsc::Sender<Message>,         // Send to App
+    pub process_result: mpsc::Receiver<Message>,      // App Receiver
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -265,13 +265,15 @@ pub struct PubNub {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl PubNub {
     pub fn new() -> PubNub {
-        let (submit_publish,   mut process_publish)   = mpsc::channel::<PublishMessage>(100);
-        let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Message>(100);
-        let (submit_result,    mut process_result)    = mpsc::channel::<Message>(100);
+        let (submit_publish, mut process_publish) = mpsc::channel::<PublishMessage>(100);
+        let (submit_subscribe, process_subscribe) = mpsc::channel::<Message>(100);
+        let (submit_result, process_result) = mpsc::channel::<Message>(100);
 
         let rt = match Runtime::new() {
-            Ok(rt)     => rt,
-            Err(error) => {panic!(Error::RuntimeStart(error));},
+            Ok(rt) => rt,
+            Err(error) => {
+                panic!(Error::RuntimeStart(error));
+            }
         };
 
         // Start Publish Worker
@@ -279,32 +281,32 @@ impl PubNub {
         rt.spawn(async move {
             while let Some(publish_message) = process_publish.recv().await {
                 let message = Message {
-                    message_type : MessageType::Publish,
-                    channel      : publish_message.channel.to_string(), // TODO real result
-                    data         : publish_message.data.to_string(), // TODO real result
-                    json         : "".to_string(),
-                    metadata     : "".to_string(),
-                    timetoken    : "".to_string(),
-                    success      : true,
+                    message_type: MessageType::Publish,
+                    channel: publish_message.channel.to_string(), // TODO real result
+                    data: publish_message.data.to_string(),       // TODO real result
+                    json: "".to_string(),
+                    metadata: "".to_string(),
+                    timetoken: "".to_string(),
+                    success: true,
                 };
 
                 match append_result.try_send(message) {
-                    Ok(())     => {},
+                    Ok(()) => {}
                     //Err(error) => {Err(Error::ResultChannelWrite(error));},
-                    Err(_error) => {},
+                    Err(_error) => {}
                 };
-            };
+            }
         });
 
         PubNub {
-            origin : "ps.pndsn.com:443".to_string(),
-            agent  : "Rust-Agent".to_string(),
-            runtime : rt,
-            submit_publish : submit_publish.clone(),    // Publish a Message
-            submit_subscribe,  // Add a Client
-            process_subscribe, // Process Client Addition
-            submit_result,     // Send Result to Application Consumer
-            process_result,    // Receiver for Application Consumer
+            origin: "ps.pndsn.com:443".to_string(),
+            agent: "Rust-Agent".to_string(),
+            runtime: rt,
+            submit_publish: submit_publish.clone(), // Publish a Message
+            submit_subscribe,                       // Add a Client
+            process_subscribe,                      // Process Client Addition
+            submit_result,                          // Send Result to Application Consumer
+            process_result,                         // Receiver for Application Consumer
         }
     }
 
@@ -325,7 +327,7 @@ impl PubNub {
     // Add PublishMessage to the publish stream.
     pub fn publish(&mut self, message: PublishMessage) -> Result<(), Error> {
         match self.submit_publish.try_send(message) {
-            Ok(())     => Ok(()),
+            Ok(()) => Ok(()),
             Err(error) => Err(Error::PublishChannelWrite(error)),
         }
     }
@@ -336,28 +338,28 @@ impl PubNub {
         // - Construct URI
         // - add requet to HTTP/2 Pool
 
-	//let uri = "http://httpbin.org/ip".parse().unwrap();
+        //let uri = "http://httpbin.org/ip".parse().unwrap();
 
         /*
-	self.http
-	    .get(uri)
-	    .and_then(|res| {
-		println!("Response: {}", res.status());
-		res
-		    .into_body()
-		    // Body is a stream, so as each chunk arrives...
-		    .for_each(|chunk| {
-			io::stdout()
-			    .write_all(&chunk)
-			    .map_err(|e| {
-				panic!("example expects stdout is open, error={}", e)
-			    })
-		    })
-	    })
-	    .map_err(|err| {
-		println!("Error: {}", err);
-	    })
-            */
+        self.http
+            .get(uri)
+            .and_then(|res| {
+            println!("Response: {}", res.status());
+            res
+                .into_body()
+                // Body is a stream, so as each chunk arrives...
+                .for_each(|chunk| {
+                io::stdout()
+                    .write_all(&chunk)
+                    .map_err(|e| {
+                    panic!("example expects stdout is open, error={}", e)
+                    })
+                })
+            })
+            .map_err(|err| {
+            println!("Error: {}", err);
+            })
+                */
     }
 }
 
@@ -378,11 +380,11 @@ mod tests {
 
     #[test]
     fn pubnub_subscribe_ok() {
-        let publish_key   = "demo";
+        let publish_key = "demo";
         let subscribe_key = "demo";
-        let channels      = "demo";
-        let origin        = "ps.pndsn.com:443";
-        let agent         = "Rust-Agent-Test";
+        let channels = "demo";
+        let origin = "ps.pndsn.com:443";
+        let agent = "Rust-Agent-Test";
 
         let pubnub = PubNub::new()
             .origin(&origin.to_string())
@@ -400,12 +402,12 @@ mod tests {
 
     #[test]
     fn pubnub_publish_ok() {
-        let publish_key   = "demo";
+        let publish_key = "demo";
         let subscribe_key = "demo";
-        let channels      = "demo";
+        let channels = "demo";
 
         let origin = "ps.pndsn.com:443";
-        let agent  = "Rust-Agent-Test";
+        let agent = "Rust-Agent-Test";
 
         let mut pubnub = PubNub::new()
             .origin(&origin.to_string())
@@ -432,8 +434,10 @@ mod tests {
         let message_future = pubnub.next();
         let message = rt.block_on(message_future).unwrap();
 
+        assert!(MessageType::Publish == message.message_type);
         assert_eq!("demo", message.channel);
         assert_eq!("Hi!", message.data);
+        assert!(message.success);
 
         //println!("{:?}",message);
 
@@ -448,7 +452,7 @@ mod tests {
             // TODO Match on MessageType match message.message_type {}
             // Print message and channel name.
             println!("{}: {}", message.channel, message.data);
-            
+
             // Remove clients only when you no longer need them
             // When no more clients are in the pool, then `pubnub.next()` will
             // return `None` and the loop will exit.
