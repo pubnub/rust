@@ -19,8 +19,13 @@ use json::JsonValue;
 pub enum Error {
     #[error("Publish MPSC Channel write error")]
     PublishChannelWrite(#[source] mpsc::error::TrySendError<PublishMessage>),
+
     #[error("Publish Socket write error")]
     PublishSocketWrite(#[source] Box<Error>),
+
+    #[error("Next Message Channel read error")]
+    NextMessageChannelRead(#[source] Box<Error>)
+
     // #[error("Subscribe write error")]
     // SubscribeWrite(#[source] Box<Error>),
 }
@@ -280,7 +285,9 @@ impl PubNub {
         self
     }
 
-    pub fn next(&self) {}
+    pub async fn next(&mut self) -> Option<Message> {
+        self.process_result.recv().await 
+    }
 
     // Add PublishMessage to the publish stream.
     pub fn publish(&mut self, message: PublishMessage) -> Result<(), Error> {
@@ -382,6 +389,8 @@ mod tests {
         assert!(client.channels == channels);
 
         client.message().channel("demo").data("Hi!").publish(&mut pubnub);
+
+        // TODO recieve publish response.
 
         /*
         while let Some(message) = pubnub.next().await {
