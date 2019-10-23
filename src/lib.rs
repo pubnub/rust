@@ -1,14 +1,11 @@
-//extern crate hyper;
+extern crate hyper;
 extern crate uuid;
 
 //use log::debug; // debug!(...);
 use thiserror::Error;
 //use uuid::Uuid;
-//use std::io::{self, Write};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
-//use std::thread;
-//use std::sync::mpsc;
 //use hyper::rt::{self, Future, Stream};
 use json::JsonValue;
 //use std::collections::HashMap;
@@ -448,7 +445,7 @@ mod tests {
         // TODO recieve publish response.
 
         /*
-        while let Some(message) = pubnub.next().await {
+        while let Some(message) = pubnub.next() {
             // TODO Match on MessageType match message.message_type {}
             // Print message and channel name.
             println!("{}: {}", message.channel, message.data);
