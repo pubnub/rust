@@ -305,7 +305,7 @@ impl PubNub {
         rt.spawn(async move {
             while let Some(_subscription) = process_subscribe.recv().await {
                 let message = Message {
-                    message_type: MessageType::Publish,
+                    message_type: MessageType::Subscribe,
                     channel: "???".to_string(), // TODO real result
                     data: "???".to_string(),       // TODO real result
                     json: "".to_string(),
@@ -328,7 +328,7 @@ impl PubNub {
             origin: "ps.pndsn.com:443".to_string(),
             agent: "Rust-Agent".to_string(),
             runtime: rt,                            // Panics unless we keep an RT
-            submit_publish: submit_publish.clone(), // Publish a Message
+            submit_publish, // Publish a Message
             submit_subscribe,                       // Add a Client
             submit_result,                          // Send Result to Application Consumer
             process_result,                         // Receiver for Application Consumer
