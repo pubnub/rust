@@ -76,6 +76,7 @@ pub struct Message {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #[derive(Debug, Clone)]
 pub struct PublishMessage {
+    pub client: Client,   // Copy of Client
     pub channel: String,  // Destination Channel
     pub data: String,     // Message Payload ( JSON )
     pub metadata: String, // Metadata for Message ( JSON )
@@ -218,6 +219,7 @@ impl Client {
     pub fn message(&self) -> PublishMessage {
         PublishMessage {
             // TODO probabaly need Pubkey/SubKey/ect...
+            client: self.clone(),
             channel: "demo".to_string(),
             data: "test".to_string(),
             metadata: "".to_string(),
@@ -278,20 +280,33 @@ impl PubNub {
         // back to the end user via pubnub.next()
         let mut publish_result = submit_result.clone();
         rt.spawn(async move {
-            while let Some(publish_message) = process_publish.recv().await {
-                let message = Message {
+            while let Some(message) = process_publish.recv().await {
+                // Construct URI
+                let _url = format!(
+                    "https://{origin}/publish/{pub_key}/{sub_key}/0/{channel}/0/{data}",
+                    origin = "ps.pndsn.com:443",
+                    pub_key = message.client.publish_key,
+                    sub_key = message.client.subscribe_key,
+                    channel = message.client.channels,
+                    data = message.data,
+                );
+
+                // Response Message for pubnub.next() 
+                let response_message = Message {
                     message_type: MessageType::Publish,
-                    channel: publish_message.channel.to_string(), // TODO real result
-                    data: publish_message.data.to_string(),       // TODO real result
+                    channel: message.channel.to_string(), // TODO real result
+                    data: message.data.to_string(),       // TODO real result
                     json: "".to_string(),
                     metadata: "".to_string(),
                     timetoken: "".to_string(),
                     success: true,
                 };
 
+                // TODO Hyper/Networking Call
+
                 // Send Publish Result to End-user via MPSC
-                // TODO handle things
-                match publish_result.try_send(message) {
+                // TODO handle errors
+                match publish_result.try_send(response_message) {
                     Ok(()) => {}
                     //Err(error) => {Err(Error::ResultChannelWrite(error));},
                     Err(_error) => {}
