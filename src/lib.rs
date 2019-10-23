@@ -18,6 +18,9 @@ use json::JsonValue;
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("Starting the Tokio Runtime resulted in an error")]
+    RuntimeStart(#[source] Box<Error>),
+
     #[error("Publish MPSC Channel write error")]
     PublishChannelWrite(#[source] mpsc::error::TrySendError<PublishMessage>),
 
@@ -265,8 +268,12 @@ impl PubNub {
         let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Message>(100);
         let (submit_result,    mut process_result)    = mpsc::channel::<Message>(100);
 
+        let rt = match Runtime::new() {
+            Ok(rt)     => rt,
+            Err(error) => {Error::RuntimeStart(error);},
+        };
+
         // Start Publish Worker
-        let rt = Runtime::new().unwrap();
         let mut append_result = submit_result.clone();
         rt.spawn(async move {
             while let Some(publish_message) = process_publish.recv().await {
