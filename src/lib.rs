@@ -258,6 +258,7 @@ pub struct PubNub {
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 impl PubNub {
     pub fn new() -> PubNub {
+        let origin = "ps.pndsn.com:443";
         let (submit_publish, mut process_publish) = mpsc::channel::<PublishMessage>(100);
         let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Client>(100);
         let (submit_result, process_result) = mpsc::channel::<Message>(100);
@@ -279,14 +280,17 @@ impl PubNub {
                 // Construct URI
                 let _url = format!(
                     "https://{origin}/publish/{pub_key}/{sub_key}/0/{channel}/0/{data}",
-                    origin = "ps.pndsn.com:443",
+                    origin = origin.to_string(),
                     pub_key = message.client.publish_key,
                     sub_key = message.client.subscribe_key,
                     channel = message.client.channels,
                     data = message.data,
                 );
 
-                // Response Message for pubnub.next() 
+                // TODO Networking Call
+                // TODO ...
+
+                // Response Message received at pubnub.next() 
                 let response_message = Message {
                     message_type: MessageType::Publish,
                     channel: message.channel.to_string(), // TODO real result
@@ -296,9 +300,6 @@ impl PubNub {
                     timetoken: "".to_string(),
                     success: true,
                 };
-
-                // TODO Hyper/Networking Call
-                // TODO ...
 
                 // Send Publish Result to End-user via MPSC
                 // TODO handle errors
@@ -314,7 +315,20 @@ impl PubNub {
         // Messages available via pubnub.next()
         let mut subscribe_result = submit_result.clone();
         rt.spawn(async move {
-            while let Some(_client) = process_subscribe.recv().await {
+            while let Some(client) = process_subscribe.recv().await {
+                // Construct URI
+                let _url = format!(
+                    "https://{origin}/v2/subscribe/{sub_key}/{channels}/0/{timetoken}",
+                    origin = origin.to_string(),
+                    sub_key = client.subscribe_key,
+                    channels = client.channels,
+                    timetoken = client.timetoken,
+                );
+
+                // TODO Networking Call
+                // TODO ...
+
+                // Result Message from PubNub
                 let message = Message {
                     message_type: MessageType::Subscribe,
                     channel: "???".to_string(), // TODO real result
@@ -325,10 +339,8 @@ impl PubNub {
                     success: true,
                 };
 
-                // TODO Hyper/Networking Call
-                // TODO ...
-
-                // Relay Subscription Result to End-user via MPSC pubnub.next()
+                // Send Subscription Result to End-user via MPSC
+                // User can recieve subscription messages via pubnub.next()
                 // TODO handle errors
                 match subscribe_result.try_send(message) {
                     Ok(()) => {}
@@ -393,6 +405,7 @@ mod tests {
 
     #[test]
     fn pubnub_time_ok() {
+        // TODO
         let _host = "0.0.0.0:3000";
         assert!(true);
         assert!(true);
