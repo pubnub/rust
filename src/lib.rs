@@ -141,13 +141,6 @@ pub struct Client {
 
 impl Client {
     pub fn new() -> Client {
-        // TODO Start mpsc threads NO - can not have 1 thread per client...
-        // Maybe we can have it dedicated to a PubNub pool...
-        // AH!! Gets a clone() of the mpsc sender for PubNub for publishing.
-
-        // TODO
-        //let default_user_id = Uuid::new_v4().hyphenated();
-
         Client {
             subscribe_key: "demo".to_string(),
             publish_key: "demo".to_string(),
@@ -221,7 +214,6 @@ impl Client {
 
     pub fn message(&self) -> PublishMessage {
         PublishMessage {
-            // TODO probabaly need Pubkey/SubKey/ect...
             client: self.clone(),
             channel: "demo".to_string(),
             data: "test".to_string(),
@@ -333,8 +325,11 @@ impl PubNub {
                     success: true,
                 };
 
+                // TODO Hyper/Networking Call
+                // TODO ...
+
                 // Relay Subscription Result to End-user via MPSC pubnub.next()
-                // TODO handle things
+                // TODO handle errors
                 match subscribe_result.try_send(message) {
                     Ok(()) => {}
                     //Err(error) => {Err(Error::ResultChannelWrite(error));},
