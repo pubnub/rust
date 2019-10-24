@@ -51,7 +51,7 @@ pub struct Message {
     pub message_type: MessageType, // Enum Type of Message
     pub channel: String,           // Origin Channel of Message Receipt
     pub data: String,              // Payload from Channel
-    pub json: String,              // Decoded JSON Payload from Channel
+    pub json: JsonValue,           // Decoded JSON Payload from Channel
     pub metadata: String,          // Metadata of Message
     pub timetoken: String,         // Message ID Timetoken
     pub success: bool,             // Useful to see if Publish was Successful
@@ -301,12 +301,11 @@ impl PubNub {
                 let response_message = Message {
                     message_type: MessageType::Publish,
                     channel: message.channel.to_string(),
-                    data: data_json[1].to_string(), // Is this right?!
-                                                    // yes [1,"Sent","15719495428024079"]
-                    json: data.to_string(),
+                    data: data_json[1].to_string(),
+                    json: data_json.clone(),
                     metadata: "".to_string(),
                     timetoken: data_json[2].to_string(),
-                    success: true,
+                    success: data_json[0] == 1,
                 };
 
                 // Send Publish Result to End-user via MPSC
@@ -350,13 +349,14 @@ impl PubNub {
                 let data_json = json::parse(data).expect("Unable to parse JSON");
 
                 // Result Message from PubNub
+                // TODO LOOP DELKSJDf
                 let message = Message {
                     message_type: MessageType::Subscribe,
-                    channel: "???".to_string(), // TODO real result
-                    data: data_json.to_string(),    // TODO real result
-                    json: "".to_string(),
-                    metadata: "".to_string(),
-                    timetoken: "".to_string(),
+                    channel: data_json["m"][0]["c"].to_string(),
+                    data: data_json["m"][0]["d"].to_string(),
+                    json: data_json.clone(),
+                    metadata: data_json["m"][0]["m"].to_string(),
+                    timetoken: data_json["m"][0]["p"]["t"].to_string(),
                     success: true,
                 };
 
