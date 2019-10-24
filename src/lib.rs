@@ -1,6 +1,3 @@
-extern crate hyper;
-extern crate uuid;
-
 //use log::debug; // debug!(...);
 use thiserror::Error;
 //use uuid::Uuid;
@@ -25,7 +22,7 @@ pub enum Error {
 
     #[error("Subscribe MPSC Channel write error")]
     SubscribeChannelWrite(#[source] mpsc::error::TrySendError<Client>),
-    
+
     #[error("Result Available on Channel write error")]
     ResultChannelWrite(#[source] mpsc::error::TrySendError<Message>),
 
@@ -67,7 +64,7 @@ pub struct Message {
 /// This is the message structure that includes information needed to publish
 /// a message to the PubNub Edge Messaging Network.
 ///
-/// ```
+/// ```no_run
 /// use pubnub::{PubNub, Client};
 ///
 /// let mut pubnub = PubNub::new();
@@ -281,7 +278,7 @@ impl PubNub {
                 // TODO Networking Call
                 // TODO ...
 
-                // Response Message received at pubnub.next() 
+                // Response Message received at pubnub.next()
                 let response_message = Message {
                     message_type: MessageType::Publish,
                     channel: message.channel.to_string(), // TODO real result
@@ -323,7 +320,7 @@ impl PubNub {
                 let message = Message {
                     message_type: MessageType::Subscribe,
                     channel: "???".to_string(), // TODO real result
-                    data: "???".to_string(),       // TODO real result
+                    data: "???".to_string(),    // TODO real result
                     json: "".to_string(),
                     metadata: "".to_string(),
                     timetoken: "".to_string(),
@@ -344,10 +341,10 @@ impl PubNub {
         PubNub {
             origin: "ps.pndsn.com:443".to_string(), // Change via pubnub.origin()
             agent: "Rust-Agent".to_string(),        // Change via pubnub.agent()
-            submit_publish,   // Publish a Message
-            submit_subscribe, // Add a Client
-            submit_result,    // Send Result to Application Consumer
-            process_result,   // Receiver for Application Consumer
+            submit_publish,                         // Publish a Message
+            submit_subscribe,                       // Add a Client
+            submit_result,                          // Send Result to Application Consumer
+            process_result,                         // Receiver for Application Consumer
         }
     }
 
@@ -403,93 +400,99 @@ mod tests {
 
     #[test]
     fn pubnub_subscribe_ok() {
-        let publish_key = "demo";
-        let subscribe_key = "demo";
-        let channels = "demo";
-        let origin = "ps.pndsn.com:443";
-        let agent = "Rust-Agent-Test";
-
-        let mut pubnub = PubNub::new()
-            .origin(&origin.to_string())
-            .agent(&agent.to_string());
-
-        let client = Client::new()
-            .subscribe_key(&subscribe_key)
-            .publish_key(&publish_key)
-            .channels(&channels);
-
-        let result = pubnub.subscribe(&client);
-        assert!(result.is_ok());
-
         let rt = Runtime::new().unwrap();
-        let message_future = pubnub.next();
-        let message = rt.block_on(message_future).unwrap();
+        let mut exec = rt.executor();
+        tokio_executor::with_default(&mut exec, || {
+            let publish_key = "demo";
+            let subscribe_key = "demo";
+            let channels = "demo";
+            let origin = "ps.pndsn.com:443";
+            let agent = "Rust-Agent-Test";
 
-        assert!(message.success);
-        /*
-        while let Some(message) = pubnub.next() {
-            
-        }*/
+            let mut pubnub = PubNub::new()
+                .origin(&origin.to_string())
+                .agent(&agent.to_string());
+
+            let client = Client::new()
+                .subscribe_key(&subscribe_key)
+                .publish_key(&publish_key)
+                .channels(&channels);
+
+            let result = pubnub.subscribe(&client);
+            assert!(result.is_ok());
+
+            let message_future = pubnub.next();
+            let message = rt.block_on(message_future).unwrap();
+
+            assert!(message.success);
+            /*
+            while let Some(message) = pubnub.next() {
+
+            }*/
+        });
     }
 
     #[test]
     fn pubnub_publish_ok() {
-        let publish_key = "demo";
-        let subscribe_key = "demo";
-        let channels = "demo";
-
-        let origin = "ps.pndsn.com:443";
-        let agent = "Rust-Agent-Test";
-
-        let mut pubnub = PubNub::new()
-            .origin(&origin.to_string())
-            .agent(&agent.to_string());
-
-        assert!(pubnub.origin == origin);
-        assert!(pubnub.agent == agent);
-
-        let client = Client::new()
-            .subscribe_key(&subscribe_key)
-            .publish_key(&publish_key)
-            .channels(&channels);
-
-        assert!(client.subscribe_key == subscribe_key);
-        assert!(client.publish_key == publish_key);
-        assert!(client.channels == channels);
-
-        let message = client.message().channel("demo").data("Hi!");
-        let result = pubnub.publish(message);
-
-        assert!(result.is_ok());
-
         let rt = Runtime::new().unwrap();
-        let message_future = pubnub.next();
-        let message = rt.block_on(message_future).unwrap();
+        let mut exec = rt.executor();
+        tokio_executor::with_default(&mut exec, || {
+            let publish_key = "demo";
+            let subscribe_key = "demo";
+            let channels = "demo";
 
-        assert!(MessageType::Publish == message.message_type);
-        assert_eq!("demo", message.channel);
-        assert_eq!("Hi!", message.data);
-        assert!(message.success);
+            let origin = "ps.pndsn.com:443";
+            let agent = "Rust-Agent-Test";
 
-        //println!("{:?}",message);
+            let mut pubnub = PubNub::new()
+                .origin(&origin.to_string())
+                .agent(&agent.to_string());
 
-        //assert!(message.message_type == MessageType::Publish);
+            assert!(pubnub.origin == origin);
+            assert!(pubnub.agent == agent);
 
-        //assert!(None == Some(pubnub.next()));
+            let client = Client::new()
+                .subscribe_key(&subscribe_key)
+                .publish_key(&publish_key)
+                .channels(&channels);
 
-        // TODO recieve publish response.
+            assert!(client.subscribe_key == subscribe_key);
+            assert!(client.publish_key == publish_key);
+            assert!(client.channels == channels);
 
-        /*
-        while let Some(message) = pubnub.next() {
-            // TODO Match on MessageType match message.message_type {}
-            // Print message and channel name.
-            println!("{}: {}", message.channel, message.data);
+            let message = client.message().channel("demo").data("Hi!");
+            let result = pubnub.publish(message);
 
-            // Remove clients only when you no longer need them
-            // When no more clients are in the pool, then `pubnub.next()` will
-            // return `None` and the loop will exit.
-            pubnub.remove(message.client);
-        }
-        */
+            assert!(result.is_ok());
+
+            let message_future = pubnub.next();
+            let message = rt.block_on(message_future).unwrap();
+
+            assert!(MessageType::Publish == message.message_type);
+            assert_eq!("demo", message.channel);
+            assert_eq!("Hi!", message.data);
+            assert!(message.success);
+
+            //println!("{:?}",message);
+
+            //assert!(message.message_type == MessageType::Publish);
+
+            //assert!(None == Some(pubnub.next()));
+
+            // TODO recieve publish response.
+
+            /*
+            while let Some(message) = pubnub.next() {
+                // TODO Match on MessageType match message.message_type {}
+                // Print message and channel name.
+                println!("{}: {}", message.channel, message.data);
+
+                // Remove clients only when you no longer need them
+                // When no more clients are in the pool, then `pubnub.next()` will
+                // return `None` and the loop will exit.
+                pubnub.remove(message.client);
+            }
+            */
+        });
     }
 }
