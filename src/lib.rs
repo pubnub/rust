@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use hyper::client::HttpConnector;
+use hyper_tls::HttpsConnector;
 use json::JsonValue;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use thiserror::Error;
@@ -27,6 +29,33 @@ pub enum Error {
 
     #[error("Next Message Channel read error")]
     NextMessageChannelRead(#[source] Box<Error>),
+
+    #[error("Hyper client error")]
+    HyperError(#[source] hyper::Error),
+
+    #[error("Invalid UTF-8")]
+    Utf8Error(#[source] std::str::Utf8Error),
+
+    #[error("Invalid JSON")]
+    JsonError(#[source] json::Error),
+}
+
+impl From<hyper::Error> for Error {
+    fn from(error: hyper::Error) -> Error {
+        Error::HyperError(error)
+    }
+}
+
+impl From<std::str::Utf8Error> for Error {
+    fn from(error: std::str::Utf8Error) -> Error {
+        Error::Utf8Error(error)
+    }
+}
+
+impl From<json::Error> for Error {
+    fn from(error: json::Error) -> Error {
+        Error::JsonError(error)
+    }
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -257,7 +286,7 @@ impl PubNub {
         let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Client>(100);
         let (submit_result, process_result) = mpsc::channel::<Message>(100);
 
-        let https = hyper_tls::HttpsConnector::new().unwrap();
+        let https = HttpsConnector::new().unwrap();
         let http_client = hyper::Client::builder()
             .keep_alive_timeout(Some(Duration::from_secs(300)))
             .max_idle_per_host(10000)
@@ -283,30 +312,9 @@ impl PubNub {
 
                 // Send network request
                 let url = url.parse().expect("Unable to parse URL");
-                let res = http_client.get(url).await;
-                let mut body = res.unwrap().into_body();
-                let mut bytes = Vec::new();
-
-                // Receive the response as a byte stream
-                while let Some(chunk) = body.next().await {
-                    let chunk = chunk.expect("Unable to read body bytes");
-                    bytes.extend(chunk);
-                }
-
-                // Convert the resolved byte stream to JSON
-                let data = std::str::from_utf8(&bytes).expect("Invalid UTF-8");
-                let data_json = json::parse(data).expect("Unable to parse JSON");
-
-                // Response Message received at pubnub.next()
-                let response_message = Message {
-                    message_type: MessageType::Publish,
-                    channel: message.channel.to_string(),
-                    data: data_json[1].to_string(),
-                    json: data_json.clone(),
-                    metadata: "".to_string(),
-                    timetoken: data_json[2].to_string(),
-                    success: data_json[0] == 1,
-                };
+                let response_message = publish_request(&http_client, url, &message.channel)
+                    .await
+                    .expect("TODO: Handle errors gracefully!");
 
                 // Send Publish Result to End-user via MPSC
                 // TODO handle errors
@@ -323,8 +331,8 @@ impl PubNub {
         let mut subscribe_result = submit_result.clone();
         let mut resubmit_subscribe = submit_subscribe.clone();
         tokio::spawn(async move {
-        // TODO loop the subscribe or it wont work.
-        // TODO save timetoken
+            // TODO loop the subscribe or it wont work.
+            // TODO save timetoken
             while let Some(mut client) = process_subscribe.recv().await {
                 // Construct URI
                 let url = format!(
@@ -337,43 +345,22 @@ impl PubNub {
 
                 // Send network request
                 let url = url.parse().expect("Unable to parse URL");
-                let res = subscribe_http_client.get(url).await;
-                let mut body = res.unwrap().into_body();
-                let mut bytes = Vec::new();
-
-                // Receive the response as a byte stream
-                while let Some(chunk) = body.next().await {
-                    let chunk = chunk.expect("Unable to read body bytes");
-                    bytes.extend(chunk);
-                }
-
-                // Convert the resolved byte stream to JSON
-                let data = std::str::from_utf8(&bytes).expect("Invalid UTF-8");
-                let data_json = json::parse(data).expect("Unable to parse JSON");
+                let (messages, timetoken) = subscribe_request(&subscribe_http_client, url)
+                    .await
+                    .expect("TODO: Handle errors gracefully!");
 
                 // Save Timetoken for next request
-                client.timetoken = data_json["t"]["t"].to_string();
+                client.timetoken = timetoken;
 
                 // Submit another subscribe event to be processed
                 // TODO handle errors
                 match resubmit_subscribe.try_send(client.clone()) {
-                    Ok(()) => {}, //Ok(()),
-                    Err(_error) => {}, //Err(Error::SubscribeChannelWrite(error)),
+                    Ok(()) => {}      //Ok(()),
+                    Err(_error) => {} //Err(Error::SubscribeChannelWrite(error)),
                 }
 
                 // Result Message from PubNub
-                // Capture Messages in Vec Buffer
-                for message in data_json["m"].members() {
-                    let message = Message {
-                        message_type: MessageType::Subscribe,
-                        channel: message["c"].to_string(),
-                        data: message["d"].to_string(),
-                        json: message.clone(),
-                        metadata: message["u"].to_string(),
-                        timetoken: message["p"]["t"].to_string(),
-                        success: true,
-                    };
-
+                for message in messages {
                     // Send Subscription Result to End-user via MPSC
                     // User can recieve subscription messages via pubnub.next()
                     // TODO handle errors
@@ -428,6 +415,74 @@ impl PubNub {
             Err(error) => Err(Error::SubscribeChannelWrite(error)),
         }
     }
+}
+
+async fn publish_request(
+    http_client: &hyper::Client<HttpsConnector<HttpConnector>, hyper::Body>,
+    url: hyper::Uri,
+    channel: &str,
+) -> Result<Message, Error> {
+    // Send network request
+    let res = http_client.get(url).await;
+    let mut body = res.unwrap().into_body();
+    let mut bytes = Vec::new();
+
+    // Receive the response as a byte stream
+    while let Some(chunk) = body.next().await {
+        bytes.extend(chunk?);
+    }
+
+    // Convert the resolved byte stream to JSON
+    let data = std::str::from_utf8(&bytes)?;
+    let data_json = json::parse(data)?;
+
+    // Response Message received at pubnub.next()
+    Ok(Message {
+        message_type: MessageType::Publish,
+        channel: channel.to_string(),
+        data: data_json[1].to_string(),
+        json: data_json.clone(),
+        metadata: "".to_string(),
+        timetoken: data_json[2].to_string(),
+        success: data_json[0] == 1,
+    })
+}
+
+async fn subscribe_request(
+    http_client: &hyper::Client<HttpsConnector<HttpConnector>, hyper::Body>,
+    url: hyper::Uri,
+) -> Result<(Vec<Message>, String), Error> {
+    // Send network request
+    let res = http_client.get(url).await;
+    let mut body = res.unwrap().into_body();
+    let mut bytes = Vec::new();
+
+    // Receive the response as a byte stream
+    while let Some(chunk) = body.next().await {
+        bytes.extend(chunk?);
+    }
+
+    // Convert the resolved byte stream to JSON
+    let data = std::str::from_utf8(&bytes)?;
+    let data_json = json::parse(data)?;
+
+    // Capture Messages in Vec Buffer
+    let timetoken = data_json["t"]["t"].to_string();
+    let messages = data_json["m"]
+        .members()
+        .map(|message| Message {
+            message_type: MessageType::Subscribe,
+            channel: message["c"].to_string(),
+            data: message["d"].to_string(),
+            json: message.clone(),
+            metadata: message["u"].to_string(),
+            timetoken: message["p"]["t"].to_string(),
+            success: true,
+        })
+        .collect::<Vec<_>>();
+
+    // Result Message from PubNub
+    Ok((messages, timetoken))
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
