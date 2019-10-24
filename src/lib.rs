@@ -349,25 +349,27 @@ impl PubNub {
                 let data_json = json::parse(data).expect("Unable to parse JSON");
 
                 // Result Message from PubNub
-                // TODO LOOP DELKSJDf
-                let message = Message {
-                    message_type: MessageType::Subscribe,
-                    channel: data_json["m"][0]["c"].to_string(),
-                    data: data_json["m"][0]["d"].to_string(),
-                    json: data_json.clone(),
-                    metadata: data_json["m"][0]["m"].to_string(),
-                    timetoken: data_json["m"][0]["p"]["t"].to_string(),
-                    success: true,
-                };
+                // Capture Messages in Vec Buffer
+                for message in data_json["m"].members() {
+                    let message = Message {
+                        message_type: MessageType::Subscribe,
+                        channel: message["c"].to_string(),
+                        data: message["d"].to_string(),
+                        json: message.clone(),
+                        metadata: message["u"].to_string(),
+                        timetoken: message["p"]["t"].to_string(),
+                        success: true,
+                    };
 
-                // Send Subscription Result to End-user via MPSC
-                // User can recieve subscription messages via pubnub.next()
-                // TODO handle errors
-                match subscribe_result.try_send(message) {
-                    Ok(()) => {}
-                    //Err(error) => {Err(Error::ResultChannelWrite(error));},
-                    Err(_error) => {}
-                };
+                    // Send Subscription Result to End-user via MPSC
+                    // User can recieve subscription messages via pubnub.next()
+                    // TODO handle errors
+                    match subscribe_result.try_send(message) {
+                        Ok(()) => {}
+                        //Err(error) => {Err(Error::ResultChannelWrite(error));},
+                        Err(_error) => {}
+                    };
+                }
             }
         });
 
