@@ -293,7 +293,7 @@ impl PubNub {
                     bytes.extend(chunk);
                 }
 
-                // Convert the  resolved byte stream to JSON
+                // Convert the resolved byte stream to JSON
                 let data = std::str::from_utf8(&bytes).expect("Invalid UTF-8");
                 let data_json = json::parse(data).expect("Unable to parse JSON");
 
@@ -344,7 +344,7 @@ impl PubNub {
                     bytes.extend(chunk);
                 }
 
-                // Convert the  resolved byte stream to JSON
+                // Convert the resolved byte stream to JSON
                 let data = std::str::from_utf8(&bytes).expect("Invalid UTF-8");
                 let data_json = json::parse(data).expect("Unable to parse JSON");
 
