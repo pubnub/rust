@@ -354,6 +354,13 @@ impl PubNub {
                 // Save Timetoken for next request
                 client.timetoken = data_json["t"]["t"].to_string();
 
+                // Submit another subscribe event to be processed
+                // TODO handle errors
+                match resubmit_subscribe.try_send(client.clone()) {
+                    Ok(()) => {}, //Ok(()),
+                    Err(_error) => {}, //Err(Error::SubscribeChannelWrite(error)),
+                }
+
                 // Result Message from PubNub
                 // Capture Messages in Vec Buffer
                 for message in data_json["m"].members() {
@@ -366,13 +373,6 @@ impl PubNub {
                         timetoken: message["p"]["t"].to_string(),
                         success: true,
                     };
-
-                    // Submit another subscribe event to be processed
-                    // TODO handle errors
-                    match resubmit_subscribe.try_send(client.clone()) {
-                        Ok(()) => {}, //Ok(()),
-                        Err(_error) => {}, //Err(Error::SubscribeChannelWrite(error)),
-                    }
 
                     // Send Subscription Result to End-user via MPSC
                     // User can recieve subscription messages via pubnub.next()
