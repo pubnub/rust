@@ -262,6 +262,7 @@ impl PubNub {
             .keep_alive_timeout(Some(Duration::from_secs(300)))
             .max_idle_per_host(10000)
             .build::<_, hyper::Body>(https);
+        let subscribe_http_client = http_client.clone();
 
         // Start Publish Worker
         // This worker will Publish messages to PubNub
@@ -301,6 +302,7 @@ impl PubNub {
                     message_type: MessageType::Publish,
                     channel: message.channel.to_string(),
                     data: data_json[1].to_string(), // Is this right?!
+                                                    // yes [1,"Sent","15719495428024079"]
                     json: data.to_string(),
                     metadata: "".to_string(),
                     timetoken: data_json[2].to_string(),
@@ -323,7 +325,7 @@ impl PubNub {
         tokio::spawn(async move {
             while let Some(client) = process_subscribe.recv().await {
                 // Construct URI
-                let _url = format!(
+                let url = format!(
                     "https://{origin}/v2/subscribe/{sub_key}/{channels}/0/{timetoken}",
                     origin = origin.to_string(),
                     sub_key = client.subscribe_key,
@@ -331,14 +333,27 @@ impl PubNub {
                     timetoken = client.timetoken,
                 );
 
-                // TODO Networking Call
-                // TODO ...
+                // Send network request
+                let url = url.parse().expect("Unable to parse URL");
+                let res = subscribe_http_client.get(url).await;
+                let mut body = res.unwrap().into_body();
+                let mut bytes = Vec::new();
+
+                // Receive the response as a byte stream
+                while let Some(chunk) = body.next().await {
+                    let chunk = chunk.expect("Unable to read body bytes");
+                    bytes.extend(chunk);
+                }
+
+                // Convert the  resolved byte stream to JSON
+                let data = std::str::from_utf8(&bytes).expect("Invalid UTF-8");
+                let data_json = json::parse(data).expect("Unable to parse JSON");
 
                 // Result Message from PubNub
                 let message = Message {
                     message_type: MessageType::Subscribe,
                     channel: "???".to_string(), // TODO real result
-                    data: "???".to_string(),    // TODO real result
+                    data: data_json.to_string(),    // TODO real result
                     json: "".to_string(),
                     metadata: "".to_string(),
                     timetoken: "".to_string(),
