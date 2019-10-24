@@ -321,8 +321,11 @@ impl PubNub {
         // Start Subscribe Worker
         // Messages available via pubnub.next()
         let mut subscribe_result = submit_result.clone();
+        let mut resubmit_subscribe = submit_subscribe.clone();
         tokio::spawn(async move {
-            while let Some(client) = process_subscribe.recv().await {
+        // TODO loop the subscribe or it wont work.
+        // TODO save timetoken
+            while let Some(mut client) = process_subscribe.recv().await {
                 // Construct URI
                 let url = format!(
                     "https://{origin}/v2/subscribe/{sub_key}/{channels}/0/{timetoken}",
@@ -348,6 +351,9 @@ impl PubNub {
                 let data = std::str::from_utf8(&bytes).expect("Invalid UTF-8");
                 let data_json = json::parse(data).expect("Unable to parse JSON");
 
+                // Save Timetoken for next request
+                client.timetoken = data_json["t"]["t"].to_string();
+
                 // Result Message from PubNub
                 // Capture Messages in Vec Buffer
                 for message in data_json["m"].members() {
@@ -360,6 +366,13 @@ impl PubNub {
                         timetoken: message["p"]["t"].to_string(),
                         success: true,
                     };
+
+                    // Submit another subscribe event to be processed
+                    // TODO handle errors
+                    match resubmit_subscribe.try_send(client.clone()) {
+                        Ok(()) => {}, //Ok(()),
+                        Err(_error) => {}, //Err(Error::SubscribeChannelWrite(error)),
+                    }
 
                     // Send Subscription Result to End-user via MPSC
                     // User can recieve subscription messages via pubnub.next()
