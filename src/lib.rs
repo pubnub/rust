@@ -72,8 +72,7 @@ pub struct Timetoken {
 
 /// # PubNub Message
 ///
-/// This is the message structure that includes all known information on the message received via
-/// `pubnub.next()`.
+/// This is the message structure returned by `pubnub.subscribe()`.
 #[derive(Debug, Clone)]
 pub struct Message {
     pub message_type: MessageType, // Enum Type of Message
@@ -88,31 +87,42 @@ pub struct Message {
     pub flags: u32,                // Your guess is as good as mine!
 }
 
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /// # PubNub Message Types
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+///
+/// PubNub delivers multiple kinds of messages. This enumeration describes the various types
+/// available.
+///
+/// The special `Unknown` variant may be delivered as the PubNub service evolves. It allows
+/// applications built on the PubNub Rust client to be forward-compatible without requiring a full
+/// client upgrade.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MessageType {
-    Publish,  // Response of Publish (Success/Fail)
-    Signal,   // A Lightweight message
-    Objects,  // An Objects service event, like space description updated
-    Action,   // A message action event
-    Presence, // Presence Event from Channel ( Another Client Joined )
+    /// A class message containing arbitrary payload data.
+    Publish,
+    /// A Lightweight message.
+    Signal,
+    /// An Objects service event, like space description updated.
+    Objects,
+    /// A message action event.
+    Action,
+    /// Presence event from channel (e.g. another client joined).
+    Presence,
+    /// Unknown type. The value may have special meaning in some contexts.
+    Unknown(u32),
 }
 
-// XXX: These are not ideal...
-
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// Error variants
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+/// # Error variants
 #[derive(Debug, Error)]
 pub enum Error {
+    /// Hyper client error.
     #[error("Hyper client error")]
     HyperError(#[source] hyper::Error),
 
+    /// Invalid UTF-8.
     #[error("Invalid UTF-8")]
     Utf8Error(#[source] std::str::Utf8Error),
 
+    /// Invalid JSON.
     #[error("Invalid JSON")]
     JsonError(#[source] json::Error),
 }
@@ -135,7 +145,7 @@ impl From<json::Error> for Error {
     }
 }
 
-/// # PubNub Tokio Runtime w/ Hyper Worker
+/// # PubNub core client
 ///
 /// This is the base structure which manages the primary subscribe loop and provides methods for
 /// sending and receiving messages in real time.
@@ -153,14 +163,14 @@ impl From<json::Error> for Error {
 /// # };
 /// ```
 impl PubNub {
-    /// # Create a new `PubNub` client with default configuration.
+    /// # Create a new `PubNub` client with default configuration
     ///
     /// To create a `PubNub` client with custom configuration, use [`PubNubBuilder::new`].
     pub fn new(publish_key: &str, subscribe_key: &str) -> PubNub {
         PubNubBuilder::new(publish_key, subscribe_key).build()
     }
 
-    /// # Set the subscribe filters.
+    /// # Set the subscribe filters
     ///
     /// ```no_run
     /// # use pubnub::PubNub;
@@ -171,7 +181,7 @@ impl PubNub {
         self.filters = Some(utf8_percent_encode(filters, NON_ALPHANUMERIC).to_string());
     }
 
-    /// # Publish a message over the PubNub network.
+    /// # Publish a message over the PubNub network
     ///
     /// ```no_run
     /// # use pubnub::PubNub;
@@ -190,7 +200,7 @@ impl PubNub {
             .await
     }
 
-    /// # Publish a message over the PubNub network with an extra metadata payload.
+    /// # Publish a message over the PubNub network with an extra metadata payload
     ///
     /// ```no_run
     /// # use pubnub::PubNub;
@@ -239,7 +249,7 @@ impl PubNub {
         publish_request(&self.client, url).await
     }
 
-    /// # Encode the internal channel list to a string.
+    /// # Encode the internal channel list to a string
     ///
     /// This is also used for encoding the list of channel groups.
     fn encode_channels(&self, channels: &HashMap<String, Channel>) -> String {
@@ -265,7 +275,7 @@ impl PubNub {
 ///     .build();
 /// ```
 impl PubNubBuilder {
-    /// # Create a new `PubNubBuilder` that can configure a `PubNub` client.
+    /// # Create a new `PubNubBuilder` that can configure a `PubNub` client
     pub fn new(publish_key: &str, subscribe_key: &str) -> PubNubBuilder {
         PubNubBuilder {
             origin: "ps.pndsn.com".to_string(),
@@ -280,7 +290,7 @@ impl PubNubBuilder {
         }
     }
 
-    /// # Set the PubNub network origin.
+    /// # Set the PubNub network origin
     ///
     /// ```no_run
     /// # use pubnub::PubNubBuilder;
@@ -293,7 +303,7 @@ impl PubNubBuilder {
         self
     }
 
-    /// # Set the HTTP user agent string.
+    /// # Set the HTTP user agent string
     ///
     /// ```no_run
     /// # use pubnub::PubNubBuilder;
@@ -306,7 +316,7 @@ impl PubNubBuilder {
         self
     }
 
-    /// # Set the PubNub secret key.
+    /// # Set the PubNub secret key
     ///
     /// ```no_run
     /// # use pubnub::PubNubBuilder;
@@ -319,7 +329,7 @@ impl PubNubBuilder {
         self
     }
 
-    /// # Set the PubNub PAM auth key.
+    /// # Set the PubNub PAM auth key
     ///
     /// ```no_run
     /// # use pubnub::PubNubBuilder;
@@ -332,7 +342,7 @@ impl PubNubBuilder {
         self
     }
 
-    /// # Set the PubNub User ID (Presence UUID).
+    /// # Set the PubNub User ID (Presence UUID)
     ///
     /// ```no_run
     /// # use pubnub::PubNubBuilder;
@@ -345,7 +355,7 @@ impl PubNubBuilder {
         self
     }
 
-    /// # Set the subscribe filters.
+    /// # Set the subscribe filters
     ///
     /// ```no_run
     /// # use pubnub::PubNubBuilder;
@@ -358,10 +368,10 @@ impl PubNubBuilder {
         self
     }
 
-    /// # Enable or disable interest in receiving Presence events.
+    /// # Enable or disable interest in receiving Presence events
     ///
-    /// When enabled (default), `pubnub.next()` will provide messages with `MessageType::Presence`
-    /// when users join and leave the channels you are listening on.
+    /// When enabled (default), `pubnub.subscribe()` will provide messages with type
+    /// `MessageType::Presence` when users join and leave the channels you are listening on.
     ///
     /// ```no_run
     /// # use pubnub::PubNubBuilder;
@@ -374,7 +384,7 @@ impl PubNubBuilder {
         self
     }
 
-    /// # Build the PubNub client to begin streaming messages.
+    /// # Build the PubNub client to begin streaming messages
     ///
     /// ```no_run
     /// # use pubnub::PubNubBuilder;
@@ -410,22 +420,18 @@ impl PubNubBuilder {
 }
 
 impl MessageType {
-    /// # Create a `MessageType` from an integer.
+    /// # Create a `MessageType` from an integer
     ///
     /// Subscribe message pyloads include a non-enumerated integer to describe message types. We
     /// instead provide a concrete type, using this function to convert the integer into the
     /// appropriate type.
     fn from_json(i: JsonValue) -> MessageType {
-        if let Some(i) = i.as_u32() {
-            match i {
-                0 => MessageType::Publish,
-                1 => MessageType::Signal,
-                2 => MessageType::Objects,
-                3 => MessageType::Action,
-                _ => panic!("Invalid message type: {}", i),
-            }
-        } else {
-            panic!("Invalid message type: {}", i);
+        match i.as_u32().unwrap_or(0) {
+            0 => MessageType::Publish,
+            1 => MessageType::Signal,
+            2 => MessageType::Objects,
+            3 => MessageType::Action,
+            i => MessageType::Unknown(i),
         }
     }
 }
@@ -502,7 +508,7 @@ impl MessageType {
     }
 */
 
-/// # Send a publish request and return the JSON response.
+/// # Send a publish request and return the JSON response
 async fn publish_request(http_client: &HttpClient, url: Uri) -> Result<Timetoken, Error> {
     // Send network request
     let res = http_client.get(url).await;
@@ -522,11 +528,11 @@ async fn publish_request(http_client: &HttpClient, url: Uri) -> Result<Timetoken
         r: 0, // TODO
     };
 
-    // Response Message received at pubnub.next()
+    // Deliever the timetoken response from PubNub
     Ok(timetoken)
 }
 
-/// # Send a subscribe request and return the JSON messages received.
+/// # Send a subscribe request and return the JSON messages received
 async fn subscribe_request(
     http_client: &HttpClient,
     url: Uri,
@@ -571,13 +577,10 @@ async fn subscribe_request(
         })
         .collect::<Vec<_>>();
 
-    // Result Message from PubNub
+    // Deliver the message response from PubNub
     Ok((messages, timetoken))
 }
 
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// Tests for PubNub Pool
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #[cfg(test)]
 mod tests {
     use super::*;
