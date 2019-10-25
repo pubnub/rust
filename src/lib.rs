@@ -259,17 +259,21 @@ impl PubNub {
         message: JsonValue,
         _metadata: JsonValue,
     ) -> Result<Timetoken, Error> {
-        let data = json::stringify(message);
+        let message = json::stringify(message);
+        let message = utf8_percent_encode(&message, NON_ALPHANUMERIC);
+        let channel = utf8_percent_encode(channel, NON_ALPHANUMERIC);
 
         // Construct URI
         let url = format!(
-            "https://{origin}/publish/{pub_key}/{sub_key}/0/{channel}/0/{data}",
+            "https://{origin}/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}",
             origin = self.origin,
             pub_key = self.publish_key,
             sub_key = self.subscribe_key,
             channel = channel,
-            data = data,
+            message = message,
         );
+
+        dbg!(&url);
 
         // Send network request
         let url = url.parse().expect("Unable to parse URL");
@@ -803,105 +807,94 @@ mod tests {
     use super::*;
     use tokio::runtime::Runtime;
     /*
-        #[test]
-        fn pubnub_time_ok() {
-            // TODO
-            let _host = "0.0.0.0:3000";
-            assert!(true);
-            assert!(true);
-        }
+            #[test]
+            fn pubnub_time_ok() {
+                // TODO
+                let _host = "0.0.0.0:3000";
+                assert!(true);
+                assert!(true);
+            }
 
-        #[test]
-        fn pubnub_subscribe_ok() {
-            let rt = Runtime::new().unwrap();
-            let mut exec = rt.executor();
-            tokio_executor::with_default(&mut exec, || {
-                let publish_key = "demo";
-                let subscribe_key = "demo";
-                let channels = "demo";
-                let origin = "ps.pndsn.com";
-                let agent = "Rust-Agent-Test";
+            #[test]
+            fn pubnub_subscribe_ok() {
+                let rt = Runtime::new().unwrap();
+                let mut exec = rt.executor();
+                tokio_executor::with_default(&mut exec, || {
+                    let publish_key = "demo";
+                    let subscribe_key = "demo";
+                    let channels = "demo";
+                    let origin = "ps.pndsn.com";
+                    let agent = "Rust-Agent-Test";
 
-                let mut pubnub = PubNub::new()
-                    .origin(&origin.to_string())
-                    .agent(&agent.to_string());
+                    let mut pubnub = PubNub::new()
+                        .origin(&origin.to_string())
+                        .agent(&agent.to_string());
 
-                let client = Client::new()
-                    .subscribe_key(&subscribe_key)
-                    .publish_key(&publish_key)
-                    .channels(&channels);
+                    let client = Client::new()
+                        .subscribe_key(&subscribe_key)
+                        .publish_key(&publish_key)
+                        .channels(&channels);
 
-                let result = pubnub.subscribe(&client);
-                assert!(result.is_ok());
+                    let result = pubnub.subscribe(&client);
+                    assert!(result.is_ok());
 
-                let message_future = pubnub.next();
-                let message = rt.block_on(message_future).unwrap();
+                    let message_future = pubnub.next();
+                    let message = rt.block_on(message_future).unwrap();
 
-                assert!(message.success);
-                /*
-                while let Some(message) = pubnub.next() {
+                    assert!(message.success);
+                    /*
+                    while let Some(message) = pubnub.next() {
 
-                }*/
-            });
-        }
-
-        #[test]
-        fn pubnub_publish_ok() {
-            let rt = Runtime::new().unwrap();
-            let mut exec = rt.executor();
-            tokio_executor::with_default(&mut exec, || {
-                let publish_key = "demo";
-                let subscribe_key = "demo";
-                let channels = "demo";
-
-                let origin = "ps.pndsn.com";
-                let agent = "Rust-Agent-Test";
-
-                let mut pubnub = PubNub::new().origin(origin).agent(agent);
-
-                assert_eq!(pubnub.origin, origin);
-                assert_eq!(pubnub.agent, agent);
-
-                let client = Client::new()
-                    .subscribe_key(subscribe_key)
-                    .publish_key(publish_key)
-                    .channels(channels);
-
-                assert_eq!(client.subscribe_key, subscribe_key);
-                assert_eq!(client.publish_key, publish_key);
-                assert_eq!(client.channels, channels);
-
-                let message = client
-                    .message()
-                    .channel("demo")
-                    .json(JsonValue::String("Hi!".to_string()));
-                let result = pubnub.publish(message);
-
-                assert!(result.is_ok());
-
-                let message_future = pubnub.next();
-                let message = rt.block_on(message_future).unwrap();
-
-                assert!(message.success);
-                assert_eq!(message.message_type, MessageType::Publish);
-                assert_eq!(message.channel, "demo");
-                assert_eq!(message.data, "Sent");
-                assert_eq!(message.timetoken.len(), 17);
-                assert!(message.timetoken.chars().all(|c| c >= '0' && c <= '9'));
-
-                // rt.block_on(async {
-                //     while let Some(message) = pubnub.next().await {
-                //         // TODO Match on MessageType match message.message_type {}
-                //         // Print message and channel name.
-                //         println!("{}: {}", message.channel, message.data);
-                //
-                //         // Remove clients only when you no longer need them
-                //         // When no more clients are in the pool, then `pubnub.next()` will
-                //         // return `None` and the loop will exit.
-                //         // pubnub.remove(message.client);
-                //     }
-                // });
-            });
-        }
+                    }*/
+                });
+            }
     */
+
+    #[test]
+    fn pubnub_publish_ok() {
+        let rt = Runtime::new().unwrap();
+        let mut exec = rt.executor();
+        tokio_executor::with_default(&mut exec, || {
+            let publish_key = "demo";
+            let subscribe_key = "demo";
+            let channel = "demo";
+
+            let origin = "ps.pndsn.com";
+            let agent = "Rust-Agent-Test";
+
+            let pubnub = PubNubBuilder::new(publish_key, subscribe_key)
+                .origin(origin)
+                .agent(agent)
+                .add_channel(channel)
+                .build();
+
+            assert_eq!(pubnub.origin, origin);
+            assert_eq!(pubnub.agent, agent);
+            assert_eq!(pubnub.subscribe_key, subscribe_key);
+            assert_eq!(pubnub.publish_key, publish_key);
+            assert!(pubnub.channels.contains(channel));
+
+            let message = JsonValue::String("Hi!".to_string());
+            let status_future = pubnub.publish(channel, message);
+            let status = rt.block_on(status_future);
+            assert!(status.is_ok());
+            let timetoken = status.unwrap();
+
+            assert_eq!(timetoken.t.len(), 17);
+            assert!(timetoken.t.chars().all(|c| c >= '0' && c <= '9'));
+
+            // rt.block_on(async {
+            //     while let Some(message) = pubnub.next().await {
+            //         // TODO Match on MessageType match message.message_type {}
+            //         // Print message and channel name.
+            //         println!("{}: {}", message.channel, message.data);
+            //
+            //         // Remove clients only when you no longer need them
+            //         // When no more clients are in the pool, then `pubnub.next()` will
+            //         // return `None` and the loop will exit.
+            //         // pubnub.remove(message.client);
+            //     }
+            // });
+        });
+    }
 }
