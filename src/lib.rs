@@ -5,7 +5,7 @@
 //! PubNub edge network.
 //! - Optimizes for minimal network sockets with an infinite number of logical streams.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::time::Duration;
 
 use hyper::{client::HttpConnector, Uri};
@@ -16,6 +16,7 @@ use thiserror::Error;
 use tokio::sync::mpsc;
 
 type HttpClient = hyper::Client<HttpsConnector<HttpConnector>, hyper::Body>;
+type Channel = mpsc::Sender<Message>;
 
 /// # PubNub Client
 ///
@@ -23,21 +24,21 @@ type HttpClient = hyper::Client<HttpsConnector<HttpConnector>, hyper::Body>;
 /// PubNub Network.
 #[derive(Debug, Clone)]
 pub struct PubNub {
-    origin: String,             // "domain:port"
-    agent: String,              // "Rust-Agent"
-    client: HttpClient,         // HTTP Client
-    publish_key: String,        // Customer's Publish Key
-    subscribe_key: String,      // Customer's Subscribe Key
-    secret_key: Option<String>, // Customer's Secret Key
-    auth_key: Option<String>,   // Client Auth Key for R+W Access
-    user_id: Option<String>,    // Client UserId "UUID" for Presence
-    filters: Option<String>,    // Metadata Filters on Messages
-    presence: bool,             // Enable presence events
-    channels: HashSet<String>,  // Client Channels
-    groups: HashSet<String>,    // Client Channel Groups
-    encoded_channels: String,   // Client Channels, comma-separated and URI encoded
-    encoded_groups: String,     // Client Channel Groups, comma-separated and URI encoded
-    timetoken: Timetoken,       // Current Line-in-Sand for Subscription
+    origin: String,                     // "domain:port"
+    agent: String,                      // "Rust-Agent"
+    client: HttpClient,                 // HTTP Client
+    publish_key: String,                // Customer's Publish Key
+    subscribe_key: String,              // Customer's Subscribe Key
+    secret_key: Option<String>,         // Customer's Secret Key
+    auth_key: Option<String>,           // Client Auth Key for R+W Access
+    user_id: Option<String>,            // Client UserId "UUID" for Presence
+    filters: Option<String>,            // Metadata Filters on Messages
+    presence: bool,                     // Enable presence events
+    channels: HashMap<String, Channel>, // Client Channels
+    groups: HashMap<String, Channel>,   // Client Channel Groups
+    encoded_channels: String,           // Client Channels, comma-separated and URI encoded
+    encoded_groups: String,             // Client Channel Groups, comma-separated and URI encoded
+    timetoken: Timetoken,               // Current Line-in-Sand for Subscription
 }
 
 /// # PubNub Client Builder
@@ -55,8 +56,6 @@ pub struct PubNubBuilder {
     user_id: Option<String>,    // Client UserId "UUID" for Presence
     filters: Option<String>,    // Metadata Filters on Messages
     presence: bool,             // Enable presence events
-    channels: HashSet<String>,  // Client Channels
-    groups: HashSet<String>,    // Client Channel Groups
 }
 
 /// # PubNub Timetoken
@@ -170,52 +169,6 @@ impl PubNub {
         self.filters = Some(utf8_percent_encode(filters, NON_ALPHANUMERIC).to_string());
     }
 
-    /// # Add a channel to the pubnub listener.
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNub;
-    /// let mut pubnub = PubNub::new("demo", "demo");
-    /// pubnub.add_channel("my-channel");
-    /// pubnub.add_channel("general-chat");
-    /// ```
-    pub fn add_channel(&mut self, channel: &str) {
-        self.channels.insert(channel.to_string());
-    }
-
-    /// # Remove a channel from the pubnub listener.
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNub;
-    /// let mut pubnub = PubNub::new("demo", "demo");
-    /// pubnub.remove_channel("trump");
-    /// ```
-    pub fn remove_channel(&mut self, channel: &str) {
-        self.channels.remove(channel);
-    }
-
-    /// # Add a channel group to the pubnub listener.
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNub;
-    /// let mut pubnub = PubNub::new("demo", "demo");
-    /// pubnub.add_group("cats-anonymous");
-    /// pubnub.add_group("gaming");
-    /// ```
-    pub fn add_group(&mut self, group: &str) {
-        self.groups.insert(group.to_string());
-    }
-
-    /// # Remove a channel group from the pubnub listener.
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNub;
-    /// let mut pubnub = PubNub::new("demo", "demo");
-    /// pubnub.remove_group("trump-cabinet");
-    /// ```
-    pub fn remove_group(&mut self, group: &str) {
-        self.groups.remove(group);
-    }
-
     /// # Publish a message over the PubNub network.
     ///
     /// ```no_run
@@ -264,6 +217,10 @@ impl PubNub {
         let channel = utf8_percent_encode(channel, NON_ALPHANUMERIC);
 
         // Construct URI
+        // TODO:
+        // - auth key
+        // - uuid
+        // - signature
         let url = format!(
             "https://{origin}/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}",
             origin = self.origin,
@@ -278,6 +235,18 @@ impl PubNub {
         // Send network request
         let url = url.parse().expect("Unable to parse URL");
         publish_request(&self.client, url).await
+    }
+
+    /// # Encode the internal channel list to a string.
+    ///
+    /// This is also used for encoding the list of channel groups.
+    fn encode_channels(&self, channels: &HashMap<String, Channel>) -> String {
+        channels
+            .keys()
+            .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
+            .collect::<Vec<_>>()
+            .as_slice()
+            .join("%2C")
     }
 }
 
@@ -306,8 +275,6 @@ impl PubNubBuilder {
             user_id: None,
             filters: None,
             presence: false,
-            channels: HashSet::new(),
-            groups: HashSet::new(),
         }
     }
 
@@ -376,6 +343,19 @@ impl PubNubBuilder {
         self
     }
 
+    /// # Set the subscribe filters.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNubBuilder;
+    /// let pubnub = PubNubBuilder::new("demo", "demo")
+    ///     .filters("uuid != JoeBob")
+    ///     .build();
+    /// ```
+    pub fn filters(mut self, filters: &str) -> PubNubBuilder {
+        self.filters = Some(utf8_percent_encode(filters, NON_ALPHANUMERIC).to_string());
+        self
+    }
+
     /// # Enable or disable interest in receiving Presence events.
     ///
     /// When enabled (default), `pubnub.next()` will provide messages with `MessageType::Presence`
@@ -392,70 +372,6 @@ impl PubNubBuilder {
         self
     }
 
-    /// # Add a channel to the pubnub listener.
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNubBuilder;
-    /// let pubnub = PubNubBuilder::new("demo", "demo")
-    ///     .add_channel("my-channel")
-    ///     .add_channel("general-chat")
-    ///     .build();
-    /// ```
-    pub fn add_channel(mut self, channel: &str) -> PubNubBuilder {
-        self.channels.insert(channel.to_string());
-        self
-    }
-
-    /// # Remove a channel from the pubnub listener.
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNubBuilder;
-    /// let pubnub = PubNubBuilder::new("demo", "demo")
-    ///     .remove_channel("trump")
-    ///     .build();
-    /// ```
-    pub fn remove_channel(mut self, channel: &str) -> PubNubBuilder {
-        self.channels.remove(channel);
-        self
-    }
-
-    /// # Add a channel group to the pubnub listener.
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNubBuilder;
-    /// let pubnub = PubNubBuilder::new("demo", "demo")
-    ///     .add_group("cats-anonymous")
-    ///     .add_group("gaming")
-    ///     .build();
-    /// ```
-    pub fn add_group(mut self, group: &str) -> PubNubBuilder {
-        self.groups.insert(group.to_string());
-        self
-    }
-
-    /// # Remove a channel group from the pubnub listener.
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNubBuilder;
-    /// let pubnub = PubNubBuilder::new("demo", "demo")
-    ///     .remove_group("trump-cabinet")
-    ///     .build();
-    /// ```
-    pub fn remove_group(mut self, group: &str) -> PubNubBuilder {
-        self.groups.remove(group);
-        self
-    }
-
-    /// # Encode the internal channel list to a string.
-    fn encode_channels(&self, channels: &HashSet<String>) -> String {
-        channels
-            .iter()
-            .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
-            .collect::<Vec<_>>()
-            .as_slice()
-            .join("%2C")
-    }
-
     /// # Build the PubNub client to begin streaming messages.
     ///
     /// ```no_run
@@ -470,9 +386,6 @@ impl PubNubBuilder {
             .max_idle_per_host(10000)
             .build::<_, hyper::Body>(https);
 
-        let encoded_channels = self.encode_channels(&self.channels);
-        let encoded_groups = self.encode_channels(&self.groups);
-
         PubNub {
             origin: self.origin,
             agent: self.agent,
@@ -484,10 +397,10 @@ impl PubNubBuilder {
             user_id: self.user_id,
             filters: self.filters,
             presence: self.presence,
-            channels: self.channels,
-            groups: self.groups,
-            encoded_channels,
-            encoded_groups,
+            channels: HashMap::new(),
+            groups: HashMap::new(),
+            encoded_channels: String::new(),
+            encoded_groups: String::new(),
             timetoken: Timetoken::default(),
         }
     }
@@ -584,146 +497,6 @@ impl MessageType {
             process_result,                     // Receiver for Application Consumer
         }
     }
-
-    pub fn origin(mut self, origin: &str) -> PubNub {
-        self.origin = origin.to_string();
-        self
-    }
-
-    pub fn agent(mut self, agent: &str) -> PubNub {
-        self.agent = agent.to_string();
-        self
-    }
-
-    pub async fn next(&mut self) -> Option<Message> {
-        self.process_result.recv().await
-    }
-
-    pub fn unsubscribe(&self, _client: Client) {
-        // TODO
-    }
-
-    pub fn subscribe(&mut self, client: &Client) -> Result<(), Error> {
-        match self.submit_subscribe.try_send(client.clone()) {
-            Ok(()) => Ok(()),
-            Err(error) => Err(Error::SubscribeChannelWrite(error)),
-        }
-    }
-}
-
-// XXX
-impl Client {
-    pub fn new() -> Client {
-        Client {
-            subscribe_key: "demo".to_string(),
-            publish_key: "demo".to_string(),
-            secret_key: "".to_string(),
-            auth_key: "".to_string(),
-            user_id: "".to_string(),
-            channels: "demo".to_string(),
-            groups: "".to_string(),
-            filters: "".to_string(),
-            presence: false,
-            json: false,
-            since: 0,
-            timetoken: "0".to_string(),
-        }
-    }
-
-    pub fn subscribe_key(mut self, subscribe_key: &str) -> Client {
-        self.subscribe_key = subscribe_key.to_string();
-        self
-    }
-
-    pub fn publish_key(mut self, publish_key: &str) -> Client {
-        self.publish_key = publish_key.to_string();
-        self
-    }
-
-    pub fn secret_key(mut self, secret_key: &str) -> Client {
-        self.secret_key = secret_key.to_string();
-        self
-    }
-
-    pub fn auth_key(mut self, auth_key: &str) -> Client {
-        self.auth_key = auth_key.to_string();
-        self
-    }
-
-    pub fn user_id(mut self, user_id: &str) -> Client {
-        self.user_id = user_id.to_string();
-        self
-    }
-
-    pub fn channels(mut self, channels: &str) -> Client {
-        self.channels = channels.to_string();
-        self
-    }
-
-    pub fn groups(mut self, groups: &str) -> Client {
-        self.groups = groups.to_string();
-        self
-    }
-
-    pub fn filters(mut self, filters: &str) -> Client {
-        self.filters = filters.to_string();
-        self
-    }
-
-    pub fn presence(mut self, presence: bool) -> Client {
-        self.presence = presence;
-        self
-    }
-
-    pub fn since(mut self, since: u64) -> Client {
-        self.since = since;
-        self
-    }
-
-    pub fn timetoken(mut self, timetoken: &str) -> Client {
-        self.timetoken = timetoken.to_string();
-        self
-    }
-
-    pub fn message(&self) -> PublishMessage {
-        PublishMessage {
-            client: self.clone(),
-            channel: "demo".to_string(),
-            data: "test".to_string(),
-            metadata: "".to_string(),
-        }
-    }
-}
-
-impl PublishMessage {
-    pub fn channel(mut self, channel: &str) -> PublishMessage {
-        self.channel = channel.to_string();
-        self
-    }
-
-    pub fn data(mut self, data: &str) -> PublishMessage {
-        self.data = data.to_string();
-        self
-    }
-
-    pub fn json(mut self, data: JsonValue) -> PublishMessage {
-        self.data = utf8_percent_encode(&json::stringify(data), NON_ALPHANUMERIC).to_string();
-        self
-    }
-
-    pub fn metadata(mut self, metadata: &str) -> PublishMessage {
-        self.metadata = metadata.to_string();
-        self
-    }
-
-    // Add PublishMessage to the publish stream.
-    pub fn publish(self, pubnub: &mut PubNub) -> Result<(), Error> {
-        match pubnub.submit_publish.try_send(self) {
-            Ok(()) => Ok(()),
-            Err(error) => Err(Error::PublishChannelWrite(error)),
-        }
-    }
-}
 */
 
 /// # Send a publish request and return the JSON response.
@@ -859,20 +632,15 @@ mod tests {
             let subscribe_key = "demo";
             let channel = "demo";
 
-            let origin = "ps.pndsn.com";
             let agent = "Rust-Agent-Test";
 
             let pubnub = PubNubBuilder::new(publish_key, subscribe_key)
-                .origin(origin)
                 .agent(agent)
-                .add_channel(channel)
                 .build();
 
-            assert_eq!(pubnub.origin, origin);
             assert_eq!(pubnub.agent, agent);
             assert_eq!(pubnub.subscribe_key, subscribe_key);
             assert_eq!(pubnub.publish_key, publish_key);
-            assert!(pubnub.channels.contains(channel));
 
             let message = JsonValue::String("Hi!".to_string());
             let status_future = pubnub.publish(channel, message);
