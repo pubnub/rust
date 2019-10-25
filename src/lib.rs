@@ -5,6 +5,7 @@
 //! PubNub edge network.
 //! - Optimizes for minimal network sockets with an infinite number of logical streams.
 
+use std::collections::HashSet;
 use std::time::Duration;
 
 use hyper::{client::HttpConnector, Uri};
@@ -32,8 +33,8 @@ pub struct PubNub {
     user_id: Option<String>,    // Client UserId "UUID" for Presence
     filters: Option<String>,    // Metadata Filters on Messages
     presence: bool,             // Enable presence events
-    channels: Vec<String>,      // Client Channels
-    groups: Vec<String>,        // Client Channel Groups
+    channels: HashSet<String>,  // Client Channels
+    groups: HashSet<String>,    // Client Channel Groups
     encoded_channels: String,   // Client Channels, comma-separated and URI encoded
     encoded_groups: String,     // Client Channel Groups, comma-separated and URI encoded
     timetoken: Timetoken,       // Current Line-in-Sand for Subscription
@@ -54,8 +55,8 @@ pub struct PubNubBuilder {
     user_id: Option<String>,    // Client UserId "UUID" for Presence
     filters: Option<String>,    // Metadata Filters on Messages
     presence: bool,             // Enable presence events
-    channels: Vec<String>,      // Client Channels
-    groups: Vec<String>,        // Client Channel Groups
+    channels: HashSet<String>,  // Client Channels
+    groups: HashSet<String>,    // Client Channel Groups
 }
 
 /// # PubNub Timetoken
@@ -144,7 +145,7 @@ impl From<json::Error> for Error {
 ///
 /// # async {
 /// let pubnub = PubNub::new("demo", "demo");
-/// let message = pubnub.publish("my-channel", object!{
+/// let status = pubnub.publish("my-channel", object!{
 ///     "username" => "JoeBob",
 ///     "content" => "Hello, world!",
 /// }).await;
@@ -169,14 +170,90 @@ impl PubNub {
         self.filters = Some(utf8_percent_encode(filters, NON_ALPHANUMERIC).to_string());
     }
 
+    /// # Add a channel to the pubnub listener.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNub;
+    /// let mut pubnub = PubNub::new("demo", "demo");
+    /// pubnub.add_channel("my-channel");
+    /// pubnub.add_channel("general-chat");
+    /// ```
+    pub fn add_channel(&mut self, channel: &str) {
+        self.channels.insert(channel.to_string());
+    }
+
+    /// # Remove a channel from the pubnub listener.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNub;
+    /// let mut pubnub = PubNub::new("demo", "demo");
+    /// pubnub.remove_channel("trump");
+    /// ```
+    pub fn remove_channel(&mut self, channel: &str) {
+        self.channels.remove(channel);
+    }
+
+    /// # Add a channel group to the pubnub listener.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNub;
+    /// let mut pubnub = PubNub::new("demo", "demo");
+    /// pubnub.add_group("cats-anonymous");
+    /// pubnub.add_group("gaming");
+    /// ```
+    pub fn add_group(&mut self, group: &str) {
+        self.groups.insert(group.to_string());
+    }
+
+    /// # Remove a channel group from the pubnub listener.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNub;
+    /// let mut pubnub = PubNub::new("demo", "demo");
+    /// pubnub.remove_group("trump-cabinet");
+    /// ```
+    pub fn remove_group(&mut self, group: &str) {
+        self.groups.remove(group);
+    }
+
     /// # Publish a message over the PubNub network.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNub;
+    /// use json::object;
+    ///
+    /// # async {
+    /// let pubnub = PubNub::new("demo", "demo");
+    /// let status = pubnub.publish("my-channel", object!{
+    ///     "username" => "JoeBob",
+    ///     "content" => "Hello, world!",
+    /// }).await;
+    /// # };
+    /// ```
     pub async fn publish(&self, channel: &str, message: JsonValue) -> Result<Timetoken, Error> {
-        self.publish_with_meta(channel, message, JsonValue::Null)
+        self.publish_with_metadata(channel, message, JsonValue::Null)
             .await
     }
 
     /// # Publish a message over the PubNub network with an extra metadata payload.
-    pub async fn publish_with_meta(
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNub;
+    /// use json::object;
+    ///
+    /// # async {
+    /// let pubnub = PubNub::new("demo", "demo");
+    /// let message = object!{
+    ///     "username" => "JoeBob",
+    ///     "content" => "Hello, world!",
+    /// };
+    /// let metadata = object!{
+    ///     "uuid" => "JoeBob",
+    /// };
+    /// let status = pubnub.publish_with_metadata("my-channel", message, metadata).await;
+    /// # };
+    /// ```
+    pub async fn publish_with_metadata(
         &self,
         channel: &str,
         message: JsonValue,
@@ -225,8 +302,8 @@ impl PubNubBuilder {
             user_id: None,
             filters: None,
             presence: false,
-            channels: Vec::new(),
-            groups: Vec::new(),
+            channels: HashSet::new(),
+            groups: HashSet::new(),
         }
     }
 
@@ -295,6 +372,86 @@ impl PubNubBuilder {
         self
     }
 
+    /// # Enable or disable interest in receiving Presence events.
+    ///
+    /// When enabled (default), `pubnub.next()` will provide messages with `MessageType::Presence`
+    /// when users join and leave the channels you are listening on.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNubBuilder;
+    /// let pubnub = PubNubBuilder::new("demo", "demo")
+    ///     .presence(true)
+    ///     .build();
+    /// ```
+    pub fn presence(mut self, enable: bool) -> PubNubBuilder {
+        self.presence = enable;
+        self
+    }
+
+    /// # Add a channel to the pubnub listener.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNubBuilder;
+    /// let pubnub = PubNubBuilder::new("demo", "demo")
+    ///     .add_channel("my-channel")
+    ///     .add_channel("general-chat")
+    ///     .build();
+    /// ```
+    pub fn add_channel(mut self, channel: &str) -> PubNubBuilder {
+        self.channels.insert(channel.to_string());
+        self
+    }
+
+    /// # Remove a channel from the pubnub listener.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNubBuilder;
+    /// let pubnub = PubNubBuilder::new("demo", "demo")
+    ///     .remove_channel("trump")
+    ///     .build();
+    /// ```
+    pub fn remove_channel(mut self, channel: &str) -> PubNubBuilder {
+        self.channels.remove(channel);
+        self
+    }
+
+    /// # Add a channel group to the pubnub listener.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNubBuilder;
+    /// let pubnub = PubNubBuilder::new("demo", "demo")
+    ///     .add_group("cats-anonymous")
+    ///     .add_group("gaming")
+    ///     .build();
+    /// ```
+    pub fn add_group(mut self, group: &str) -> PubNubBuilder {
+        self.groups.insert(group.to_string());
+        self
+    }
+
+    /// # Remove a channel group from the pubnub listener.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNubBuilder;
+    /// let pubnub = PubNubBuilder::new("demo", "demo")
+    ///     .remove_group("trump-cabinet")
+    ///     .build();
+    /// ```
+    pub fn remove_group(mut self, group: &str) -> PubNubBuilder {
+        self.groups.remove(group);
+        self
+    }
+
+    /// # Encode the internal channel list to a string.
+    fn encode_channels(&self, channels: &HashSet<String>) -> String {
+        channels
+            .iter()
+            .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
+            .collect::<Vec<_>>()
+            .as_slice()
+            .join("%2C")
+    }
+
     /// # Build the PubNub client to begin streaming messages.
     ///
     /// ```no_run
@@ -309,21 +466,8 @@ impl PubNubBuilder {
             .max_idle_per_host(10000)
             .build::<_, hyper::Body>(https);
 
-        let encoded_channels = self
-            .channels
-            .iter()
-            .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
-            .collect::<Vec<_>>()
-            .as_slice()
-            .join("%2C");
-
-        let encoded_groups = self
-            .groups
-            .iter()
-            .map(|group| utf8_percent_encode(group, NON_ALPHANUMERIC).to_string())
-            .collect::<Vec<_>>()
-            .as_slice()
-            .join("%2C");
+        let encoded_channels = self.encode_channels(&self.channels);
+        let encoded_groups = self.encode_channels(&self.groups);
 
         PubNub {
             origin: self.origin,
