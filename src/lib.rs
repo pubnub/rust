@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use futures_util::future::AbortHandle;
 use hyper::{client::HttpConnector, Uri};
 use hyper_tls::HttpsConnector;
 use json::JsonValue;
@@ -24,21 +25,22 @@ type Channel = mpsc::Sender<Message>;
 /// PubNub Network.
 #[derive(Debug, Clone)]
 pub struct PubNub {
-    origin: String,                     // "domain:port"
-    agent: String,                      // "Rust-Agent"
-    client: HttpClient,                 // HTTP Client
-    publish_key: String,                // Customer's Publish Key
-    subscribe_key: String,              // Customer's Subscribe Key
-    secret_key: Option<String>,         // Customer's Secret Key
-    auth_key: Option<String>,           // Client Auth Key for R+W Access
-    user_id: Option<String>,            // Client UserId "UUID" for Presence
-    filters: Option<String>,            // Metadata Filters on Messages
-    presence: bool,                     // Enable presence events
-    channels: HashMap<String, Channel>, // Client Channels
-    groups: HashMap<String, Channel>,   // Client Channel Groups
-    encoded_channels: String,           // Client Channels, comma-separated and URI encoded
-    encoded_groups: String,             // Client Channel Groups, comma-separated and URI encoded
-    timetoken: Timetoken,               // Current Line-in-Sand for Subscription
+    origin: String,                      // "domain:port"
+    agent: String,                       // "Rust-Agent"
+    client: HttpClient,                  // HTTP Client
+    publish_key: String,                 // Customer's Publish Key
+    subscribe_key: String,               // Customer's Subscribe Key
+    secret_key: Option<String>,          // Customer's Secret Key
+    auth_key: Option<String>,            // Client Auth Key for R+W Access
+    user_id: Option<String>,             // Client UserId "UUID" for Presence
+    filters: Option<String>,             // Metadata Filters on Messages
+    presence: bool,                      // Enable presence events
+    channels: HashMap<String, Channel>,  // Client Channels
+    groups: HashMap<String, Channel>,    // Client Channel Groups
+    subscribe_loop: Option<AbortHandle>, // Handles message reception from PubNub
+    encoded_channels: String,            // Client Channels, comma-separated and URI encoded
+    encoded_groups: String,              // Client Channel Groups, comma-separated and URI encoded
+    timetoken: Timetoken,                // Current Line-in-Sand for Subscription
 }
 
 /// # PubNub Client Builder
@@ -399,6 +401,7 @@ impl PubNubBuilder {
             presence: self.presence,
             channels: HashMap::new(),
             groups: HashMap::new(),
+            subscribe_loop: None,
             encoded_channels: String::new(),
             encoded_groups: String::new(),
             timetoken: Timetoken::default(),

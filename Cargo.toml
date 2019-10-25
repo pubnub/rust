@@ -9,11 +9,12 @@ readme = "readme.md"
 edition = "2018"
 
 [dependencies]
-thiserror = "=1.0"
+futures-util-preview = "=0.3.0-alpha.19"
 hyper = "0.13.0-alpha.4"
 hyper-tls = "0.4.0-alpha.4"
 json = "=0.12.0"
 percent-encoding = "=2.1.0"
+thiserror = "=1.0"
 tokio = "=0.2.0-alpha.6"
 
 [dev-dependencies]
