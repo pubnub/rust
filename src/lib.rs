@@ -628,6 +628,7 @@ impl Drop for Subscription {
         debug!("Dropping Subscription: {}", self.name);
 
         // XXX: Not sure about this method of blocking, but I don't know a better way?
+        // See: https://boats.gitlab.io/blog/post/poll-drop/
         let cancel_future = self.cancel.send(self.name.clone());
         if let Err(error) = futures_executor::block_on(cancel_future) {
             error!("Error canceling subscribe loop: {:?}", error);
@@ -753,8 +754,11 @@ mod tests {
     use tokio::runtime::Runtime;
 
     fn init() {
+        // XXX: Log capture is broken with `tokio::spawn`.
+        // See: https://github.com/tokio-rs/tokio/issues/1696
+
         let env = env_logger::Env::default().default_filter_or("pubnub=trace");
-        let _ = env_logger::try_init_from_env(env);
+        let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
     }
 
     #[test]
@@ -782,7 +786,7 @@ mod tests {
 
                     // XXX: Wait until the subscribe loop begins long-polling...
                     debug!("Waiting for long-poll...");
-                    tokio_timer::delay_for(Duration::from_millis(200)).await;
+                    tokio::timer::delay_for(Duration::from_millis(200)).await;
 
                     // Send a message to it
                     let message = JsonValue::String("Hello, world!".to_string());
@@ -810,7 +814,7 @@ mod tests {
 
                 // XXX: Need a real way to test drop order
                 debug!("Subscribe loop should be getting canceled...");
-                tokio_timer::delay_for(Duration::from_millis(1)).await;
+                tokio::timer::delay_for(Duration::from_millis(1)).await;
                 debug!("Subscribe loop should have stopped by now");
             });
         });
