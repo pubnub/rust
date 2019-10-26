@@ -2,7 +2,7 @@
 //!
 //! - Fully `async`/`await` ready.
 //! - Uses Tokio and Hyper to provide an ultra-fast, incredibly reliable message transport over the
-//! PubNub edge network.
+//!   PubNub edge network.
 //! - Optimizes for minimal network sockets with an infinite number of logical streams.
 
 use std::collections::HashMap;
@@ -286,12 +286,11 @@ impl PubNub {
     /// slow consumer.
     ///
     /// To workaround this problem, you may consider enabling reduced resiliency in
-    /// [`PubNubBuilder::reduced_reslience`], which will drop messages on the slowest consumers,
+    /// [`PubNubBuilder::reduced_resliency`], which will drop messages on the slowest consumers,
     /// allowing faster consumers to continueprocessing messages without blocking.
     ///
     /// ```no_run
     /// # use pubnub::PubNub;
-    ///
     /// # async {
     /// let pubnub = PubNub::new("demo", "demo");
     /// let stream = pubnub.subscribe("my-channel");
