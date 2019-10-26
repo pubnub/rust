@@ -347,13 +347,9 @@ impl PubNub {
         let subscribe_key = self.subscribe_key.clone();
 
         // FIXME
-        let mut channels = self.subscribe_loop.as_ref().unwrap().channels.clone();
-        let encoded_channels = self
-            .subscribe_loop
-            .as_ref()
-            .unwrap()
-            .encoded_channels
-            .clone();
+        let subscribe_loop = self.subscribe_loop.as_ref().unwrap();
+        let mut channels = subscribe_loop.channels.clone();
+        let encoded_channels = subscribe_loop.encoded_channels.clone();
 
         // Spawn the subscribe loop onto the Tokio runtime
         tokio::spawn(async move {
