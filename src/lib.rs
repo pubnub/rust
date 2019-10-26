@@ -846,19 +846,6 @@ mod tests {
 
             assert_eq!(timetoken.t.len(), 17);
             assert!(timetoken.t.chars().all(|c| c >= '0' && c <= '9'));
-
-            // rt.block_on(async {
-            //     while let Some(message) = pubnub.next().await {
-            //         // TODO Match on MessageType match message.message_type {}
-            //         // Print message and channel name.
-            //         println!("{}: {}", message.channel, message.data);
-            //
-            //         // Remove clients only when you no longer need them
-            //         // When no more clients are in the pool, then `pubnub.next()` will
-            //         // return `None` and the loop will exit.
-            //         // pubnub.remove(message.client);
-            //     }
-            // });
         });
     }
 }
