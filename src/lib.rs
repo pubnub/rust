@@ -340,8 +340,6 @@ impl PubNub {
         self.subscribe_loop = Some(subscribe_loop);
 
         // XXX: Capture some state for the async block
-        // Maybe it's possible to use Pin<&mut Self> ?
-        // Or maybe the async block should just be replaced with a method call on `self` !
         let client = self.client.clone();
         let origin = self.origin.clone();
         let subscribe_key = self.subscribe_key.clone();
@@ -380,24 +378,22 @@ impl PubNub {
                 let response = subscribe_request(&client, url).fuse();
                 futures_util::pin_mut!(response);
 
-                let cancel_handler = |canceled| {
-                    if let Some(name) = canceled {
-                        debug!("Canceled: {}", name);
-                    } else {
-                        error!("cancel_rx error: {:?}", canceled);
-                    }
-                };
-
                 let (messages, next_timetoken) = futures_util::select! {
                     canceled = cancel_rx.next() => {
-                        cancel_handler(canceled);
+                        // TODO: Remove `name` from ChannelMap and re-encode
+                        // TODO: Support cancelation for channel groups
+                        // TODO: Recreate subscribe loop unless channels and groups are both empty
+                        // XXX: Requires moving this async block to a method on `SubscribeLoop`
+                        if let Some(name) = canceled {
+                            debug!("Canceled: {}", name);
+                        }
                         break;
                     }
                     res = response => {
                         if let Ok((messages, next_timetoken)) = res {
                             (messages, next_timetoken)
                         } else {
-                            error!("HTTP error: {:?}", res);
+                            error!("HTTP error: {:?}", res.unwrap_err());
                             continue;
                         }
                     }
