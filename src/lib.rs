@@ -75,21 +75,30 @@ pub struct Timetoken {
 /// This is the message structure yielded by [`Subscription`].
 #[derive(Debug, Clone)]
 pub struct Message {
-    pub message_type: MessageType, // Enum Type of Message
-    pub route: Option<String>,     // Wildcard channel or channel group
-    pub channel: String,           // Origin Channel of Message Receipt
-    pub json: JsonValue,           // Decoded JSON Message Payload
-    pub metadata: JsonValue,       // Metadata of Message
-    pub timetoken: Timetoken,      // Message ID Timetoken
-    pub client: Option<String>,    // Issuing client ID
-    pub subscribe_key: String,     // As if you don't know your own subscribe key!
-    pub shard: u32,                // LOL why does the PubNub service provide this?!
-    pub flags: u32,                // Your guess is as good as mine!
+    /// Enum Type of Message
+    pub message_type: MessageType,
+    /// Wildcard channel or channel group
+    pub route: Option<String>,
+    /// Origin Channel of Message Receipt
+    pub channel: String,
+    /// Decoded JSON Message Payload
+    pub json: JsonValue,
+    /// Metadata of Message
+    pub metadata: JsonValue,
+    /// Message ID Timetoken
+    pub timetoken: Timetoken,
+    /// Issuing client ID
+    pub client: Option<String>,
+    /// Subscribe key associated with the message
+    pub subscribe_key: String,
+    /// Message flags
+    pub flags: u32,
 }
 
 /// # PubNub Subscription
 ///
-/// This is the message stream returned by `pubnub.subscribe()`.
+/// This is the message stream returned by `pubnub.subscribe()`. The stream yields [`Message`]
+/// items until it is dropped.
 #[derive(Debug)]
 pub struct Subscription {
     name: String,       // Channel name
@@ -726,7 +735,6 @@ async fn subscribe_request(
             },
             client: message["i"].as_str().map(|s| s.to_string()),
             subscribe_key: message["k"].to_string(),
-            shard: message["a"].as_u32().unwrap_or(0),
             flags: message["f"].as_u32().unwrap_or(0),
         })
         .collect::<Vec<_>>();
