@@ -102,18 +102,18 @@ pub struct Message {
 #[derive(Debug)]
 pub struct Subscription {
     name: String,       // Channel name
-    cancel: CancelTx,   // Abort the existing subscribe loop when dropped
+    cancel: CancelTx,   // Cancel the existing subscribe loop when dropped
     channel: ChannelRx, // Stream that produces messages
 }
 
 /// # PubNub Subscribe Loop
 ///
-/// Manages state for a subscribe loop. Can be aborted by creating or dropping a `Subscription`.
-/// Aborted subscribe loops will stay active until the last `Subscription` is dropped. (Similar to
+/// Manages state for a subscribe loop. Can be canceled by creating or dropping a `Subscription`.
+/// Canceled subscribe loops will stay active until the last `Subscription` is dropped. (Similar to
 /// `Rc` or `Arc`.)
 #[derive(Debug)]
 struct SubscribeLoop {
-    cancel: CancelTx,         // Abort the existing subscribe loop when creating
+    cancel: CancelTx,         // Cancel the existing subscribe loop when creating
     channels: ChannelMap,     // Client Channels
     groups: ChannelMap,       // Client Channel Groups
     encoded_channels: String, // A cache of all channel names, URI encoded
@@ -313,7 +313,7 @@ impl PubNub {
         let (cancel_tx, cancel_rx) = mpsc::channel(10);
 
         let (mut channels, groups) = if let Some(subscribe_loop) = &mut self.subscribe_loop {
-            // Abort any existing subscribe loop
+            // Cancel any existing subscribe loop
             // XXX: Might be better to return impl Future<Subscription>, and await on this...
             let cancel_future = subscribe_loop.cancel.send(channel.to_string());
             if let Err(error) = futures_executor::block_on(cancel_future) {
