@@ -9,13 +9,17 @@ readme = "readme.md"
 edition = "2018"
 
 [dependencies]
-futures-util-preview = "=0.3.0-alpha.19"
+futures-executor-preview = "=0.3.0-alpha.19"
+futures-util-preview = { version = "=0.3.0-alpha.19", features = ["async-await", "select-macro"] }
 hyper = "0.13.0-alpha.4"
 hyper-tls = "0.4.0-alpha.4"
 json = "=0.12.0"
+log = "=0.4.8"
 percent-encoding = "=2.1.0"
 thiserror = "=1.0"
 tokio = "=0.2.0-alpha.6"
 
 [dev-dependencies]
 tokio-executor = "=0.2.0-alpha.6"
+tokio-timer = "=0.3.0-alpha.6"
+env_logger = "=0.7.1"

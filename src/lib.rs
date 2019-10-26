@@ -8,39 +8,39 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use futures_util::future::AbortHandle;
+use futures_util::future::FutureExt;
+use futures_util::stream::StreamExt;
 use hyper::{client::HttpConnector, Uri};
 use hyper_tls::HttpsConnector;
 use json::JsonValue;
+use log::{debug, error};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use thiserror::Error;
 use tokio::sync::mpsc;
 
 type HttpClient = hyper::Client<HttpsConnector<HttpConnector>, hyper::Body>;
-type Channel = mpsc::Sender<Message>;
+type ChannelRx = mpsc::Receiver<Message>;
+type ChannelTx = Vec<mpsc::Sender<Message>>;
+type ChannelMap = HashMap<String, ChannelTx>;
+type CancelTx = mpsc::Sender<String>;
 
 /// # PubNub Client
 ///
 /// The PubNub lib implements socket pools to relay data requests as a client connection to the
 /// PubNub Network.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PubNub {
-    origin: String,                      // "domain:port"
-    agent: String,                       // "Rust-Agent"
-    client: HttpClient,                  // HTTP Client
-    publish_key: String,                 // Customer's Publish Key
-    subscribe_key: String,               // Customer's Subscribe Key
-    secret_key: Option<String>,          // Customer's Secret Key
-    auth_key: Option<String>,            // Client Auth Key for R+W Access
-    user_id: Option<String>,             // Client UserId "UUID" for Presence
-    filters: Option<String>,             // Metadata Filters on Messages
-    presence: bool,                      // Enable presence events
-    channels: HashMap<String, Channel>,  // Client Channels
-    groups: HashMap<String, Channel>,    // Client Channel Groups
-    subscribe_loop: Option<AbortHandle>, // Handles message reception from PubNub
-    encoded_channels: String,            // Client Channels, comma-separated and URI encoded
-    encoded_groups: String,              // Client Channel Groups, comma-separated and URI encoded
-    timetoken: Timetoken,                // Current Line-in-Sand for Subscription
+    origin: String,                        // "domain:port"
+    agent: String,                         // "Rust-Agent"
+    client: HttpClient,                    // HTTP Client
+    publish_key: String,                   // Customer's Publish Key
+    subscribe_key: String,                 // Customer's Subscribe Key
+    secret_key: Option<String>,            // Customer's Secret Key
+    auth_key: Option<String>,              // Client Auth Key for R+W Access
+    user_id: Option<String>,               // Client UserId "UUID" for Presence
+    filters: Option<String>,               // Metadata Filters on Messages
+    presence: bool,                        // Enable presence events
+    subscribe_loop: Option<SubscribeLoop>, // Created by the `subscribe` method
 }
 
 /// # PubNub Client Builder
@@ -64,7 +64,7 @@ pub struct PubNubBuilder {
 ///
 /// This is the timetoken structure that PubNub uses as a stream index. It allows clients to
 /// resume streaming from where they left off for added resiliency.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Timetoken {
     t: String, // Timetoken
     r: u32,    // Origin region
@@ -72,19 +72,43 @@ pub struct Timetoken {
 
 /// # PubNub Message
 ///
-/// This is the message structure returned by `pubnub.subscribe()`.
+/// This is the message structure yielded by [`Subscription`].
 #[derive(Debug, Clone)]
 pub struct Message {
     pub message_type: MessageType, // Enum Type of Message
-    pub requested_channel: String, // Wildcard channel or channel group
+    pub route: Option<String>,     // Wildcard channel or channel group
     pub channel: String,           // Origin Channel of Message Receipt
     pub json: JsonValue,           // Decoded JSON Message Payload
-    pub metadata: String,          // Metadata of Message
+    pub metadata: JsonValue,       // Metadata of Message
     pub timetoken: Timetoken,      // Message ID Timetoken
-    pub client: String,            // Issuing client ID
+    pub client: Option<String>,    // Issuing client ID
     pub subscribe_key: String,     // As if you don't know your own subscribe key!
     pub shard: u32,                // LOL why does the PubNub service provide this?!
     pub flags: u32,                // Your guess is as good as mine!
+}
+
+/// # PubNub Subscription
+///
+/// This is the message stream returned by `pubnub.subscribe()`.
+#[derive(Debug)]
+pub struct Subscription {
+    name: String,       // Channel name
+    cancel: CancelTx,   // Abort the existing subscribe loop when dropped
+    channel: ChannelRx, // Stream that produces messages
+}
+
+/// # PubNub Subscribe Loop
+///
+/// Manages state for a subscribe loop. Can be aborted by creating or dropping a `Subscription`.
+/// Aborted subscribe loops will stay active until the last `Subscription` is dropped. (Similar to
+/// `Rc` or `Arc`.)
+#[derive(Debug)]
+struct SubscribeLoop {
+    cancel: CancelTx,         // Abort the existing subscribe loop when creating
+    channels: ChannelMap,     // Client Channels
+    groups: ChannelMap,       // Client Channel Groups
+    encoded_channels: String, // A cache of all channel names, URI encoded
+    encoded_groups: String,   // A cache of all group names, URI encoded
 }
 
 /// # PubNub Message Types
@@ -249,16 +273,160 @@ impl PubNub {
         publish_request(&self.client, url).await
     }
 
-    /// # Encode the internal channel list to a string
+    /// # Subscribe to a message stream over the PubNub network
     ///
-    /// This is also used for encoding the list of channel groups.
-    fn encode_channels(&self, channels: &HashMap<String, Channel>) -> String {
-        channels
-            .keys()
-            .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
-            .collect::<Vec<_>>()
-            .as_slice()
-            .join("%2C")
+    /// The PubNub client only maintains a single subscribe loop for all subscription streams. This
+    /// has a benefit that it optimizes for a low number of sockets to the PubNub network. It has a
+    /// downside that requires _all_ streams to consume faster than the subscribe loop produces.
+    /// A slow consumer will create a head-on-line blocking bottleneck in the processing of
+    /// received messages. All streams can only consume as fast as the slowest.
+    ///
+    /// For example, with 3 total subscription streams and 1 that takes 30 seconds to process each
+    /// message; the other 2 streams will be blocked waiting for that 30-second duration on the
+    /// slow consumer.
+    ///
+    /// To workaround this problem, you may consider enabling reduced resiliency in
+    /// [`PubNubBuilder::reduced_reslience`], which will drop messages on the slowest consumers,
+    /// allowing faster consumers to continueprocessing messages without blocking.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNub;
+    ///
+    /// # async {
+    /// let pubnub = PubNub::new("demo", "demo");
+    /// let stream = pubnub.subscribe("my-channel");
+    /// while let Some(message) = stream.next().await {
+    ///     println!("Received message: {}", message);
+    /// }
+    /// # };
+    /// ```
+    pub fn subscribe(&mut self, channel: &str) -> Subscription {
+        let (channel_tx, channel_rx) = mpsc::channel(10);
+        let (cancel_tx, cancel_rx) = mpsc::channel(10);
+
+        let (mut channels, groups) = if let Some(subscribe_loop) = &mut self.subscribe_loop {
+            // Abort any existing subscribe loop
+            // XXX: Might be better to return impl Future<Subscription>, and await on this...
+            let cancel_future = subscribe_loop.cancel.send(channel.to_string());
+            if let Err(error) = futures_executor::block_on(cancel_future) {
+                error!("Error canceling subscribe loop: {:?}", error);
+            }
+
+            let channels = subscribe_loop.channels.clone();
+            let groups = subscribe_loop.groups.clone();
+
+            (channels, groups)
+        } else {
+            (HashMap::new(), HashMap::new())
+        };
+
+        // Add our ChannelTx
+        let listeners = channels
+            .entry(channel.to_string())
+            .or_insert_with(Default::default);
+        listeners.push(channel_tx);
+
+        // Create subscribe loop
+        debug!("Creating SubscribeLoop");
+        let subscribe_loop = SubscribeLoop::new(cancel_tx.clone(), channels, groups);
+        self.subscribe_loop = Some(subscribe_loop);
+
+        // XXX: Capture some state for the async block
+        // Maybe it's possible to use Pin<&mut Self> ?
+        // Or maybe the async block should just be replaced with a method call on `self` !
+        let client = self.client.clone();
+        let origin = self.origin.clone();
+        let subscribe_key = self.subscribe_key.clone();
+
+        // FIXME
+        let mut channels = self.subscribe_loop.as_ref().unwrap().channels.clone();
+        let encoded_channels = self
+            .subscribe_loop
+            .as_ref()
+            .unwrap()
+            .encoded_channels
+            .clone();
+
+        // Spawn the subscribe loop onto the Tokio runtime
+        tokio::spawn(async move {
+            debug!("Starting subscribe loop");
+            let mut timetoken = Timetoken::default();
+            let mut cancel_rx = cancel_rx.fuse();
+
+            loop {
+                // Construct URI
+                // TODO:
+                // - auth key
+                // - uuid
+                // - signatures
+                // - channel groups
+                // - filters
+                let url = format!(
+                    "https://{origin}/v2/subscribe/{sub_key}/{channels}/0?tt={tt}&tr={tr}",
+                    origin = origin,
+                    sub_key = subscribe_key,
+                    channels = encoded_channels,
+                    tt = timetoken.t,
+                    tr = timetoken.r,
+                );
+                debug!("URL: {}", url);
+
+                // Send network request
+                let url = url.parse().expect("Unable to parse URL");
+                let response = subscribe_request(&client, url).fuse();
+                futures_util::pin_mut!(response);
+
+                let cancel_handler = |canceled| {
+                    if let Some(name) = canceled {
+                        debug!("Canceled: {}", name);
+                    } else {
+                        error!("cancel_rx error: {:?}", canceled);
+                    }
+                };
+
+                let (messages, next_timetoken) = futures_util::select! {
+                    canceled = cancel_rx.next() => {
+                        cancel_handler(canceled);
+                        break;
+                    }
+                    res = response => {
+                        if let Ok((messages, next_timetoken)) = res {
+                            (messages, next_timetoken)
+                        } else {
+                            error!("HTTP error: {:?}", res);
+                            continue;
+                        }
+                    }
+                };
+
+                // Save Timetoken for next request
+                timetoken = next_timetoken;
+
+                debug!("messages: {:?}", messages);
+                debug!("timetoken: {:?}", timetoken);
+
+                // Distribute messages to each listener
+                for message in messages as Vec<Message> {
+                    let route = message.route.clone().unwrap_or(message.channel.clone());
+                    debug!("route: {}", route);
+                    let listeners = channels.get_mut(&route).unwrap();
+                    debug!("Delivering to {} listeners...", listeners.len());
+                    for channel_tx in listeners.iter_mut() {
+                        if let Err(error) = channel_tx.send(message.clone()).await {
+                            error!("Delivery error: {:?}", error);
+                        }
+                    }
+                }
+            }
+
+            debug!("Stopping subscribe loop");
+        });
+
+        Subscription {
+            name: channel.to_string(),
+            cancel: cancel_tx,
+            channel: channel_rx,
+        }
     }
 }
 
@@ -384,6 +552,29 @@ impl PubNubBuilder {
         self
     }
 
+    /// # Enable or disable dropping messages on slow streams
+    ///
+    /// When disabled (default), `pubnub.subscribe()` will provide _all_ messages to _all_ streams,
+    /// regardless of how long each stream consumer takes. This provides high resilience (minimal
+    /// message loss) at the cost of higher latency for streams that are blocked waiting for the
+    /// slowest stream.
+    ///
+    /// See: [Head-of-line blocking](https://en.wikipedia.org/wiki/Head-of-line_blocking).
+    ///
+    /// When enabled, the subscription will drop messages to the slowest streams, improving latency
+    /// for all other streams.
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNubBuilder;
+    /// let pubnub = PubNubBuilder::new("demo", "demo")
+    ///     .reduced_resliency(true)
+    ///     .build();
+    /// ```
+    pub fn reduced_resliency(self, _enable: bool) -> PubNubBuilder {
+        // TODO:
+        unimplemented!("Reduced resiliency is not yet available");
+    }
+
     /// # Build the PubNub client to begin streaming messages
     ///
     /// ```no_run
@@ -409,12 +600,7 @@ impl PubNubBuilder {
             user_id: self.user_id,
             filters: self.filters,
             presence: self.presence,
-            channels: HashMap::new(),
-            groups: HashMap::new(),
             subscribe_loop: None,
-            encoded_channels: String::new(),
-            encoded_groups: String::new(),
-            timetoken: Timetoken::default(),
         }
     }
 }
@@ -436,77 +622,46 @@ impl MessageType {
     }
 }
 
-/*
-    {
-        let origin = "ps.pndsn.com";
-        let (submit_publish, mut process_publish) = mpsc::channel::<PublishMessage>(100);
-        let (submit_subscribe, mut process_subscribe) = mpsc::channel::<Client>(100);
-        let (submit_result, process_result) = mpsc::channel::<Message>(100);
+/// Cancel the associated `SubscribeLoop` when the `Subscription` is dropped.
+impl Drop for Subscription {
+    fn drop(&mut self) {
+        debug!("Dropping Subscription: {}", self.name);
 
-        let https = HttpsConnector::new().unwrap();
-        let http_client = hyper::Client::builder()
-            .keep_alive_timeout(Some(Duration::from_secs(300)))
-            .max_idle_per_host(10000)
-            .build::<_, hyper::Body>(https);
-        let subscribe_http_client = http_client.clone();
-
-        // Start Subscribe Worker
-        // Messages available via pubnub.next()
-        let mut subscribe_result = submit_result.clone();
-        let mut resubmit_subscribe = submit_subscribe.clone();
-        tokio::spawn(async move {
-            // TODO loop the subscribe or it wont work.
-            // TODO save timetoken
-            while let Some(mut client) = process_subscribe.recv().await {
-                // Construct URI
-                let url = format!(
-                    "https://{origin}/v2/subscribe/{sub_key}/{channels}/0/{timetoken}",
-                    origin = origin.to_string(),
-                    sub_key = client.subscribe_key,
-                    channels = client.channels,
-                    timetoken = client.timetoken,
-                );
-
-                // Send network request
-                let url = url.parse().expect("Unable to parse URL");
-                let (messages, timetoken) = subscribe_request(&subscribe_http_client, url)
-                    .await
-                    .expect("TODO: Handle errors gracefully!");
-
-                // Save Timetoken for next request
-                client.timetoken = timetoken;
-
-                // Submit another subscribe event to be processed
-                // TODO handle errors
-                match resubmit_subscribe.try_send(client.clone()) {
-                    Ok(()) => {}      //Ok(()),
-                    Err(_error) => {} //Err(Error::SubscribeChannelWrite(error)),
-                }
-
-                // Result Message from PubNub
-                for message in messages {
-                    // Send Subscription Result to End-user via MPSC
-                    // User can recieve subscription messages via pubnub.next()
-                    // TODO handle errors
-                    match subscribe_result.try_send(message) {
-                        Ok(()) => {}
-                        //Err(error) => {Err(Error::ResultChannelWrite(error));},
-                        Err(_error) => {}
-                    };
-                }
-            }
-        });
-
-        PubNub {
-            origin: "ps.pndsn.com".to_string(), // Change via pubnub.origin()
-            agent: "Rust-Agent".to_string(),    // Change via pubnub.agent()
-            submit_publish,                     // Publish a Message
-            submit_subscribe,                   // Add a Client
-            submit_result,                      // Send Result to Application Consumer
-            process_result,                     // Receiver for Application Consumer
+        // XXX: Not sure about this method of blocking, but I don't know a better way?
+        let cancel_future = self.cancel.send(self.name.clone());
+        if let Err(error) = futures_executor::block_on(cancel_future) {
+            error!("Error canceling subscribe loop: {:?}", error);
         }
     }
-*/
+}
+
+impl SubscribeLoop {
+    fn new(
+        cancel: CancelTx,
+        channels: HashMap<String, ChannelTx>,
+        groups: HashMap<String, ChannelTx>,
+    ) -> SubscribeLoop {
+        let encoded_channels = encode_channels(&channels);
+        let encoded_groups = encode_channels(&groups);
+
+        SubscribeLoop {
+            cancel,
+            channels,
+            groups,
+            encoded_channels,
+            encoded_groups,
+        }
+    }
+}
+
+impl Default for Timetoken {
+    fn default() -> Timetoken {
+        Timetoken {
+            t: "0".to_string(),
+            r: 0,
+        }
+    }
+}
 
 /// # Send a publish request and return the JSON response
 async fn publish_request(http_client: &HttpClient, url: Uri) -> Result<Timetoken, Error> {
@@ -562,15 +717,15 @@ async fn subscribe_request(
         .members()
         .map(|message| Message {
             message_type: MessageType::from_json(message["e"].clone()),
-            requested_channel: message["b"].to_string(),
+            route: message["b"].as_str().map(|s| s.to_string()),
             channel: message["c"].to_string(),
             json: message["d"].clone(),
-            metadata: message["u"].to_string(),
+            metadata: message["u"].clone(),
             timetoken: Timetoken {
                 t: message["p"]["t"].to_string(),
                 r: message["p"]["r"].as_u32().unwrap_or(0),
             },
-            client: message["i"].to_string(),
+            client: message["i"].as_str().map(|s| s.to_string()),
             subscribe_key: message["k"].to_string(),
             shard: message["a"].as_u32().unwrap_or(0),
             flags: message["f"].as_u32().unwrap_or(0),
@@ -581,56 +736,91 @@ async fn subscribe_request(
     Ok((messages, timetoken))
 }
 
+/// # Encode the channel list to a string
+///
+/// This is also used for encoding the list of channel groups.
+fn encode_channels(channels: &HashMap<String, ChannelTx>) -> String {
+    channels
+        .keys()
+        .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
+        .collect::<Vec<_>>()
+        .as_slice()
+        .join("%2C")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tokio::runtime::Runtime;
-    /*
-            #[test]
-            fn pubnub_time_ok() {
-                // TODO
-                let _host = "0.0.0.0:3000";
-                assert!(true);
-                assert!(true);
-            }
 
-            #[test]
-            fn pubnub_subscribe_ok() {
-                let rt = Runtime::new().unwrap();
-                let mut exec = rt.executor();
-                tokio_executor::with_default(&mut exec, || {
-                    let publish_key = "demo";
-                    let subscribe_key = "demo";
-                    let channels = "demo";
-                    let origin = "ps.pndsn.com";
-                    let agent = "Rust-Agent-Test";
+    fn init() {
+        let env = env_logger::Env::default().default_filter_or("pubnub=trace");
+        let _ = env_logger::try_init_from_env(env);
+    }
 
-                    let mut pubnub = PubNub::new()
-                        .origin(&origin.to_string())
-                        .agent(&agent.to_string());
+    #[test]
+    fn pubnub_subscribe_ok() {
+        init();
 
-                    let client = Client::new()
-                        .subscribe_key(&subscribe_key)
-                        .publish_key(&publish_key)
-                        .channels(&channels);
+        let rt = Runtime::new().unwrap();
+        let mut exec = rt.executor();
+        tokio_executor::with_default(&mut exec, || {
+            rt.block_on(async {
+                let publish_key = "demo";
+                let subscribe_key = "demo";
+                let channel = "demo2";
 
-                    let result = pubnub.subscribe(&client);
-                    assert!(result.is_ok());
+                let agent = "Rust-Agent-Test";
 
-                    let message_future = pubnub.next();
-                    let message = rt.block_on(message_future).unwrap();
+                let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
+                    .agent(agent)
+                    .build();
 
-                    assert!(message.success);
-                    /*
-                    while let Some(message) = pubnub.next() {
+                {
+                    // Create a subscription
+                    let mut subscription = pubnub.subscribe(channel);
+                    assert_eq!(subscription.name, channel);
 
-                    }*/
-                });
-            }
-    */
+                    // XXX: Wait until the subscribe loop begins long-polling...
+                    debug!("Waiting for long-poll...");
+                    tokio_timer::delay_for(Duration::from_millis(200)).await;
+
+                    // Send a message to it
+                    let message = JsonValue::String("Hello, world!".to_string());
+                    debug!("Publishing...");
+                    let status = pubnub.publish(channel, message).await;
+                    assert!(status.is_ok());
+
+                    // Receive the message
+                    // TODO: Use Stream interface
+                    debug!("Waiting for message...");
+                    let message = subscription.channel.next().await;
+                    assert!(message.is_some());
+
+                    // Check the message contents
+                    let message = message.unwrap();
+                    assert_eq!(message.message_type, MessageType::Publish);
+                    let expected = JsonValue::String("Hello, world!".to_string());
+                    assert_eq!(message.json, expected);
+                    assert_eq!(message.timetoken.t.len(), 17);
+                    assert!(message.timetoken.t.chars().all(|c| c >= '0' && c <= '9'));
+
+                    debug!("Going to drop Subscription...");
+                }
+                debug!("Subscription should have been dropped by now");
+
+                // XXX: Need a real way to test drop order
+                debug!("Subscribe loop should be getting canceled...");
+                tokio_timer::delay_for(Duration::from_millis(1)).await;
+                debug!("Subscribe loop should have stopped by now");
+            });
+        });
+    }
 
     #[test]
     fn pubnub_publish_ok() {
+        init();
+
         let rt = Runtime::new().unwrap();
         let mut exec = rt.executor();
         tokio_executor::with_default(&mut exec, || {
