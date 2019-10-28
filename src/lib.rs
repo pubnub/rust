@@ -23,6 +23,7 @@ type ChannelRx = mpsc::Receiver<Message>;
 type ChannelTx = Vec<mpsc::Sender<Message>>;
 type ChannelMap = HashMap<String, ChannelTx>;
 type CancelTx = mpsc::Sender<String>;
+type CancelRx = mpsc::Receiver<String>;
 
 /// # PubNub Client
 ///
@@ -337,96 +338,111 @@ impl PubNub {
         // Create subscribe loop
         debug!("Creating SubscribeLoop");
         let subscribe_loop = SubscribeLoop::new(cancel_tx.clone(), channels, groups);
-        self.subscribe_loop = Some(subscribe_loop);
 
         // XXX: Capture some state for the async block
         let client = self.client.clone();
         let origin = self.origin.clone();
         let subscribe_key = self.subscribe_key.clone();
-
-        // FIXME
-        let subscribe_loop = self.subscribe_loop.as_ref().unwrap();
-        let mut channels = subscribe_loop.channels.clone();
+        let channels = subscribe_loop.channels.clone();
         let encoded_channels = subscribe_loop.encoded_channels.clone();
 
+        // Save a reference to the new subscribe loop
+        self.subscribe_loop = Some(subscribe_loop);
+
         // Spawn the subscribe loop onto the Tokio runtime
-        tokio::spawn(async move {
-            debug!("Starting subscribe loop");
-            let mut timetoken = Timetoken::default();
-            let mut cancel_rx = cancel_rx.fuse();
-
-            loop {
-                // Construct URI
-                // TODO:
-                // - auth key
-                // - uuid
-                // - signatures
-                // - channel groups
-                // - filters
-                let url = format!(
-                    "https://{origin}/v2/subscribe/{sub_key}/{channels}/0?tt={tt}&tr={tr}",
-                    origin = origin,
-                    sub_key = subscribe_key,
-                    channels = encoded_channels,
-                    tt = timetoken.t,
-                    tr = timetoken.r,
-                );
-                debug!("URL: {}", url);
-
-                // Send network request
-                let url = url.parse().expect("Unable to parse URL");
-                let response = subscribe_request(&client, url).fuse();
-                futures_util::pin_mut!(response);
-
-                let (messages, next_timetoken) = futures_util::select! {
-                    canceled = cancel_rx.next() => {
-                        // TODO: Remove `name` from ChannelMap and re-encode
-                        // TODO: Support cancelation for channel groups
-                        // TODO: Recreate subscribe loop unless channels and groups are both empty
-                        // XXX: Requires moving this async block to a method on `SubscribeLoop`
-                        if let Some(name) = canceled {
-                            debug!("Canceled: {}", name);
-                        }
-                        break;
-                    }
-                    res = response => {
-                        if let Ok((messages, next_timetoken)) = res {
-                            (messages, next_timetoken)
-                        } else {
-                            error!("HTTP error: {:?}", res.unwrap_err());
-                            continue;
-                        }
-                    }
-                };
-
-                // Save Timetoken for next request
-                timetoken = next_timetoken;
-
-                debug!("messages: {:?}", messages);
-                debug!("timetoken: {:?}", timetoken);
-
-                // Distribute messages to each listener
-                for message in messages as Vec<Message> {
-                    let route = message.route.clone().unwrap_or(message.channel.clone());
-                    debug!("route: {}", route);
-                    let listeners = channels.get_mut(&route).unwrap();
-                    debug!("Delivering to {} listeners...", listeners.len());
-                    for channel_tx in listeners.iter_mut() {
-                        if let Err(error) = channel_tx.send(message.clone()).await {
-                            error!("Delivery error: {:?}", error);
-                        }
-                    }
-                }
-            }
-
-            debug!("Stopping subscribe loop");
-        });
+        tokio::spawn(Self::run(
+            cancel_rx,
+            origin,
+            subscribe_key,
+            client,
+            channels,
+            encoded_channels,
+        ));
 
         Subscription {
             name: channel.to_string(),
             cancel: cancel_tx,
             channel: channel_rx,
         }
+    }
+
+    async fn run(
+        cancel_rx: CancelRx,
+        origin: String,
+        subscribe_key: String,
+        client: HttpClient,
+        mut channels: ChannelMap,
+        encoded_channels: String,
+    ) {
+        debug!("Starting subscribe loop");
+        let mut timetoken = Timetoken::default();
+        let mut cancel_rx = cancel_rx.fuse();
+
+        loop {
+            // Construct URI
+            // TODO:
+            // - auth key
+            // - uuid
+            // - signatures
+            // - channel groups
+            // - filters
+            let url = format!(
+                "https://{origin}/v2/subscribe/{sub_key}/{channels}/0?tt={tt}&tr={tr}",
+                origin = origin,
+                sub_key = subscribe_key,
+                channels = encoded_channels,
+                tt = timetoken.t,
+                tr = timetoken.r,
+            );
+            debug!("URL: {}", url);
+
+            // Send network request
+            let url = url.parse().expect("Unable to parse URL");
+            let response = subscribe_request(&client, url).fuse();
+            futures_util::pin_mut!(response);
+
+            let (messages, next_timetoken) = futures_util::select! {
+                canceled = cancel_rx.next() => {
+                    // TODO: Remove `name` from ChannelMap and re-encode
+                    // TODO: Support cancelation for channel groups
+                    // TODO: Recreate subscribe loop unless channels and groups are both empty
+                    // XXX: Requires moving this async block to a method on `SubscribeLoop`
+                    if let Some(name) = canceled {
+                        debug!("Canceled: {}", name);
+                    }
+                    break;
+                }
+                res = response => {
+                    if let Ok((messages, next_timetoken)) = res {
+                        (messages, next_timetoken)
+                    } else {
+                        error!("HTTP error: {:?}", res.unwrap_err());
+                        continue;
+                    }
+                }
+            };
+
+            // Save Timetoken for next request
+            timetoken = next_timetoken;
+
+            debug!("messages: {:?}", messages);
+            debug!("timetoken: {:?}", timetoken);
+
+            // Distribute messages to each listener
+            for message in messages as Vec<Message> {
+                let route = message.route.clone().unwrap_or(message.channel.clone());
+                debug!("route: {}", route);
+                let listeners = channels.get_mut(&route).unwrap();
+                debug!("Delivering to {} listeners...", listeners.len());
+                for channel_tx in listeners.iter_mut() {
+                    if let Err(error) = channel_tx.send(message.clone()).await {
+                        error!("Delivery error: {:?}", error);
+                    }
+                }
+            }
+        }
+
+        debug!("Stopping subscribe loop");
     }
 }
 
@@ -636,6 +652,7 @@ impl Drop for Subscription {
     }
 }
 
+/// Implements the subscribe loop, which efficiently polls for new messages.
 impl SubscribeLoop {
     fn new(
         cancel: CancelTx,
