@@ -19,11 +19,11 @@ use thiserror::Error;
 use tokio::sync::mpsc;
 
 type HttpClient = hyper::Client<HttpsConnector<HttpConnector>, hyper::Body>;
+type ChannelTx = mpsc::Sender<Message>;
 type ChannelRx = mpsc::Receiver<Message>;
-type ChannelTx = Vec<mpsc::Sender<Message>>;
-type ChannelMap = HashMap<String, ChannelTx>;
-type CancelTx = mpsc::Sender<String>;
-type CancelRx = mpsc::Receiver<String>;
+type ChannelMap = HashMap<String, Vec<ChannelTx>>;
+type PipeTx = mpsc::Sender<PipeMessage>;
+type PipeRx = mpsc::Receiver<PipeMessage>;
 
 /// # PubNub Client
 ///
@@ -31,17 +31,17 @@ type CancelRx = mpsc::Receiver<String>;
 /// PubNub Network.
 #[derive(Debug)]
 pub struct PubNub {
-    origin: String,                        // "domain:port"
-    agent: String,                         // "Rust-Agent"
-    client: HttpClient,                    // HTTP Client
-    publish_key: String,                   // Customer's Publish Key
-    subscribe_key: String,                 // Customer's Subscribe Key
-    secret_key: Option<String>,            // Customer's Secret Key
-    auth_key: Option<String>,              // Client Auth Key for R+W Access
-    user_id: Option<String>,               // Client UserId "UUID" for Presence
-    filters: Option<String>,               // Metadata Filters on Messages
-    presence: bool,                        // Enable presence events
-    subscribe_loop: Option<SubscribeLoop>, // Created by the `subscribe` method
+    origin: String,             // "domain:port"
+    agent: String,              // "Rust-Agent"
+    client: HttpClient,         // HTTP Client
+    publish_key: String,        // Customer's Publish Key
+    subscribe_key: String,      // Customer's Subscribe Key
+    secret_key: Option<String>, // Customer's Secret Key
+    auth_key: Option<String>,   // Client Auth Key for R+W Access
+    user_id: Option<String>,    // Client UserId "UUID" for Presence
+    filters: Option<String>,    // Metadata Filters on Messages
+    presence: bool,             // Enable presence events
+    pipe: Option<Pipe>,         // Allows communication with a subscribe loop
 }
 
 /// # PubNub Client Builder
@@ -102,8 +102,8 @@ pub struct Message {
 /// items until it is dropped.
 #[derive(Debug)]
 pub struct Subscription {
-    name: String,       // Channel name
-    cancel: CancelTx,   // Cancel the existing subscribe loop when dropped
+    name: ListenerType, // Channel or Group name
+    tx: PipeTx,         // For interrupting the existing subscribe loop when dropped
     channel: ChannelRx, // Stream that produces messages
 }
 
@@ -114,11 +114,61 @@ pub struct Subscription {
 /// `Rc` or `Arc`.)
 #[derive(Debug)]
 struct SubscribeLoop {
-    cancel: CancelTx,         // Cancel the existing subscribe loop when creating
+    pipe: Pipe,               // Bidirectional communication pipe
+    client: HttpClient,       // HTTP Client
+    origin: String,           // Copy of the PubNub origin domain
+    agent: String,            // Copy of the UserAgent
+    subscribe_key: String,    // Copy of the PubNub subscribe key
     channels: ChannelMap,     // Client Channels
     groups: ChannelMap,       // Client Channel Groups
     encoded_channels: String, // A cache of all channel names, URI encoded
     encoded_groups: String,   // A cache of all group names, URI encoded
+}
+
+/// # Bidirectional communication pipe for `SubscribeLoop`
+///
+/// `PubNub` owns a reference to one end of the pipe for communiating with the `SubscribeLoop`.
+/// `Subscription` owns a clone of the sending side of the pipe to the `SubscribeLoop`, but not the
+/// receiving side. `SubscribeLoop` is capable of sending messages to `PubNub`, and receiving
+/// messages from both `PubNub` and any number of `Subscription` streams.
+///
+/// See [`PipeMessage`] for more details.
+#[derive(Debug)]
+struct Pipe {
+    tx: PipeTx, // Send-side for bidirectional communication
+    rx: PipeRx, // Recv-side for bidirectional communication
+}
+
+/// # The kinds of messages allowed to be delivered over a `Pipe`
+#[derive(Debug)]
+enum PipeMessage {
+    /// A stream for a channel or channel group is being dropped.
+    ///
+    /// Only sent from `Subscription` to `SubscribeLoop`.
+    Drop(ListenerType),
+
+    /// A stream for a channel or channel group is being created.
+    ///
+    /// Only sent from `PubNub` to `SubscribeLoop`.
+    Add(ListenerType, ChannelTx),
+
+    /// The `SubscribeLoop` is ready to receive messages over PubNub.
+    ///
+    /// Only sent from `SubscribeLoop` to `PubNub`.
+    Ready,
+
+    /// Exit the subscribe loop.
+    ///
+    /// Only sent from `PubNub` to `SubscribeLoop`, and only in unit tests.
+    #[cfg(test)]
+    _Exit,
+}
+
+/// # Type of listener (a channel or a channel group)
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ListenerType {
+    Channel(String), // Channel name
+    _Group(String),  // Channel Group name
 }
 
 /// # PubNub Message Types
@@ -311,138 +361,73 @@ impl PubNub {
     /// ```
     pub fn subscribe(&mut self, channel: &str) -> Subscription {
         let (channel_tx, channel_rx) = mpsc::channel(10);
-        let (cancel_tx, cancel_rx) = mpsc::channel(10);
 
-        let (mut channels, groups) = if let Some(subscribe_loop) = &mut self.subscribe_loop {
-            // Cancel any existing subscribe loop
+        if let Some(pipe) = &mut self.pipe {
+            // Send an "add channel" message to the subscribe loop
+            let channel = ListenerType::Channel(channel.to_string());
+            debug!("Adding channel: {:?}", channel);
+            let add_future = pipe.tx.send(PipeMessage::Add(channel, channel_tx));
+
             // XXX: Might be better to return impl Future<Subscription>, and await on this...
-            let cancel_future = subscribe_loop.cancel.send(channel.to_string());
-            if let Err(error) = futures_executor::block_on(cancel_future) {
-                error!("Error canceling subscribe loop: {:?}", error);
+            if let Err(error) = futures_executor::block_on(add_future) {
+                error!("Error adding channel: {:?}", error);
             }
-
-            let channels = subscribe_loop.channels.clone();
-            let groups = subscribe_loop.groups.clone();
-
-            (channels, groups)
         } else {
-            (HashMap::new(), HashMap::new())
-        };
+            // Create communication pipe
+            let (my_pipe, their_pipe) = {
+                let (my_tx, their_rx) = mpsc::channel(10);
+                let (their_tx, my_rx) = mpsc::channel(10);
 
-        // Add our ChannelTx
-        let listeners = channels
-            .entry(channel.to_string())
-            .or_insert_with(Default::default);
-        listeners.push(channel_tx);
+                let my_pipe = Pipe {
+                    tx: my_tx,
+                    rx: my_rx,
+                };
+                let their_pipe = Pipe {
+                    tx: their_tx,
+                    rx: their_rx,
+                };
 
-        // Create subscribe loop
-        debug!("Creating SubscribeLoop");
-        let subscribe_loop = SubscribeLoop::new(cancel_tx.clone(), channels, groups);
-
-        // XXX: Capture some state for the async block
-        let client = self.client.clone();
-        let origin = self.origin.clone();
-        let subscribe_key = self.subscribe_key.clone();
-        let channels = subscribe_loop.channels.clone();
-        let encoded_channels = subscribe_loop.encoded_channels.clone();
-
-        // Save a reference to the new subscribe loop
-        self.subscribe_loop = Some(subscribe_loop);
-
-        // Spawn the subscribe loop onto the Tokio runtime
-        tokio::spawn(Self::run(
-            cancel_rx,
-            origin,
-            subscribe_key,
-            client,
-            channels,
-            encoded_channels,
-        ));
-
-        Subscription {
-            name: channel.to_string(),
-            cancel: cancel_tx,
-            channel: channel_rx,
-        }
-    }
-
-    async fn run(
-        cancel_rx: CancelRx,
-        origin: String,
-        subscribe_key: String,
-        client: HttpClient,
-        mut channels: ChannelMap,
-        encoded_channels: String,
-    ) {
-        debug!("Starting subscribe loop");
-        let mut timetoken = Timetoken::default();
-        let mut cancel_rx = cancel_rx.fuse();
-
-        loop {
-            // Construct URI
-            // TODO:
-            // - auth key
-            // - uuid
-            // - signatures
-            // - channel groups
-            // - filters
-            let url = format!(
-                "https://{origin}/v2/subscribe/{sub_key}/{channels}/0?tt={tt}&tr={tr}",
-                origin = origin,
-                sub_key = subscribe_key,
-                channels = encoded_channels,
-                tt = timetoken.t,
-                tr = timetoken.r,
-            );
-            debug!("URL: {}", url);
-
-            // Send network request
-            let url = url.parse().expect("Unable to parse URL");
-            let response = subscribe_request(&client, url).fuse();
-            futures_util::pin_mut!(response);
-
-            let (messages, next_timetoken) = futures_util::select! {
-                canceled = cancel_rx.next() => {
-                    // TODO: Remove `name` from ChannelMap and re-encode
-                    // TODO: Support cancelation for channel groups
-                    // TODO: Recreate subscribe loop unless channels and groups are both empty
-                    // XXX: Requires moving this async block to a method on `SubscribeLoop`
-                    if let Some(name) = canceled {
-                        debug!("Canceled: {}", name);
-                    }
-                    break;
-                }
-                res = response => {
-                    if let Ok((messages, next_timetoken)) = res {
-                        (messages, next_timetoken)
-                    } else {
-                        error!("HTTP error: {:?}", res.unwrap_err());
-                        continue;
-                    }
-                }
+                (my_pipe, their_pipe)
             };
 
-            // Save Timetoken for next request
-            timetoken = next_timetoken;
+            let mut channels: HashMap<String, Vec<ChannelTx>> = HashMap::new();
+            let listeners = channels
+                .entry(channel.to_string())
+                .or_insert_with(Default::default);
+            listeners.push(channel_tx);
 
-            debug!("messages: {:?}", messages);
-            debug!("timetoken: {:?}", timetoken);
+            // Create subscribe loop
+            debug!("Creating SubscribeLoop");
+            let subscribe_loop = SubscribeLoop::new(
+                their_pipe,
+                self.client.clone(),
+                self.origin.clone(),
+                self.agent.clone(),
+                self.subscribe_key.clone(),
+                channels,
+                HashMap::new(),
+            );
 
-            // Distribute messages to each listener
-            for message in messages as Vec<Message> {
-                let route = message.route.clone().unwrap_or(message.channel.clone());
-                debug!("route: {}", route);
-                let listeners = channels.get_mut(&route).unwrap();
-                debug!("Delivering to {} listeners...", listeners.len());
-                for channel_tx in listeners.iter_mut() {
-                    if let Err(error) = channel_tx.send(message.clone()).await {
-                        error!("Delivery error: {:?}", error);
-                    }
-                }
+            // Spawn the subscribe loop onto the Tokio runtime
+            tokio::spawn(subscribe_loop.run());
+
+            self.pipe = Some(my_pipe);
+
+            debug!("Waiting for long-poll...");
+            let ready_future = self.pipe.as_mut().unwrap().rx.next();
+
+            // XXX: Might be better to return impl Future<Subscription>, and await on this...
+            match futures_executor::block_on(ready_future) {
+                Some(PipeMessage::Ready) => (),
+                error => error!("Error waiting for ready message: {:?}", error),
             }
-        }
+        };
 
-        debug!("Stopping subscribe loop");
+        Subscription {
+            name: ListenerType::Channel(channel.to_string()),
+            tx: self.pipe.as_ref().unwrap().tx.clone(),
+            channel: channel_rx,
+        }
     }
 }
 
@@ -616,7 +601,7 @@ impl PubNubBuilder {
             user_id: self.user_id,
             filters: self.filters,
             presence: self.presence,
-            subscribe_loop: None,
+            pipe: None,
         }
     }
 }
@@ -641,11 +626,11 @@ impl MessageType {
 /// Cancel the associated `SubscribeLoop` when the `Subscription` is dropped.
 impl Drop for Subscription {
     fn drop(&mut self) {
-        debug!("Dropping Subscription: {}", self.name);
+        debug!("Dropping Subscription: {:?}", self.name);
 
         // XXX: Not sure about this method of blocking, but I don't know a better way?
         // See: https://boats.gitlab.io/blog/post/poll-drop/
-        let cancel_future = self.cancel.send(self.name.clone());
+        let cancel_future = self.tx.send(PipeMessage::Drop(self.name.clone()));
         if let Err(error) = futures_executor::block_on(cancel_future) {
             error!("Error canceling subscribe loop: {:?}", error);
         }
@@ -655,20 +640,118 @@ impl Drop for Subscription {
 /// Implements the subscribe loop, which efficiently polls for new messages.
 impl SubscribeLoop {
     fn new(
-        cancel: CancelTx,
-        channels: HashMap<String, ChannelTx>,
-        groups: HashMap<String, ChannelTx>,
+        pipe: Pipe,
+        client: HttpClient,
+        origin: String,
+        agent: String,
+        subscribe_key: String,
+        channels: HashMap<String, Vec<ChannelTx>>,
+        groups: HashMap<String, Vec<ChannelTx>>,
     ) -> SubscribeLoop {
         let encoded_channels = encode_channels(&channels);
         let encoded_groups = encode_channels(&groups);
 
         SubscribeLoop {
-            cancel,
+            pipe,
+            client,
+            origin,
+            agent,
+            subscribe_key,
             channels,
             groups,
             encoded_channels,
             encoded_groups,
         }
+    }
+
+    /// # Run the subscribe loop
+    ///
+    /// This consumes `self` to overcome the problem with borrowing async spawned functions. There
+    /// is only one way to terminate the subscribe loop, and that is by asking it (nicely) using
+    /// the `Pipe` interface.
+    async fn run(mut self) {
+        debug!("Starting subscribe loop");
+        let mut timetoken = Timetoken::default();
+        let mut pipe_rx = self.pipe.rx.fuse();
+
+        loop {
+            // Construct URI
+            // TODO:
+            // - auth key
+            // - uuid
+            // - signatures
+            // - channel groups
+            // - filters
+            let url = format!(
+                "https://{origin}/v2/subscribe/{sub_key}/{channels}/0?tt={tt}&tr={tr}",
+                origin = self.origin,
+                sub_key = self.subscribe_key,
+                channels = self.encoded_channels,
+                tt = timetoken.t,
+                tr = timetoken.r,
+            );
+            debug!("URL: {}", url);
+
+            // Send network request
+            let url = url.parse().expect("Unable to parse URL");
+            let response = subscribe_request(&self.client, url).fuse();
+            futures_util::pin_mut!(response);
+
+            let (messages, next_timetoken) = futures_util::select! {
+                msg = pipe_rx.next() => {
+                    // TODO: Remove `name` from ChannelMap and re-encode
+                    // TODO: Support cancelation for channel groups
+                    // TODO: Recreate subscribe loop unless channels and groups are both empty
+                    // TODO: Add our ChannelTx
+                    // let listeners = channels
+                    //     .entry(channel.to_string())
+                    //     .or_insert_with(Default::default);
+                    // listeners.push(channel_tx);
+                    if let Some(request) = msg {
+                        debug!("Got request: {:?}", request);
+                    }
+                    // XXX: This should not always stop the event loop
+                    break;
+                }
+                res = response => {
+                    if let Ok((messages, next_timetoken)) = res {
+                        (messages, next_timetoken)
+                    } else {
+                        error!("HTTP error: {:?}", res.unwrap_err());
+                        continue;
+                    }
+                }
+            };
+
+            // Send ready message when the subscribe loop is capable of receiving messages
+            if timetoken.t == "0" {
+                if let Err(error) = self.pipe.tx.send(PipeMessage::Ready).await {
+                    error!("Error sending ready message: {:?}", error);
+                    break;
+                }
+            }
+
+            // Save Timetoken for next request
+            timetoken = next_timetoken;
+
+            debug!("messages: {:?}", messages);
+            debug!("timetoken: {:?}", timetoken);
+
+            // Distribute messages to each listener
+            for message in messages as Vec<Message> {
+                let route = message.route.clone().unwrap_or(message.channel.clone());
+                debug!("route: {}", route);
+                let listeners = self.channels.get_mut(&route).unwrap();
+                debug!("Delivering to {} listeners...", listeners.len());
+                for channel_tx in listeners.iter_mut() {
+                    if let Err(error) = channel_tx.send(message.clone()).await {
+                        error!("Delivery error: {:?}", error);
+                    }
+                }
+            }
+        }
+
+        debug!("Stopping subscribe loop");
     }
 }
 
@@ -756,7 +839,7 @@ async fn subscribe_request(
 /// # Encode the channel list to a string
 ///
 /// This is also used for encoding the list of channel groups.
-fn encode_channels(channels: &HashMap<String, ChannelTx>) -> String {
+fn encode_channels(channels: &HashMap<String, Vec<ChannelTx>>) -> String {
     channels
         .keys()
         .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
@@ -799,11 +882,10 @@ mod tests {
                 {
                     // Create a subscription
                     let mut subscription = pubnub.subscribe(channel);
-                    assert_eq!(subscription.name, channel);
-
-                    // XXX: Wait until the subscribe loop begins long-polling...
-                    debug!("Waiting for long-poll...");
-                    tokio::timer::delay_for(Duration::from_millis(200)).await;
+                    assert_eq!(
+                        subscription.name,
+                        ListenerType::Channel(channel.to_string())
+                    );
 
                     // Send a message to it
                     let message = JsonValue::String("Hello, world!".to_string());
