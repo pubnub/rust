@@ -6,10 +6,12 @@
 //! - Optimizes for minimal network sockets with an infinite number of logical streams.
 
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::time::Duration;
 
 use futures_util::future::FutureExt;
-use futures_util::stream::StreamExt;
+use futures_util::stream::{Stream, StreamExt};
+use futures_util::task::{Context, Poll};
 use hyper::{client::HttpConnector, Uri};
 use hyper_tls::HttpsConnector;
 use json::JsonValue;
@@ -351,11 +353,12 @@ impl PubNub {
     ///
     /// ```no_run
     /// # use pubnub::PubNub;
+    /// use futures_util::stream::StreamExt;
     /// # async {
-    /// let pubnub = PubNub::new("demo", "demo");
-    /// let stream = pubnub.subscribe("my-channel");
+    /// let mut pubnub = PubNub::new("demo", "demo");
+    /// let mut stream = pubnub.subscribe("my-channel");
     /// while let Some(message) = stream.next().await {
-    ///     println!("Received message: {}", message);
+    ///     println!("Received message: {:?}", message);
     /// }
     /// # };
     /// ```
@@ -620,6 +623,16 @@ impl MessageType {
             3 => MessageType::Action,
             i => MessageType::Unknown(i),
         }
+    }
+}
+
+/// `Subscription` is a stream.
+impl Stream for Subscription {
+    type Item = Message;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        // XXX: Using an undocumented function here because I can't call the poll_next method?
+        self.get_mut().channel.poll_recv(cx)
     }
 }
 
