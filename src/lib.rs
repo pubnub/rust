@@ -202,33 +202,15 @@ pub enum MessageType {
 pub enum Error {
     /// Hyper client error.
     #[error("Hyper client error")]
-    HyperError(#[source] hyper::Error),
+    HyperError(#[from] hyper::Error),
 
     /// Invalid UTF-8.
     #[error("Invalid UTF-8")]
-    Utf8Error(#[source] std::str::Utf8Error),
+    Utf8Error(#[from] std::str::Utf8Error),
 
     /// Invalid JSON.
     #[error("Invalid JSON")]
-    JsonError(#[source] json::Error),
-}
-
-impl From<hyper::Error> for Error {
-    fn from(error: hyper::Error) -> Error {
-        Error::HyperError(error)
-    }
-}
-
-impl From<std::str::Utf8Error> for Error {
-    fn from(error: std::str::Utf8Error) -> Error {
-        Error::Utf8Error(error)
-    }
-}
-
-impl From<json::Error> for Error {
-    fn from(error: json::Error) -> Error {
-        Error::JsonError(error)
-    }
+    JsonError(#[from] json::Error),
 }
 
 /// # PubNub core client
