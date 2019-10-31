@@ -20,5 +20,4 @@ thiserror = "=1.0"
 tokio = "=0.2.0-alpha.6"
 
 [dev-dependencies]
-tokio-executor = "=0.2.0-alpha.6"
 env_logger = "=0.7.1"

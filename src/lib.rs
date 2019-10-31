@@ -995,7 +995,6 @@ async fn subscribe_request(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::executor::DefaultExecutor;
     use tokio::runtime::current_thread::Runtime;
 
     fn init() {
@@ -1008,55 +1007,52 @@ mod tests {
         init();
 
         let mut rt = Runtime::new().unwrap();
-        let mut exec = DefaultExecutor::current();
-        tokio_executor::with_default(&mut exec, || {
-            rt.block_on(async {
-                let publish_key = "demo";
-                let subscribe_key = "demo";
-                let channel = "demo2";
+        rt.block_on(async {
+            let publish_key = "demo";
+            let subscribe_key = "demo";
+            let channel = "demo2";
 
-                let agent = "Rust-Agent-Test";
+            let agent = "Rust-Agent-Test";
 
-                let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
-                    .agent(agent)
-                    .build();
+            let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
+                .agent(agent)
+                .build();
 
-                {
-                    // Create a subscription
-                    let mut subscription = pubnub.subscribe(channel).await;
-                    assert_eq!(
-                        subscription.name,
-                        ListenerType::Channel(channel.to_string())
-                    );
+            {
+                // Create a subscription
+                let mut subscription = pubnub.subscribe(channel).await;
+                assert_eq!(
+                    subscription.name,
+                    ListenerType::Channel(channel.to_string())
+                );
 
-                    // Send a message to it
-                    let message = JsonValue::String("Hello, world!".to_string());
-                    debug!("Publishing...");
-                    let status = pubnub.publish(channel, message).await;
-                    assert!(status.is_ok());
+                // Send a message to it
+                let message = JsonValue::String("Hello, world!".to_string());
+                debug!("Publishing...");
+                let status = pubnub.publish(channel, message).await;
+                assert!(status.is_ok());
 
-                    // Receive the message
-                    debug!("Waiting for message...");
-                    let message = subscription.next().await;
-                    assert!(message.is_some());
+                // Receive the message
+                debug!("Waiting for message...");
+                let message = subscription.next().await;
+                assert!(message.is_some());
 
-                    // Check the message contents
-                    let message = message.unwrap();
-                    assert_eq!(message.message_type, MessageType::Publish);
-                    let expected = JsonValue::String("Hello, world!".to_string());
-                    assert_eq!(message.json, expected);
-                    assert_eq!(message.timetoken.t.len(), 17);
-                    assert!(message.timetoken.t.chars().all(|c| c >= '0' && c <= '9'));
+                // Check the message contents
+                let message = message.unwrap();
+                assert_eq!(message.message_type, MessageType::Publish);
+                let expected = JsonValue::String("Hello, world!".to_string());
+                assert_eq!(message.json, expected);
+                assert_eq!(message.timetoken.t.len(), 17);
+                assert!(message.timetoken.t.chars().all(|c| c >= '0' && c <= '9'));
 
-                    debug!("Going to drop Subscription...");
-                }
-                debug!("Subscription should have been dropped by now");
+                debug!("Going to drop Subscription...");
+            }
+            debug!("Subscription should have been dropped by now");
 
-                // XXX: Need a real way to test drop order
-                debug!("Subscribe loop should be getting canceled...");
-                tokio::timer::delay_for(Duration::from_millis(1)).await;
-                debug!("Subscribe loop should have stopped by now");
-            });
+            // XXX: Need a real way to test drop order
+            debug!("Subscribe loop should be getting canceled...");
+            tokio::timer::delay_for(Duration::from_millis(1)).await;
+            debug!("Subscribe loop should have stopped by now");
         });
     }
 
@@ -1065,8 +1061,7 @@ mod tests {
         init();
 
         let mut rt = Runtime::new().unwrap();
-        let mut exec = DefaultExecutor::current();
-        tokio_executor::with_default(&mut exec, || {
+        rt.block_on(async {
             let publish_key = "demo";
             let subscribe_key = "demo";
             let channel = "demo";
@@ -1082,8 +1077,7 @@ mod tests {
             assert_eq!(pubnub.publish_key, publish_key);
 
             let message = JsonValue::String("Hi!".to_string());
-            let status_future = pubnub.publish(channel, message);
-            let status = rt.block_on(status_future);
+            let status = pubnub.publish(channel, message).await;
             assert!(status.is_ok());
             let timetoken = status.unwrap();
 
