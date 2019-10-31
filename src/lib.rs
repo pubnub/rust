@@ -338,25 +338,23 @@ impl PubNub {
     /// use futures_util::stream::StreamExt;
     /// # async {
     /// let mut pubnub = PubNub::new("demo", "demo");
-    /// let mut stream = pubnub.subscribe("my-channel");
+    /// let mut stream = pubnub.subscribe("my-channel").await;
     /// while let Some(message) = stream.next().await {
     ///     println!("Received message: {:?}", message);
     /// }
     /// # };
     /// ```
-    pub fn subscribe(&mut self, channel: &str) -> Subscription {
+    pub async fn subscribe(&mut self, channel: &str) -> Subscription {
         let (channel_tx, channel_rx) = mpsc::channel(10);
 
         if let Some(pipe) = &mut self.pipe {
             // Send an "add channel" message to the subscribe loop
             let channel = ListenerType::Channel(channel.to_string());
             debug!("Adding channel: {:?}", channel);
-            let add_future = pipe.tx.send(PipeMessage::Add(channel, channel_tx));
-
-            // XXX: Might be better to return impl Future<Subscription>, and await on this...
-            if let Err(error) = futures_executor::block_on(add_future) {
-                error!("Error adding channel: {:?}", error);
-            }
+            pipe.tx
+                .send(PipeMessage::Add(channel, channel_tx))
+                .await
+                .expect("Unable to send add-channel message");
         } else {
             // Create communication pipe
             let (my_pipe, their_pipe) = {
@@ -399,13 +397,13 @@ impl PubNub {
             self.pipe = Some(my_pipe);
 
             debug!("Waiting for long-poll...");
-            let ready_future = self.pipe.as_mut().unwrap().rx.next();
-
-            // XXX: Might be better to return impl Future<Subscription>, and await on this...
-            match futures_executor::block_on(ready_future) {
-                Some(PipeMessage::Ready) => (),
-                error => error!("Error waiting for ready message: {:?}", error),
-            }
+            self.pipe
+                .as_mut()
+                .unwrap()
+                .rx
+                .next()
+                .await
+                .expect("Unable to receive ready message");
         };
 
         Subscription {
@@ -846,12 +844,10 @@ fn encode_channels(channels: &HashMap<String, Vec<ChannelTx>>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::runtime::Runtime;
+    use tokio::executor::DefaultExecutor;
+    use tokio::runtime::current_thread::Runtime;
 
     fn init() {
-        // XXX: Log capture is broken with `tokio::spawn`.
-        // See: https://github.com/tokio-rs/tokio/issues/1696
-
         let env = env_logger::Env::default().default_filter_or("pubnub=trace");
         let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
     }
@@ -860,8 +856,8 @@ mod tests {
     fn pubnub_subscribe_ok() {
         init();
 
-        let rt = Runtime::new().unwrap();
-        let mut exec = rt.executor();
+        let mut rt = Runtime::new().unwrap();
+        let mut exec = DefaultExecutor::current();
         tokio_executor::with_default(&mut exec, || {
             rt.block_on(async {
                 let publish_key = "demo";
@@ -876,7 +872,7 @@ mod tests {
 
                 {
                     // Create a subscription
-                    let mut subscription = pubnub.subscribe(channel);
+                    let mut subscription = pubnub.subscribe(channel).await;
                     assert_eq!(
                         subscription.name,
                         ListenerType::Channel(channel.to_string())
@@ -918,8 +914,8 @@ mod tests {
     fn pubnub_publish_ok() {
         init();
 
-        let rt = Runtime::new().unwrap();
-        let mut exec = rt.executor();
+        let mut rt = Runtime::new().unwrap();
+        let mut exec = DefaultExecutor::current();
         tokio_executor::with_default(&mut exec, || {
             let publish_key = "demo";
             let subscribe_key = "demo";
