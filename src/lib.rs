@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::time::Duration;
 
+use crate::mvec::MVec;
 use futures_util::future::FutureExt;
 use futures_util::stream::{Stream, StreamExt};
 use futures_util::task::{Context, Poll};
@@ -20,10 +21,12 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use thiserror::Error;
 use tokio::sync::mpsc;
 
+mod mvec;
+
 type HttpClient = hyper::Client<HttpsConnector<HttpConnector>, hyper::Body>;
 type ChannelTx = mpsc::Sender<Message>;
 type ChannelRx = mpsc::Receiver<Message>;
-type ChannelMap = HashMap<String, Vec<ChannelTx>>;
+type ChannelMap = HashMap<String, MVec<ChannelTx>>;
 type PipeTx = mpsc::Sender<PipeMessage>;
 type PipeRx = mpsc::Receiver<PipeMessage>;
 
@@ -105,6 +108,7 @@ pub struct Message {
 #[derive(Debug)]
 pub struct Subscription {
     name: ListenerType, // Channel or Group name
+    id: usize,          // Unique identifier for the listener
     tx: PipeTx,         // For interrupting the existing subscribe loop when dropped
     channel: ChannelRx, // Stream that produces messages
 }
@@ -147,7 +151,7 @@ enum PipeMessage {
     /// A stream for a channel or channel group is being dropped.
     ///
     /// Only sent from `Subscription` to `SubscribeLoop`.
-    Drop(ListenerType),
+    Drop(usize, ListenerType),
 
     /// A stream for a channel or channel group is being created.
     ///
@@ -195,6 +199,10 @@ pub enum MessageType {
     Presence,
     /// Unknown type. The value may have special meaning in some contexts.
     Unknown(u32),
+
+    #[doc(hidden)]
+    /// Internal message for synchronization between `Subscription` and `SubscribeLoop`.
+    Ready(usize),
 }
 
 /// # Error variants
@@ -345,9 +353,9 @@ impl PubNub {
     /// # };
     /// ```
     pub async fn subscribe(&mut self, channel: &str) -> Subscription {
-        let (channel_tx, channel_rx) = mpsc::channel(10);
+        let (channel_tx, mut channel_rx) = mpsc::channel(10);
 
-        if let Some(pipe) = &mut self.pipe {
+        let id = if let Some(pipe) = &mut self.pipe {
             // Send an "add channel" message to the subscribe loop
             let channel = ListenerType::Channel(channel.to_string());
             debug!("Adding channel: {:?}", channel);
@@ -355,6 +363,19 @@ impl PubNub {
                 .send(PipeMessage::Add(channel, channel_tx))
                 .await
                 .expect("Unable to send add-channel message");
+
+            // Fetch id from `SubscribeLoop`
+            // Uses `channel_rx` which is unique to each `Subscription`.
+            let msg = channel_rx.next().await;
+            if let Some(Message {
+                message_type: MessageType::Ready(id),
+                ..
+            }) = msg
+            {
+                id
+            } else {
+                panic!("Unexpected message: {:?}", msg);
+            }
         } else {
             // Create communication pipe
             let (my_pipe, their_pipe) = {
@@ -373,7 +394,7 @@ impl PubNub {
                 (my_pipe, their_pipe)
             };
 
-            let mut channels: HashMap<String, Vec<ChannelTx>> = HashMap::new();
+            let mut channels: ChannelMap = HashMap::new();
             let listeners = channels
                 .entry(channel.to_string())
                 .or_insert_with(Default::default);
@@ -404,10 +425,13 @@ impl PubNub {
                 .next()
                 .await
                 .expect("Unable to receive ready message");
+
+            0
         };
 
         Subscription {
             name: ListenerType::Channel(channel.to_string()),
+            id,
             tx: self.pipe.as_ref().unwrap().tx.clone(),
             channel: channel_rx,
         }
@@ -623,7 +647,7 @@ impl Drop for Subscription {
 
         // XXX: Not sure about this method of blocking, but I don't know a better way?
         // See: https://boats.gitlab.io/blog/post/poll-drop/
-        let cancel_future = self.tx.send(PipeMessage::Drop(self.name.clone()));
+        let cancel_future = self.tx.send(PipeMessage::Drop(self.id, self.name.clone()));
         if let Err(error) = futures_executor::block_on(cancel_future) {
             error!("Error canceling subscribe loop: {:?}", error);
         }
@@ -638,11 +662,11 @@ impl SubscribeLoop {
         origin: String,
         agent: String,
         subscribe_key: String,
-        channels: HashMap<String, Vec<ChannelTx>>,
-        groups: HashMap<String, Vec<ChannelTx>>,
+        channels: ChannelMap,
+        groups: ChannelMap,
     ) -> SubscribeLoop {
-        let encoded_channels = encode_channels(&channels);
-        let encoded_groups = encode_channels(&groups);
+        let encoded_channels = Self::encode_channels(&channels);
+        let encoded_groups = Self::encode_channels(&groups);
 
         SubscribeLoop {
             pipe,
@@ -691,21 +715,20 @@ impl SubscribeLoop {
             futures_util::pin_mut!(response);
 
             let (messages, next_timetoken) = futures_util::select! {
-                msg = pipe_rx.next() => {
-                    // TODO: Remove `name` from ChannelMap and re-encode
-                    // TODO: Support cancelation for channel groups
-                    // TODO: Recreate subscribe loop unless channels and groups are both empty
-                    // TODO: Add our ChannelTx
-                    // let listeners = channels
-                    //     .entry(channel.to_string())
-                    //     .or_insert_with(Default::default);
-                    // listeners.push(channel_tx);
-                    if let Some(request) = msg {
-                        debug!("Got request: {:?}", request);
-                    }
-                    // XXX: This should not always stop the event loop
+                // This is ugly, but necessary. Moving these into a sub-struct might clean it up.
+                // See: http://smallcultfollowing.com/babysteps/blog/2018/11/01/after-nll-interprocedural-conflicts/
+                msg = pipe_rx.next() => if Self::handle_request(
+                    &mut self.channels,
+                    &mut self.groups,
+                    &mut self.encoded_channels,
+                    &mut self.encoded_groups,
+                    msg,
+                ).await {
                     break;
-                }
+                } else {
+                    continue;
+                },
+
                 res = response => {
                     if let Ok((messages, next_timetoken)) = res {
                         (messages, next_timetoken)
@@ -745,6 +768,146 @@ impl SubscribeLoop {
         }
 
         debug!("Stopping subscribe loop");
+    }
+
+    /// # Handle a `PipeMessage` request
+    ///
+    /// This is split out from the `select!` macro used in the `SubscribeLoop`. Debugging complex
+    /// code buried within a macro is very painful. So this allows our development experience to be
+    /// flexible and the compiler can actually show us useful errors.
+    ///
+    /// It is an associated function of `SubScribeLoop` because we can't borrow `self` mutably
+    /// while `self.client` is borrowed immutably during the long-poll.
+    ///
+    /// # Returns
+    ///
+    /// `true` when `SubscribeLoop` needs to be terminated.
+    /// `false` when the subscribe loop needs to be restarted.
+    async fn handle_request(
+        channels: &mut ChannelMap,
+        groups: &mut ChannelMap,
+        encoded_channels: &mut String,
+        encoded_groups: &mut String,
+        msg: Option<PipeMessage>,
+    ) -> bool {
+        debug!("Got request: {:?}", msg);
+
+        // TODO: DRY this code up by implementing add and remove on `ChannelMap`.
+        if let Some(request) = msg {
+            match request {
+                PipeMessage::Drop(id, listener) => {
+                    // Remove channel or group
+                    match listener {
+                        ListenerType::Channel(name) => {
+                            // Remove `name` from ChannelMap and re-encode
+                            debug!("Removing channel from SubscribeLoop: {}", name);
+
+                            let listeners = channels
+                                .get_mut(&name)
+                                .expect("Unable to get channel listeners");
+                            listeners.remove(id);
+
+                            if listeners.is_empty() {
+                                channels.remove(&name);
+                            }
+
+                            *encoded_channels = Self::encode_channels(channels);
+                        }
+                        ListenerType::_Group(name) => {
+                            // Remove `name` from ChannelMap and re-encode
+                            debug!("Removing channel group from SubscribeLoop: {}", name);
+
+                            let listeners = groups
+                                .get_mut(&name)
+                                .expect("Unable to get channel listeners");
+                            listeners.remove(id);
+
+                            if listeners.is_empty() {
+                                groups.remove(&name);
+                            }
+
+                            *encoded_groups = Self::encode_channels(groups);
+                        }
+                    }
+
+                    if channels.is_empty() && groups.is_empty() {
+                        return true;
+                    }
+                    return false;
+                }
+                PipeMessage::Add(listener, mut channel_tx) => {
+                    let id = match listener {
+                        ListenerType::Channel(name) => {
+                            // Add `name` to channel and re-encode
+                            debug!("Adding channel to SubscribeLoop: {}", name);
+
+                            let listeners = channels.entry(name).or_insert_with(Default::default);
+                            let id = listeners.counter();
+                            listeners.push(channel_tx.clone());
+
+                            *encoded_channels = Self::encode_channels(channels);
+
+                            id
+                        }
+                        ListenerType::_Group(name) => {
+                            // Add `name` to group and re-encode
+                            debug!("Adding channel group to SubscribeLoop: {}", name);
+
+                            let listeners = groups.entry(name).or_insert_with(Default::default);
+                            let id = listeners.counter();
+                            listeners.push(channel_tx.clone());
+
+                            *encoded_groups = Self::encode_channels(groups);
+
+                            id
+                        }
+                    };
+
+                    // Send Subscription id
+                    let msg = Message {
+                        message_type: MessageType::Ready(id),
+                        ..Default::default()
+                    };
+                    channel_tx
+                        .send(msg)
+                        .await
+                        .expect("Unable to send subscription id");
+
+                    return false;
+                }
+                _ => (),
+            }
+        }
+
+        true
+    }
+
+    /// # Encode the channel list to a string
+    ///
+    /// This is also used for encoding the list of channel groups.
+    fn encode_channels(channels: &ChannelMap) -> String {
+        channels
+            .keys()
+            .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
+            .collect::<Vec<_>>()
+            .as_slice()
+            .join("%2C")
+    }
+}
+
+impl Default for Message {
+    fn default() -> Message {
+        Message {
+            message_type: MessageType::Unknown(0),
+            route: Default::default(),
+            channel: Default::default(),
+            json: JsonValue::Null,
+            metadata: JsonValue::Null,
+            timetoken: Default::default(),
+            client: Default::default(),
+            subscribe_key: Default::default(),
+            flags: Default::default(),
+        }
     }
 }
 
@@ -829,18 +992,6 @@ async fn subscribe_request(
     Ok((messages, timetoken))
 }
 
-/// # Encode the channel list to a string
-///
-/// This is also used for encoding the list of channel groups.
-fn encode_channels(channels: &HashMap<String, Vec<ChannelTx>>) -> String {
-    channels
-        .keys()
-        .map(|channel| utf8_percent_encode(channel, NON_ALPHANUMERIC).to_string())
-        .collect::<Vec<_>>()
-        .as_slice()
-        .join("%2C")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -885,9 +1036,8 @@ mod tests {
                     assert!(status.is_ok());
 
                     // Receive the message
-                    // TODO: Use Stream interface
                     debug!("Waiting for message...");
-                    let message = subscription.channel.next().await;
+                    let message = subscription.next().await;
                     assert!(message.is_some());
 
                     // Check the message contents
