@@ -817,9 +817,8 @@ impl SubscribeLoop {
 
                             if listeners.is_empty() {
                                 channels.remove(&name);
+                                *encoded_channels = Self::encode_channels(channels);
                             }
-
-                            *encoded_channels = Self::encode_channels(channels);
                         }
                         ListenerType::_Group(name) => {
                             // Remove `name` from ChannelMap and re-encode
@@ -832,9 +831,8 @@ impl SubscribeLoop {
 
                             if listeners.is_empty() {
                                 groups.remove(&name);
+                                *encoded_groups = Self::encode_channels(groups);
                             }
-
-                            *encoded_groups = Self::encode_channels(groups);
                         }
                     }
 
