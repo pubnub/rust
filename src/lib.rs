@@ -1,3 +1,7 @@
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::doc_markdown)]
+
 //! # Async PubNub Client SDK for Rust
 //!
 //! - Fully `async`/`await` ready.
@@ -15,7 +19,7 @@ use futures_util::stream::{Stream, StreamExt};
 use futures_util::task::{Context, Poll};
 use hyper::{client::HttpConnector, Uri};
 use hyper_tls::HttpsConnector;
-use json::JsonValue;
+pub use json::JsonValue;
 use log::{debug, error};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use thiserror::Error;
@@ -210,15 +214,15 @@ pub enum MessageType {
 pub enum Error {
     /// Hyper client error.
     #[error("Hyper client error")]
-    HyperError(#[from] hyper::Error),
+    Hyper(#[from] hyper::Error),
 
     /// Invalid UTF-8.
     #[error("Invalid UTF-8")]
-    Utf8Error(#[from] std::str::Utf8Error),
+    Utf8(#[from] std::str::Utf8Error),
 
     /// Invalid JSON.
     #[error("Invalid JSON")]
-    JsonError(#[from] json::Error),
+    Json(#[from] json::Error),
 }
 
 /// # PubNub core client
@@ -242,19 +246,9 @@ impl PubNub {
     /// # Create a new `PubNub` client with default configuration
     ///
     /// To create a `PubNub` client with custom configuration, use [`PubNubBuilder::new`].
-    pub fn new(publish_key: &str, subscribe_key: &str) -> PubNub {
+    #[must_use]
+    pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
         PubNubBuilder::new(publish_key, subscribe_key).build()
-    }
-
-    /// # Set the subscribe filters
-    ///
-    /// ```no_run
-    /// # use pubnub::PubNub;
-    /// let mut pubnub = PubNub::new("demo", "demo");
-    /// pubnub.filters("uuid != JoeBob");
-    /// ```
-    pub fn filters(&mut self, filters: &str) {
-        self.filters = Some(utf8_percent_encode(filters, NON_ALPHANUMERIC).to_string());
     }
 
     /// # Publish a message over the PubNub network
@@ -435,6 +429,17 @@ impl PubNub {
             channel: channel_rx,
         }
     }
+
+    /// # Set the subscribe filters
+    ///
+    /// ```no_run
+    /// # use pubnub::PubNub;
+    /// let mut pubnub = PubNub::new("demo", "demo");
+    /// pubnub.filters("uuid != JoeBob");
+    /// ```
+    pub fn filters(&mut self, filters: &str) {
+        self.filters = Some(utf8_percent_encode(filters, NON_ALPHANUMERIC).to_string());
+    }
 }
 
 /// # PubNub Client Builder
@@ -451,8 +456,9 @@ impl PubNub {
 /// ```
 impl PubNubBuilder {
     /// # Create a new `PubNubBuilder` that can configure a `PubNub` client
-    pub fn new(publish_key: &str, subscribe_key: &str) -> PubNubBuilder {
-        PubNubBuilder {
+    #[must_use]
+    pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
+        Self {
             origin: "ps.pndsn.com".to_string(),
             agent: "Rust-Agent".to_string(),
             publish_key: publish_key.to_string(),
@@ -473,7 +479,8 @@ impl PubNubBuilder {
     ///     .origin("pubsub.pubnub.com")
     ///     .build();
     /// ```
-    pub fn origin(mut self, origin: &str) -> PubNubBuilder {
+    #[must_use]
+    pub fn origin(mut self, origin: &str) -> Self {
         self.origin = origin.to_string();
         self
     }
@@ -486,7 +493,8 @@ impl PubNubBuilder {
     ///     .agent("My Awesome Rust App/1.0.0")
     ///     .build();
     /// ```
-    pub fn agent(mut self, agent: &str) -> PubNubBuilder {
+    #[must_use]
+    pub fn agent(mut self, agent: &str) -> Self {
         self.agent = agent.to_string();
         self
     }
@@ -499,7 +507,8 @@ impl PubNubBuilder {
     ///     .secret_key("sub-c-deadbeef-0000-1234-abcd-c0deface")
     ///     .build();
     /// ```
-    pub fn secret_key(mut self, secret_key: &str) -> PubNubBuilder {
+    #[must_use]
+    pub fn secret_key(mut self, secret_key: &str) -> Self {
         self.secret_key = Some(secret_key.to_string());
         self
     }
@@ -512,7 +521,8 @@ impl PubNubBuilder {
     ///     .auth_key("Open-Sesame!")
     ///     .build();
     /// ```
-    pub fn auth_key(mut self, auth_key: &str) -> PubNubBuilder {
+    #[must_use]
+    pub fn auth_key(mut self, auth_key: &str) -> Self {
         self.auth_key = Some(auth_key.to_string());
         self
     }
@@ -525,7 +535,8 @@ impl PubNubBuilder {
     ///     .user_id("JoeBob")
     ///     .build();
     /// ```
-    pub fn user_id(mut self, user_id: &str) -> PubNubBuilder {
+    #[must_use]
+    pub fn user_id(mut self, user_id: &str) -> Self {
         self.user_id = Some(user_id.to_string());
         self
     }
@@ -538,7 +549,8 @@ impl PubNubBuilder {
     ///     .filters("uuid != JoeBob")
     ///     .build();
     /// ```
-    pub fn filters(mut self, filters: &str) -> PubNubBuilder {
+    #[must_use]
+    pub fn filters(mut self, filters: &str) -> Self {
         self.filters = Some(utf8_percent_encode(filters, NON_ALPHANUMERIC).to_string());
         self
     }
@@ -554,7 +566,8 @@ impl PubNubBuilder {
     ///     .presence(true)
     ///     .build();
     /// ```
-    pub fn presence(mut self, enable: bool) -> PubNubBuilder {
+    #[must_use]
+    pub fn presence(mut self, enable: bool) -> Self {
         self.presence = enable;
         self
     }
@@ -577,7 +590,8 @@ impl PubNubBuilder {
     ///     .reduced_resliency(true)
     ///     .build();
     /// ```
-    pub fn reduced_resliency(self, _enable: bool) -> PubNubBuilder {
+    #[must_use]
+    pub fn reduced_resliency(self, _enable: bool) -> Self {
         // TODO:
         unimplemented!("Reduced resiliency is not yet available");
     }
@@ -589,6 +603,7 @@ impl PubNubBuilder {
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .build();
     /// ```
+    #[must_use]
     pub fn build(self) -> PubNub {
         let https = HttpsConnector::new().unwrap();
         let client = hyper::Client::builder()
@@ -618,13 +633,13 @@ impl MessageType {
     /// Subscribe message pyloads include a non-enumerated integer to describe message types. We
     /// instead provide a concrete type, using this function to convert the integer into the
     /// appropriate type.
-    fn from_json(i: JsonValue) -> MessageType {
+    fn from_json(i: &JsonValue) -> Self {
         match i.as_u32().unwrap_or(0) {
-            0 => MessageType::Publish,
-            1 => MessageType::Signal,
-            2 => MessageType::Objects,
-            3 => MessageType::Action,
-            i => MessageType::Unknown(i),
+            0 => Self::Publish,
+            1 => Self::Signal,
+            2 => Self::Objects,
+            3 => Self::Action,
+            i => Self::Unknown(i),
         }
     }
 }
@@ -665,11 +680,11 @@ impl SubscribeLoop {
         subscribe_key: String,
         channels: ChannelMap,
         groups: ChannelMap,
-    ) -> SubscribeLoop {
+    ) -> Self {
         let encoded_channels = Self::encode_channels(&channels);
         let encoded_groups = Self::encode_channels(&groups);
 
-        SubscribeLoop {
+        Self {
             pipe,
             client,
             origin,
@@ -715,6 +730,7 @@ impl SubscribeLoop {
             let response = subscribe_request(&self.client, url).fuse();
             futures_util::pin_mut!(response);
 
+            #[allow(clippy::mut_mut)]
             let (messages, next_timetoken) = futures_util::select! {
                 // This is ugly, but necessary. Moving these into a sub-struct might clean it up.
                 // See: http://smallcultfollowing.com/babysteps/blog/2018/11/01/after-nll-interprocedural-conflicts/
@@ -756,7 +772,10 @@ impl SubscribeLoop {
 
             // Distribute messages to each listener
             for message in messages as Vec<Message> {
-                let route = message.route.clone().unwrap_or(message.channel.clone());
+                let route = message
+                    .route
+                    .clone()
+                    .unwrap_or_else(|| message.channel.clone());
                 debug!("route: {}", route);
                 let listeners = self.channels.get_mut(&route).unwrap();
                 debug!("Delivering to {} listeners...", listeners.len());
@@ -872,7 +891,7 @@ impl SubscribeLoop {
                     // Send Subscription id
                     let msg = Message {
                         message_type: MessageType::Ready(id),
-                        ..Default::default()
+                        ..Message::default()
                     };
                     channel_tx
                         .send(msg)
@@ -902,27 +921,35 @@ impl SubscribeLoop {
 }
 
 impl Default for Message {
-    fn default() -> Message {
-        Message {
+    #[must_use]
+    fn default() -> Self {
+        Self {
             message_type: MessageType::Unknown(0),
-            route: Default::default(),
-            channel: Default::default(),
+            route: Option::default(),
+            channel: String::default(),
             json: JsonValue::Null,
             metadata: JsonValue::Null,
-            timetoken: Default::default(),
-            client: Default::default(),
-            subscribe_key: Default::default(),
+            timetoken: Timetoken::default(),
+            client: Option::default(),
+            subscribe_key: String::default(),
             flags: Default::default(),
         }
     }
 }
 
 impl Default for Timetoken {
-    fn default() -> Timetoken {
-        Timetoken {
+    #[must_use]
+    fn default() -> Self {
+        Self {
             t: "0".to_string(),
             r: 0,
         }
+    }
+}
+
+impl std::fmt::Display for Timetoken {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(fmt, "Timetoken {{ t: {}, r: {} }}", self.t, self.r)
     }
 }
 
@@ -979,8 +1006,8 @@ async fn subscribe_request(
     let messages = data_json["m"]
         .members()
         .map(|message| Message {
-            message_type: MessageType::from_json(message["e"].clone()),
-            route: message["b"].as_str().map(|s| s.to_string()),
+            message_type: MessageType::from_json(&message["e"]),
+            route: message["b"].as_str().map(ToString::to_string),
             channel: message["c"].to_string(),
             json: message["d"].clone(),
             metadata: message["u"].clone(),
@@ -988,7 +1015,7 @@ async fn subscribe_request(
                 t: message["p"]["t"].to_string(),
                 r: message["p"]["r"].as_u32().unwrap_or(0),
             },
-            client: message["i"].as_str().map(|s| s.to_string()),
+            client: message["i"].as_str().map(ToString::to_string),
             subscribe_key: message["k"].to_string(),
             flags: message["f"].as_u32().unwrap_or(0),
         })

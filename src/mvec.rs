@@ -17,7 +17,7 @@ pub(crate) struct MVec<T> {
 
 #[derive(Debug)]
 pub(crate) struct MVecIterMut<'a, T> {
-    inner: std::collections::hash_map::IterMut<'a, usize, T>,
+    inner: std::collections::hash_map::ValuesMut<'a, usize, T>,
 }
 
 impl<T> MVec<T> {
@@ -37,16 +37,16 @@ impl<T> MVec<T> {
     pub(crate) fn remove(&mut self, index: usize) -> T {
         self.inner
             .remove(&index)
-            .expect(&format!("Index not found: {}", index))
+            .unwrap_or_else(|| panic!("Index not found: {}", index))
     }
 
     pub(crate) fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
-    pub(crate) fn iter_mut<'a>(&'a mut self) -> MVecIterMut<'a, T> {
+    pub(crate) fn iter_mut(&mut self) -> MVecIterMut<'_, T> {
         MVecIterMut {
-            inner: self.inner.iter_mut(),
+            inner: self.inner.values_mut(),
         }
     }
 }
@@ -55,7 +55,7 @@ impl<T> Default for MVec<T> {
     fn default() -> Self {
         Self {
             counter: Default::default(),
-            inner: Default::default(),
+            inner: HashMap::default(),
         }
     }
 }
@@ -64,6 +64,6 @@ impl<'a, T> Iterator for MVecIterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(_, v)| v)
+        self.inner.next()
     }
 }
