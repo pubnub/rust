@@ -593,6 +593,7 @@ impl PubNubBuilder {
     #[must_use]
     pub fn reduced_resliency(self, _enable: bool) -> Self {
         // TODO:
+        let _ = self;
         unimplemented!("Reduced resiliency is not yet available");
     }
 
