@@ -115,9 +115,9 @@ pub struct Subscription {
 
 /// # PubNub Subscribe Loop
 ///
-/// Manages state for a subscribe loop. Can be canceled by creating or dropping a `Subscription`.
-/// Canceled subscribe loops will stay active until the last `Subscription` is dropped. (Similar to
-/// `Rc` or `Arc`.)
+/// Manages state for a subscribe loop. Can be restarted by creating or dropping a `Subscription`.
+/// Subscribe loops will stay active until the last `Subscription` is dropped. (Similar to `Rc` or
+/// `Arc`.)
 #[derive(Debug)]
 struct SubscribeLoop {
     pipe: Pipe,               // Bidirectional communication pipe
@@ -165,9 +165,9 @@ enum PipeMessage {
 
     /// Exit the subscribe loop.
     ///
-    /// Only sent from `PubNub` to `SubscribeLoop`, and only in unit tests.
+    /// Only sent from `SubscribeLoop` to `PubNub`, and only in unit tests.
     #[cfg(test)]
-    _Exit,
+    Exit,
 }
 
 /// # Type of listener (a channel or a channel group)
@@ -393,6 +393,7 @@ impl PubNub {
 
                 (my_pipe, their_pipe)
             };
+            self.pipe = Some(my_pipe);
 
             let mut channels: ChannelMap = HashMap::new();
             let listeners = channels
@@ -414,8 +415,6 @@ impl PubNub {
 
             // Spawn the subscribe loop onto the Tokio runtime
             tokio::spawn(subscribe_loop.run());
-
-            self.pipe = Some(my_pipe);
 
             debug!("Waiting for long-poll...");
             self.pipe
@@ -640,17 +639,19 @@ impl Stream for Subscription {
     }
 }
 
-/// Cancel the associated `SubscribeLoop` when the `Subscription` is dropped.
+/// Remove listener from the associated `SubscribeLoop` when the `Subscription` is dropped.
 impl Drop for Subscription {
     fn drop(&mut self) {
         debug!("Dropping Subscription: {:?}", self.name);
 
-        // XXX: Not sure about this method of blocking, but I don't know a better way?
+        let msg = PipeMessage::Drop(self.id, self.name.clone());
+        let mut tx = self.tx.clone();
+
+        // Spawn a future that will send the drop message for us.
         // See: https://boats.gitlab.io/blog/post/poll-drop/
-        let cancel_future = self.tx.send(PipeMessage::Drop(self.id, self.name.clone()));
-        if let Err(error) = futures_executor::block_on(cancel_future) {
-            error!("Error canceling subscribe loop: {:?}", error);
-        }
+        tokio::spawn(async move {
+            tx.send(msg).await.expect("Unable to send drop message");
+        });
     }
 }
 
@@ -768,6 +769,13 @@ impl SubscribeLoop {
         }
 
         debug!("Stopping subscribe loop");
+
+        #[cfg(test)]
+        self.pipe
+            .tx
+            .send(PipeMessage::Exit)
+            .await
+            .expect("Unable to send exit message");
     }
 
     /// # Handle a `PipeMessage` request
@@ -1049,10 +1057,52 @@ mod tests {
             }
             debug!("Subscription should have been dropped by now");
 
-            // XXX: Need a real way to test drop order
-            debug!("Subscribe loop should be getting canceled...");
-            tokio::timer::delay_for(Duration::from_millis(1)).await;
-            debug!("Subscribe loop should have stopped by now");
+            debug!("SubscribeLoop should be stopping...");
+            match pubnub.pipe.unwrap().rx.next().await {
+                Some(PipeMessage::Exit) => (),
+                error => panic!("Unexpected message: {:?}", error),
+            }
+
+            debug!("SubscribeLoop should have stopped by now");
+        });
+    }
+
+    #[test]
+    fn pubnub_subscribeloop_drop() {
+        init();
+
+        let mut rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let publish_key = "demo";
+            let subscribe_key = "demo";
+            let channel = "demo2";
+
+            let mut pubnub = PubNub::new(publish_key, subscribe_key);
+
+            {
+                // Create a bunch of subscriptions
+                let _sub0 = pubnub.subscribe(channel).await;
+                let _sub1 = pubnub.subscribe(channel).await;
+                let _sub2 = pubnub.subscribe(channel).await;
+                let _sub3 = pubnub.subscribe(channel).await;
+                let _sub4 = pubnub.subscribe(channel).await;
+                let _sub5 = pubnub.subscribe(channel).await;
+                let _sub6 = pubnub.subscribe(channel).await;
+                let _sub7 = pubnub.subscribe(channel).await;
+                let _sub8 = pubnub.subscribe(channel).await;
+                let _sub9 = pubnub.subscribe(channel).await;
+                let _sub10 = pubnub.subscribe(channel).await;
+                let _sub11 = pubnub.subscribe(channel).await;
+
+                // HA-HAAAA! Now we drop 12 at once and see if the `Drop` impl hangs!
+            }
+
+            debug!("SubscribeLoop should be stopping...");
+            match pubnub.pipe.unwrap().rx.next().await {
+                Some(PipeMessage::Exit) => (),
+                error => panic!("Unexpected message: {:?}", error),
+            }
+            debug!("SubscribeLoop should have stopped by now");
         });
     }
 
