@@ -312,8 +312,6 @@ impl PubNub {
             message = message,
         );
 
-        dbg!(&url);
-
         // Send network request
         let url = url.parse().expect("Unable to parse URL");
         publish_request(&self.client, url).await
