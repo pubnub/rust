@@ -353,24 +353,37 @@ impl PubNub {
             // Send an "add channel" message to the subscribe loop
             let channel = ListenerType::Channel(channel.to_string());
             debug!("Adding channel: {:?}", channel);
-            pipe.tx
-                .send(PipeMessage::Add(channel, channel_tx))
-                .await
-                .expect("Unable to send add-channel message");
 
-            // Fetch id from `SubscribeLoop`
-            // Uses `channel_rx` which is unique to each `Subscription`.
-            let msg = channel_rx.next().await;
-            if let Some(Message {
-                message_type: MessageType::Ready(id),
-                ..
-            }) = msg
-            {
-                id
+            let result = pipe
+                .tx
+                .send(PipeMessage::Add(channel, channel_tx.clone()))
+                .await;
+
+            if result.is_ok() {
+                // Fetch id from `SubscribeLoop`
+                // Uses `channel_rx` which is unique to each `Subscription`.
+                let msg = channel_rx.next().await;
+
+                if let Some(Message {
+                    message_type: MessageType::Ready(id),
+                    ..
+                }) = msg
+                {
+                    id
+                } else {
+                    panic!("Unexpected message: {:?}", msg);
+                }
             } else {
-                panic!("Unexpected message: {:?}", msg);
+                // When sending to the pipe fails, recreate the SubscribeLoop
+                self.pipe = None;
+
+                0
             }
         } else {
+            0
+        };
+
+        if self.pipe.is_none() {
             // Create communication pipe
             let (my_pipe, their_pipe) = {
                 let (my_tx, their_rx) = mpsc::channel(10);
@@ -418,9 +431,7 @@ impl PubNub {
                 .next()
                 .await
                 .expect("Unable to receive ready message");
-
-            0
-        };
+        }
 
         Subscription {
             name: ListenerType::Channel(channel.to_string()),
@@ -1084,7 +1095,7 @@ mod tests {
             debug!("Subscription should have been dropped by now");
 
             debug!("SubscribeLoop should be stopping...");
-            match pubnub.pipe.unwrap().rx.next().await {
+            match pubnub.pipe.as_mut().unwrap().rx.next().await {
                 Some(PipeMessage::Exit) => (),
                 error => panic!("Unexpected message: {:?}", error),
             }
@@ -1124,11 +1135,42 @@ mod tests {
             }
 
             debug!("SubscribeLoop should be stopping...");
-            match pubnub.pipe.unwrap().rx.next().await {
+            match pubnub.pipe.as_mut().unwrap().rx.next().await {
                 Some(PipeMessage::Exit) => (),
                 error => panic!("Unexpected message: {:?}", error),
             }
             debug!("SubscribeLoop should have stopped by now");
+        });
+    }
+
+    #[test]
+    fn pubnub_subscribeloop_recreate() {
+        init();
+
+        let mut rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let publish_key = "demo";
+            let subscribe_key = "demo";
+            let channel = "demo2";
+
+            let mut pubnub = PubNub::new(publish_key, subscribe_key);
+
+            // Create two subscribe loops, dropping each
+            {
+                let _ = pubnub.subscribe(channel).await;
+            }
+            match pubnub.pipe.as_mut().unwrap().rx.next().await {
+                Some(PipeMessage::Exit) => (),
+                error => panic!("Unexpected message: {:?}", error),
+            }
+
+            {
+                let _ = pubnub.subscribe(channel).await;
+            }
+            match pubnub.pipe.as_mut().unwrap().rx.next().await {
+                Some(PipeMessage::Exit) => (),
+                error => panic!("Unexpected message: {:?}", error),
+            }
         });
     }
 
