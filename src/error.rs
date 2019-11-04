@@ -1,0 +1,17 @@
+use thiserror::Error;
+
+/// # Error variants
+#[derive(Debug, Error)]
+pub enum Error {
+    /// Hyper client error.
+    #[error("Hyper client error")]
+    Hyper(#[from] hyper::Error),
+
+    /// Invalid UTF-8.
+    #[error("Invalid UTF-8")]
+    Utf8(#[from] std::str::Utf8Error),
+
+    /// Invalid JSON.
+    #[error("Invalid JSON")]
+    Json(#[from] json::Error),
+}
