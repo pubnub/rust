@@ -1,9 +1,9 @@
 use crate::error::Error;
 use crate::message::{Message, Timetoken, Type};
-use hyper::{client::HttpConnector, Body, Uri};
+use hyper::{client::HttpConnector, Body, Client, Uri};
 pub(crate) use hyper_tls::HttpsConnector;
 
-pub(crate) type HttpClient = hyper::Client<HttpsConnector<HttpConnector>, Body>;
+pub(crate) type HttpClient = Client<HttpsConnector<HttpConnector>, Body>;
 
 /// # Send a publish request and return the JSON response
 pub(crate) async fn publish_request(
