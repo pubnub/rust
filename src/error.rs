@@ -1,3 +1,4 @@
+use error_iter::ErrorIter;
 use thiserror::Error;
 
 /// # Error variants
@@ -15,3 +16,5 @@ pub enum Error {
     #[error("Invalid JSON")]
     Json(#[from] json::Error),
 }
+
+impl ErrorIter for Error {}
