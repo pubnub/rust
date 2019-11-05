@@ -1,10 +1,11 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::channel::ChannelMap;
 use crate::error::Error;
 use crate::http::{publish_request, HttpClient, HttpsConnector};
 use crate::message::{Message, Timetoken, Type};
-use crate::pipe::{ListenerType, Pipe, PipeMessage};
+use crate::pipe::{ListenerType, Pipe, PipeMessage, SharedPipe};
 use crate::subscribe::{SubscribeLoop, Subscription};
 use futures_util::stream::StreamExt;
 use json::JsonValue;
@@ -16,7 +17,7 @@ use tokio::sync::mpsc;
 ///
 /// The PubNub lib implements socket pools to relay data requests as a client connection to the
 /// PubNub Network.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PubNub {
     pub(crate) origin: String,             // "domain:port"
     pub(crate) agent: String,              // "Rust-Agent"
@@ -28,14 +29,14 @@ pub struct PubNub {
     pub(crate) user_id: Option<String>,    // Client UserId "UUID" for Presence
     pub(crate) filters: Option<String>,    // Metadata Filters on Messages
     pub(crate) presence: bool,             // Enable presence events
-    pub(crate) pipe: Option<Pipe>,         // Allows communication with a subscribe loop
+    pub(crate) pipe: SharedPipe,           // Allows communication with a subscribe loop
 }
 
 /// # PubNub Client Builder
 ///
 /// Create a `PubNub` client using the builder pattern. Optional items can be overridden using
 /// this.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct PubNubBuilder {
     origin: String,             // "domain:port"
     agent: String,              // "Rust-Agent"
@@ -178,7 +179,10 @@ impl PubNub {
     pub async fn subscribe(&mut self, channel: &str) -> Subscription {
         let (channel_tx, mut channel_rx) = mpsc::channel(10);
 
-        let id = if let Some(pipe) = &mut self.pipe {
+        // Hold the lock for the entire duration of this function
+        let mut guard = self.pipe.lock().unwrap();
+
+        let id = if let Some(pipe) = guard.as_mut() {
             // Send an "add channel" message to the subscribe loop
             let channel = ListenerType::Channel(channel.to_string());
             debug!("Adding channel: {:?}", channel);
@@ -204,7 +208,7 @@ impl PubNub {
                 }
             } else {
                 // When sending to the pipe fails, recreate the SubscribeLoop
-                self.pipe = None;
+                *guard = None;
 
                 0
             }
@@ -212,7 +216,7 @@ impl PubNub {
             0
         };
 
-        if self.pipe.is_none() {
+        if guard.is_none() {
             // Create communication pipe
             let (my_pipe, their_pipe) = {
                 let (my_tx, their_rx) = mpsc::channel(10);
@@ -229,7 +233,7 @@ impl PubNub {
 
                 (my_pipe, their_pipe)
             };
-            self.pipe = Some(my_pipe);
+            *guard = Some(my_pipe);
 
             let mut channels: ChannelMap = ChannelMap::new();
             let listeners = channels
@@ -253,7 +257,7 @@ impl PubNub {
             tokio::spawn(subscribe_loop.run());
 
             debug!("Waiting for long-poll...");
-            self.pipe
+            guard
                 .as_mut()
                 .unwrap()
                 .rx
@@ -265,7 +269,7 @@ impl PubNub {
         Subscription {
             name: ListenerType::Channel(channel.to_string()),
             id,
-            tx: self.pipe.as_ref().unwrap().tx.clone(),
+            tx: guard.as_ref().unwrap().tx.clone(),
             channel: channel_rx,
         }
     }
@@ -481,7 +485,7 @@ impl PubNubBuilder {
             user_id: self.user_id,
             filters: self.filters,
             presence: self.presence,
-            pipe: None,
+            pipe: Arc::default(),
         }
     }
 }

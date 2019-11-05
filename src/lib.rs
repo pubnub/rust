@@ -61,6 +61,14 @@ mod tests {
         let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
     }
 
+    async fn subscribe_loop_exit(pubnub: &PubNub) {
+        let mut guard = pubnub.pipe.lock().unwrap();
+        match guard.as_mut().unwrap().rx.next().await {
+            Some(PipeMessage::Exit) => (),
+            error => panic!("Unexpected message: {:?}", error),
+        }
+    }
+
     #[test]
     fn pubnub_subscribe_ok() {
         init();
@@ -109,10 +117,7 @@ mod tests {
             debug!("Subscription should have been dropped by now");
 
             debug!("SubscribeLoop should be stopping...");
-            match pubnub.pipe.as_mut().unwrap().rx.next().await {
-                Some(PipeMessage::Exit) => (),
-                error => panic!("Unexpected message: {:?}", error),
-            }
+            subscribe_loop_exit(&pubnub).await;
 
             debug!("SubscribeLoop should have stopped by now");
         });
@@ -149,10 +154,8 @@ mod tests {
             }
 
             debug!("SubscribeLoop should be stopping...");
-            match pubnub.pipe.as_mut().unwrap().rx.next().await {
-                Some(PipeMessage::Exit) => (),
-                error => panic!("Unexpected message: {:?}", error),
-            }
+            subscribe_loop_exit(&pubnub).await;
+
             debug!("SubscribeLoop should have stopped by now");
         });
     }
@@ -173,18 +176,12 @@ mod tests {
             {
                 let _ = pubnub.subscribe(channel).await;
             }
-            match pubnub.pipe.as_mut().unwrap().rx.next().await {
-                Some(PipeMessage::Exit) => (),
-                error => panic!("Unexpected message: {:?}", error),
-            }
+            subscribe_loop_exit(&pubnub).await;
 
             {
                 let _ = pubnub.subscribe(channel).await;
             }
-            match pubnub.pipe.as_mut().unwrap().rx.next().await {
-                Some(PipeMessage::Exit) => (),
-                error => panic!("Unexpected message: {:?}", error),
-            }
+            subscribe_loop_exit(&pubnub).await;
         });
     }
 

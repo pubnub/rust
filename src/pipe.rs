@@ -1,8 +1,11 @@
+use std::sync::{Arc, Mutex};
+
 use crate::channel::ChannelTx;
 use tokio::sync::mpsc;
 
 pub(crate) type PipeTx = mpsc::Sender<PipeMessage>;
 pub(crate) type PipeRx = mpsc::Receiver<PipeMessage>;
+pub(crate) type SharedPipe = Arc<Mutex<Option<Pipe>>>;
 
 /// # Bidirectional communication pipe for `SubscribeLoop`
 ///
