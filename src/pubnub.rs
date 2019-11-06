@@ -180,7 +180,7 @@ impl PubNub {
         let (channel_tx, mut channel_rx) = mpsc::channel(10);
 
         // Hold the lock for the entire duration of this function
-        let mut guard = self.pipe.lock().unwrap();
+        let mut guard = self.pipe.lock().await;
 
         let id = if let Some(pipe) = guard.as_mut() {
             // Send an "add channel" message to the subscribe loop

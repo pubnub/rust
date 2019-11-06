@@ -1,7 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::channel::ChannelTx;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 
 pub(crate) type PipeTx = mpsc::Sender<PipeMessage>;
 pub(crate) type PipeRx = mpsc::Receiver<PipeMessage>;

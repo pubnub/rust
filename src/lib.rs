@@ -64,7 +64,7 @@ mod tests {
     }
 
     async fn subscribe_loop_exit(pubnub: &PubNub) {
-        let mut guard = pubnub.pipe.lock().unwrap();
+        let mut guard = pubnub.pipe.lock().await;
         match guard.as_mut().unwrap().rx.next().await {
             Some(PipeMessage::Exit) => (),
             error => panic!("Unexpected message: {:?}", error),
