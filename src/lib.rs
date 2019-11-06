@@ -52,8 +52,10 @@ mod subscribe;
 mod tests {
     use super::*;
     use crate::pipe::{ListenerType, PipeMessage};
-    use futures_util::stream::StreamExt;
+    use futures_util::future::FutureExt;
+    use futures_util::stream::{FuturesUnordered, StreamExt};
     use log::debug;
+    use randomize::PCG32;
     use tokio::runtime::current_thread::Runtime;
 
     fn init() {
@@ -67,6 +69,41 @@ mod tests {
             Some(PipeMessage::Exit) => (),
             error => panic!("Unexpected message: {:?}", error),
         }
+    }
+
+    /// Generate a pseudorandom seed for the PRNG.
+    fn generate_seed() -> (u64, u64) {
+        use byteorder::{ByteOrder, NativeEndian};
+        use getrandom::getrandom;
+
+        let mut seed = [0_u8; 16];
+
+        getrandom(&mut seed).expect("failed to getrandom");
+
+        (
+            NativeEndian::read_u64(&seed[0..8]),
+            NativeEndian::read_u64(&seed[8..16]),
+        )
+    }
+
+    /// Randomly shuffle a vector of anything, leaving the original vector empty
+    fn shuffle<T>(prng: &mut PCG32, list: &mut Vec<T>) -> Vec<T> {
+        let length = list.len();
+        let mut output = Vec::with_capacity(length);
+
+        for _ in 0..length {
+            let length = list.len() - 1;
+
+            let item = if length > 0 {
+                list.swap_remove(prng.next_u32() as usize % length)
+            } else {
+                list.remove(0)
+            };
+
+            output.push(item);
+        }
+
+        output
     }
 
     #[test]
@@ -182,6 +219,65 @@ mod tests {
                 let _ = pubnub.subscribe(channel).await;
             }
             subscribe_loop_exit(&pubnub).await;
+        });
+    }
+
+    #[test]
+    fn pubnub_subscribe_clone_ok() {
+        init();
+
+        let mut rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let seed = generate_seed();
+            let mut prng = PCG32::seed(seed.0, seed.1);
+            let mut streams = Vec::new();
+
+            // Create a client and immediately subscribe
+            let mut pubnub1 = PubNub::new("demo", "demo");
+            streams.push(pubnub1.subscribe("channel1").await);
+
+            // Create a cloned client and immediate subscribe
+            let mut pubnub2 = pubnub1.clone();
+            streams.push(pubnub2.subscribe("channel2").await);
+
+            // Subscribe to two more channels from each clone
+            streams.push(pubnub1.subscribe("channel3").await);
+            streams.push(pubnub2.subscribe("channel4").await);
+
+            // Create a list of publish futures, mix-and-match clients
+            let mut publishers = vec![
+                pubnub1.publish("channel1", JsonValue::String("test1".to_string())),
+                pubnub2.publish("channel2", JsonValue::String("test2".to_string())),
+                pubnub2.publish("channel3", JsonValue::String("test3".to_string())),
+                pubnub1.publish("channel4", JsonValue::String("test4".to_string())),
+            ];
+
+            // Randomly shuffle the list of publishers into a FuturesUnordered
+            let mut publishers: FuturesUnordered<_> =
+                shuffle(&mut prng, &mut publishers).drain(..).collect();
+
+            // Await all publish futures
+            for _ in 0..publishers.len() {
+                assert!(publishers.next().await.is_some());
+            }
+            assert!(publishers.next().await.is_none());
+
+            // Check the streams!
+            for (i, stream) in streams.iter_mut().enumerate() {
+                let expected = JsonValue::String(format!("test{}", i + 1).to_string());
+                assert_eq!(stream.next().await.unwrap().json, expected);
+            }
+
+            // Drop the streams
+            std::mem::drop(streams);
+
+            // Wait for the subscribe loop to exit
+            subscribe_loop_exit(&pubnub1).await;
+
+            // Awaiting the subscribe loop exit on the cloned client should fail
+            let future = std::panic::AssertUnwindSafe(subscribe_loop_exit(&pubnub2));
+            let result = future.catch_unwind().await;
+            assert!(result.is_err());
         });
     }
 
