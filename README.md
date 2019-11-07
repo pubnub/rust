@@ -3,9 +3,9 @@
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 The PubNub Rust SDK is based on Tokio `0.2`.
-This library uses `HTTP/2.0` to communitate with the PubNub Edge Messaging Network.
+This library uses `HTTP/2.0` to communicate with the PubNub Edge Messaging Network.
 
-Since we are using Async/Await, a feature soon to be relased,
+Since we are using Async/Await, a feature soon to be released,
 we need to update the version of rust installed.
 
 ```shell
