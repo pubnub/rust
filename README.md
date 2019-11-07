@@ -9,11 +9,11 @@ Since we are using Async/Await, a feature soon to be released,
 we need to update the version of rust installed.
 
 ```shell
-rustup toolchain install nightly
-rustup default nightly
+rustup toolchain install stable
+rustup default stable
 ```
 
-The lib successfully builds on `rustc 1.40.0-nightly (fa0f7d008 2019-10-17)`.
+The lib successfully builds on `rustc 1.39.0 (4560ea788 2019-11-04)`.
 We will continue to update the version definitions as they become available.
 
 ## Get Started
