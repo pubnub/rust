@@ -219,7 +219,7 @@ impl PubNub {
         if guard.is_none() {
             // Create communication pipe
             let (my_pipe, their_pipe) = {
-                let (my_tx, their_rx) = mpsc::channel(10);
+                let (my_tx, their_rx) = mpsc::channel(1);
                 let (their_tx, my_rx) = mpsc::channel(10);
 
                 let my_pipe = Pipe {
