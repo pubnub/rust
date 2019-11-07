@@ -9,7 +9,7 @@ pub(crate) type SharedPipe = Arc<Mutex<Option<Pipe>>>;
 
 /// # Bidirectional communication pipe for `SubscribeLoop`
 ///
-/// `PubNub` owns a reference to one end of the pipe for communiating with the `SubscribeLoop`.
+/// `PubNub` owns a reference to one end of the pipe for communicating with the `SubscribeLoop`.
 /// `Subscription` owns a clone of the sending side of the pipe to the `SubscribeLoop`, but not the
 /// receiving side. `SubscribeLoop` is capable of sending messages to `PubNub`, and receiving
 /// messages from both `PubNub` and any number of `Subscription` streams.
