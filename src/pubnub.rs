@@ -159,7 +159,7 @@ impl PubNub {
     ///
     /// To workaround this problem, you may consider enabling reduced resiliency with
     /// [`PubNubBuilder::reduced_resliency`], which will drop messages on the slowest consumers,
-    /// allowing faster consumers to continueprocessing messages without blocking.
+    /// allowing faster consumers to continue processing messages without blocking.
     ///
     /// # Example
     ///
