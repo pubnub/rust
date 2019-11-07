@@ -150,7 +150,7 @@ impl PubNub {
     /// The PubNub client only maintains a single subscribe loop for all subscription streams. This
     /// has a benefit that it optimizes for a low number of sockets to the PubNub network. It has a
     /// downside that requires _all_ streams to consume faster than the subscribe loop produces.
-    /// A slow consumer will create a head-on-line blocking bottleneck in the processing of
+    /// A slow consumer will create a head-of-line blocking bottleneck in the processing of
     /// received messages. All streams can only consume as fast as the slowest.
     ///
     /// For example, with 3 total subscription streams and 1 that takes 30 seconds to process each
