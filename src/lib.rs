@@ -32,6 +32,7 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 #![allow(clippy::doc_markdown)]
+#![forbid(unsafe_code)]
 
 pub use crate::error::Error;
 pub use crate::message::{Message, Timetoken, Type};
