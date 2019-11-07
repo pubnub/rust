@@ -253,10 +253,7 @@ impl SubscribeLoop {
                         }
                     }
 
-                    if channels.is_empty() && groups.is_empty() {
-                        return true;
-                    }
-                    return false;
+                    return channels.is_empty() && groups.is_empty();
                 }
                 PipeMessage::Add(listener, mut channel_tx) => {
                     let id = match listener {
