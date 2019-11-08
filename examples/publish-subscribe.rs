@@ -16,7 +16,7 @@ async fn main() -> Result<(), Error> {
     };
 
     let mut stream = pubnub.subscribe("my-channel").await;
-    let timetoken = pubnub.publish("my-channel", message.clone()).await?;
+    let timetoken = pubnub.publish("my-channel", message).await?;
     println!("timetoken = {:?}", timetoken);
 
     let received = stream.next().await;
