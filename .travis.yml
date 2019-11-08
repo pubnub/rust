@@ -1,0 +1,20 @@
+language: rust
+rust:
+# MSRV
+- 1.39.0
+
+# Stable and beta release channels
+- stable
+- beta
+
+matrix:
+  fast_finish: true
+
+before_script:
+- rustup component add clippy
+- rustup component add rustfmt
+
+script:
+- cargo clippy --all -- -D warnings
+- cargo test --all
+- cargo fmt --all -- --check
