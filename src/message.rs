@@ -67,8 +67,10 @@ pub enum Type {
 /// [`PubNub::publish`]: crate::pubnub::PubNub::publish
 #[derive(Debug, Clone)]
 pub struct Timetoken {
-    pub(crate) t: String, // Timetoken
-    pub(crate) r: u32,    // Origin region
+    /// Timetoken
+    pub t: u64,
+    /// Origin region
+    pub r: u32,
 }
 
 impl Type {
@@ -132,14 +134,13 @@ impl Timetoken {
     ///
     /// Note: Hidden from docs because there is currently no need to create a timetoken. This may
     /// change as the public API evolves.
-    #[doc(hidden)]
     pub fn new(time: SystemTime, region: u32) -> Result<Self, SystemTimeError> {
         let time = time.duration_since(SystemTime::UNIX_EPOCH)?;
         let secs = time.as_secs();
         let nanos = time.subsec_nanos();
 
         // Format the timetoken with the appropriate resolution
-        let t = format!("{}{}", secs, nanos / 100);
+        let t = (secs * 10_000_000) | (u64::from(nanos) / 100);
 
         Ok(Self { t, r: region })
     }
@@ -149,14 +150,14 @@ impl Default for Timetoken {
     #[must_use]
     fn default() -> Self {
         Self {
-            t: "0".to_string(),
-            r: 0,
+            t: u64::default(),
+            r: u32::default(),
         }
     }
 }
 
 impl std::fmt::Display for Timetoken {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(fmt, "Timetoken {{ t: {}, r: {} }}", self.t, self.r)
+        write!(fmt, "{{ t: {}, r: {} }}", self.t, self.r)
     }
 }

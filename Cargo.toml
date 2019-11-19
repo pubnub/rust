@@ -1,10 +1,10 @@
 [package]
 name = "pubnub"
 version = "0.1.0"
-description = "PubNub Async lib based on Tokio 0.2"
-repository = "https://github.com/stephenlb/pubnub-rust"
+description = "PubNub Async lib based on Tokio"
+repository = "https://github.com/pubnub/rust"
 keywords = ["pubnub", "publish-subscribe", "subscribe"]
-authors = ["Stephen Blum <stephen@pubnub.com>"]
+authors = ["Stephen Blum <stephen@pubnub.com>", "Jay Oster <jay@pubnub.com>"]
 readme = "readme.md"
 edition = "2018"
 

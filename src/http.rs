@@ -24,7 +24,7 @@ pub(crate) async fn publish_request(
     let data = std::str::from_utf8(&bytes)?;
     let data_json = json::parse(data)?;
     let timetoken = Timetoken {
-        t: data_json[2].to_string(),
+        t: data_json[2].as_str().unwrap().parse().unwrap(),
         r: 0, // TODO
     };
 
@@ -53,7 +53,7 @@ pub(crate) async fn subscribe_request(
 
     // Decode the stream timetoken
     let timetoken = Timetoken {
-        t: data_json["t"]["t"].to_string(),
+        t: data_json["t"]["t"].as_str().unwrap().parse().unwrap(),
         r: data_json["t"]["r"].as_u32().unwrap_or(0),
     };
 
@@ -67,7 +67,7 @@ pub(crate) async fn subscribe_request(
             json: message["d"].clone(),
             metadata: message["u"].clone(),
             timetoken: Timetoken {
-                t: message["p"]["t"].to_string(),
+                t: message["p"]["t"].as_str().unwrap().parse().unwrap(),
                 r: message["p"]["r"].as_u32().unwrap_or(0),
             },
             client: message["i"].as_str().map(ToString::to_string),

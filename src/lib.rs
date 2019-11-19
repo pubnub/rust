@@ -59,6 +59,9 @@ mod tests {
     use randomize::PCG32;
     use tokio::runtime::current_thread::Runtime;
 
+    const NOV_14_2019: u64 = 15_736_896_000_000_000;
+    const NOV_14_2120: u64 = 47_609_856_000_000_000; // TODO: Update this in 100 years
+
     fn init() {
         let env = env_logger::Env::default().default_filter_or("pubnub=trace");
         let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
@@ -147,8 +150,8 @@ mod tests {
                 assert_eq!(message.message_type, Type::Publish);
                 let expected = JsonValue::String("Hello, world!".to_string());
                 assert_eq!(message.json, expected);
-                assert_eq!(message.timetoken.t.len(), 17);
-                assert!(message.timetoken.t.chars().all(|c| c >= '0' && c <= '9'));
+                assert!(message.timetoken.t > NOV_14_2019);
+                assert!(message.timetoken.t < NOV_14_2120); // TODO: Update this in 100 years
 
                 debug!("Going to drop Subscription...");
             }
@@ -307,8 +310,8 @@ mod tests {
             assert!(status.is_ok());
             let timetoken = status.unwrap();
 
-            assert_eq!(timetoken.t.len(), 17);
-            assert!(timetoken.t.chars().all(|c| c >= '0' && c <= '9'));
+            assert!(timetoken.t > NOV_14_2019);
+            assert!(timetoken.t < NOV_14_2120); // TODO: Update this in 100 years
         });
     }
 }

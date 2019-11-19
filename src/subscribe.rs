@@ -155,7 +155,7 @@ impl SubscribeLoop {
             };
 
             // Send ready message when the subscribe loop is capable of receiving messages
-            if timetoken.t == "0" {
+            if timetoken.t == 0 {
                 if let Err(error) = self.pipe.tx.send(PipeMessage::Ready).await {
                     error!("Error sending ready message: {:?}", error);
                     break;
