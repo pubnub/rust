@@ -139,6 +139,7 @@ impl PubNub {
             channel = channel,
             message = message,
         );
+        debug!("URL: {}", url);
 
         // Send network request
         let url = url.parse().expect("Unable to parse URL");
