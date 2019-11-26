@@ -9,8 +9,7 @@
 //!
 //! ```
 //! use futures_util::stream::StreamExt;
-//! use json::object;
-//! use pubnub::PubNub;
+//! use pubnub::{json::object, PubNub};
 //!
 //! # async {
 //! let mut pubnub = PubNub::new("demo", "demo");
@@ -38,7 +37,7 @@ pub use crate::error::Error;
 pub use crate::message::{Message, Timetoken, Type};
 pub use crate::pubnub::{PubNub, PubNubBuilder};
 pub use crate::subscribe::Subscription;
-pub use json::JsonValue;
+pub use json;
 
 mod channel;
 mod error;
@@ -55,6 +54,7 @@ mod tests {
     use crate::pipe::{ListenerType, PipeMessage};
     use futures_util::future::FutureExt;
     use futures_util::stream::{FuturesUnordered, StreamExt};
+    use json::JsonValue;
     use log::debug;
     use randomize::PCG32;
     use tokio::runtime::current_thread::Runtime;
