@@ -71,8 +71,7 @@ impl PubNub {
     /// # Example
     ///
     /// ```
-    /// use json::object;
-    /// use pubnub::PubNub;
+    /// use pubnub::{json::object, PubNub};
     ///
     /// # async {
     /// let pubnub = PubNub::new("demo", "demo");
@@ -96,8 +95,7 @@ impl PubNub {
     /// # Example
     ///
     /// ```
-    /// use json::object;
-    /// use pubnub::PubNub;
+    /// use pubnub::{json::object, PubNub};
     ///
     /// # async {
     /// let pubnub = PubNub::new("demo", "demo");

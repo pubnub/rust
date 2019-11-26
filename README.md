@@ -28,8 +28,7 @@ Try the following sample code to get up and running quickly.
 
 ```rust
 use futures_util::stream::StreamExt;
-use json::object;
-use pubnub::{Error, PubNub};
+use pubnub::{json::object, Error, PubNub};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
