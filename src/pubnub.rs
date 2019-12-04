@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::channel::ChannelMap;
@@ -484,7 +483,7 @@ impl PubNubBuilder {
             user_id: self.user_id,
             filters: self.filters,
             presence: self.presence,
-            pipe: Arc::default(),
+            pipe: SharedPipe::default(),
         }
     }
 }
