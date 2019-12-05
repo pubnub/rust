@@ -169,7 +169,7 @@ impl SubscribeLoop {
             debug!("timetoken: {:?}", timetoken);
 
             // Distribute messages to each listener
-            for message in messages as Vec<Message> {
+            for message in messages {
                 let route = message
                     .route
                     .clone()
