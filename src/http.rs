@@ -62,7 +62,7 @@ pub(crate) async fn subscribe_request(
         .members()
         .map(|message| Message {
             message_type: Type::from_json(&message["e"]),
-            route: message["b"].as_str().map(ToString::to_string),
+            route: message["b"].as_str().map(str::to_string),
             channel: message["c"].to_string(),
             json: message["d"].clone(),
             metadata: message["u"].clone(),
@@ -70,7 +70,7 @@ pub(crate) async fn subscribe_request(
                 t: message["p"]["t"].as_str().unwrap().parse().unwrap(),
                 r: message["p"]["r"].as_u32().unwrap_or(0),
             },
-            client: message["i"].as_str().map(ToString::to_string),
+            client: message["i"].as_str().map(str::to_string),
             subscribe_key: message["k"].to_string(),
             flags: message["f"].as_u32().unwrap_or(0),
         })
