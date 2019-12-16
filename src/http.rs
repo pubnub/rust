@@ -11,8 +11,8 @@ pub(crate) async fn publish_request(
     url: Uri,
 ) -> Result<Timetoken, Error> {
     // Send network request
-    let res = http_client.get(url).await;
-    let mut body = res.unwrap().into_body();
+    let res = http_client.get(url).await?;
+    let mut body = res.into_body();
     let mut bytes = Vec::new();
 
     // Receive the response as a byte stream
@@ -38,8 +38,8 @@ pub(crate) async fn subscribe_request(
     url: Uri,
 ) -> Result<(Vec<Message>, Timetoken), Error> {
     // Send network request
-    let res = http_client.get(url).await;
-    let mut body = res.unwrap().into_body();
+    let res = http_client.get(url).await?;
+    let mut body = res.into_body();
     let mut bytes = Vec::new();
 
     // Receive the response as a byte stream

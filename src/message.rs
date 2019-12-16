@@ -121,6 +121,10 @@ impl Timetoken {
     /// where the message was created. Using an appropriate `region` is important for delivery
     /// semantics in a global distributed system.
     ///
+    /// # Errors
+    ///
+    /// Returns an error when the input `time` argument cannot be transformed into a duration.
+    ///
     /// # Example
     ///
     /// ```
