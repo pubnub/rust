@@ -320,22 +320,17 @@ mod default {
 
     impl PubNubBuilder<HyperTransport, TokioRuntime> {
         /// Create a new `PubNubBuilder` that can configure a `PubNub` client.
+        /// Uses default components:
+        /// - hyper transport
+        /// - tokio runtime
         #[must_use]
         pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
-            Self {
-                origin: "ps.pndsn.com".to_string(),
-                agent: "Rust-Agent".to_string(),
-                publish_key: publish_key.to_string(),
-                subscribe_key: subscribe_key.to_string(),
-                secret_key: None,
-                auth_key: None,
-                user_id: None,
-                filters: None,
-                presence: false,
-
-                transport: HyperTransport::default(),
-                runtime: TokioRuntime::default(),
-            }
+            Self::with_components(
+                publish_key,
+                subscribe_key,
+                HyperTransport::default(),
+                TokioRuntime::default(),
+            )
         }
     }
 }
@@ -346,6 +341,31 @@ where
     TTransport: Transport,
     TRuntime: Runtime,
 {
+    /// Create a new `PubNubBuilder` that can configure a `PubNub` client
+    /// with custom components implementations.
+    #[must_use]
+    pub fn with_components(
+        publish_key: &str,
+        subscribe_key: &str,
+        transport: TTransport,
+        runtime: TRuntime,
+    ) -> Self {
+        Self {
+            origin: "ps.pndsn.com".to_string(),
+            agent: "Rust-Agent".to_string(),
+            publish_key: publish_key.to_string(),
+            subscribe_key: subscribe_key.to_string(),
+            secret_key: None,
+            auth_key: None,
+            user_id: None,
+            filters: None,
+            presence: false,
+
+            transport,
+            runtime,
+        }
+    }
+
     /// Set the PubNub network origin.
     ///
     /// # Example
