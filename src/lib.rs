@@ -33,7 +33,6 @@
 #![allow(clippy::doc_markdown)]
 #![forbid(unsafe_code)]
 
-pub use crate::error::Error;
 pub use crate::message::{Message, Timetoken, Type};
 pub use crate::pubnub::{PubNub, PubNubBuilder};
 pub use crate::subscribe::Subscription;
@@ -52,7 +51,6 @@ pub use default::*;
 
 mod adapters;
 mod channel;
-mod error;
 mod message;
 mod mvec;
 mod pipe;
