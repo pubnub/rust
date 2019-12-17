@@ -40,8 +40,8 @@ pub use json;
 
 /// PubNub client with built-in defaults.
 pub mod default {
-    pub use crate::adapters::runtime::default::Runtime as DefaultRuntime;
-    pub use crate::adapters::transport::default::Transport as DefaultTransport;
+    pub use crate::adapters::runtime::tokio::Runtime as DefaultRuntime;
+    pub use crate::adapters::transport::hyper::Transport as DefaultTransport;
 
     #[deny(clippy::module_name_repetitions)]
     pub type StandardPubNub = crate::pubnub::PubNub<self::DefaultTransport, self::DefaultRuntime>;

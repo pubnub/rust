@@ -1,5 +1,3 @@
-use crate::adapters::runtime::default as default_runtime;
-use crate::adapters::transport::default as default_transport;
 use crate::channel::ChannelMap;
 use crate::message::{Message, Timetoken, Type};
 use crate::pipe::{ListenerType, Pipe, PipeMessage, SharedPipe};
@@ -295,41 +293,49 @@ where
     }
 }
 
-impl PubNub<default_transport::Transport, default_runtime::Runtime> {
-    /// Create a new `PubNub` client with default configuration.
-    ///
-    /// To create a `PubNub` client with custom configuration, use [`PubNubBuilder::new`].
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use pubnub::PubNub;
-    ///
-    /// let pubnub = PubNub::new("demo", "demo");
-    /// ```
-    #[must_use]
-    pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
-        PubNubBuilder::new(publish_key, subscribe_key).build()
+#[cfg(all(feature = "transport_hyper", feature = "runtime_tokio"))]
+mod default {
+    use super::*;
+
+    use crate::adapters::runtime::tokio::Runtime as TokioRuntime;
+    use crate::adapters::transport::hyper::Transport as HyperTransport;
+
+    impl PubNub<HyperTransport, TokioRuntime> {
+        /// Create a new `PubNub` client with default configuration.
+        ///
+        /// To create a `PubNub` client with custom configuration, use [`PubNubBuilder::new`].
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use pubnub::PubNub;
+        ///
+        /// let pubnub = PubNub::new("demo", "demo");
+        /// ```
+        #[must_use]
+        pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
+            PubNubBuilder::new(publish_key, subscribe_key).build()
+        }
     }
-}
 
-impl PubNubBuilder<default_transport::Transport, default_runtime::Runtime> {
-    /// Create a new `PubNubBuilder` that can configure a `PubNub` client.
-    #[must_use]
-    pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
-        Self {
-            origin: "ps.pndsn.com".to_string(),
-            agent: "Rust-Agent".to_string(),
-            publish_key: publish_key.to_string(),
-            subscribe_key: subscribe_key.to_string(),
-            secret_key: None,
-            auth_key: None,
-            user_id: None,
-            filters: None,
-            presence: false,
+    impl PubNubBuilder<HyperTransport, TokioRuntime> {
+        /// Create a new `PubNubBuilder` that can configure a `PubNub` client.
+        #[must_use]
+        pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
+            Self {
+                origin: "ps.pndsn.com".to_string(),
+                agent: "Rust-Agent".to_string(),
+                publish_key: publish_key.to_string(),
+                subscribe_key: subscribe_key.to_string(),
+                secret_key: None,
+                auth_key: None,
+                user_id: None,
+                filters: None,
+                presence: false,
 
-            transport: default_transport::Transport::default(),
-            runtime: default_runtime::Runtime::default(),
+                transport: HyperTransport::default(),
+                runtime: TokioRuntime::default(),
+            }
         }
     }
 }

@@ -1,3 +1,2 @@
+#[cfg(feature = "runtime_tokio")]
 pub mod tokio;
-
-pub use self::tokio as default;
