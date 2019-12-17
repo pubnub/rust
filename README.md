@@ -28,10 +28,10 @@ Try the following sample code to get up and running quickly.
 
 ```rust
 use futures_util::stream::StreamExt;
-use pubnub::{json::object, Error, PubNub};
+use pubnub::{json::object, PubNub};
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<(), Box<std::error::Error>> {
     let mut pubnub = PubNub::new("demo", "demo");
 
     let message = object! {

@@ -24,7 +24,7 @@
 //!
 //! let received = stream.next().await;
 //! assert_eq!(received.unwrap().json, message);
-//! # Ok::<(), pubnub::Error>(())
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! # };
 //! ```
 
@@ -39,14 +39,27 @@ pub use crate::pubnub::{PubNub, PubNubBuilder};
 pub use crate::subscribe::Subscription;
 pub use json;
 
+/// PubNub client with built-in defaults.
+pub mod default {
+    pub use crate::adapters::runtime::default::Runtime as DefaultRuntime;
+    pub use crate::adapters::transport::default::Transport as DefaultTransport;
+
+    #[deny(clippy::module_name_repetitions)]
+    pub type StandardPubNub = crate::pubnub::PubNub<self::DefaultTransport, self::DefaultRuntime>;
+}
+
+pub use default::*;
+
+mod adapters;
 mod channel;
 mod error;
-mod http;
 mod message;
 mod mvec;
 mod pipe;
 mod pubnub;
+mod runtime;
 mod subscribe;
+mod transport;
 
 #[cfg(test)]
 mod tests {
@@ -67,7 +80,7 @@ mod tests {
         let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
     }
 
-    async fn subscribe_loop_exit(pubnub: &PubNub) {
+    async fn subscribe_loop_exit(pubnub: &StandardPubNub) {
         let mut guard = pubnub.pipe.lock().await;
         match guard.as_mut().unwrap().rx.next().await {
             Some(PipeMessage::Exit) => (),

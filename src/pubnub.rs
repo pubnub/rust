@@ -1,11 +1,11 @@
-use std::time::Duration;
-
+use crate::adapters::runtime::default as default_runtime;
+use crate::adapters::transport::default as default_transport;
 use crate::channel::ChannelMap;
-use crate::error::Error;
-use crate::http::{publish_request, HttpClient, HttpsConnector};
 use crate::message::{Message, Timetoken, Type};
 use crate::pipe::{ListenerType, Pipe, PipeMessage, SharedPipe};
+use crate::runtime::Runtime;
 use crate::subscribe::{SubscribeLoop, Subscription};
+use crate::transport::Transport;
 use futures_util::stream::StreamExt;
 use json::JsonValue;
 use log::debug;
@@ -17,10 +17,16 @@ use tokio::sync::mpsc;
 /// The PubNub lib implements socket pools to relay data requests as a client connection to the
 /// PubNub Network.
 #[derive(Clone, Debug)]
-pub struct PubNub {
+pub struct PubNub<TTransport, TRuntime>
+where
+    TTransport: Transport,
+    TRuntime: Runtime,
+{
+    transport: TTransport, // Transport to use for communication
+    runtime: TRuntime,     // Runtime to use for managing resources
+
     pub(crate) origin: String,             // "domain:port"
     pub(crate) agent: String,              // "Rust-Agent"
-    pub(crate) client: HttpClient,         // HTTP Client
     pub(crate) publish_key: String,        // Customer's Publish Key
     pub(crate) subscribe_key: String,      // Customer's Subscribe Key
     pub(crate) secret_key: Option<String>, // Customer's Secret Key
@@ -28,7 +34,8 @@ pub struct PubNub {
     pub(crate) user_id: Option<String>,    // Client UserId "UUID" for Presence
     pub(crate) filters: Option<String>,    // Metadata Filters on Messages
     pub(crate) presence: bool,             // Enable presence events
-    pub(crate) pipe: SharedPipe,           // Allows communication with a subscribe loop
+
+    pub(crate) pipe: SharedPipe, // Allows communication with a subscribe loop
 }
 
 /// # PubNub Client Builder
@@ -36,7 +43,14 @@ pub struct PubNub {
 /// Create a `PubNub` client using the builder pattern. Optional items can be overridden using
 /// this.
 #[derive(Clone, Debug)]
-pub struct PubNubBuilder {
+pub struct PubNubBuilder<TTransport, TRuntime>
+where
+    TTransport: Transport,
+    TRuntime: Runtime,
+{
+    transport: TTransport, // Transport to use for communication
+    runtime: TRuntime,     // Runtime to use for managing resources
+
     origin: String,             // "domain:port"
     agent: String,              // "Rust-Agent"
     publish_key: String,        // Customer's Publish Key
@@ -48,29 +62,17 @@ pub struct PubNubBuilder {
     presence: bool,             // Enable presence events
 }
 
-impl PubNub {
-    /// Create a new `PubNub` client with default configuration.
-    ///
-    /// To create a `PubNub` client with custom configuration, use [`PubNubBuilder::new`].
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use pubnub::PubNub;
-    ///
-    /// let pubnub = PubNub::new("demo", "demo");
-    /// ```
-    #[must_use]
-    pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
-        PubNubBuilder::new(publish_key, subscribe_key).build()
-    }
-
+impl<TTransport, TRuntime> PubNub<TTransport, TRuntime>
+where
+    TTransport: Transport + 'static,
+    TRuntime: Runtime + 'static,
+{
     /// Publish a message over the PubNub network.
     ///
     /// # Example
     ///
     /// ```
-    /// use pubnub::{json::object, PubNub};
+    /// use pubnub::{json::object, StandardPubNub as PubNub};
     ///
     /// # async {
     /// let pubnub = PubNub::new("demo", "demo");
@@ -81,10 +83,14 @@ impl PubNub {
     /// }).await?;
     ///
     /// println!("Timetoken: {}", timetoken);
-    /// # Ok::<(), pubnub::Error>(())
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// # };
     /// ```
-    pub async fn publish(&self, channel: &str, message: JsonValue) -> Result<Timetoken, Error> {
+    pub async fn publish(
+        &self,
+        channel: &str,
+        message: JsonValue,
+    ) -> Result<Timetoken, TTransport::Error> {
         self.publish_with_metadata(channel, message, JsonValue::Null)
             .await
     }
@@ -110,7 +116,7 @@ impl PubNub {
     /// let timetoken = pubnub.publish_with_metadata("my-channel", message, metadata).await?;
     ///
     /// println!("Timetoken: {}", timetoken);
-    /// # Ok::<(), pubnub::Error>(())
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// # };
     /// ```
     pub async fn publish_with_metadata(
@@ -118,7 +124,7 @@ impl PubNub {
         channel: &str,
         message: JsonValue,
         _metadata: JsonValue,
-    ) -> Result<Timetoken, Error> {
+    ) -> Result<Timetoken, TTransport::Error> {
         let message = json::stringify(message);
         let message = utf8_percent_encode(&message, NON_ALPHANUMERIC);
         let channel = utf8_percent_encode(channel, NON_ALPHANUMERIC);
@@ -140,7 +146,7 @@ impl PubNub {
 
         // Send network request
         let url = url.parse().expect("Unable to parse URL");
-        publish_request(&self.client, url).await
+        self.transport.publish_request(url).await
     }
 
     /// Subscribe to a message stream over the PubNub network.
@@ -174,7 +180,7 @@ impl PubNub {
     /// }
     /// # };
     /// ```
-    pub async fn subscribe(&mut self, channel: &str) -> Subscription {
+    pub async fn subscribe(&mut self, channel: &str) -> Subscription<TRuntime> {
         let (channel_tx, mut channel_rx) = mpsc::channel(10);
 
         // Hold the lock for the entire duration of this function
@@ -243,7 +249,8 @@ impl PubNub {
             debug!("Creating SubscribeLoop");
             let subscribe_loop = SubscribeLoop::new(
                 their_pipe,
-                self.client.clone(),
+                self.transport.clone(),
+                self.runtime.clone(),
                 self.origin.clone(),
                 self.agent.clone(),
                 self.subscribe_key.clone(),
@@ -251,8 +258,8 @@ impl PubNub {
                 ChannelMap::new(),
             );
 
-            // Spawn the subscribe loop onto the Tokio runtime
-            tokio::spawn(subscribe_loop.run());
+            // Spawn the subscribe loop onto the runtime
+            self.runtime.spawn(subscribe_loop.run());
 
             debug!("Waiting for long-poll...");
             guard
@@ -265,6 +272,7 @@ impl PubNub {
         }
 
         Subscription {
+            runtime: self.runtime.clone(),
             name: ListenerType::Channel(channel.to_string()),
             id,
             tx: guard.as_ref().unwrap().tx.clone(),
@@ -287,7 +295,25 @@ impl PubNub {
     }
 }
 
-impl PubNubBuilder {
+impl PubNub<default_transport::Transport, default_runtime::Runtime> {
+    /// Create a new `PubNub` client with default configuration.
+    ///
+    /// To create a `PubNub` client with custom configuration, use [`PubNubBuilder::new`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use pubnub::PubNub;
+    ///
+    /// let pubnub = PubNub::new("demo", "demo");
+    /// ```
+    #[must_use]
+    pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
+        PubNubBuilder::new(publish_key, subscribe_key).build()
+    }
+}
+
+impl PubNubBuilder<default_transport::Transport, default_runtime::Runtime> {
     /// Create a new `PubNubBuilder` that can configure a `PubNub` client.
     #[must_use]
     pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
@@ -301,9 +327,19 @@ impl PubNubBuilder {
             user_id: None,
             filters: None,
             presence: false,
+
+            transport: default_transport::Transport::default(),
+            runtime: default_runtime::Runtime::default(),
         }
     }
+}
 
+#[allow(clippy::use_self)] // false positives
+impl<TTransport, TRuntime> PubNubBuilder<TTransport, TRuntime>
+where
+    TTransport: Transport,
+    TRuntime: Runtime,
+{
     /// Set the PubNub network origin.
     ///
     /// # Example
@@ -454,6 +490,52 @@ impl PubNubBuilder {
         unimplemented!("Reduced resiliency is not yet available");
     }
 
+    /// Transport.
+    ///
+    /// A transport implementation to use.
+    #[must_use]
+    pub fn transport<U: Transport>(self, transport: U) -> PubNubBuilder<U, TRuntime> {
+        PubNubBuilder {
+            transport,
+
+            // Copy the rest of the fields
+            origin: self.origin,
+            agent: self.agent,
+            publish_key: self.publish_key,
+            subscribe_key: self.subscribe_key,
+            secret_key: self.secret_key,
+            auth_key: self.auth_key,
+            user_id: self.user_id,
+            filters: self.filters,
+            presence: self.presence,
+
+            runtime: self.runtime,
+        }
+    }
+
+    /// Runtime.
+    ///
+    /// A runtime implementation to use.
+    #[must_use]
+    pub fn runtime<U: Runtime>(self, runtime: U) -> PubNubBuilder<TTransport, U> {
+        PubNubBuilder {
+            runtime,
+
+            // Copy the rest of the fields
+            origin: self.origin,
+            agent: self.agent,
+            publish_key: self.publish_key,
+            subscribe_key: self.subscribe_key,
+            secret_key: self.secret_key,
+            auth_key: self.auth_key,
+            user_id: self.user_id,
+            filters: self.filters,
+            presence: self.presence,
+
+            transport: self.transport,
+        }
+    }
+
     /// Build the PubNub client to begin streaming messages.
     ///
     /// # Example
@@ -465,17 +547,12 @@ impl PubNubBuilder {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> PubNub {
-        let https = HttpsConnector::new().unwrap();
-        let client = hyper::Client::builder()
-            .keep_alive_timeout(Some(Duration::from_secs(300)))
-            .max_idle_per_host(10000)
-            .build::<_, hyper::Body>(https);
-
+    pub fn build(self) -> PubNub<TTransport, TRuntime> {
         PubNub {
+            transport: self.transport,
+            runtime: self.runtime,
             origin: self.origin,
             agent: self.agent,
-            client,
             publish_key: self.publish_key,
             subscribe_key: self.subscribe_key,
             secret_key: self.secret_key,

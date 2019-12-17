@@ -1,9 +1,10 @@
 use std::pin::Pin;
 
 use crate::channel::{ChannelMap, ChannelRx};
-use crate::http::{subscribe_request, HttpClient};
 use crate::message::{Message, Timetoken, Type};
 use crate::pipe::{ListenerType, Pipe, PipeMessage, PipeTx};
+use crate::runtime::Runtime;
+use crate::transport::Transport;
 use futures_util::future::FutureExt;
 use futures_util::stream::{Stream, StreamExt};
 use futures_util::task::{Context, Poll};
@@ -17,7 +18,8 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 ///
 /// [`PubNub::subscribe`]: crate::pubnub::PubNub::subscribe
 #[derive(Debug)]
-pub struct Subscription {
+pub struct Subscription<RT: Runtime> {
+    pub(crate) runtime: RT,        // Runtime to use for managing resources
     pub(crate) name: ListenerType, // Channel or Group name
     pub(crate) id: usize,          // Unique identifier for the listener
     pub(crate) tx: PipeTx,         // For interrupting the existing subscribe loop when dropped
@@ -30,9 +32,10 @@ pub struct Subscription {
 /// Subscribe loops will stay active until the last `Subscription` is dropped. (Similar to `Rc` or
 /// `Arc`.)
 #[derive(Debug)]
-pub(crate) struct SubscribeLoop {
+pub(crate) struct SubscribeLoop<T: Transport, RT: Runtime> {
     pipe: Pipe,               // Bidirectional communication pipe
-    client: HttpClient,       // HTTP Client
+    transport: T,             // Transport to use for communication
+    runtime: RT,              // Runtime to use for managing resources
     origin: String,           // Copy of the PubNub origin domain
     agent: String,            // Copy of the UserAgent
     subscribe_key: String,    // Copy of the PubNub subscribe key
@@ -43,7 +46,7 @@ pub(crate) struct SubscribeLoop {
 }
 
 /// `Subscription` is a stream.
-impl Stream for Subscription {
+impl<RT: Runtime> Stream for Subscription<RT> {
     type Item = Message;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
@@ -53,7 +56,7 @@ impl Stream for Subscription {
 }
 
 /// Remove listener from the associated `SubscribeLoop` when the `Subscription` is dropped.
-impl Drop for Subscription {
+impl<RT: Runtime> Drop for Subscription<RT> {
     fn drop(&mut self) {
         debug!("Dropping Subscription: {:?}", self.name);
 
@@ -62,17 +65,25 @@ impl Drop for Subscription {
 
         // Spawn a future that will send the drop message for us.
         // See: https://boats.gitlab.io/blog/post/poll-drop/
-        tokio::spawn(async move {
+        self.runtime.spawn(async move {
             tx.send(msg).await.expect("Unable to send drop message");
         });
     }
 }
 
 /// Implements the subscribe loop, which efficiently polls for new messages.
-impl SubscribeLoop {
+impl<TTransport, TRuntime> SubscribeLoop<TTransport, TRuntime>
+where
+    TTransport: Transport,
+    <TTransport as Transport>::Error: 'static,
+    TRuntime: Runtime,
+{
+    // TODO: fix the clippy complaints.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         pipe: Pipe,
-        client: HttpClient,
+        transport: TTransport,
+        runtime: TRuntime,
         origin: String,
         agent: String,
         subscribe_key: String,
@@ -84,7 +95,8 @@ impl SubscribeLoop {
 
         Self {
             pipe,
-            client,
+            transport,
+            runtime,
             origin,
             agent,
             subscribe_key,
@@ -125,7 +137,7 @@ impl SubscribeLoop {
 
             // Send network request
             let url = url.parse().expect("Unable to parse URL");
-            let response = subscribe_request(&self.client, url).fuse();
+            let response = self.transport.subscribe_request(url).fuse();
             futures_util::pin_mut!(response);
 
             #[allow(clippy::mut_mut)]
