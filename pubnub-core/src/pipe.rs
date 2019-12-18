@@ -3,9 +3,15 @@ use std::sync::Arc;
 use crate::channel::ChannelTx;
 use tokio::sync::{mpsc, Mutex};
 
-pub(crate) type PipeTx = mpsc::Sender<PipeMessage>;
-pub(crate) type PipeRx = mpsc::Receiver<PipeMessage>;
-pub(crate) type SharedPipe = Arc<Mutex<Option<Pipe>>>;
+// TODO: unexpose.
+#[allow(clippy::module_name_repetitions)]
+pub type PipeTx = mpsc::Sender<PipeMessage>;
+#[allow(clippy::module_name_repetitions)]
+pub type PipeRx = mpsc::Receiver<PipeMessage>;
+
+// TODO: unexpose.
+#[allow(clippy::module_name_repetitions)]
+pub type SharedPipe = Arc<Mutex<Option<Pipe>>>;
 
 /// # Bidirectional communication pipe for `SubscribeLoop`
 ///
@@ -15,15 +21,17 @@ pub(crate) type SharedPipe = Arc<Mutex<Option<Pipe>>>;
 /// messages from both `PubNub` and any number of `Subscription` streams.
 ///
 /// See [`PipeMessage`] for more details.
+// TODO: unexpose.
 #[derive(Debug)]
-pub(crate) struct Pipe {
-    pub(crate) tx: PipeTx, // Send-side for bidirectional communication
-    pub(crate) rx: PipeRx, // Recv-side for bidirectional communication
+pub struct Pipe {
+    pub tx: PipeTx, // Send-side for bidirectional communication
+    pub rx: PipeRx, // Recv-side for bidirectional communication
 }
 
 /// # The kinds of messages allowed to be delivered over a `Pipe`
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
-pub(crate) enum PipeMessage {
+pub enum PipeMessage {
     /// A stream for a channel or channel group is being dropped.
     ///
     /// Only sent from `Subscription` to `SubscribeLoop`.
@@ -42,13 +50,14 @@ pub(crate) enum PipeMessage {
     /// Exit the subscribe loop.
     ///
     /// Only sent from `SubscribeLoop` to `PubNub`, and only in unit tests.
-    #[cfg(test)]
+    // TODO: re-enable this.
+    // #[cfg(test)]
     Exit,
 }
 
 /// # Type of listener (a channel or a channel group)
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum ListenerType {
+pub enum ListenerType {
     Channel(String), // Channel name
     _Group(String),  // Channel Group name
 }

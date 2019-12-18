@@ -1,0 +1,33 @@
+[package]
+name = "pubnub-core"
+version = "0.1.0"
+description = "PubNub core crate, modular and composable"
+repository = "https://github.com/pubnub/rust"
+keywords = ["pubnub", "publish-subscribe", "subscribe"]
+authors = ["Stephen Blum <stephen@pubnub.com>", "Jay Oster <jay@pubnub.com>"]
+edition = "2018"
+readme = "../README.md"
+
+[dependencies]
+error-iter = "=0.2.0"
+futures-executor-preview = "=0.3.0-alpha.19"
+futures-util-preview = { version = "=0.3.0-alpha.19", features = ["async-await", "select-macro"] }
+json = "=0.12.0"
+log = "=0.4.8"
+percent-encoding = "=2.1.0"
+thiserror = "=1.0.6"
+http = "=0.1.21"
+async-trait = "=0.1.21"
+tokio = "=0.2.0-alpha.6" # we still use tokio for subscriptions pipes
+
+[dev-dependencies]
+byteorder = "1.3"
+env_logger = "0.7"
+getrandom = "0.1"
+randomize = "3.0"
+mockiato = "0.9"
+mockall = "0.6"
+pubnub-hyper = { path = "../pubnub-hyper" }
+
+[features]
+nigthly = ["mockall/nightly"]

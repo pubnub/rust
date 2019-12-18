@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 
 use futures_util::stream::StreamExt;
-use pubnub::{json::object, StandardPubNub as PubNub};
+use pubnub_hyper::{core::json::object, PubNub};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

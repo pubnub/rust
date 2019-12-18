@@ -18,7 +18,7 @@ First you'll need to add the dependency to your project.
 Easily add PubNub lib to your `Cargo.toml` file.
 
 ```toml
-[dependencies.pubnub]
+[dependencies.pubnub_hyper]
 git = "https://github.com/pubnub/rust"
 ```
 
@@ -28,10 +28,10 @@ Try the following sample code to get up and running quickly.
 
 ```rust
 use futures_util::stream::StreamExt;
-use pubnub::{json::object, PubNub};
+use pubnub_hyper::{core::json::object, PubNub};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pubnub = PubNub::new("demo", "demo");
 
     let message = object! {
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<std::error::Error>> {
 
 ## Examples
 
-You can find these examples in the `./examples` directory.
+You can find these examples in the `./pubnub-hyper/examples` directory.
 Explore the usage patterns available in each of the examples.
 You can easily run each of the examples with these cargo commands:
 

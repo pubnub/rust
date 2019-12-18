@@ -79,7 +79,7 @@ impl Type {
     /// Subscribe message pyloads include a non-enumerated integer to describe message types. We
     /// instead provide a concrete type, using this function to convert the integer into the
     /// appropriate type.
-    pub(crate) fn from_json(i: &JsonValue) -> Self {
+    pub fn from_json(i: &JsonValue) -> Self {
         match i.as_u32().unwrap_or(0) {
             0 => Self::Publish,
             1 => Self::Signal,
@@ -129,7 +129,7 @@ impl Timetoken {
     ///
     /// ```
     /// use std::time::SystemTime;
-    /// use pubnub::Timetoken;
+    /// use pubnub_core::Timetoken;
     ///
     /// let now = SystemTime::now();
     /// let timetoken = Timetoken::new(now, 0)?;

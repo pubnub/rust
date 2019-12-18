@@ -1,6 +1,6 @@
 use crate::message::{Message, Timetoken};
-
 use async_trait::async_trait;
+
 use http::Uri;
 
 /// Transport abstracts away the underlying mechanism through which the PubNub

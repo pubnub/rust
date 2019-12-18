@@ -19,8 +19,9 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 /// [`PubNub::subscribe`]: crate::pubnub::PubNub::subscribe
 #[derive(Debug)]
 pub struct Subscription<RT: Runtime> {
-    pub(crate) runtime: RT,        // Runtime to use for managing resources
-    pub(crate) name: ListenerType, // Channel or Group name
+    pub(crate) runtime: RT, // Runtime to use for managing resources
+    // TODO: unexpose
+    pub name: ListenerType,        // Channel or Group name
     pub(crate) id: usize,          // Unique identifier for the listener
     pub(crate) tx: PipeTx,         // For interrupting the existing subscribe loop when dropped
     pub(crate) channel: ChannelRx, // Stream that produces messages
@@ -199,7 +200,10 @@ where
 
         debug!("Stopping subscribe loop");
 
-        #[cfg(test)]
+        // TODO: only send exit message when testing.
+        // We started sending this plainly to ease testing after we
+        // split the crates.
+        // #[cfg(test)]
         self.pipe
             .tx
             .send(PipeMessage::Exit)

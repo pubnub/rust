@@ -10,6 +10,9 @@ use log::debug;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use tokio::sync::mpsc;
 
+#[cfg(test)]
+mod tests;
+
 /// # PubNub Client
 ///
 /// The PubNub lib implements socket pools to relay data requests as a client connection to the
@@ -23,17 +26,21 @@ where
     transport: TTransport, // Transport to use for communication
     runtime: TRuntime,     // Runtime to use for managing resources
 
-    pub(crate) origin: String,             // "domain:port"
-    pub(crate) agent: String,              // "Rust-Agent"
-    pub(crate) publish_key: String,        // Customer's Publish Key
-    pub(crate) subscribe_key: String,      // Customer's Subscribe Key
+    pub(crate) origin: String, // "domain:port"
+    // TODO: unexpose.
+    pub agent: String, // "Rust-Agent"
+    // TODO: unexpose.
+    pub publish_key: String, // Customer's Publish Key
+    // TODO: unexpose.
+    pub subscribe_key: String,             // Customer's Subscribe Key
     pub(crate) secret_key: Option<String>, // Customer's Secret Key
     pub(crate) auth_key: Option<String>,   // Client Auth Key for R+W Access
     pub(crate) user_id: Option<String>,    // Client UserId "UUID" for Presence
     pub(crate) filters: Option<String>,    // Metadata Filters on Messages
     pub(crate) presence: bool,             // Enable presence events
 
-    pub(crate) pipe: SharedPipe, // Allows communication with a subscribe loop
+    // TODO: unexpose.
+    pub pipe: SharedPipe, // Allows communication with a subscribe loop
 }
 
 /// # PubNub Client Builder
@@ -41,11 +48,7 @@ where
 /// Create a `PubNub` client using the builder pattern. Optional items can be overridden using
 /// this.
 #[derive(Clone, Debug)]
-pub struct PubNubBuilder<TTransport, TRuntime>
-where
-    TTransport: Transport,
-    TRuntime: Runtime,
-{
+pub struct PubNubBuilder<TTransport, TRuntime> {
     transport: TTransport, // Transport to use for communication
     runtime: TRuntime,     // Runtime to use for managing resources
 
@@ -70,7 +73,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::{json::object, StandardPubNub as PubNub};
+    /// use pubnub_hyper::{core::json::object, PubNub};
     ///
     /// # async {
     /// let pubnub = PubNub::new("demo", "demo");
@@ -98,7 +101,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::{json::object, PubNub};
+    /// use pubnub_hyper::{core::json::object, PubNub};
     ///
     /// # async {
     /// let pubnub = PubNub::new("demo", "demo");
@@ -167,7 +170,7 @@ where
     ///
     /// ```no_run
     /// use futures_util::stream::StreamExt;
-    /// use pubnub::PubNub;
+    /// use pubnub_hyper::PubNub;
     ///
     /// # async {
     /// let mut pubnub = PubNub::new("demo", "demo");
@@ -283,7 +286,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::PubNub;
+    /// use pubnub_hyper::PubNub;
     ///
     /// let mut pubnub = PubNub::new("demo", "demo");
     /// pubnub.filters("uuid != JoeBob");
@@ -291,56 +294,54 @@ where
     pub fn filters(&mut self, filters: &str) {
         self.filters = Some(utf8_percent_encode(filters, NON_ALPHANUMERIC).to_string());
     }
-}
 
-#[cfg(all(feature = "transport_hyper", feature = "runtime_tokio"))]
-mod default {
-    use super::*;
-
-    use crate::adapters::runtime::tokio::Runtime as TokioRuntime;
-    use crate::adapters::transport::hyper::Transport as HyperTransport;
-
-    impl PubNub<HyperTransport, TokioRuntime> {
-        /// Create a new `PubNub` client with default configuration.
-        ///
-        /// To create a `PubNub` client with custom configuration, use [`PubNubBuilder::new`].
-        ///
-        /// # Example
-        ///
-        /// ```
-        /// use pubnub::PubNub;
-        ///
-        /// let pubnub = PubNub::new("demo", "demo");
-        /// ```
-        #[must_use]
-        pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
-            PubNubBuilder::new(publish_key, subscribe_key).build()
-        }
+    /// Get a reference to a transport being used.
+    pub fn transport(&self) -> &TTransport {
+        &self.transport
     }
 
-    impl PubNubBuilder<HyperTransport, TokioRuntime> {
-        /// Create a new `PubNubBuilder` that can configure a `PubNub` client.
-        /// Uses default components:
-        /// - hyper transport
-        /// - tokio runtime
-        #[must_use]
-        pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
-            Self::with_components(
-                publish_key,
-                subscribe_key,
-                HyperTransport::default(),
-                TokioRuntime::default(),
-            )
-        }
+    /// Get a reference to a runtime being used.
+    pub fn runtime(&self) -> &TRuntime {
+        &self.runtime
     }
 }
 
-#[allow(clippy::use_self)] // false positives
 impl<TTransport, TRuntime> PubNubBuilder<TTransport, TRuntime>
 where
     TTransport: Transport,
     TRuntime: Runtime,
 {
+    /// Build the PubNub client to begin streaming messages.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use pubnub_hyper::PubNubBuilder;
+    ///
+    /// let pubnub = PubNubBuilder::new("demo", "demo")
+    ///     .build();
+    /// ```
+    #[must_use]
+    pub fn build(self) -> PubNub<TTransport, TRuntime> {
+        PubNub {
+            transport: self.transport,
+            runtime: self.runtime,
+            origin: self.origin,
+            agent: self.agent,
+            publish_key: self.publish_key,
+            subscribe_key: self.subscribe_key,
+            secret_key: self.secret_key,
+            auth_key: self.auth_key,
+            user_id: self.user_id,
+            filters: self.filters,
+            presence: self.presence,
+            pipe: SharedPipe::default(),
+        }
+    }
+}
+
+#[allow(clippy::use_self)] // false positives
+impl<TTransport, TRuntime> PubNubBuilder<TTransport, TRuntime> {
     /// Create a new `PubNubBuilder` that can configure a `PubNub` client
     /// with custom components implementations.
     #[must_use]
@@ -371,7 +372,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::PubNubBuilder;
+    /// use pubnub_hyper::PubNubBuilder;
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .origin("pubsub.pubnub.com")
@@ -388,7 +389,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::PubNubBuilder;
+    /// use pubnub_hyper::PubNubBuilder;
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .agent("My Awesome Rust App/1.0.0")
@@ -405,7 +406,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::PubNubBuilder;
+    /// use pubnub_hyper::PubNubBuilder;
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .secret_key("sub-c-deadbeef-0000-1234-abcd-c0deface")
@@ -422,7 +423,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::PubNubBuilder;
+    /// use pubnub_hyper::PubNubBuilder;
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .auth_key("Open-Sesame!")
@@ -439,7 +440,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::PubNubBuilder;
+    /// use pubnub_hyper::PubNubBuilder;
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .user_id("JoeBob")
@@ -456,7 +457,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::PubNubBuilder;
+    /// use pubnub_hyper::PubNubBuilder;
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .filters("uuid != JoeBob")
@@ -476,7 +477,7 @@ where
     /// # Example
     ///
     /// ```
-    /// use pubnub::PubNubBuilder;
+    /// use pubnub_hyper::PubNubBuilder;
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .presence(true)
@@ -503,7 +504,7 @@ where
     /// # Example
     ///
     /// ```no_run
-    /// use pubnub::PubNubBuilder;
+    /// use pubnub_hyper::PubNubBuilder;
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .reduced_resliency(true)
@@ -561,32 +562,48 @@ where
             transport: self.transport,
         }
     }
+}
 
-    /// Build the PubNub client to begin streaming messages.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use pubnub::PubNubBuilder;
-    ///
-    /// let pubnub = PubNubBuilder::new("demo", "demo")
-    ///     .build();
-    /// ```
-    #[must_use]
-    pub fn build(self) -> PubNub<TTransport, TRuntime> {
-        PubNub {
-            transport: self.transport,
-            runtime: self.runtime,
-            origin: self.origin,
-            agent: self.agent,
-            publish_key: self.publish_key,
-            subscribe_key: self.subscribe_key,
-            secret_key: self.secret_key,
-            auth_key: self.auth_key,
-            user_id: self.user_id,
-            filters: self.filters,
-            presence: self.presence,
-            pipe: SharedPipe::default(),
+mod default {
+    use super::*;
+
+    impl<TTransport, TRuntime> PubNubBuilder<TTransport, TRuntime>
+    where
+        TTransport: Default,
+        TRuntime: Default,
+    {
+        /// Create a new `PubNubBuilder` that can configure a `PubNub` client
+        /// with default components.
+        #[must_use]
+        pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
+            Self::with_components(
+                publish_key,
+                subscribe_key,
+                TTransport::default(),
+                TRuntime::default(),
+            )
+        }
+    }
+
+    impl<TTransport, TRuntime> PubNub<TTransport, TRuntime>
+    where
+        TTransport: Transport + Default,
+        TRuntime: Runtime + Default,
+    {
+        /// Create a new `PubNub` client with default configuration.
+        ///
+        /// To create a `PubNub` client with custom configuration, use [`PubNubBuilder::new`].
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use pubnub_hyper::PubNub;
+        ///
+        /// let pubnub = PubNub::new("demo", "demo");
+        /// ```
+        #[must_use]
+        pub fn new(publish_key: &str, subscribe_key: &str) -> Self {
+            PubNubBuilder::new(publish_key, subscribe_key).build()
         }
     }
 }
