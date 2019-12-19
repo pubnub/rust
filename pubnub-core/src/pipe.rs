@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
-use crate::channel::ChannelTx;
+use crate::subscribe::{ChannelTx, SubscriptionID};
 use tokio::sync::{mpsc, Mutex};
+
+// TODO: move to `subscribe/control.rs`
 
 // TODO: unexpose.
 #[allow(clippy::module_name_repetitions)]
@@ -28,6 +30,7 @@ pub struct Pipe {
     pub rx: PipeRx, // Recv-side for bidirectional communication
 }
 
+// TODO: rename to ControlMessage.
 /// # The kinds of messages allowed to be delivered over a `Pipe`
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
@@ -35,7 +38,7 @@ pub enum PipeMessage {
     /// A stream for a channel or channel group is being dropped.
     ///
     /// Only sent from `Subscription` to `SubscribeLoop`.
-    Drop(usize, ListenerType),
+    Drop(SubscriptionID, ListenerType),
 
     /// A stream for a channel or channel group is being created.
     ///

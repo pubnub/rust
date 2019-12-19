@@ -1,8 +1,8 @@
-use crate::channel::ChannelMap;
 use crate::message::{Message, Timetoken, Type};
 use crate::pipe::{ListenerType, Pipe, PipeMessage, SharedPipe};
 use crate::runtime::Runtime;
-use crate::subscribe::{SubscribeLoop, Subscription};
+use crate::subscribe::Registry;
+use crate::subscribe::{subscribe_loop, SubscribeLoopParams, Subscription};
 use crate::transport::Transport;
 use futures_util::stream::StreamExt;
 use json::JsonValue;
@@ -184,15 +184,17 @@ where
     pub async fn subscribe(&mut self, channel: &str) -> Subscription<TRuntime> {
         let (channel_tx, mut channel_rx) = mpsc::channel(10);
 
-        // Hold the lock for the entire duration of this function
-        let mut guard = self.pipe.lock().await;
+        // TODO: refactor this logic.
 
-        let id = if let Some(pipe) = guard.as_mut() {
+        // Hold the lock for the entire duration of this function
+        let mut control_pipe_guard = self.pipe.lock().await;
+
+        let mut id = if let Some(control_pipe) = control_pipe_guard.as_mut() {
             // Send an "add channel" message to the subscribe loop
             let channel = ListenerType::Channel(channel.to_string());
             debug!("Adding channel: {:?}", channel);
 
-            let result = pipe
+            let result = control_pipe
                 .tx
                 .send(PipeMessage::Add(channel, channel_tx.clone()))
                 .await;
@@ -207,21 +209,26 @@ where
                     ..
                 }) = msg
                 {
-                    id
+                    Some(id)
                 } else {
                     panic!("Unexpected message: {:?}", msg);
                 }
             } else {
-                // When sending to the pipe fails, recreate the SubscribeLoop
-                *guard = None;
+                // FIXME: this doesn't control the actual loop, so this code
+                // would simply leak the resources and misbehave; fix this by
+                // implementing proper ownership model for the loop future and
+                // get rid of this guard revocation logic.
 
-                0
+                // When sending to the pipe fails, recreate the SubscribeLoop
+                *control_pipe_guard = None;
+
+                None
             }
         } else {
-            0
+            None
         };
 
-        if guard.is_none() {
+        if control_pipe_guard.is_none() {
             // Create communication pipe
             let (my_pipe, their_pipe) = {
                 let (my_tx, their_rx) = mpsc::channel(1);
@@ -238,32 +245,39 @@ where
 
                 (my_pipe, their_pipe)
             };
-            *guard = Some(my_pipe);
+            *control_pipe_guard = Some(my_pipe);
 
-            let mut channels: ChannelMap = ChannelMap::new();
-            let listeners = channels
-                .entry(channel.to_string())
-                .or_insert_with(Default::default);
-            listeners.push(channel_tx);
+            let mut channels = Registry::new();
+            let (initial_id, _) = channels.register(channel.to_string(), channel_tx);
+
+            // Assign the ID at the outer scope.
+            id = Some(initial_id);
 
             // Create subscribe loop
-            debug!("Creating SubscribeLoop");
-            let subscribe_loop = SubscribeLoop::new(
-                their_pipe,
-                self.transport.clone(),
-                self.runtime.clone(),
-                self.origin.clone(),
-                self.agent.clone(),
-                self.subscribe_key.clone(),
+            debug!("Creating the subscribe loop");
+            let subscribe_loop_params = SubscribeLoopParams {
+                control_pipe: their_pipe,
+
+                transport: self.transport.clone(),
+
+                origin: self.origin.clone(),
+                agent: self.agent.clone(),
+                subscribe_key: self.subscribe_key.clone(),
+
                 channels,
-                ChannelMap::new(),
-            );
+                groups: Registry::new(),
+            };
 
             // Spawn the subscribe loop onto the runtime
-            self.runtime.spawn(subscribe_loop.run());
+            self.runtime.spawn(subscribe_loop(subscribe_loop_params));
 
+            // Code is waiting for ready signal here. It will deadlock if the
+            // signal is never received.
+            // TODO: discuss and reevaluate the requirements and remove it if
+            // needed, or switch to a separate oneshot channel or other method
+            // of ensureing readiness (a custom Future or raw Poll+Waker thing).
             debug!("Waiting for long-poll...");
-            guard
+            control_pipe_guard
                 .as_mut()
                 .unwrap()
                 .rx
@@ -275,8 +289,8 @@ where
         Subscription {
             runtime: self.runtime.clone(),
             name: ListenerType::Channel(channel.to_string()),
-            id,
-            tx: guard.as_ref().unwrap().tx.clone(),
+            id: id.unwrap(),
+            tx: control_pipe_guard.as_ref().unwrap().tx.clone(),
             channel: channel_rx,
         }
     }

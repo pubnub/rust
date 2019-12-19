@@ -42,7 +42,6 @@ pub use json;
 
 pub use async_trait::async_trait;
 
-mod channel;
 mod message;
 mod mvec;
 mod pubnub;
