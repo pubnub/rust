@@ -14,7 +14,6 @@ readme = "../README.md"
 # properly relax the version requirements if the strictness is not justified.
 [dependencies]
 error-iter = "=0.2.0"
-futures-executor = "=0.3.1"
 futures-util = { version = "=0.3.1", features = ["async-await", "async-await-macro"] }
 json = "=0.12.0"
 log = "=0.4.8"
@@ -31,6 +30,7 @@ getrandom = "0.1"
 randomize = "3.0"
 mockiato = "0.9"
 mockall = "0.6"
+futures-executor = "0.3"
 
 # For doctests only!
 pubnub-hyper = { path = "../pubnub-hyper" }
