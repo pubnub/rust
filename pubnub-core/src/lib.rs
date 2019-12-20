@@ -36,7 +36,7 @@
 pub use crate::message::{Message, Timetoken, Type};
 pub use crate::pubnub::{PubNub, PubNubBuilder};
 pub use crate::runtime::Runtime;
-pub use crate::subscribe::Subscription;
+pub use crate::subscription::Subscription;
 pub use crate::transport::Transport;
 pub use json;
 
@@ -46,7 +46,7 @@ mod message;
 mod mvec;
 mod pubnub;
 mod runtime;
-mod subscribe;
+mod subscription;
 mod transport;
 
 #[cfg(test)]

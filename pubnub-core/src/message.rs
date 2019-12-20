@@ -2,7 +2,7 @@ use std::time::{SystemTime, SystemTimeError};
 
 use json::JsonValue;
 
-use crate::subscribe::SubscriptionID;
+use crate::subscription::subscribe_loop::SubscriptionID;
 
 /// # PubNub Message
 ///

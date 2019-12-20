@@ -1,9 +1,10 @@
 use crate::message::Timetoken;
 use crate::runtime::Runtime;
-use crate::subscribe::{
+use crate::subscription::subscribe_loop::{
     subscribe_loop, ControlCommand, ControlTx as SubscribeLoopControlTx,
-    ExitTx as SubscribeLoopExitTx, ListenerType, Registry, SubscribeLoopParams, Subscription,
+    ExitTx as SubscribeLoopExitTx, ListenerType, Registry, SubscribeLoopParams,
 };
+use crate::subscription::Subscription;
 use crate::transport::Transport;
 use json::JsonValue;
 use log::debug;
