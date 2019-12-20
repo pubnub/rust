@@ -81,6 +81,7 @@ impl Type {
     /// Subscribe message pyloads include a non-enumerated integer to describe message types. We
     /// instead provide a concrete type, using this function to convert the integer into the
     /// appropriate type.
+    #[must_use]
     pub fn from_json(i: &JsonValue) -> Self {
         match i.as_u32().unwrap_or(0) {
             0 => Self::Publish,

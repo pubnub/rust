@@ -1,20 +1,11 @@
-use std::pin::Pin;
-
+use super::subscribe_loop::*;
 use crate::message::Message;
-use crate::pipe::{ListenerType, PipeMessage, PipeTx};
 use crate::runtime::Runtime;
 use futures_util::stream::Stream;
 use futures_util::task::{Context, Poll};
 use log::debug;
-
-pub(crate) mod channel;
-// mod control;
-mod encoded_channels_list;
-mod registry;
-mod subscribe_loop;
-mod subscribe_request;
-
-pub use subscribe_loop::*;
+use std::pin::Pin;
+use tokio::stream::Stream as TokioStream;
 
 /// # PubNub Subscription
 ///
@@ -24,12 +15,11 @@ pub use subscribe_loop::*;
 /// [`PubNub::subscribe`]: crate::pubnub::PubNub::subscribe
 #[derive(Debug)]
 pub struct Subscription<TRuntime: Runtime> {
-    pub(crate) runtime: TRuntime, // Runtime to use for managing resources
-    // TODO: unexpose
-    pub name: ListenerType,        // Channel or Group name
+    pub(crate) runtime: TRuntime,  // Runtime to use for managing resources
+    pub(crate) name: ListenerType, // Channel or Group name
     pub(crate) id: SubscriptionID, // Unique identifier for the listener
-    pub(crate) tx: PipeTx,         // For interrupting the existing subscribe loop when dropped
-    pub(crate) channel: ChannelRx, // Stream that produces messages
+    pub(crate) control_tx: ControlTx, // For cleaning up resources at the subscribe loop when dropped
+    pub(crate) channel_rx: ChannelRx, // Stream that produces messages
 }
 
 /// `Subscription` is a stream.
@@ -37,8 +27,11 @@ impl<TRuntime: Runtime> Stream for Subscription<TRuntime> {
     type Item = Message;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        // XXX: Using an undocumented function here because I can't call the poll_next method?
-        self.get_mut().channel.poll_recv(cx)
+        TokioStream::poll_next(Pin::new(&mut self.get_mut().channel_rx), cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        TokioStream::size_hint(&self.channel_rx)
     }
 }
 
@@ -47,13 +40,16 @@ impl<TRuntime: Runtime> Drop for Subscription<TRuntime> {
     fn drop(&mut self) {
         debug!("Dropping Subscription: {:?}", self.name);
 
-        let msg = PipeMessage::Drop(self.id, self.name.clone());
-        let mut tx = self.tx.clone();
+        let command = ControlCommand::Drop(self.id, self.name.clone());
+        let mut control_tx = self.control_tx.clone();
 
         // Spawn a future that will send the drop message for us.
         // See: https://boats.gitlab.io/blog/post/poll-drop/
         self.runtime.spawn(async move {
-            tx.send(msg).await.expect("Unable to send drop message");
+            control_tx
+                .send(command)
+                .await
+                .expect("Unable to send drop message");
         });
     }
 }

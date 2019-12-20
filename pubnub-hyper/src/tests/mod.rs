@@ -1,12 +1,12 @@
-use crate::core::pipe::{ListenerType, PipeMessage};
 use crate::core::Type;
-use crate::{PubNub, PubNubBuilder};
-use futures_util::future::FutureExt;
+use crate::PubNubBuilder;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use json::JsonValue;
 use log::debug;
 use randomize::PCG32;
-use tokio::runtime::current_thread::Runtime;
+use std::future::Future;
+use tokio::runtime;
+use tokio::sync::mpsc;
 
 const NOV_14_2019: u64 = 15_736_896_000_000_000;
 const NOV_14_2120: u64 = 47_609_856_000_000_000; // TODO: Update this in 100 years
@@ -16,12 +16,13 @@ fn init() {
     let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
 }
 
-async fn subscribe_loop_exit(pubnub: &PubNub) {
-    let mut guard = pubnub.pipe.lock().await;
-    match guard.as_mut().unwrap().rx.next().await {
-        Some(PipeMessage::Exit) => (),
-        error => panic!("Unexpected message: {:?}", error),
-    }
+fn current_thread_block_on<F: Future>(future: F) -> F::Output {
+    let mut rt = runtime::Builder::new()
+        .enable_all()
+        .basic_scheduler()
+        .build()
+        .unwrap();
+    rt.block_on(future)
 }
 
 /// Generate a pseudorandom seed for the PRNG.
@@ -62,26 +63,23 @@ fn shuffle<T>(prng: &mut PCG32, list: &mut Vec<T>) -> Vec<T> {
 #[test]
 fn pubnub_subscribe_ok() {
     init();
-
-    let mut rt = Runtime::new().unwrap();
-    rt.block_on(async {
+    current_thread_block_on(async {
         let publish_key = "demo";
         let subscribe_key = "demo";
         let channel = "demo2";
 
         let agent = "Rust-Agent-Test";
 
+        let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
+
         let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
             .agent(agent)
+            .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
             .build();
 
         {
             // Create a subscription
             let mut subscription = pubnub.subscribe(channel).await;
-            assert_eq!(
-                subscription.name,
-                ListenerType::Channel(channel.to_string())
-            );
 
             // Send a message to it
             let message = JsonValue::String("Hello, world!".to_string());
@@ -107,7 +105,7 @@ fn pubnub_subscribe_ok() {
         debug!("Subscription should have been dropped by now");
 
         debug!("SubscribeLoop should be stopping...");
-        subscribe_loop_exit(&pubnub).await;
+        subscribe_loop_exit_rx.recv().await;
 
         debug!("SubscribeLoop should have stopped by now");
     });
@@ -116,14 +114,16 @@ fn pubnub_subscribe_ok() {
 #[test]
 fn pubnub_subscribeloop_drop() {
     init();
-
-    let mut rt = Runtime::new().unwrap();
-    rt.block_on(async {
+    current_thread_block_on(async {
         let publish_key = "demo";
         let subscribe_key = "demo";
         let channel = "demo2";
 
-        let mut pubnub = PubNub::new(publish_key, subscribe_key);
+        let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
+
+        let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
+            .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
+            .build();
 
         {
             // Create a bunch of subscriptions
@@ -144,7 +144,7 @@ fn pubnub_subscribeloop_drop() {
         }
 
         debug!("SubscribeLoop should be stopping...");
-        subscribe_loop_exit(&pubnub).await;
+        subscribe_loop_exit_rx.recv().await;
 
         debug!("SubscribeLoop should have stopped by now");
     });
@@ -153,40 +153,44 @@ fn pubnub_subscribeloop_drop() {
 #[test]
 fn pubnub_subscribeloop_recreate() {
     init();
-
-    let mut rt = Runtime::new().unwrap();
-    rt.block_on(async {
+    current_thread_block_on(async {
         let publish_key = "demo";
         let subscribe_key = "demo";
         let channel = "demo2";
 
-        let mut pubnub = PubNub::new(publish_key, subscribe_key);
+        let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
+
+        let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
+            .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
+            .build();
 
         // Create two subscribe loops, dropping each
         {
             let _ = pubnub.subscribe(channel).await;
         }
-        subscribe_loop_exit(&pubnub).await;
+        assert!(subscribe_loop_exit_rx.recv().await.is_some());
 
         {
             let _ = pubnub.subscribe(channel).await;
         }
-        subscribe_loop_exit(&pubnub).await;
+        assert!(subscribe_loop_exit_rx.recv().await.is_some());
     });
 }
 
 #[test]
 fn pubnub_subscribe_clone_ok() {
     init();
-
-    let mut rt = Runtime::new().unwrap();
-    rt.block_on(async {
+    current_thread_block_on(async {
         let seed = generate_seed();
         let mut prng = PCG32::seed(seed.0, seed.1);
         let mut streams = Vec::new();
 
+        let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
+
         // Create a client and immediately subscribe
-        let mut pubnub1 = PubNub::new("demo", "demo");
+        let mut pubnub1 = PubNubBuilder::new("demo", "demo")
+            .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
+            .build();
         streams.push(pubnub1.subscribe("channel1").await);
 
         // Create a cloned client and immediate subscribe
@@ -224,22 +228,80 @@ fn pubnub_subscribe_clone_ok() {
         // Drop the streams
         std::mem::drop(streams);
 
-        // Wait for the subscribe loop to exit
-        subscribe_loop_exit(&pubnub1).await;
+        // Wait for the subscribe loop to exit.
+        subscribe_loop_exit_rx.recv().await;
 
-        // Awaiting the subscribe loop exit on the cloned client should fail
-        let future = std::panic::AssertUnwindSafe(subscribe_loop_exit(&pubnub2));
-        let result = future.catch_unwind().await;
-        assert!(result.is_err());
+        // Prevent any more messages from being submitted to the channel.
+        // If there is another subscribe loop that completes (i.e. from a
+        // misbehaving cloned) client, it will panic upon sending an exit
+        // signal.
+        subscribe_loop_exit_rx.close();
+
+        // Ensure there are no messages left in queue, since otherwise it'd
+        // mean that there was more than one event loop.
+        assert!(subscribe_loop_exit_rx.recv().await.is_none());
+    });
+}
+
+#[test]
+fn pubnub_subscribe_clones_share_loop() {
+    init();
+    current_thread_block_on(async {
+        let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
+
+        // Create a client, dso not subscribe to avoid bootstrapping the
+        // subscribe loop immediately.
+        let mut pubnub1 = PubNubBuilder::new("demo", "demo")
+            .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
+            .build();
+
+        // Clone the client.
+        let mut pubnub2 = pubnub1.clone();
+
+        // Subscribe to spawn the subscribe loop on the original.
+        let sub1 = pubnub1.subscribe("channel1").await;
+
+        // Subscribe to potentially spawn the subscribe loop on the clone.
+        let sub2 = pubnub2.subscribe("channel2").await;
+
+        // Dropping `sub1` should not exit the loop if it's shared, but will
+        // if the loop is not shared it would exit.
+        drop(sub1);
+
+        // Ensure there is no message about the loop exitting, as that'd
+        // mean the loop for `pubnub1` exited. It should be still working
+        // though, because the loop is suppsed to be shared among the clones,
+        // and since there's `sub2` that has to be serviced it can't exit just
+        // yet.
+        // This is racy though, and can be a false positive.
+        match subscribe_loop_exit_rx.try_recv() {
+            Err(mpsc::error::TryRecvError::Empty) => { /* ok */ }
+            Ok(_) => panic!("Expected no exit messages at this point, but got some"),
+            _ => unreachable!(),
+        }
+
+        // Dropping `sub2`, this should make the shared subscribe loop exit.
+        drop(sub2);
+
+        // Wait for the subscribe loop to exit.
+        assert!(subscribe_loop_exit_rx.recv().await.is_some());
+
+        // Prevent any more messages from being submitted to the channel.
+        // If there is another subscribe loop that completes (i.e. from a
+        // misbehaving cloned) client, it will panic upon sending an exit
+        // signal.
+        subscribe_loop_exit_rx.close();
+
+        // Ensure there are no messages left in queue, since otherwise it'd
+        // mean that there was more than one event loop.
+        assert!(subscribe_loop_exit_rx.recv().await.is_none());
     });
 }
 
 #[test]
 fn pubnub_publish_ok() {
     init();
-
-    let mut rt = Runtime::new().unwrap();
-    rt.block_on(async {
+    current_thread_block_on(async {
         let publish_key = "demo";
         let subscribe_key = "demo";
         let channel = "demo";
@@ -249,10 +311,6 @@ fn pubnub_publish_ok() {
         let pubnub = PubNubBuilder::new(publish_key, subscribe_key)
             .agent(agent)
             .build();
-
-        assert_eq!(pubnub.agent, agent);
-        assert_eq!(pubnub.subscribe_key, subscribe_key);
-        assert_eq!(pubnub.publish_key, publish_key);
 
         let message = JsonValue::String("Hi!".to_string());
         let status = pubnub.publish(channel, message).await;

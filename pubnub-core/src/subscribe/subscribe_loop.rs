@@ -1,23 +1,58 @@
-use crate::message::{Message, Timetoken, Type};
-use crate::pipe::{ListenerType, Pipe, PipeMessage};
-use crate::transport::Transport;
-use futures_util::future::FutureExt;
-use futures_util::stream::StreamExt;
-use log::{debug, error};
-
 use super::encoded_channels_list::EncodedChannelsList;
 use super::registry::{RegistrationEffect, Registry as GenericRegistry, UnregistrationEffect};
-
 use super::subscribe_request;
+use crate::message::Timetoken;
+use crate::transport::Transport;
+use futures_util::future::{select, Either, FutureExt};
+use log::{debug, error};
+use tokio::sync::{mpsc, oneshot};
 
 pub(crate) use super::channel::{Rx as ChannelRx, Tx as ChannelTx};
 pub use super::registry::ID as SubscriptionID;
 
 pub(crate) type Registry = GenericRegistry<ChannelTx>;
 
+pub(crate) type ReadyTx = oneshot::Sender<()>;
+#[allow(dead_code)]
+pub(crate) type ReadyRx = oneshot::Receiver<()>;
+
+pub(crate) type ExitTx = mpsc::Sender<()>;
+#[allow(dead_code)]
+pub(crate) type ExitRx = mpsc::Receiver<()>;
+
+pub(crate) type ControlTx = mpsc::Sender<ControlCommand>;
+pub(crate) type ControlRx = mpsc::Receiver<ControlCommand>;
+
+pub(crate) type SubscriptionIdTx = oneshot::Sender<SubscriptionID>;
+#[allow(dead_code)]
+pub(crate) type SubscriptionIdRx = oneshot::Receiver<SubscriptionID>;
+
+/// Commands we pass via the control pipe.
+#[derive(Debug)]
+pub(crate) enum ControlCommand {
+    /// A stream for a channel or channel group is being dropped.
+    ///
+    /// Only sent from `Subscription` to `SubscribeLoop`.
+    Drop(SubscriptionID, ListenerType),
+
+    /// A stream for a channel or channel group is being created.
+    ///
+    /// Only sent from `PubNub` to `SubscribeLoop`.
+    Add(ListenerType, ChannelTx, SubscriptionIdTx),
+}
+
+/// # Type of listener (a channel or a channel group)
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ListenerType {
+    Channel(String), // Channel name
+    _Group(String),  // Channel Group name
+}
+
 #[derive(Debug)]
 pub(crate) struct SubscribeLoopParams<TTransport> {
-    pub control_pipe: Pipe,
+    pub control_rx: ControlRx,
+    pub ready_tx: Option<ReadyTx>,
+    pub exit_tx: Option<ExitTx>,
 
     pub transport: TTransport,
 
@@ -39,7 +74,9 @@ where
 
     #[allow(clippy::unneeded_field_pattern)]
     let SubscribeLoopParams {
-        mut control_pipe,
+        mut control_rx,
+        mut ready_tx,
+        mut exit_tx,
 
         transport,
 
@@ -55,11 +92,10 @@ where
     let mut encoded_groups = EncodedChannelsList::from(&groups);
 
     let mut timetoken = Timetoken::default();
-    let mut control_pipe_rx = control_pipe.rx.fuse();
 
     loop {
         // TODO: do not clone cached values cause it defeats the purpose of the
-        // cache. Do we need this cache though? There no benchmarks...
+        // cache. Do we need this cache though? There are no benchmarks...
         let request_encoded_channels = encoded_channels.clone();
         let response = subscribe_request::subscribe_request(
             &transport,
@@ -69,22 +105,24 @@ where
                 encoded_channels: &request_encoded_channels,
             },
             timetoken.clone(),
-        )
-        .fuse();
+        );
+
+        let response = response.fuse();
         futures_util::pin_mut!(response);
 
-        #[allow(clippy::mut_mut)]
-        let (messages, next_timetoken) = futures_util::select! {
-            // This is ugly, but necessary. Moving these into a sub-struct might clean it up.
-            // See: http://smallcultfollowing.com/babysteps/blog/2018/11/01/after-nll-interprocedural-conflicts/
-            msg = control_pipe_rx.next() => {
+        let control_rx_recv = control_rx.recv().fuse();
+        futures_util::pin_mut!(control_rx_recv);
+
+        let (messages, next_timetoken) = match select(control_rx_recv, response).await {
+            Either::Left((msg, _)) => {
                 let outcome = handle_control_command(
                     &mut channels,
                     &mut groups,
                     &mut encoded_channels,
                     &mut encoded_groups,
                     msg,
-                ).await;
+                )
+                .await;
                 if let ControlOutcome::Terminate = outcome {
                     // Termination requested, break the loop.
                     break;
@@ -96,9 +134,8 @@ where
                 // We rely on the in-flight request to be properly cleaned up,
                 // since their futures are being dropped here.
                 continue;
-            },
-
-            res = response => {
+            }
+            Either::Right((res, _)) => {
                 match res {
                     Ok(v) => v,
                     Err(err) => {
@@ -117,12 +154,9 @@ where
         // the setup. It is invoked after the `Ok` result from the request
         // future, guaranteing that Transport was able to perform successfully
         // at least once.
-        // TODO: decouple signalling from the control channel into a separate
-        // oneshot channel. It will simplify the `PipeMessage` type and logic
-        // around it, and will allow for opting-in to this signal if needed.
-        if timetoken.t == 0 {
-            if let Err(error) = control_pipe.tx.send(PipeMessage::Ready).await {
-                error!("Error sending ready message: {:?}", error);
+        if let Some(ready_tx) = ready_tx.take() {
+            if let Err(err) = ready_tx.send(()) {
+                error!("Error sending ready message: {:?}", err);
                 break;
             }
         }
@@ -156,17 +190,9 @@ where
 
     debug!("Stopping subscribe loop");
 
-    // TODO: only send exit message when testing.
-    // TODO: use oneshot channel for this signal and allow opting in to it
-    // if user needs it at compile time (via generics rather than via features).
-    // We started sending this plainly to ease testing after we
-    // split the crates.
-    // #[cfg(test)]
-    control_pipe
-        .tx
-        .send(PipeMessage::Exit)
-        .await
-        .expect("Unable to send exit message");
+    if let Some(ref mut exit_tx) = exit_tx {
+        exit_tx.send(()).await.expect("Unable to send exit message");
+    }
 }
 
 /// Encodes action to be taken in response to control command.
@@ -176,17 +202,18 @@ enum ControlOutcome {
     CanContinue,
 }
 
-/// Handle a control command
+/// Handle a control command.
 ///
-/// This is split out from the `select!` macro used in the `SubscribeLoop`. Debugging complex
-/// code buried within a macro is very painful. So this allows our development experience to be
-/// flexible and the compiler can actually show us useful errors.
+/// This is split out from the `select!` macro used in the subscribe loop.
+/// Debugging complex code buried within a macro is very painful. So this allows
+/// our development experience to be flexible and the compiler can actually show
+/// us useful errors.
 async fn handle_control_command(
     channels: &mut Registry,
     groups: &mut Registry,
     encoded_channels: &mut EncodedChannelsList,
     encoded_groups: &mut EncodedChannelsList,
-    msg: Option<PipeMessage>,
+    msg: Option<ControlCommand>,
 ) -> ControlOutcome {
     debug!("Got request: {:?}", msg);
     let request = match msg {
@@ -194,7 +221,7 @@ async fn handle_control_command(
         None => return ControlOutcome::CanContinue,
     };
     match request {
-        PipeMessage::Drop(id, listener) => {
+        ControlCommand::Drop(id, listener) => {
             // Remove channel or group listener.
             let (name, kind, registry, cache, other_is_empty) = match listener {
                 ListenerType::Channel(name) => (
@@ -221,14 +248,14 @@ async fn handle_control_command(
                 *cache = EncodedChannelsList::from(&*registry);
             }
 
-            // TODO: avoid terminating loop here avoid special casing.
+            // TODO: avoid terminating loop here to avoid special casing.
             if other_is_empty && registry.is_empty() {
                 ControlOutcome::Terminate
             } else {
                 ControlOutcome::CanContinue
             }
         }
-        PipeMessage::Add(listener, mut channel_tx) => {
+        ControlCommand::Add(listener, channel_tx, id_tx) => {
             // Add channel or group listener.
             let (name, kind, registry, cache) = match listener {
                 ListenerType::Channel(name) => (name, "channel", channels, encoded_channels),
@@ -237,7 +264,7 @@ async fn handle_control_command(
             debug!("Adding {} to SubscribeLoop: {}", kind, name);
 
             // Register new channel listener with the registry.
-            let (id, effect) = registry.register(name, channel_tx.clone());
+            let (id, effect) = registry.register(name, channel_tx);
 
             // Update cache if needed.
             if let RegistrationEffect::NewName = effect {
@@ -245,20 +272,9 @@ async fn handle_control_command(
             }
 
             // Send Subscription ID.
-            // TODO: avoid mixing signalling and data "planes" (channels).
-            // Use oneshot channel to communicate the ID back to the
-            // `Subscription` struct.
-            let msg = Message {
-                message_type: Type::Ready(id),
-                ..Message::default()
-            };
-            channel_tx
-                .send(msg)
-                .await
-                .expect("Unable to send subscription id");
+            id_tx.send(id).expect("Unable to send subscription id");
 
             ControlOutcome::CanContinue
         }
-        _ => ControlOutcome::CanContinue,
     }
 }

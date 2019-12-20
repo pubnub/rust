@@ -49,8 +49,5 @@ mod runtime;
 mod subscribe;
 mod transport;
 
-// TODO: unexpose this.
-pub mod pipe;
-
 #[cfg(test)]
 mod tests;

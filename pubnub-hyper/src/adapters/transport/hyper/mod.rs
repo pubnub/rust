@@ -4,6 +4,7 @@ use crate::core::{Message, Timetoken, Type};
 
 use async_trait::async_trait;
 
+use futures_util::stream::StreamExt;
 use hyper::{client::HttpConnector, Body, Client, Uri};
 use hyper_tls::HttpsConnector;
 use std::time::Duration;
@@ -93,7 +94,7 @@ impl Trait for Transport {
 
 impl Default for Transport {
     fn default() -> Self {
-        let https = HttpsConnector::new().unwrap();
+        let https = HttpsConnector::new();
         let client = Client::builder()
             .keep_alive_timeout(Some(Duration::from_secs(300)))
             .max_idle_per_host(10000)
