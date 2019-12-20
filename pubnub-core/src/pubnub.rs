@@ -186,6 +186,8 @@ where
     /// }
     /// # };
     /// ```
+    // TODO: extract most of the complicated logic from here into a kind of
+    // subscription loop manager entity.
     pub async fn subscribe(&mut self, channel: &str) -> Subscription<TRuntime> {
         // Since recursion is troublesome with async fns, we use the loop trick.
         let (id, control_tx, channel_rx) = loop {
