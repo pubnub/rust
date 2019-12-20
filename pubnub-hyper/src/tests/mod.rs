@@ -1,12 +1,12 @@
 use crate::core::Type;
 use crate::PubNubBuilder;
+use futures_channel::mpsc;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use json::JsonValue;
 use log::debug;
 use randomize::PCG32;
 use std::future::Future;
 use tokio::runtime;
-use tokio::sync::mpsc;
 
 const NOV_14_2019: u64 = 15_736_896_000_000_000;
 const NOV_14_2120: u64 = 47_609_856_000_000_000; // TODO: Update this in 100 years
@@ -105,7 +105,7 @@ fn pubnub_subscribe_ok() {
         debug!("Subscription should have been dropped by now");
 
         debug!("SubscribeLoop should be stopping...");
-        subscribe_loop_exit_rx.recv().await;
+        subscribe_loop_exit_rx.next().await;
 
         debug!("SubscribeLoop should have stopped by now");
     });
@@ -144,7 +144,7 @@ fn pubnub_subscribeloop_drop() {
         }
 
         debug!("SubscribeLoop should be stopping...");
-        subscribe_loop_exit_rx.recv().await;
+        subscribe_loop_exit_rx.next().await;
 
         debug!("SubscribeLoop should have stopped by now");
     });
@@ -168,12 +168,12 @@ fn pubnub_subscribeloop_recreate() {
         {
             let _ = pubnub.subscribe(channel).await;
         }
-        assert!(subscribe_loop_exit_rx.recv().await.is_some());
+        assert!(subscribe_loop_exit_rx.next().await.is_some());
 
         {
             let _ = pubnub.subscribe(channel).await;
         }
-        assert!(subscribe_loop_exit_rx.recv().await.is_some());
+        assert!(subscribe_loop_exit_rx.next().await.is_some());
     });
 }
 
@@ -229,7 +229,7 @@ fn pubnub_subscribe_clone_ok() {
         std::mem::drop(streams);
 
         // Wait for the subscribe loop to exit.
-        subscribe_loop_exit_rx.recv().await;
+        subscribe_loop_exit_rx.next().await;
 
         // Prevent any more messages from being submitted to the channel.
         // If there is another subscribe loop that completes (i.e. from a
@@ -239,7 +239,7 @@ fn pubnub_subscribe_clone_ok() {
 
         // Ensure there are no messages left in queue, since otherwise it'd
         // mean that there was more than one event loop.
-        assert!(subscribe_loop_exit_rx.recv().await.is_none());
+        assert!(subscribe_loop_exit_rx.next().await.is_none());
     });
 }
 
@@ -268,23 +268,15 @@ fn pubnub_subscribe_clones_share_loop() {
         // if the loop is not shared it would exit.
         drop(sub1);
 
-        // Ensure there is no message about the loop exitting, as that'd
-        // mean the loop for `pubnub1` exited. It should be still working
-        // though, because the loop is suppsed to be shared among the clones,
-        // and since there's `sub2` that has to be serviced it can't exit just
-        // yet.
-        // This is racy though, and can be a false positive.
-        match subscribe_loop_exit_rx.try_recv() {
-            Err(mpsc::error::TryRecvError::Empty) => { /* ok */ }
-            Ok(_) => panic!("Expected no exit messages at this point, but got some"),
-            _ => unreachable!(),
-        }
+        // At this point, the loop should be still working, because it's suppsed
+        // to be shared among the clones, and since there's `sub2` that has to
+        // be serviced it can't exit just yet.
 
         // Dropping `sub2`, this should make the shared subscribe loop exit.
         drop(sub2);
 
         // Wait for the subscribe loop to exit.
-        assert!(subscribe_loop_exit_rx.recv().await.is_some());
+        assert!(subscribe_loop_exit_rx.next().await.is_some());
 
         // Prevent any more messages from being submitted to the channel.
         // If there is another subscribe loop that completes (i.e. from a
@@ -294,7 +286,7 @@ fn pubnub_subscribe_clones_share_loop() {
 
         // Ensure there are no messages left in queue, since otherwise it'd
         // mean that there was more than one event loop.
-        assert!(subscribe_loop_exit_rx.recv().await.is_none());
+        assert!(subscribe_loop_exit_rx.next().await.is_none());
     });
 }
 

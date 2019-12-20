@@ -6,11 +6,13 @@ use crate::subscription::subscribe_loop::{
 };
 use crate::subscription::Subscription;
 use crate::transport::Transport;
+use futures_channel::{mpsc, oneshot};
+use futures_util::lock::Mutex;
+use futures_util::sink::SinkExt;
 use json::JsonValue;
 use log::debug;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
 
 #[cfg(test)]
 mod tests;
@@ -546,7 +548,7 @@ impl<TTransport, TRuntime> PubNubBuilder<TTransport, TRuntime> {
     /// ```no_run
     /// use pubnub_hyper::PubNubBuilder;
     ///
-    /// let (tx, _rx) = tokio::sync::mpsc::channel(1);
+    /// let (tx, _rx) = futures_channel::mpsc::channel(1);
     ///
     /// let pubnub = PubNubBuilder::new("demo", "demo")
     ///     .subscribe_loop_exit_tx(tx)

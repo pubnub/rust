@@ -3,9 +3,11 @@ use super::registry::{RegistrationEffect, Registry as GenericRegistry, Unregistr
 use super::subscribe_request;
 use crate::message::Timetoken;
 use crate::transport::Transport;
+use futures_channel::{mpsc, oneshot};
 use futures_util::future::{select, Either, FutureExt};
+use futures_util::sink::SinkExt;
+use futures_util::stream::StreamExt;
 use log::{debug, error};
-use tokio::sync::{mpsc, oneshot};
 
 pub(crate) use super::channel::{Rx as ChannelRx, Tx as ChannelTx};
 pub use super::registry::ID as SubscriptionID;
@@ -110,7 +112,7 @@ where
         let response = response.fuse();
         futures_util::pin_mut!(response);
 
-        let control_rx_recv = control_rx.recv().fuse();
+        let control_rx_recv = control_rx.next();
         futures_util::pin_mut!(control_rx_recv);
 
         let (messages, next_timetoken) = match select(control_rx_recv, response).await {

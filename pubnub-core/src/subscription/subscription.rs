@@ -1,11 +1,11 @@
 use super::subscribe_loop::*;
 use crate::message::Message;
 use crate::runtime::Runtime;
+use futures_util::sink::SinkExt;
 use futures_util::stream::Stream;
 use futures_util::task::{Context, Poll};
 use log::debug;
 use std::pin::Pin;
-use tokio::stream::Stream as TokioStream;
 
 /// # PubNub Subscription
 ///
@@ -27,11 +27,11 @@ impl<TRuntime: Runtime> Stream for Subscription<TRuntime> {
     type Item = Message;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        TokioStream::poll_next(Pin::new(&mut self.get_mut().channel_rx), cx)
+        Stream::poll_next(Pin::new(&mut self.get_mut().channel_rx), cx)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        TokioStream::size_hint(&self.channel_rx)
+        Stream::size_hint(&self.channel_rx)
     }
 }
 
