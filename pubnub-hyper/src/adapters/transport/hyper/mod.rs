@@ -93,6 +93,7 @@ impl Trait for Transport {
 }
 
 impl Default for Transport {
+    #[must_use]
     fn default() -> Self {
         let https = HttpsConnector::new();
         let client = Client::builder()

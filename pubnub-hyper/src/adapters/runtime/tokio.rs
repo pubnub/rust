@@ -27,6 +27,7 @@ impl Trait for Runtime {
 }
 
 impl Default for Runtime {
+    #[must_use]
     fn default() -> Self {
         let runtime = TokioRuntime::new().expect("unable to initialize tokio runtime");
         Self::from(runtime)

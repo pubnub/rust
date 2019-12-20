@@ -15,6 +15,7 @@ impl Trait for Runtime {
 }
 
 impl Default for Runtime {
+    #[must_use]
     fn default() -> Self {
         Self
     }
