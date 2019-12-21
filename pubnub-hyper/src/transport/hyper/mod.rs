@@ -1,5 +1,5 @@
 use crate::core::json;
-use crate::core::Transport as Trait;
+use crate::core::Transport;
 use crate::core::{Message, Timetoken, Type};
 
 use async_trait::async_trait;
@@ -9,19 +9,19 @@ use hyper::{client::HttpConnector, Body, Client, Uri};
 use hyper_tls::HttpsConnector;
 use std::time::Duration;
 
-mod error;
+pub mod error;
 
 type HttpClient = Client<HttpsConnector<HttpConnector>>;
 
 /// Implements transport for PubNub using the `hyper` crate to communicate with
 /// the PubNub REST API.
 #[derive(Debug, Clone)]
-pub struct Transport {
+pub struct Hyper {
     pub http_client: HttpClient,
 }
 
 #[async_trait]
-impl Trait for Transport {
+impl Transport for Hyper {
     type Error = error::Error;
 
     async fn publish_request(&self, url: Uri) -> Result<Timetoken, Self::Error> {
@@ -92,7 +92,7 @@ impl Trait for Transport {
     }
 }
 
-impl Default for Transport {
+impl Default for Hyper {
     #[must_use]
     fn default() -> Self {
         let https = HttpsConnector::new();

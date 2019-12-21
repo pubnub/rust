@@ -1,11 +1,11 @@
-use crate::core::Runtime as Trait;
+use crate::core::Runtime;
 use std::future::Future;
 
 /// Spawns tasks on global tokio executor.
 #[derive(Debug, Clone)]
-pub struct Runtime;
+pub struct TokioGlobal;
 
-impl Trait for Runtime {
+impl Runtime for TokioGlobal {
     fn spawn<F>(&self, future: F)
     where
         F: Future<Output = ()> + Send + 'static,
@@ -14,7 +14,7 @@ impl Trait for Runtime {
     }
 }
 
-impl Default for Runtime {
+impl Default for TokioGlobal {
     #[must_use]
     fn default() -> Self {
         Self

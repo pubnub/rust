@@ -1,15 +1,15 @@
-use crate::core::Runtime as Trait;
+use crate::core::Runtime;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::runtime::Runtime as TokioRuntime;
 
 /// Spawns tasks on the specified tokio runtime.
 #[derive(Debug, Clone)]
-pub struct Runtime {
+pub struct Tokio {
     runtime: Arc<TokioRuntime>,
 }
 
-impl From<TokioRuntime> for Runtime {
+impl From<TokioRuntime> for Tokio {
     fn from(rt: TokioRuntime) -> Self {
         Self {
             runtime: Arc::new(rt),
@@ -17,7 +17,7 @@ impl From<TokioRuntime> for Runtime {
     }
 }
 
-impl Trait for Runtime {
+impl Runtime for Tokio {
     fn spawn<F>(&self, future: F)
     where
         F: Future<Output = ()> + Send + 'static,
@@ -26,7 +26,7 @@ impl Trait for Runtime {
     }
 }
 
-impl Default for Runtime {
+impl Default for Tokio {
     #[must_use]
     fn default() -> Self {
         let runtime = TokioRuntime::new().expect("unable to initialize tokio runtime");

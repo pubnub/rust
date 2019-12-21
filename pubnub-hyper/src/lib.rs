@@ -38,16 +38,19 @@ pub mod core {
     pub use pubnub_core::*;
 }
 
-pub use crate::runtime::tokio_global::Runtime;
-pub use crate::transport::hyper::Transport;
+/// A sensible default variant of for tokio runtime.
+pub use crate::runtime::tokio_global::TokioGlobal as DefaultRuntime;
+
+/// A sensible default variant of the hyper runtime.
+pub use crate::transport::hyper::Hyper as DefaultTransport;
 
 use crate::core::{PubNub as Core, PubNubBuilder as CoreBuilder};
 
 /// PubNub client bound with hyper transport and tokio runtime.
-pub type PubNub = Core<Transport, Runtime>;
+pub type PubNub = Core<DefaultTransport, DefaultRuntime>;
 
 /// PubNubBuilder bound with hyper transport and tokio runtime.
-pub type PubNubBuilder = CoreBuilder<Transport, Runtime>;
+pub type PubNubBuilder = CoreBuilder<DefaultTransport, DefaultRuntime>;
 
 pub mod runtime;
 pub mod transport;
