@@ -1,14 +1,12 @@
 use crate::message::Timetoken;
 use crate::runtime::Runtime;
-use crate::subscription::subscribe_loop::{
-    subscribe_loop, ControlCommand, ControlTx as SubscribeLoopControlTx,
-    ExitTx as SubscribeLoopExitTx, ListenerType, Registry, SubscribeLoopParams,
+use crate::subscription::subscribe_loop::ExitTx as SubscribeLoopExitTx;
+use crate::subscription::subscribe_loop_supervisor::{
+    SubscribeLoopSupervisor, SubscribeLoopSupervisorParams,
 };
 use crate::subscription::Subscription;
 use crate::transport::Transport;
-use futures_channel::{mpsc, oneshot};
 use futures_util::lock::Mutex;
-use futures_util::sink::SinkExt;
 use json::JsonValue;
 use log::debug;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
@@ -27,8 +25,8 @@ where
     TTransport: Transport,
     TRuntime: Runtime,
 {
-    transport: TTransport, // Transport to use for communication
-    runtime: TRuntime,     // Runtime to use for managing resources
+    pub(crate) transport: TTransport, // Transport to use for communication
+    pub(crate) runtime: TRuntime,     // Runtime to use for managing resources
 
     pub(crate) origin: String,             // "domain:port"
     pub(crate) agent: String,              // "Rust-Agent"
@@ -40,11 +38,8 @@ where
     pub(crate) filters: Option<String>,    // Metadata Filters on Messages
     pub(crate) presence: bool,             // Enable presence even
 
-    // Subscription related configuration params.
-    pub(crate) subscribe_loop_exit_tx: Option<SubscribeLoopExitTx>, // If set, gets a signal when subscribe loop exits.
-
-    // Subscription related runtime state.
-    pub(crate) subscribe_loop_control_tx: Arc<Mutex<Option<SubscribeLoopControlTx>>>, // Control interface into the subscribe loop.
+    // Subscribe loop lifecycle management.
+    pub(crate) subscribe_loop_supervisor: Arc<Mutex<SubscribeLoopSupervisor>>,
 }
 
 /// # PubNub Client Builder
@@ -188,115 +183,10 @@ where
     /// }
     /// # };
     /// ```
-    // TODO: extract most of the complicated logic from here into a kind of
-    // subscription loop manager entity.
     pub async fn subscribe(&mut self, channel: &str) -> Subscription<TRuntime> {
-        // Since recursion is troublesome with async fns, we use the loop trick.
-        let (id, control_tx, channel_rx) = loop {
-            let (channel_tx, channel_rx) = mpsc::channel(10);
-
-            let mut subscribe_loop_control_tx_guard = self.subscribe_loop_control_tx.lock().await;
-
-            let id_or_retry = if let Some(ref mut control_tx) = *subscribe_loop_control_tx_guard {
-                // Send a command to add the channel to the running
-                // subscribe loop.
-
-                debug!("Adding channel {:?} to the running loop", channel);
-
-                let (id_tx, id_rx) = oneshot::channel();
-
-                // TODO: unify interfaces to either use `ListenerType` or
-                // `&str` when we refer to a channel.
-                let listener = ListenerType::Channel(channel.to_string());
-
-                let control_comm_result = control_tx
-                    .send(ControlCommand::Add(listener, channel_tx, id_tx))
-                    .await;
-
-                if control_comm_result.is_err() {
-                    // We got send error, this only happens when the receive
-                    // half of the channel is closed.
-                    // Assuming it was dropped because of being out of
-                    // scope, we conclude the subscribe loop has completed.
-                    // We simply cleanup the control tx, and retry
-                    // subscribing.
-                    // The successive subscribtion attempt will result in
-                    // starting off of a new subscription loop and properly
-                    // registering the channel there.
-                    *subscribe_loop_control_tx_guard = None;
-
-                    debug!("Restarting the subscription loop");
-
-                    // This is equivalent to calling the `subscribe` fn
-                    // recursively, given we're in the loop context.
-                    None
-                } else {
-                    // We succesfully submitted the command, wait for
-                    // subscription loop to communicate the subscription ID
-                    // back to us.
-                    let id = id_rx.await.unwrap();
-
-                    // Return the values from the loop.
-                    Some((id, control_tx.clone()))
-                }
-            } else {
-                // Since there's no subscribe loop loop found, spawn a new
-                // one.
-
-                let mut channels = Registry::new();
-                let (id, _) = channels.register(channel.to_string(), channel_tx);
-
-                let (control_tx, control_rx) = mpsc::channel(10);
-                let (ready_tx, ready_rx) = oneshot::channel();
-
-                debug!("Creating the subscribe loop");
-                let subscribe_loop_params = SubscribeLoopParams {
-                    control_rx,
-                    ready_tx: Some(ready_tx),
-                    exit_tx: self.subscribe_loop_exit_tx.clone(),
-
-                    transport: self.transport.clone(),
-
-                    origin: self.origin.clone(),
-                    agent: self.agent.clone(),
-                    subscribe_key: self.subscribe_key.clone(),
-
-                    channels,
-                    groups: Registry::new(),
-                };
-
-                // Spawn the subscribe loop onto the runtime
-                self.runtime.spawn(subscribe_loop(subscribe_loop_params));
-
-                // Waiting for subscription loop to communicate that it's
-                // ready.
-                // Will deadlock if the signal is never received, which will
-                // only happen if the subscription loop is stuck somehow.
-                // If subscription loop fails and goes out of scope we'll
-                // get an error properly communicating that.
-                debug!("Waiting for subscription loop ready...");
-                ready_rx.await.expect("Unable to receive ready message");
-
-                // Keep the control tx for later.
-                *subscribe_loop_control_tx_guard = Some(control_tx.clone());
-
-                // Return the values from the loop.
-                Some((id, control_tx))
-            };
-
-            match id_or_retry {
-                Some((id, control_tx)) => break (id, control_tx, channel_rx),
-                None => continue,
-            }
-        };
-
-        Subscription {
-            runtime: self.runtime.clone(),
-            name: ListenerType::Channel(channel.to_string()),
-            id,
-            control_tx,
-            channel_rx,
-        }
+        let supervisor_arc_clone = self.subscribe_loop_supervisor.clone();
+        let mut supervisor_guard = supervisor_arc_clone.lock().await;
+        supervisor_guard.subscribe(self, channel).await
     }
 
     /// Set the subscribe filters.
@@ -341,22 +231,41 @@ where
     /// ```
     #[must_use]
     pub fn build(self) -> PubNub<TTransport, TRuntime> {
+        let Self {
+            transport,
+            runtime,
+            origin,
+            agent,
+            publish_key,
+            subscribe_key,
+            secret_key,
+            auth_key,
+            user_id,
+            filters,
+            presence,
+            subscribe_loop_exit_tx,
+        } = self;
+
+        let subscribe_loop_supervisor_params = SubscribeLoopSupervisorParams {
+            exit_tx: subscribe_loop_exit_tx,
+        };
+
         PubNub {
-            transport: self.transport,
-            runtime: self.runtime,
-            origin: self.origin,
-            agent: self.agent,
-            publish_key: self.publish_key,
-            subscribe_key: self.subscribe_key,
-            secret_key: self.secret_key,
-            auth_key: self.auth_key,
-            user_id: self.user_id,
-            filters: self.filters,
-            presence: self.presence,
+            transport,
+            runtime,
+            origin,
+            agent,
+            publish_key,
+            subscribe_key,
+            secret_key,
+            auth_key,
+            user_id,
+            filters,
+            presence,
 
-            subscribe_loop_exit_tx: self.subscribe_loop_exit_tx,
-
-            subscribe_loop_control_tx: Arc::new(Mutex::new(None)),
+            subscribe_loop_supervisor: Arc::new(Mutex::new(SubscribeLoopSupervisor::new(
+                subscribe_loop_supervisor_params,
+            ))),
         }
     }
 }
