@@ -1,4 +1,4 @@
-use crate::mvec::MVec;
+use super::mvec::MVec;
 use std::collections::{hash_map::Entry, HashMap};
 
 /// A registry of channels.

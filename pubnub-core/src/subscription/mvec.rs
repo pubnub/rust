@@ -1,8 +1,5 @@
 use std::collections::HashMap;
 
-// TODO: since it's used by subscription only, move it to the subscription
-// module.
-
 /// # A `Vec<T>` whose keys increment monotonically
 ///
 /// `MVec<T>` is similar in nature to `Vec<T>`. Elements are indexed by `usize` and it implements a

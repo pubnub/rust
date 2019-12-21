@@ -1,4 +1,5 @@
 mod encoded_channels_list;
+mod mvec;
 mod registry;
 mod subscribe_request;
 

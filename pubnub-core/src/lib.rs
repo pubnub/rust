@@ -43,7 +43,6 @@ pub use json;
 pub use async_trait::async_trait;
 
 mod message;
-mod mvec;
 mod pubnub;
 mod runtime;
 mod subscription;
