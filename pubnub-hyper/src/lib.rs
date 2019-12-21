@@ -38,8 +38,8 @@ pub mod core {
     pub use pubnub_core::*;
 }
 
-pub use crate::adapters::runtime::tokio_global::Runtime;
-pub use crate::adapters::transport::hyper::Transport;
+pub use crate::runtime::tokio_global::Runtime;
+pub use crate::transport::hyper::Transport;
 
 use crate::core::{PubNub as Core, PubNubBuilder as CoreBuilder};
 
@@ -49,4 +49,5 @@ pub type PubNub = Core<Transport, Runtime>;
 /// PubNubBuilder bound with hyper transport and tokio runtime.
 pub type PubNubBuilder = CoreBuilder<Transport, Runtime>;
 
-mod adapters;
+pub mod runtime;
+pub mod transport;
