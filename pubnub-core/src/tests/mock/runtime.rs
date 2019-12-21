@@ -1,22 +1,29 @@
 use crate::Runtime;
 use std::future::Future;
+use std::pin::Pin;
 
 use mockall::mock;
 
 mock! {
-    pub Runtime {}
-    trait Clone {
-        fn clone(&self) -> Self {}
+    pub Runtime {
+        fn mock_workaround_spawn<O: 'static>(&self, future: Pin<Box<dyn Future<Output = O> + Send + 'static>>) {}
     }
-    trait Runtime: Clone + Send + Sync + Unpin + Debug {
-        fn spawn<F>(&self, future: F)
-        where
-            F: Future<Output = ()> + Send + 'static {}
+    trait Clone {
+        fn clone(&self) -> Self;
     }
 }
 
 impl std::fmt::Debug for MockRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MockRuntime").finish()
+    }
+}
+
+impl Runtime for MockRuntime {
+    fn spawn<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        self.mock_workaround_spawn(Box::pin(future))
     }
 }

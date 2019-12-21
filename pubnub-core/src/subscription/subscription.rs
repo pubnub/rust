@@ -1,6 +1,7 @@
 use super::subscribe_loop::*;
 use crate::message::Message;
 use crate::runtime::Runtime;
+use futures_channel::mpsc;
 use futures_util::sink::SinkExt;
 use futures_util::stream::Stream;
 use futures_util::task::{Context, Poll};
@@ -35,21 +36,60 @@ impl<TRuntime: Runtime> Stream for Subscription<TRuntime> {
     }
 }
 
+impl<TRuntime: Runtime> Subscription<TRuntime> {
+    /// Request to unsubscribe the subscription from the channel.
+    ///
+    /// This call completes when the unsubscription request is submitted
+    /// successfully, but doesn't indicate when the unsubscription request
+    /// is processed by the subscribe loop control command handler.
+    // TODO: change this fn to pass the oneshot channel to signal back to this
+    // fn when the actual unsubscription occured.
+    pub async fn unsubscribe(&mut self) -> Result<(), ()> {
+        debug!("Unsubscribing: {:?}", self.name);
+        let command = self.drop_command();
+        let drop_send_result = self.control_tx.send(command).await;
+
+        if is_drop_send_result_error(drop_send_result) {
+            return Err(());
+        }
+
+        Ok(())
+    }
+
+    /// Prepare drop command.
+    fn drop_command(&self) -> ControlCommand {
+        ControlCommand::Drop(self.id, self.name.clone())
+    }
+}
+
 /// Remove listener from the associated `SubscribeLoop` when the `Subscription` is dropped.
 impl<TRuntime: Runtime> Drop for Subscription<TRuntime> {
     fn drop(&mut self) {
         debug!("Dropping Subscription: {:?}", self.name);
 
-        let command = ControlCommand::Drop(self.id, self.name.clone());
+        let command = self.drop_command();
         let mut control_tx = self.control_tx.clone();
 
         // Spawn a future that will send the drop message for us.
         // See: https://boats.gitlab.io/blog/post/poll-drop/
         self.runtime.spawn(async move {
-            control_tx
-                .send(command)
-                .await
-                .expect("Unable to send drop message");
+            let drop_send_result = control_tx.send(command).await;
+            if is_drop_send_result_error(drop_send_result) {
+                panic!("Unable to unsubscribe");
+            }
         });
+    }
+}
+
+fn is_drop_send_result_error(result: Result<(), mpsc::SendError>) -> bool {
+    match result {
+        Ok(_) => false, // not an error
+        Err(err @ mpsc::SendError { .. }) if err.is_disconnected() => {
+            // Control handle is dead, so we can assume loop is dead
+            // too, and that we have, therefore, kind of unsubscribed
+            // successfully.
+            false
+        }
+        _ => true,
     }
 }

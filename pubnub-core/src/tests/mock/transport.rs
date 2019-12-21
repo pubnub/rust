@@ -1,6 +1,8 @@
 use crate::{Message, Timetoken, Transport};
 use async_trait::async_trait;
 use http::Uri;
+use std::future::Future;
+use std::pin::Pin;
 use thiserror::Error;
 
 use mockall::mock;
@@ -11,11 +13,11 @@ pub struct MockTransportError;
 
 mock! {
     pub Transport {
-        fn sync_publish_request(&self, url: Uri) -> Result<Timetoken, MockTransportError> {}
-        fn sync_subscribe_request(&self, url: Uri) -> Result<(Vec<Message>, Timetoken), MockTransportError> {}
+        fn mock_workaround_publish_request(&self, url: Uri) -> Pin<Box<dyn Future<Output = Result<Timetoken, MockTransportError>> + Send + 'static>> {}
+        fn mock_workaround_subscribe_request(&self, url: Uri) -> Pin<Box<dyn Future<Output = Result<(Vec<Message>, Timetoken), MockTransportError>> + Send + 'static>> {}
     }
     trait Clone {
-        fn clone(&self) -> Self;
+        fn clone(&self) -> Self {}
     }
 }
 
@@ -25,9 +27,9 @@ impl Transport for MockTransport {
     type Error = MockTransportError;
 
     async fn publish_request(&self, url: Uri) -> Result<Timetoken, Self::Error> {
-        self.sync_publish_request(url)
+        self.mock_workaround_publish_request(url).await
     }
     async fn subscribe_request(&self, url: Uri) -> Result<(Vec<Message>, Timetoken), Self::Error> {
-        self.sync_subscribe_request(url)
+        self.mock_workaround_subscribe_request(url).await
     }
 }

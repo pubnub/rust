@@ -1,11 +1,16 @@
 use super::*;
 use crate::tests::mock::runtime::MockRuntime;
 use crate::tests::mock::transport::MockTransport;
-use futures_executor::block_on;
+use futures_channel::{mpsc, oneshot};
+use futures_executor::{block_on, LocalPool};
+use futures_util::stream::StreamExt;
+use futures_util::task::{LocalSpawnExt, SpawnExt};
 
 use mockall::predicate::*;
+use mockall::Sequence;
 
 use crate::json::object;
+use crate::{Message, Type};
 use http::Uri;
 
 fn init() {
@@ -25,11 +30,11 @@ fn mocked_pubnub_publish_ok() {
         };
 
         mock_transport
-            .expect_sync_publish_request()
+            .expect_mock_workaround_publish_request()
             .with(eq(Uri::from_static(
                 r#"https://pubnub.test/publish/test_publish_key/test_subscribe_key/0/test%5Fchannel/0/%7B%22test%22%3A%22value%22%7D"#,
             )))
-            .returning(|_| Ok(Timetoken { t: 123, r: 456 }));
+            .returning(|_| Box::pin(async { Ok(Timetoken { t: 123, r: 456 }) }));
 
         let pubnub = PubNubBuilder::with_components(
             "test_publish_key",
@@ -47,4 +52,147 @@ fn mocked_pubnub_publish_ok() {
         assert_eq!(timetoken.t, 123);
         assert_eq!(timetoken.r, 456);
     })
+}
+
+#[test]
+fn mocked_pubnub_subscribe_ok() {
+    init();
+    let mut pool = LocalPool::new();
+    let spawner = pool.spawner();
+    let spawner1 = spawner.clone();
+    let spawner2 = spawner.clone();
+    spawner.spawn_local(async {
+        // Setup.
+
+        let test_channel = "test_channel";
+
+        let (sub_drop_req_tx, sub_drop_req_rx) = oneshot::channel::<()>();
+        let (sub_drop_done_tx, sub_drop_done_rx) = oneshot::channel::<()>();
+        let (sub_loop_exit_tx, mut sub_loop_exit_rx) = mpsc::channel::<()>(1);
+
+        let messages = vec![
+            Message {
+                message_type: Type::Publish,
+                route: Some(test_channel.to_owned()),
+                channel: test_channel.to_owned(),
+                json: object! {
+                    "test" => "value",
+                },
+                timetoken: Timetoken { t: 100, r: 12 },
+                client: None,
+                subscribe_key: "test_subscribe_key".to_owned(),
+                flags: 514,
+                ..Message::default()
+            },
+        ];
+
+        let mut seq = Sequence::new();
+
+        let mock_transport = {
+            let mut mock = MockTransport::new();
+
+            mock.expect_clone()
+                .times(1)
+                .in_sequence(&mut seq)
+                .return_once(move || {
+                    let mut mock = MockTransport::new();
+
+                    mock.expect_mock_workaround_subscribe_request()
+                        .times(1)
+                        .in_sequence(&mut seq)
+                        .with(eq(Uri::from_static(
+                            r#"https://pubnub.test/v2/subscribe/test_subscribe_key/test%5Fchannel/0?tt=0&tr=0"#,
+                        )))
+                        .return_once(move |_| Box::pin(async move { Ok((messages.clone(), Timetoken { t: 150, r: 1 })) }));
+
+                    mock.expect_mock_workaround_subscribe_request()
+                        .times(1)
+                        .in_sequence(&mut seq)
+                        .with(eq(Uri::from_static(
+                            r#"https://pubnub.test/v2/subscribe/test_subscribe_key/test%5Fchannel/0?tt=150&tr=1"#,
+                        )))
+                        .return_once(move |_| {
+                            Box::pin(async move {
+                                // Request drop.
+                                sub_drop_req_tx.send(()).unwrap();
+
+                                // Wait for the drop to complete.
+                                sub_drop_done_rx.await.unwrap();
+                                unreachable!();
+                            })
+                        });
+
+                    mock
+                });
+
+            mock
+        };
+
+        let mock_runtime = {
+            let mut mock = MockRuntime::new();
+            mock.expect_mock_workaround_spawn::<()>()
+                .returning_st(move |future| {
+                    spawner1.spawn(future).unwrap();
+                });
+            mock.expect_clone()
+                .times(1)
+                .return_once_st(move || {
+                    // We got cloned, that has to be subscription's runtime
+                    // clone.
+                    let mut mock = MockRuntime::new();
+
+                    mock.expect_mock_workaround_spawn::<()>()
+                        .returning_st(move |future| {
+                            spawner2.spawn(future).unwrap();
+                        });
+
+                    mock
+                });
+            mock
+        };
+
+        // Invocations.
+
+        let mut pubnub = PubNubBuilder::with_components(
+            "test_publish_key",
+            "test_subscribe_key",
+            mock_transport,
+            mock_runtime,
+        )
+        .origin("pubnub.test")
+        .subscribe_loop_exit_tx(sub_loop_exit_tx)
+        .build();
+
+        let mut subscription = pubnub.subscribe(test_channel).await;
+
+        let message = subscription.next().await;
+        // We got the message we expected to get.
+        assert!(message.is_some());
+
+        // Wait for the drop request.
+        sub_drop_req_rx.await.unwrap();
+
+        // Unsubscribe the subscription, which will cause loop termination.
+        subscription.unsubscribe().await.unwrap();
+
+        // Wait for the loop termination.
+        sub_loop_exit_rx.next().await.unwrap();
+
+        // Notify that we've completed with the drop request.
+        // Since the loop is now dead, and we were locked on `sub_drop_done_rx`
+        // in the response future, this send *has to fail* send error, cause
+        // loop termination dropped the response future and the
+        // `sub_drop_done_rx` with it (cuase response future owned
+        // `sub_drop_done_rx` afetr we moved it).
+        sub_drop_done_tx.send(()).unwrap_err();
+
+        let message = subscription.next().await;
+        // We won't have any more messages since we're unsubscribed.
+        assert!(message.is_none());
+
+        // We drop the subscription here to ensure it doesn't cause issues.
+        drop(subscription);
+    }).unwrap();
+
+    pool.run()
 }
