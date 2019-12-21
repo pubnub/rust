@@ -1,9 +1,9 @@
-use crate::core::Type;
-use crate::PubNubBuilder;
 use futures_channel::mpsc;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use json::JsonValue;
 use log::debug;
+use pubnub_hyper::core::Type;
+use pubnub_hyper::PubNubBuilder;
 use randomize::PCG32;
 use std::future::Future;
 use tokio::runtime;

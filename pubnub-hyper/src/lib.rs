@@ -50,6 +50,3 @@ pub type PubNub = Core<Transport, Runtime>;
 pub type PubNubBuilder = CoreBuilder<Transport, Runtime>;
 
 mod adapters;
-
-#[cfg(test)]
-mod tests;
