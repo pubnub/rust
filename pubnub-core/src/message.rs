@@ -2,8 +2,6 @@ use std::time::{SystemTime, SystemTimeError};
 
 use json::JsonValue;
 
-use crate::subscription::subscribe_loop::SubscriptionID;
-
 /// # PubNub Message
 ///
 /// This is the message structure yielded by [`Subscription`].
@@ -53,10 +51,6 @@ pub enum Type {
     Presence,
     /// Unknown type. The value may have special meaning in some contexts.
     Unknown(u32),
-
-    #[doc(hidden)]
-    /// Internal message for synchronization between `Subscription` and `SubscribeLoop`.
-    Ready(SubscriptionID),
 }
 
 /// # PubNub Timetoken
