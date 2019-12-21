@@ -10,7 +10,7 @@ use futures_util::stream::StreamExt;
 use log::{debug, error};
 
 pub(crate) use super::channel::{Rx as ChannelRx, Tx as ChannelTx};
-pub use super::registry::ID as SubscriptionID;
+pub(crate) use super::registry::ID as SubscriptionID;
 
 pub(crate) type Registry = GenericRegistry<ChannelTx>;
 
