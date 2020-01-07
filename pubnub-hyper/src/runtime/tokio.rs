@@ -10,6 +10,7 @@ pub struct Tokio {
 }
 
 impl From<TokioRuntime> for Tokio {
+    #[must_use]
     fn from(rt: TokioRuntime) -> Self {
         Self {
             runtime: Arc::new(rt),
