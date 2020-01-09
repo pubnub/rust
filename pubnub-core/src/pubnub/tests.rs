@@ -172,8 +172,8 @@ fn mocked_pubnub_subscribe_ok() {
         // Wait for the drop request.
         sub_drop_req_rx.await.unwrap();
 
-        // Unsubscribe the subscription, which will cause loop termination.
-        subscription.unsubscribe().await.unwrap();
+        // Drop the subscription, which will cause loop termination.
+        drop(subscription);
 
         // Wait for the loop termination.
         sub_loop_exit_rx.next().await.unwrap();
@@ -185,13 +185,6 @@ fn mocked_pubnub_subscribe_ok() {
         // `sub_drop_done_rx` with it (cuase response future owned
         // `sub_drop_done_rx` afetr we moved it).
         sub_drop_done_tx.send(()).unwrap_err();
-
-        let message = subscription.next().await;
-        // We won't have any more messages since we're unsubscribed.
-        assert!(message.is_none());
-
-        // We drop the subscription here to ensure it doesn't cause issues.
-        drop(subscription);
     }).unwrap();
 
     pool.run()

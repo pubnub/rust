@@ -37,25 +37,6 @@ impl<TRuntime: Runtime> Stream for Subscription<TRuntime> {
 }
 
 impl<TRuntime: Runtime> Subscription<TRuntime> {
-    /// Request to unsubscribe the subscription from the channel.
-    ///
-    /// This call completes when the unsubscription request is submitted
-    /// successfully, but doesn't indicate when the unsubscription request
-    /// is processed by the subscribe loop control command handler.
-    // TODO: change this fn to pass the oneshot channel to signal back to this
-    // fn when the actual unsubscription occured.
-    pub async fn unsubscribe(&mut self) -> Result<(), ()> {
-        debug!("Unsubscribing: {:?}", self.name);
-        let command = self.drop_command();
-        let drop_send_result = self.control_tx.send(command).await;
-
-        if is_drop_send_result_error(drop_send_result) {
-            return Err(());
-        }
-
-        Ok(())
-    }
-
     /// Prepare drop command.
     fn drop_command(&self) -> ControlCommand {
         ControlCommand::Drop(self.id, self.name.clone())
