@@ -36,7 +36,7 @@ where
     pub(crate) auth_key: Option<String>,   // Client Auth Key for R+W Access
     pub(crate) user_id: Option<String>,    // Client UserId "UUID" for Presence
     pub(crate) filters: Option<String>,    // Metadata Filters on Messages
-    pub(crate) presence: bool,             // Enable presence even
+    pub(crate) presence: bool,             // Enable presence events
 
     // Subscribe loop lifecycle management.
     pub(crate) subscribe_loop_supervisor: Arc<Mutex<SubscribeLoopSupervisor>>,
