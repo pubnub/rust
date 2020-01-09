@@ -19,7 +19,7 @@ pub enum RegistrationEffect {
 
 #[derive(Debug)]
 pub enum UnregistrationEffect {
-    NameErazed,
+    NameErased,
     NamePreserved,
 }
 
@@ -53,7 +53,7 @@ impl<T> Registry<T> {
 
         let effect = if mvec.is_empty() {
             self.map.remove(name);
-            UnregistrationEffect::NameErazed
+            UnregistrationEffect::NameErased
         } else {
             UnregistrationEffect::NamePreserved
         };

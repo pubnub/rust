@@ -246,7 +246,7 @@ async fn handle_control_command(
                 .expect("Unable to get channel listeners");
 
             // Update cache if needed.
-            if let UnregistrationEffect::NameErazed = effect {
+            if let UnregistrationEffect::NameErased = effect {
                 *cache = EncodedChannelsList::from(&*registry);
             }
 
