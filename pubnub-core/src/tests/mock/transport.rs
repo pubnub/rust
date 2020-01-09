@@ -13,7 +13,9 @@ pub struct MockTransportError;
 
 mock! {
     pub Transport {
+        #[allow(clippy::type_complexity)]
         fn mock_workaround_publish_request(&self, url: Uri) -> Pin<Box<dyn Future<Output = Result<Timetoken, MockTransportError>> + Send + 'static>> {}
+        #[allow(clippy::type_complexity)]
         fn mock_workaround_subscribe_request(&self, url: Uri) -> Pin<Box<dyn Future<Output = Result<(Vec<Message>, Timetoken), MockTransportError>> + Send + 'static>> {}
     }
     trait Clone {
