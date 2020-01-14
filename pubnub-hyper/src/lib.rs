@@ -1,9 +1,10 @@
-//! # PubNub Client SDK for Rust coupled with Hyper
+//! # PubNub Hyper
 //!
-//! - Fully `async`/`await` ready.
-//! - Uses Tokio and Hyper to provide an ultra-fast, incredibly reliable message transport over the
-//!   PubNub edge network.
-//! - Optimizes for minimal network sockets with an infinite number of logical streams.
+//! A PubNub client using [`hyper`](hyper) and [`tokio`](tokio) to provide an
+//! ultra-fast, incredibly reliable message transport over the PubNub edge
+//! network.
+//!
+//! Uses `pubnub-core`(pubnub_core) under the hood.
 //!
 //! # Example
 //!

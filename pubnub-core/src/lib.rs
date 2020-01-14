@@ -1,32 +1,13 @@
-//! # Async PubNub Client SDK for Rust
+//! # PubNub Core
+//!
+//! Provides the common high-level logic for PubNub clients.
 //!
 //! - Fully `async`/`await` ready.
-//! - Uses Tokio and Hyper to provide an ultra-fast, incredibly reliable message transport over the
-//!   PubNub edge network.
-//! - Optimizes for minimal network sockets with an infinite number of logical streams.
+//! - Modular, bring your own [`Transport`] and [`Runtime`].
+//! - Multiplexes subscription polling for multiple logical streams over a
+//!   single transport invocation to optimize kernel network subsystem pressure.
 //!
-//! # Example
-//!
-//! ```
-//! use futures_util::stream::StreamExt;
-//! use pubnub_hyper::{core::json::object, PubNub};
-//!
-//! # async {
-//! let mut pubnub = PubNub::new("demo", "demo");
-//!
-//! let message = object!{
-//!     "username" => "JoeBob",
-//!     "content" => "Hello, world!",
-//! };
-//!
-//! let mut stream = pubnub.subscribe("my-channel").await;
-//! let timetoken = pubnub.publish("my-channel", message.clone()).await?;
-//!
-//! let received = stream.next().await;
-//! assert_eq!(received.unwrap().json, message);
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! # };
-//! ```
+//! Build your own client, or use preconfigured [`pubnub-hyper`](pubnub_hyper).
 
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
