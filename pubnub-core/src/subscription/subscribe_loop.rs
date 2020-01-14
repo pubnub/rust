@@ -15,19 +15,13 @@ pub(crate) use super::registry::ID as SubscriptionID;
 pub(crate) type Registry = GenericRegistry<ChannelTx>;
 
 pub(crate) type ReadyTx = oneshot::Sender<()>;
-#[allow(dead_code)]
-pub(crate) type ReadyRx = oneshot::Receiver<()>;
 
 pub(crate) type ExitTx = mpsc::Sender<()>;
-#[allow(dead_code)]
-pub(crate) type ExitRx = mpsc::Receiver<()>;
 
 pub(crate) type ControlTx = mpsc::Sender<ControlCommand>;
 pub(crate) type ControlRx = mpsc::Receiver<ControlCommand>;
 
 pub(crate) type SubscriptionIdTx = oneshot::Sender<SubscriptionID>;
-#[allow(dead_code)]
-pub(crate) type SubscriptionIdRx = oneshot::Receiver<SubscriptionID>;
 
 /// Commands we pass via the control pipe.
 #[derive(Debug)]
