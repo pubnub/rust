@@ -90,8 +90,8 @@ where
     let mut timetoken = Timetoken::default();
 
     loop {
-        // TODO: do not clone cached values cause it defeats the purpose of the
-        // cache. Do we need this cache though? There are no benchmarks...
+        // TODO: move the cache into the transport once we move from passing the
+        // URL to a structured transport invocation.
         let request_encoded_channels = encoded_channels.clone();
         let response = subscribe_request::subscribe_request(
             &transport,
