@@ -469,9 +469,10 @@ impl<TTransport, TRuntime> PubNubBuilder<TTransport, TRuntime> {
         self
     }
 
-    /// Transport.
+    /// Set transport to use.
     ///
-    /// A transport implementation to use.
+    /// This allows changing the `Transport` type on the builder and, therefore,
+    /// on the resulting `PubNub`.
     #[must_use]
     pub fn transport<U: Transport>(self, transport: U) -> PubNubBuilder<U, TRuntime> {
         PubNubBuilder {
@@ -493,9 +494,10 @@ impl<TTransport, TRuntime> PubNubBuilder<TTransport, TRuntime> {
         }
     }
 
-    /// Runtime.
+    /// Set runtime to use.
     ///
-    /// A runtime implementation to use.
+    /// This allows changing the `Runtime` type on the builder and, therefore,
+    /// on the resulting `PubNub`.
     #[must_use]
     pub fn runtime<U: Runtime>(self, runtime: U) -> PubNubBuilder<TTransport, U> {
         PubNubBuilder {
