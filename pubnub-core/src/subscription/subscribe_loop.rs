@@ -205,11 +205,6 @@ enum ControlOutcome {
 }
 
 /// Handle a control command.
-///
-/// This is split out from the `select!` macro used in the subscribe loop.
-/// Debugging complex code buried within a macro is very painful. So this allows
-/// our development experience to be flexible and the compiler can actually show
-/// us useful errors.
 async fn handle_control_command(
     channels: &mut Registry,
     groups: &mut Registry,
