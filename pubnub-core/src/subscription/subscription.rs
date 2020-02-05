@@ -8,7 +8,7 @@ use futures_util::task::{Context, Poll};
 use log::debug;
 use std::pin::Pin;
 
-/// # PubNub Subscription
+/// # Inbound PubNub message stream
 ///
 /// This is the message stream returned by [`PubNub::subscribe`]. The stream yields [`Message`]
 /// items until it is dropped.
