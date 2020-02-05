@@ -226,7 +226,7 @@ fn pubnub_subscribe_clone_ok() {
         }
 
         // Drop the streams
-        std::mem::drop(streams);
+        drop(streams);
 
         // Wait for the subscribe loop to exit.
         subscribe_loop_exit_rx.next().await;
