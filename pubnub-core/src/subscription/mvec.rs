@@ -34,10 +34,8 @@ impl<T> MVec<T> {
         self.counter += 1;
     }
 
-    pub(crate) fn remove(&mut self, index: usize) -> T {
-        self.inner
-            .remove(&index)
-            .unwrap_or_else(|| panic!("Index not found: {}", index))
+    pub(crate) fn remove(&mut self, index: usize) -> Option<T> {
+        self.inner.remove(&index)
     }
 
     pub(crate) fn is_empty(&self) -> bool {

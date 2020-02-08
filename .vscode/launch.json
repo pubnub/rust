@@ -1,0 +1,70 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'pubnub-core'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=pubnub-core"],
+        "filter": {
+          "name": "pubnub-core",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'pubnub-hyper'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=pubnub-hyper"],
+        "filter": {
+          "name": "pubnub-hyper",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug example 'publish-subscribe'",
+      "cargo": {
+        "args": [
+          "build",
+          "--example=publish-subscribe",
+          "--package=pubnub-hyper"
+        ],
+        "filter": {
+          "name": "publish-subscribe",
+          "kind": "example"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in example 'publish-subscribe'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--example=publish-subscribe",
+          "--package=pubnub-hyper"
+        ],
+        "filter": {
+          "name": "publish-subscribe",
+          "kind": "example"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

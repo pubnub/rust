@@ -1,11 +1,12 @@
+use crate::core::json;
 use error_iter::ErrorIter;
 use thiserror::Error;
 
 /// # Error variants
 #[derive(Debug, Error)]
 pub enum Error {
-    /// Hyper client error.
-    #[error("Hyper client error")]
+    /// Hyper error.
+    #[error("Hyper error")]
     Hyper(#[from] hyper::Error),
 
     /// Invalid UTF-8.

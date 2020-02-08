@@ -3,10 +3,10 @@
 #![forbid(unsafe_code)]
 
 use futures_util::stream::StreamExt;
-use pubnub::{json::object, Error, PubNub};
+use pubnub_hyper::{core::json::object, PubNub};
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pubnub = PubNub::new("demo", "demo");
 
     let message = object! {
