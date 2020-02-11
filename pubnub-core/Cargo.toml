@@ -10,8 +10,8 @@ readme = "../README.md"
 
 [dependencies]
 error-iter = "0.2"
-futures-util = "0.3"
-futures-channel = "0.3"
+futures-util = { version = "0.3", features = ["async-await", "async-await-macro", "sink", "channel"] }
+futures-channel = { version = "0.3", features = ["sink"] }
 json = "0.12"
 log = "0.4"
 percent-encoding = "2.1"
@@ -20,8 +20,6 @@ http = "0.2"
 async-trait = "0.1"
 
 [dev-dependencies]
-futures-util = { version = "0.3", features = ["async-await", "async-await-macro", "sink", "channel"] }
-futures-channel = { version = "0.3", features = ["sink"] }
 byteorder = "1.3"
 env_logger = "0.7"
 getrandom = "0.1"

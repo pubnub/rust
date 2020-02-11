@@ -10,9 +10,9 @@ readme = "../README.md"
 
 [dependencies]
 pubnub-core = { version = "=0.1.0", path = "../pubnub-core" }
-futures-util = "0.3"
-tokio = "0.2"
-hyper = "0.13"
+futures-util = { version = "0.3", features = ["async-await", "async-await-macro"] }
+tokio = { version = "0.2", features = ["full"] }
+hyper = { version = "0.13", features = ["stream"] }
 hyper-tls = "0.4"
 async-trait = "0.1"
 error-iter = "0.2"
@@ -25,10 +25,7 @@ getrandom = "0.1"
 randomize = "3.0"
 futures-executor = "0.3"
 futures-channel = "0.3"
-futures-util = { version = "0.3", features = ["async-await", "async-await-macro"] }
 json = "0.12"
 log = "0.4"
 percent-encoding = "2.1"
 http = "0.2"
-tokio = { version = "0.2", features = ["full"] }
-hyper = { version = "0.13", features = ["stream"] }
