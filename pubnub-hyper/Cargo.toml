@@ -9,24 +9,24 @@ edition = "2018"
 readme = "../README.md"
 
 [dependencies]
-pubnub-core = { version = "=0.1.0", path = "../pubnub-core" }
-futures-util = { version = "0.3", features = ["async-await", "async-await-macro"] }
-tokio = "0.2"
-hyper = { version = "0.13", features = ["stream"] }
-hyper-tls = "0.4"
 async-trait = "0.1"
 error-iter = "0.2"
+futures-util = { version = "0.3", features = ["async-await", "async-await-macro"] }
+hyper = { version = "0.13", features = ["stream"] }
+hyper-tls = "0.4"
+pubnub-core = { version = "=0.1.0", path = "../pubnub-core" }
 thiserror = "1.0"
+tokio = "0.2"
 
 [dev-dependencies]
 byteorder = "1.3"
 env_logger = "0.7"
-getrandom = "0.1"
-randomize = "3.0"
-futures-executor = "0.3"
 futures-channel = "0.3"
+futures-executor = "0.3"
+getrandom = "0.1"
+http = "0.2"
 json = "0.12"
 log = "0.4"
 percent-encoding = "2.1"
-http = "0.2"
+randomize = "3.0"
 tokio = { version = "0.2", features = ["macros"] }
