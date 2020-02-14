@@ -34,3 +34,7 @@ pubnub-hyper = { path = "../pubnub-hyper" }
 
 [features]
 nigthly = ["mockall/nightly"]
+
+[badges]
+travis-ci = { repository = "pubnub/rust", branch = "master" }
+maintenance = { status = "actively-developed" }
