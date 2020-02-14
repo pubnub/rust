@@ -7,6 +7,7 @@ keywords = ["pubnub", "publish-subscribe", "subscribe"]
 authors = ["Stephen Blum <stephen@pubnub.com>", "Jay Oster <jay@pubnub.com>"]
 edition = "2018"
 readme = "../README.md"
+license-file = "../LICENSE"
 
 [dependencies]
 async-trait = "0.1"
