@@ -14,8 +14,8 @@
 #![allow(clippy::doc_markdown)]
 #![forbid(unsafe_code)]
 
-pub use crate::message::{Message, Timetoken, Type};
-pub use crate::pubnub::{PubNub, PubNubBuilder};
+pub use crate::builder::Builder;
+pub use crate::pubnub::PubNub;
 pub use crate::runtime::Runtime;
 pub use crate::subscription::Subscription;
 pub use crate::transport::Transport;
@@ -23,11 +23,10 @@ pub use json;
 
 pub use async_trait::async_trait;
 
-mod message;
+mod builder;
+pub mod data;
+pub mod mock;
 mod pubnub;
 mod runtime;
 mod subscription;
 mod transport;
-
-#[cfg(test)]
-mod tests;

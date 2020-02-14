@@ -5,6 +5,10 @@ use thiserror::Error;
 /// # Error variants
 #[derive(Debug, Error)]
 pub enum Error {
+    /// HTTP error.
+    #[error("HTTP error")]
+    Http(#[from] http::Error),
+
     /// Hyper error.
     #[error("Hyper error")]
     Hyper(#[from] hyper::Error),

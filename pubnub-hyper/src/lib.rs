@@ -8,14 +8,23 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```no_run
 //! use futures_util::stream::StreamExt;
-//! use pubnub_hyper::{core::json::object, PubNub};
+//! use pubnub_hyper::runtime::tokio_global::TokioGlobal;
+//! use pubnub_hyper::transport::hyper::Hyper;
+//! use pubnub_hyper::{core::json::object, Builder};
 //!
 //! # async {
-//! let mut pubnub = PubNub::new("demo", "demo");
+//! let transport = Hyper::new()
+//!     .publish_key("demo")
+//!     .subscribe_key("demo")
+//!     .build()?;
+//! let mut pubnub = Builder::new()
+//!     .transport(transport)
+//!     .runtime(TokioGlobal)
+//!     .build();
 //!
-//! let message = object!{
+//! let message = object! {
 //!     "username" => "JoeBob",
 //!     "content" => "Hello, world!",
 //! };
@@ -39,19 +48,17 @@ pub mod core {
     pub use pubnub_core::*;
 }
 
-/// A sensible default variant of for tokio runtime.
+/// A sensible default variant of the tokio runtime.
 pub use crate::runtime::tokio_global::TokioGlobal as DefaultRuntime;
 
 /// A sensible default variant of the hyper runtime.
 pub use crate::transport::hyper::Hyper as DefaultTransport;
 
-use crate::core::{PubNub as Core, PubNubBuilder as CoreBuilder};
+pub use crate::core::Builder;
+use crate::core::PubNub as CorePubNub;
 
-/// PubNub client bound with hyper transport and tokio runtime.
-pub type PubNub = Core<DefaultTransport, DefaultRuntime>;
-
-/// PubNubBuilder bound with hyper transport and tokio runtime.
-pub type PubNubBuilder = CoreBuilder<DefaultTransport, DefaultRuntime>;
+/// PubNub client bound to hyper transport and tokio runtime.
+pub type PubNub = CorePubNub<DefaultTransport, DefaultRuntime>;
 
 pub mod runtime;
 pub mod transport;

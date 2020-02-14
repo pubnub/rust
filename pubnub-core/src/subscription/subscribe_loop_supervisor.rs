@@ -117,12 +117,8 @@ impl SubscribeLoopSupervisor {
 
                     transport: pubnub.transport.clone(),
 
-                    origin: pubnub.origin.clone(),
-                    agent: pubnub.agent.clone(),
-                    subscribe_key: pubnub.subscribe_key.clone(),
-
                     channels,
-                    groups: Registry::new(),
+                    channel_groups: Registry::new(),
                 };
 
                 // Spawn the subscribe loop onto the runtime

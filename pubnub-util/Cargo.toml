@@ -1,0 +1,21 @@
+[package]
+name = "pubnub-util"
+version = "0.1.0"
+authors = ["MOZGIII <mike-n@narod.ru>"]
+edition = "2018"
+description = "PubNub utils"
+repository = "https://github.com/pubnub/rust"
+keywords = ["pubnub", "publish-subscribe", "subscribe"]
+readme = "../README.md"
+license-file = "../LICENSE"
+
+[dependencies]
+percent-encoding = { version = "2.1", optional = true }
+
+[features]
+default = ["encoded-channels-list"]
+encoded-channels-list = ["percent-encoding"]
+
+[badges]
+travis-ci = { repository = "pubnub/rust", branch = "master" }
+maintenance = { status = "actively-developed" }
