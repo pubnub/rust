@@ -11,8 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transport = Hyper::new()
         .publish_key("demo")
         .subscribe_key("demo")
-        .build()
-        .unwrap();
+        .build()?;
 
     let mut pubnub = Builder::new()
         .transport(transport)
