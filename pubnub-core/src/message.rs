@@ -14,7 +14,7 @@ pub type Message = Arc<Instance>;
 /// # PubNub Message Instance
 ///
 /// This is the internal data structure for messages.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instance {
     /// Enum Type of Message.
     pub message_type: Type,
