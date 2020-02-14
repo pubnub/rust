@@ -10,7 +10,7 @@ use mockall::predicate::*;
 use mockall::Sequence;
 
 use crate::json::object;
-use crate::{Message, Type};
+use crate::{Instance, Type};
 use http::Uri;
 
 fn init() {
@@ -71,7 +71,7 @@ fn mocked_pubnub_subscribe_ok() {
         let (sub_loop_exit_tx, mut sub_loop_exit_rx) = mpsc::channel::<()>(1);
 
         let messages = vec![
-            Message {
+            Arc::new(Instance {
                 message_type: Type::Publish,
                 route: Some(test_channel.to_owned()),
                 channel: test_channel.to_owned(),
@@ -82,8 +82,8 @@ fn mocked_pubnub_subscribe_ok() {
                 client: None,
                 subscribe_key: "test_subscribe_key".to_owned(),
                 flags: 514,
-                ..Message::default()
-            },
+                ..Instance::default()
+            }),
         ];
 
         let mut seq = Sequence::new();

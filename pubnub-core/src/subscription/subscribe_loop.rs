@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::encoded_channels_list::EncodedChannelsList;
 use super::registry::{RegistrationEffect, Registry as GenericRegistry, UnregistrationEffect};
 use super::subscribe_request;
@@ -175,9 +177,11 @@ where
             // unsound `get` and `get_mut` from the registry API.
             let listeners = channels.get_mut(&route).unwrap();
 
+            let message = Arc::new(message);
+
             debug!("Delivering to {} listeners...", listeners.len());
             for channel_tx in listeners.iter_mut() {
-                if let Err(error) = channel_tx.send(message.clone()).await {
+                if let Err(error) = channel_tx.send(Arc::clone(&message)).await {
                     error!("Delivery error: {:?}", error);
                 }
             }

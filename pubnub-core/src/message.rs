@@ -1,14 +1,21 @@
+use std::sync::Arc;
 use std::time::{SystemTime, SystemTimeError};
 
 use json::JsonValue;
 
 /// # PubNub Message
 ///
-/// This is the message structure yielded by [`Subscription`].
+/// This is the message type yielded by [`Subscription`]. It is a smart pointer, which allows
+/// efficient message passing between threads.
 ///
 /// [`Subscription`]: crate::Subscription
-#[derive(Debug, Clone)]
-pub struct Message {
+pub type Message = Arc<Instance>;
+
+/// # PubNub Message Instance
+///
+/// This is the internal data structure for messages.
+#[derive(Debug)]
+pub struct Instance {
     /// Enum Type of Message.
     pub message_type: Type,
     /// Wildcard channel or channel group.
@@ -87,7 +94,7 @@ impl Type {
     }
 }
 
-impl Default for Message {
+impl Default for Instance {
     #[must_use]
     fn default() -> Self {
         Self {

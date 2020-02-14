@@ -1,12 +1,13 @@
 use crate::core::json;
 use crate::core::Transport;
-use crate::core::{Message, Timetoken, Type};
+use crate::core::{Instance, Message, Timetoken, Type};
 
 use async_trait::async_trait;
 
 use futures_util::stream::StreamExt;
 use hyper::{client::HttpConnector, Body, Client, Uri};
 use hyper_tls::HttpsConnector;
+use std::sync::Arc;
 use std::time::Duration;
 
 pub mod error;
@@ -71,19 +72,21 @@ impl Transport for Hyper {
         // Capture Messages in Vec Buffer
         let messages = data_json["m"]
             .members()
-            .map(|message| Message {
-                message_type: Type::from_json(&message["e"]),
-                route: message["b"].as_str().map(str::to_string),
-                channel: message["c"].to_string(),
-                json: message["d"].clone(),
-                metadata: message["u"].clone(),
-                timetoken: Timetoken {
-                    t: message["p"]["t"].as_str().unwrap().parse().unwrap(),
-                    r: message["p"]["r"].as_u32().unwrap_or(0),
-                },
-                client: message["i"].as_str().map(str::to_string),
-                subscribe_key: message["k"].to_string(),
-                flags: message["f"].as_u32().unwrap_or(0),
+            .map(|message| {
+                Arc::new(Instance {
+                    message_type: Type::from_json(&message["e"]),
+                    route: message["b"].as_str().map(str::to_string),
+                    channel: message["c"].to_string(),
+                    json: message["d"].clone(),
+                    metadata: message["u"].clone(),
+                    timetoken: Timetoken {
+                        t: message["p"]["t"].as_str().unwrap().parse().unwrap(),
+                        r: message["p"]["r"].as_u32().unwrap_or(0),
+                    },
+                    client: message["i"].as_str().map(str::to_string),
+                    subscribe_key: message["k"].to_string(),
+                    flags: message["f"].as_u32().unwrap_or(0),
+                })
             })
             .collect::<Vec<_>>();
 

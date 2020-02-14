@@ -14,7 +14,7 @@
 #![allow(clippy::doc_markdown)]
 #![forbid(unsafe_code)]
 
-pub use crate::message::{Message, Timetoken, Type};
+pub use crate::message::{Instance, Message, Timetoken, Type};
 pub use crate::pubnub::{PubNub, PubNubBuilder};
 pub use crate::runtime::Runtime;
 pub use crate::subscription::Subscription;
