@@ -1,13 +1,13 @@
 language: rust
 rust:
-# MSRV
 - 1.39.0
-
-# Stable and beta release channels
 - stable
 - beta
+- nightly
 
 matrix:
+  allow_failures:
+    - rust: nightly
   fast_finish: true
 
 before_script:
