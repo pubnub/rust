@@ -28,11 +28,21 @@ Try the following sample code to get up and running quickly.
 
 ```rust
 use futures_util::stream::StreamExt;
-use pubnub_hyper::{core::json::object, PubNub};
+use pubnub_hyper::runtime::tokio_global::TokioGlobal;
+use pubnub_hyper::transport::hyper::Hyper;
+use pubnub_hyper::{core::json::object, Builder};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut pubnub = PubNub::new("demo", "demo");
+    let transport = Hyper::new()
+        .publish_key("demo")
+        .subscribe_key("demo")
+        .build()?;
+
+    let mut pubnub = Builder::new()
+        .transport(transport)
+        .runtime(TokioGlobal)
+        .build();
 
     let message = object! {
         "username" => "JoeBob",
