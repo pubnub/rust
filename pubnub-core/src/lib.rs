@@ -13,6 +13,11 @@
 #![deny(clippy::pedantic)]
 #![allow(clippy::doc_markdown)]
 #![forbid(unsafe_code)]
+#![warn(
+    missing_docs,
+    missing_debug_implementations,
+    missing_copy_implementations
+)]
 
 pub use crate::builder::Builder;
 pub use crate::pubnub::PubNub;
