@@ -31,3 +31,7 @@ log = "0.4"
 percent-encoding = "2.1"
 randomize = "3.0"
 tokio = { version = "0.2", features = ["macros"] }
+
+[badges]
+travis-ci = { repository = "pubnub/rust", branch = "master" }
+maintenance = { status = "actively-developed" }
