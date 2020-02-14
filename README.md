@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.com/pubnub/rust.svg?branch=master)](https://travis-ci.com/pubnub/rust)
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
-The PubNub Rust SDK is based on Tokio `0.2` (currently preview/alpha). This library uses `HTTP/2` to communicate with the PubNub Edge Messaging Network.
+The PubNub Rust SDK is based on Tokio `0.2`. This library uses `HTTP/2` to communicate with the PubNub Edge Messaging Network.
 
 ## MSRV
 
