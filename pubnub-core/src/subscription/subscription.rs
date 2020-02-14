@@ -1,5 +1,5 @@
 use super::subscribe_loop::*;
-use crate::message::Message;
+use crate::data::message::Message;
 use crate::runtime::Runtime;
 use futures_channel::mpsc;
 use futures_util::sink::SinkExt;

@@ -69,4 +69,8 @@ impl<T> Registry<T> {
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
+
+    pub fn keys(&self) -> impl Iterator<Item = &String> {
+        self.map.keys()
+    }
 }

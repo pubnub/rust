@@ -1,5 +1,6 @@
 [workspace]
 members = [
   "pubnub-core",
-  "pubnub-hyper"
+  "pubnub-hyper",
+  "pubnub-util"
 ]

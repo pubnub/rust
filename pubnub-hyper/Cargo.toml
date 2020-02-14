@@ -10,12 +10,17 @@ readme = "../README.md"
 license-file = "../LICENSE"
 
 [dependencies]
+pubnub-core = { version = "=0.1.0", path = "../pubnub-core" }
+pubnub-util = { version = "=0.1.0", path = "../pubnub-util" }
 async-trait = "0.1"
+derive_builder = "0.9"
 error-iter = "0.2"
 futures-util = { version = "0.3", features = ["async-await", "async-await-macro"] }
+http = "0.2"
 hyper = { version = "0.13", features = ["stream"] }
 hyper-tls = "0.4"
-pubnub-core = { version = "=0.1.0", path = "../pubnub-core" }
+log = "0.4"
+percent-encoding = "2.1"
 thiserror = "1.0"
 tokio = "0.2"
 

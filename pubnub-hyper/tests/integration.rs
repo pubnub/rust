@@ -2,8 +2,10 @@ use futures_channel::mpsc;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use json::JsonValue;
 use log::debug;
-use pubnub_hyper::core::Type;
-use pubnub_hyper::PubNubBuilder;
+use pubnub_hyper::core::data::message::Type;
+use pubnub_hyper::runtime::tokio_global::TokioGlobal;
+use pubnub_hyper::transport::hyper::Hyper;
+use pubnub_hyper::Builder;
 use randomize::PCG32;
 use std::future::Future;
 use tokio::runtime;
@@ -64,16 +66,20 @@ fn shuffle<T>(prng: &mut PCG32, list: &mut Vec<T>) -> Vec<T> {
 fn pubnub_subscribe_ok() {
     init();
     current_thread_block_on(async {
-        let publish_key = "demo";
-        let subscribe_key = "demo";
         let channel = "demo2";
 
-        let agent = "Rust-Agent-Test";
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
 
         let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
 
-        let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
-            .agent(agent)
+        let mut pubnub = Builder::new()
+            .transport(transport)
+            .runtime(TokioGlobal)
             .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
             .build();
 
@@ -115,13 +121,20 @@ fn pubnub_subscribe_ok() {
 fn pubnub_subscribeloop_drop() {
     init();
     current_thread_block_on(async {
-        let publish_key = "demo";
-        let subscribe_key = "demo";
         let channel = "demo2";
+
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
 
         let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
 
-        let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
+        let mut pubnub = Builder::new()
+            .transport(transport)
+            .runtime(TokioGlobal)
             .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
             .build();
 
@@ -154,13 +167,20 @@ fn pubnub_subscribeloop_drop() {
 fn pubnub_subscribeloop_recreate() {
     init();
     current_thread_block_on(async {
-        let publish_key = "demo";
-        let subscribe_key = "demo";
         let channel = "demo2";
+
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
 
         let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
 
-        let mut pubnub = PubNubBuilder::new(publish_key, subscribe_key)
+        let mut pubnub = Builder::new()
+            .transport(transport)
+            .runtime(TokioGlobal)
             .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
             .build();
 
@@ -185,10 +205,19 @@ fn pubnub_subscribe_clone_ok() {
         let mut prng = PCG32::seed(seed.0, seed.1);
         let mut streams = Vec::new();
 
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
+
         let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
 
         // Create a client and immediately subscribe
-        let mut pubnub1 = PubNubBuilder::new("demo", "demo")
+        let mut pubnub1 = Builder::new()
+            .transport(transport)
+            .runtime(TokioGlobal)
             .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
             .build();
         streams.push(pubnub1.subscribe("channel1").await);
@@ -247,11 +276,20 @@ fn pubnub_subscribe_clone_ok() {
 fn pubnub_subscribe_clones_share_loop() {
     init();
     current_thread_block_on(async {
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
+
         let (subscribe_loop_exit_tx, mut subscribe_loop_exit_rx) = mpsc::channel(1);
 
         // Create a client, dso not subscribe to avoid bootstrapping the
         // subscribe loop immediately.
-        let mut pubnub1 = PubNubBuilder::new("demo", "demo")
+        let mut pubnub1 = Builder::new()
+            .transport(transport)
+            .runtime(TokioGlobal)
             .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
             .build();
 
@@ -294,14 +332,18 @@ fn pubnub_subscribe_clones_share_loop() {
 fn pubnub_publish_ok() {
     init();
     current_thread_block_on(async {
-        let publish_key = "demo";
-        let subscribe_key = "demo";
         let channel = "demo";
 
-        let agent = "Rust-Agent-Test";
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
 
-        let pubnub = PubNubBuilder::new(publish_key, subscribe_key)
-            .agent(agent)
+        let pubnub = Builder::new()
+            .transport(transport)
+            .runtime(TokioGlobal)
             .build();
 
         let message = JsonValue::String("Hi!".to_string());

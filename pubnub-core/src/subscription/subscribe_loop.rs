@@ -1,7 +1,6 @@
-use super::encoded_channels_list::EncodedChannelsList;
-use super::registry::{RegistrationEffect, Registry as GenericRegistry, UnregistrationEffect};
-use super::subscribe_request;
-use crate::message::Timetoken;
+use super::registry::Registry as GenericRegistry;
+use crate::data::request;
+use crate::data::timetoken::Timetoken;
 use crate::transport::Transport;
 use futures_channel::{mpsc, oneshot};
 use futures_util::future::{select, Either, FutureExt};
@@ -38,10 +37,11 @@ pub(crate) enum ControlCommand {
 }
 
 /// # Type of listener (a channel or a channel group)
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ListenerType {
-    Channel(String), // Channel name
-    _Group(String),  // Channel Group name
+    Channel(String),      // Channel name
+    ChannelGroup(String), // Channel Group name
 }
 
 #[derive(Debug)]
@@ -52,12 +52,8 @@ pub(crate) struct SubscribeLoopParams<TTransport> {
 
     pub transport: TTransport,
 
-    pub origin: String,
-    pub agent: String,
-    pub subscribe_key: String,
-
     pub channels: Registry,
-    pub groups: Registry,
+    pub channel_groups: Registry,
 }
 
 /// Implements the subscribe loop, which efficiently polls for new messages.
@@ -76,32 +72,20 @@ where
 
         transport,
 
-        origin,
-        agent: _, // TODO: use it.
-        subscribe_key,
-
         mut channels,
-        mut groups,
+        mut channel_groups,
     } = params;
-
-    let mut encoded_channels = EncodedChannelsList::from(&channels);
-    let mut encoded_groups = EncodedChannelsList::from(&groups);
 
     let mut timetoken = Timetoken::default();
 
     loop {
-        // TODO: move the cache into the transport once we move from passing the
-        // URL to a structured transport invocation.
-        let request_encoded_channels = encoded_channels.clone();
-        let response = subscribe_request::subscribe_request(
-            &transport,
-            subscribe_request::SubscribeRequestParams {
-                origin: &origin,
-                subscribe_key: &subscribe_key,
-                encoded_channels: &request_encoded_channels,
-            },
-            timetoken.clone(),
-        );
+        // TODO: re-add cache.
+        let channels_list: Vec<String> = channels.keys().cloned().collect();
+        let request = request::SubscribeV2 {
+            channels: channels_list,
+            timetoken: timetoken.clone(),
+        };
+        let response = transport.subscribe_request_v2(request);
 
         let response = response.fuse();
         futures_util::pin_mut!(response);
@@ -111,14 +95,7 @@ where
 
         let (messages, next_timetoken) = match select(control_rx_recv, response).await {
             Either::Left((msg, _)) => {
-                let outcome = handle_control_command(
-                    &mut channels,
-                    &mut groups,
-                    &mut encoded_channels,
-                    &mut encoded_groups,
-                    msg,
-                )
-                .await;
+                let outcome = handle_control_command(&mut channels, &mut channel_groups, msg).await;
                 if let ControlOutcome::Terminate = outcome {
                     // Termination requested, break the loop.
                     break;
@@ -201,9 +178,7 @@ enum ControlOutcome {
 /// Handle a control command.
 async fn handle_control_command(
     channels: &mut Registry,
-    groups: &mut Registry,
-    encoded_channels: &mut EncodedChannelsList,
-    encoded_groups: &mut EncodedChannelsList,
+    channel_groups: &mut Registry,
     msg: Option<ControlCommand>,
 ) -> ControlOutcome {
     debug!("Got request: {:?}", msg);
@@ -214,30 +189,21 @@ async fn handle_control_command(
     match request {
         ControlCommand::Drop(id, listener) => {
             // Remove channel or group listener.
-            let (name, kind, registry, cache, other_is_empty) = match listener {
-                ListenerType::Channel(name) => (
-                    name,
-                    "channel",
-                    channels,
-                    encoded_channels,
-                    groups.is_empty(),
-                ),
-                ListenerType::_Group(name) => {
-                    (name, "group", groups, encoded_groups, channels.is_empty())
+            let (name, kind, registry, other_is_empty) = match listener {
+                ListenerType::Channel(name) => {
+                    (name, "channel", channels, channel_groups.is_empty())
+                }
+                ListenerType::ChannelGroup(name) => {
+                    (name, "group", channel_groups, channels.is_empty())
                 }
             };
 
             // Unregister the listener from the registry.
             debug!("Removing {} from SubscribeLoop: {}", kind, name);
 
-            let (_, effect) = registry
+            let (_, _effect) = registry
                 .unregister(&name, id)
                 .expect("Unable to get channel listeners");
-
-            // Update cache if needed.
-            if let UnregistrationEffect::NameErased = effect {
-                *cache = EncodedChannelsList::from(&*registry);
-            }
 
             // TODO: avoid terminating loop here to avoid special casing.
             if other_is_empty && registry.is_empty() {
@@ -248,19 +214,14 @@ async fn handle_control_command(
         }
         ControlCommand::Add(listener, channel_tx, id_tx) => {
             // Add channel or group listener.
-            let (name, kind, registry, cache) = match listener {
-                ListenerType::Channel(name) => (name, "channel", channels, encoded_channels),
-                ListenerType::_Group(name) => (name, "group", groups, encoded_groups),
+            let (name, kind, registry) = match listener {
+                ListenerType::Channel(name) => (name, "channel", channels),
+                ListenerType::ChannelGroup(name) => (name, "group", channel_groups),
             };
             debug!("Adding {} to SubscribeLoop: {}", kind, name);
 
             // Register new channel listener with the registry.
-            let (id, effect) = registry.register(name, channel_tx);
-
-            // Update cache if needed.
-            if let RegistrationEffect::NewName = effect {
-                *cache = EncodedChannelsList::from(&*registry);
-            }
+            let (id, _effect) = registry.register(name, channel_tx);
 
             // Send Subscription ID.
             id_tx.send(id).expect("Unable to send subscription id");
