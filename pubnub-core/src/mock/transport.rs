@@ -15,25 +15,29 @@ use mockall::mock;
 #[error("mock tranport error")]
 pub struct MockTransportError;
 
-mock! {
-    pub Transport {
-        #[allow(clippy::type_complexity)]
-        fn mock_workaround_publish_request_v1(
-            &self,
-            req: request::PublishV1,
-        ) -> Pin<Box<dyn Future<Output = Result<Timetoken, MockTransportError>> + Send + 'static>> {}
+mod gen {
+    #![allow(missing_docs)]
+    use super::*;
 
-        #[allow(clippy::type_complexity)]
-        fn mock_workaround_subscribe_request_v2(
-            &self,
-            req: request::SubscribeV2,
-        ) -> Pin<Box<dyn Future<Output = Result<(Vec<Message>, Timetoken), MockTransportError>> + Send + 'static>>
-        {}
-    }
-    trait Clone {
-        fn clone(&self) -> Self {}
+    mock! {
+        pub Transport {
+            fn mock_workaround_publish_request_v1(
+                &self,
+                req: request::PublishV1,
+            ) -> Pin<Box<dyn Future<Output = Result<Timetoken, MockTransportError>> + Send + 'static>> {}
+
+            fn mock_workaround_subscribe_request_v2(
+                &self,
+                req: request::SubscribeV2,
+            ) -> Pin<Box<dyn Future<Output = Result<(Vec<Message>, Timetoken), MockTransportError>> + Send + 'static>>
+            {}
+        }
+        trait Clone {
+            fn clone(&self) -> Self {}
+        }
     }
 }
+pub use gen::*;
 
 // We implement the mock manually cause `mockall` doesn't support `async_trait` yet.
 #[async_trait]
