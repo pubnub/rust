@@ -67,12 +67,12 @@ where
         channel: &str,
         message: Object,
     ) -> Result<Timetoken, TTransport::Error> {
-        let request = request::PublishV1 {
+        let request = request::Publish {
             channel: channel.to_string(),
             meta: None,
             payload: message,
         };
-        self.transport.publish_request_v1(request).await
+        self.transport.publish_request(request).await
     }
 
     /// Publish a message over the PubNub network with an extra metadata payload.
@@ -110,12 +110,12 @@ where
         message: Object,
         metadata: Object,
     ) -> Result<Timetoken, TTransport::Error> {
-        let request = request::PublishV1 {
+        let request = request::Publish {
             channel: channel.to_string(),
             meta: Some(metadata),
             payload: message,
         };
-        self.transport.publish_request_v1(request).await
+        self.transport.publish_request(request).await
     }
 
     /// Subscribe to a message stream over the PubNub network.

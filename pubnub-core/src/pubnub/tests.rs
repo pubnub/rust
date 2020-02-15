@@ -31,8 +31,8 @@ fn mocked_pubnub_publish_ok() {
         };
 
         mock_transport
-            .expect_mock_workaround_publish_request_v1()
-            .with(eq(request::PublishV1 {
+            .expect_mock_workaround_publish_request()
+            .with(eq(request::Publish {
                 channel: "test_channel".to_string(),
                 payload: message.clone(),
                 meta: None,
@@ -92,10 +92,10 @@ fn mocked_pubnub_subscribe_ok() {
                     .return_once(move || {
                         let mut mock = MockTransport::new();
 
-                        mock.expect_mock_workaround_subscribe_request_v2()
+                        mock.expect_mock_workaround_subscribe_request()
                             .times(1)
                             .in_sequence(&mut seq)
-                            .with(eq(request::SubscribeV2 {
+                            .with(eq(request::Subscribe {
                                 channels: vec![test_channel.to_owned()],
                                 timetoken: Timetoken::default(),
                             }))
@@ -105,10 +105,10 @@ fn mocked_pubnub_subscribe_ok() {
                                 })
                             });
 
-                        mock.expect_mock_workaround_subscribe_request_v2()
+                        mock.expect_mock_workaround_subscribe_request()
                             .times(1)
                             .in_sequence(&mut seq)
-                            .with(eq(request::SubscribeV2 {
+                            .with(eq(request::Subscribe {
                                 channels: vec![test_channel.to_owned()],
                                 timetoken: Timetoken { t: 150, r: 1 },
                             }))

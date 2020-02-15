@@ -5,7 +5,7 @@ use crate::data::timetoken::Timetoken;
 
 /// A request to publish a message to a channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PublishV1 {
+pub struct Publish {
     /// A channel name to publish the message to.
     pub channel: String,
     /// The body of the message.
@@ -16,7 +16,7 @@ pub struct PublishV1 {
 
 /// Subscribe to messages on channels and/or channel groups.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubscribeV2 {
+pub struct Subscribe {
     /// The channel name(s) you are subscribing to.
     /// Verify that channels are comprised of valid characters.
     /// You may subscribe to mulitple channels using a comma seperator.

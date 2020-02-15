@@ -20,14 +20,14 @@ mod gen {
 
     mock! {
         pub Transport {
-            fn mock_workaround_publish_request_v1(
+            fn mock_workaround_publish_request(
                 &self,
-                req: request::PublishV1,
+                request: request::Publish,
             ) -> BoxFuture<'static, Result<Timetoken, MockTransportError>> {}
 
-            fn mock_workaround_subscribe_request_v2(
+            fn mock_workaround_subscribe_request(
                 &self,
-                req: request::SubscribeV2,
+                request: request::Subscribe,
             ) -> BoxFuture<'static, Result<(Vec<Message>, Timetoken), MockTransportError>> {}
         }
         trait Clone {
@@ -42,14 +42,14 @@ pub use gen::*;
 impl Transport for MockTransport {
     type Error = MockTransportError;
 
-    async fn publish_request_v1(&self, req: request::PublishV1) -> Result<Timetoken, Self::Error> {
-        self.mock_workaround_publish_request_v1(req).await
+    async fn publish_request(&self, request: request::Publish) -> Result<Timetoken, Self::Error> {
+        self.mock_workaround_publish_request(request).await
     }
 
-    async fn subscribe_request_v2(
+    async fn subscribe_request(
         &self,
-        req: request::SubscribeV2,
+        request: request::Subscribe,
     ) -> Result<(Vec<Message>, Timetoken), Self::Error> {
-        self.mock_workaround_subscribe_request_v2(req).await
+        self.mock_workaround_subscribe_request(request).await
     }
 }

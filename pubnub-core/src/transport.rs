@@ -8,15 +8,12 @@ pub trait Transport: Clone + Send + Sync {
     /// Transport-specific error type this transport can generate.
     type Error: std::error::Error + Send + Sync;
 
-    /// Send a Publish Request V1 and return the timetoken.
-    async fn publish_request_v1(
-        &self,
-        request: request::PublishV1,
-    ) -> Result<Timetoken, Self::Error>;
+    /// Send a Publish Request and return the timetoken.
+    async fn publish_request(&self, request: request::Publish) -> Result<Timetoken, Self::Error>;
 
-    /// Send a Subscribe Request V2 and return the messages received.
-    async fn subscribe_request_v2(
+    /// Send a Subscribe Request and return the messages received.
+    async fn subscribe_request(
         &self,
-        request: request::SubscribeV2,
+        request: request::Subscribe,
     ) -> Result<(Vec<Message>, Timetoken), Self::Error>;
 }
