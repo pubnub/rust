@@ -1,3 +1,5 @@
+//! Encoded channels list.
+
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 /// Newtype for an encoded list of channels.
@@ -7,6 +9,8 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 pub struct EncodedChannelsList(String);
 
 impl EncodedChannelsList {
+    /// Create a new [`EncodedChannelsList`] from an interator of [`String`]
+    /// values.
     pub fn from_string_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = String>,

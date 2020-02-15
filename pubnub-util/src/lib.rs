@@ -1,3 +1,6 @@
+//! # Shared PubNub utilities.
+//! May come in handy when implemeting custom transports.
+
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 #![allow(clippy::doc_markdown)]

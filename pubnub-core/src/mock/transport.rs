@@ -1,3 +1,5 @@
+//! [`Transport`] mocks.
+
 use crate::data::{message::Message, request, timetoken::Timetoken};
 use crate::Transport;
 use async_trait::async_trait;
@@ -7,6 +9,7 @@ use thiserror::Error;
 
 use mockall::mock;
 
+/// A dummy error used by the [`MockTransport`].
 #[derive(Debug, Error)]
 #[error("mock tranport error")]
 pub struct MockTransportError;

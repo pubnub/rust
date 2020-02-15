@@ -1,3 +1,5 @@
+//! Tokio global executor runtime.
+
 use crate::core::Runtime;
 use std::future::Future;
 

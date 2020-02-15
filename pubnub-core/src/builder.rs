@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 /// # PubNub Client Builder
 ///
-/// Create a `PubNub` client using the builder pattern.
+/// Create a [`crate::PubNub`] client using the builder pattern.
 /// Optional items can be overridden using this.
 #[derive(Clone, Debug)]
 pub struct Builder<TTransport = (), TRuntime = ()> {
@@ -29,7 +29,7 @@ where
     TTransport: Transport,
     TRuntime: Runtime,
 {
-    /// Build the PubNub client to begin streaming messages.
+    /// Build the [`PubNub`] client to begin streaming messages.
     ///
     /// # Example
     ///
@@ -66,7 +66,7 @@ where
 }
 
 impl<TTransport, TRuntime> Builder<TTransport, TRuntime> {
-    /// Create a new `Builder` that can configure a `PubNub` client
+    /// Create a new [`Builder`] that can configure a [`PubNub`] client
     /// with custom component implementations.
     ///
     /// # Example
@@ -114,10 +114,10 @@ impl<TTransport, TRuntime> Builder<TTransport, TRuntime> {
         self
     }
 
-    /// Set transport to use.
+    /// Set the transport to use.
     ///
-    /// This allows changing the `Transport` type on the builder and, therefore,
-    /// on the resulting `PubNub`.
+    /// This allows changing the [`Transport`] type on the builder and,
+    /// therefore, on the resulting [`PubNub`] client.
     #[must_use]
     pub fn transport<U: Transport>(self, transport: U) -> Builder<U, TRuntime> {
         Builder {
@@ -129,10 +129,10 @@ impl<TTransport, TRuntime> Builder<TTransport, TRuntime> {
         }
     }
 
-    /// Set runtime to use.
+    /// Set the runtime to use.
     ///
-    /// This allows changing the `Runtime` type on the builder and, therefore,
-    /// on the resulting `PubNub`.
+    /// This allows changing the [`Runtime`] type on the builder and,
+    /// therefore, on the resulting [`PubNub`] client.
     #[must_use]
     pub fn runtime<U: Runtime>(self, runtime: U) -> Builder<TTransport, U> {
         Builder {
@@ -146,7 +146,7 @@ impl<TTransport, TRuntime> Builder<TTransport, TRuntime> {
 }
 
 impl Builder<(), ()> {
-    /// Create a new `Builder` that can configure a `PubNub` client.
+    /// Create a new [`Builder`] that can configure a [`PubNub`] client.
     ///
     /// # Example
     ///
@@ -170,7 +170,7 @@ where
     TTransport: Default,
     TRuntime: Default,
 {
-    /// Create a new `Builder` that can configure a `PubNub` client
+    /// Create a new [`Builder`] that can configure a [`PubNub`] client
     /// with default components.
     #[must_use]
     fn default() -> Self {

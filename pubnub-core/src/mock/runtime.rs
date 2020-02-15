@@ -1,3 +1,5 @@
+//! [`Runtime`] mocks.
+
 use crate::Runtime;
 use std::future::Future;
 use std::pin::Pin;
