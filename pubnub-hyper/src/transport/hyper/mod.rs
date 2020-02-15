@@ -58,10 +58,7 @@ impl Hyper {
 impl Transport for Hyper {
     type Error = error::Error;
 
-    async fn publish_request_v1(
-        &self,
-        request: request::PublishV1,
-    ) -> Result<Timetoken, Self::Error> {
+    async fn publish_request(&self, request: request::Publish) -> Result<Timetoken, Self::Error> {
         // Prepare encoded message and channel.
         let payload_string = json::stringify(request.payload);
         let encoded_payload = utf8_percent_encode(&payload_string, NON_ALPHANUMERIC);
@@ -104,9 +101,9 @@ impl Transport for Hyper {
         Ok(timetoken)
     }
 
-    async fn subscribe_request_v2(
+    async fn subscribe_request(
         &self,
-        request: request::SubscribeV2,
+        request: request::Subscribe,
     ) -> Result<(Vec<Message>, Timetoken), Self::Error> {
         // TODO: add caching of repeating params to avoid reencoding.
 

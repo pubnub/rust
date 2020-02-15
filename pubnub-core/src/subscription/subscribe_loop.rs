@@ -81,11 +81,11 @@ where
     loop {
         // TODO: re-add cache.
         let channels_list: Vec<String> = channels.keys().cloned().collect();
-        let request = request::SubscribeV2 {
+        let request = request::Subscribe {
             channels: channels_list,
             timetoken,
         };
-        let response = transport.subscribe_request_v2(request);
+        let response = transport.subscribe_request(request);
 
         let response = response.fuse();
         futures_util::pin_mut!(response);
