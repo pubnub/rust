@@ -4,7 +4,7 @@ use crate::core::Runtime;
 use std::future::Future;
 
 /// Spawns tasks on global tokio executor.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct TokioGlobal;
 
 impl Runtime for TokioGlobal {

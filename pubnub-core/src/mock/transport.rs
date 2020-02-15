@@ -10,6 +10,7 @@ use thiserror::Error;
 use mockall::mock;
 
 /// A dummy error used by the [`MockTransport`].
+#[allow(missing_copy_implementations)]
 #[derive(Debug, Error)]
 #[error("mock tranport error")]
 pub struct MockTransportError;
