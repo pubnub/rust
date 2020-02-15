@@ -1,3 +1,5 @@
+//! Hyper transport related errors.
+
 use crate::core::json;
 use error_iter::ErrorIter;
 use thiserror::Error;

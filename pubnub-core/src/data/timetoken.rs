@@ -1,3 +1,5 @@
+//! Timetoken type.
+
 use std::time::{SystemTime, SystemTimeError};
 
 /// # PubNub Timetoken
