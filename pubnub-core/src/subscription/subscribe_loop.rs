@@ -83,7 +83,7 @@ where
         let channels_list: Vec<String> = channels.keys().cloned().collect();
         let request = request::SubscribeV2 {
             channels: channels_list,
-            timetoken: timetoken.clone(),
+            timetoken,
         };
         let response = transport.subscribe_request_v2(request);
 
