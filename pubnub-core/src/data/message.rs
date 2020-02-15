@@ -38,7 +38,7 @@ pub struct Message {
 /// The special `Unknown` variant may be delivered as the PubNub service evolves. It allows
 /// applications built on the PubNub Rust client to be forward-compatible without requiring a full
 /// client upgrade.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
 pub enum Type {
     /// A class message containing arbitrary payload data.
     Publish,
