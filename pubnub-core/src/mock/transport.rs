@@ -3,8 +3,7 @@
 use crate::data::{message::Message, request, timetoken::Timetoken};
 use crate::Transport;
 use async_trait::async_trait;
-use std::future::Future;
-use std::pin::Pin;
+use futures_core::future::BoxFuture;
 use thiserror::Error;
 
 use mockall::mock;
@@ -24,13 +23,12 @@ mod gen {
             fn mock_workaround_publish_request_v1(
                 &self,
                 req: request::PublishV1,
-            ) -> Pin<Box<dyn Future<Output = Result<Timetoken, MockTransportError>> + Send + 'static>> {}
+            ) -> BoxFuture<'static, Result<Timetoken, MockTransportError>> {}
 
             fn mock_workaround_subscribe_request_v2(
                 &self,
                 req: request::SubscribeV2,
-            ) -> Pin<Box<dyn Future<Output = Result<(Vec<Message>, Timetoken), MockTransportError>> + Send + 'static>>
-            {}
+            ) -> BoxFuture<'static, Result<(Vec<Message>, Timetoken), MockTransportError>> {}
         }
         trait Clone {
             fn clone(&self) -> Self {}

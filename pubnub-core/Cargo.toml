@@ -13,6 +13,7 @@ license-file = "../LICENSE"
 async-trait = "0.1"
 error-iter = "0.2"
 futures-channel = { version = "0.3", features = ["sink"] }
+futures-core = "0.3"
 futures-util = { version = "0.3", features = ["async-await", "async-await-macro", "sink", "channel"] }
 json = "0.12"
 log = "0.4"
