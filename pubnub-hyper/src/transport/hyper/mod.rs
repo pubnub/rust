@@ -64,14 +64,23 @@ impl Hyper {
     }
 }
 
+macro_rules! encode_json {
+    ($value:expr => $to:ident) => {
+        let value_string = json::stringify($value);
+        let $to = {
+            use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+            utf8_percent_encode(&value_string, NON_ALPHANUMERIC)
+        };
+    };
+}
+
 #[async_trait]
 impl Transport for Hyper {
     type Error = error::Error;
 
     async fn publish_request(&self, request: request::Publish) -> Result<Timetoken, Self::Error> {
         // Prepare encoded message and channel.
-        let payload_string = json::stringify(request.payload);
-        let encoded_payload = utf8_percent_encode(&payload_string, NON_ALPHANUMERIC);
+        encode_json!(request.payload => encoded_payload);
         let encoded_channel = utf8_percent_encode(&request.channel, NON_ALPHANUMERIC);
 
         // Prepare the URL.
