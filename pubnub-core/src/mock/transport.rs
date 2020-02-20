@@ -1,6 +1,6 @@
 //! [`Transport`] mocks.
 
-use crate::data::{message::Message, request, timetoken::Timetoken};
+use crate::data::{message::Message, object::Object, request, timetoken::Timetoken};
 use crate::Transport;
 use async_trait::async_trait;
 use futures_core::future::BoxFuture;
@@ -29,6 +29,16 @@ mod gen {
                 &self,
                 request: request::Subscribe,
             ) -> BoxFuture<'static, Result<(Vec<Message>, Timetoken), MockTransportError>> {}
+
+            fn mock_workaround_set_state_request(
+                &self,
+                request: request::SetState,
+            ) -> BoxFuture<'static, Result<(), MockTransportError>> {}
+
+            fn mock_workaround_get_state_request(
+                &self,
+                request: request::GetState,
+            ) -> BoxFuture<'static, Result<Object, MockTransportError>> {}
         }
         trait Clone {
             fn clone(&self) -> Self {}
@@ -51,5 +61,13 @@ impl Transport for MockTransport {
         request: request::Subscribe,
     ) -> Result<(Vec<Message>, Timetoken), Self::Error> {
         self.mock_workaround_subscribe_request(request).await
+    }
+
+    async fn set_state_request(&self, request: request::SetState) -> Result<(), Self::Error> {
+        self.mock_workaround_set_state_request(request).await
+    }
+
+    async fn get_state_request(&self, request: request::GetState) -> Result<Object, Self::Error> {
+        self.mock_workaround_get_state_request(request).await
     }
 }
