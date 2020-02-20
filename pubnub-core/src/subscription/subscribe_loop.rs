@@ -144,15 +144,27 @@ where
 
         // Distribute messages to each listener.
         for message in messages {
-            let route = message
-                .route
-                .clone()
-                .unwrap_or_else(|| message.channel.clone());
-            debug!("route: {}", route);
-
             // TODO: provide a better interface and remove the potentially
             // unsound `get` and `get_mut` from the registry API.
-            let listeners = channels.get_mut(&route).unwrap();
+            let listeners = {
+                let channel = &message.channel;
+                let route = match &message.route {
+                    None => None,
+                    Some(route) if route == channel => None,
+                    Some(route) => Some(route),
+                };
+                if let Some(ref route) = route {
+                    debug!("route: {} (channel group)", route);
+                    channel_groups
+                        .get_mut(route)
+                        .expect("received a message with a route that has no listeners")
+                } else {
+                    debug!("route: {} (channel)", channel);
+                    channels
+                        .get_mut(channel)
+                        .expect("received a message with a channel that has no listeners")
+                }
+            };
 
             debug!("Delivering to {} listeners...", listeners.len());
             for channel_tx in listeners.iter_mut() {
