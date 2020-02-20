@@ -81,8 +81,10 @@ where
     loop {
         // TODO: re-add cache.
         let channels_list: Vec<String> = channels.keys().cloned().collect();
+        let channel_groups_list: Vec<String> = channel_groups.keys().cloned().collect();
         let request = request::Subscribe {
             channels: channels_list,
+            channel_groups: channel_groups_list,
             timetoken,
         };
         let response = transport.subscribe_request(request);
