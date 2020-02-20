@@ -2,6 +2,7 @@
 
 use crate::data::object::Object;
 use crate::data::timetoken::Timetoken;
+use crate::data::uuid::UUID;
 
 /// A request to publish a message to a channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,4 +31,33 @@ pub struct Subscribe {
     /// resuming / continuing / fast-forwarding from a previous subscribe flow.
     /// tr: Region as returned from the initial call with tt=0.
     pub timetoken: Timetoken,
+}
+
+/// Set state for a user for channels and/or channel groups.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetState {
+    /// The channel names to set state for.
+    pub channels: Vec<String>,
+
+    /// The channel group names to set state for.
+    pub channel_groups: Vec<String>,
+
+    /// The User UUID to set state for.
+    pub uuid: UUID,
+
+    /// State to set.
+    pub state: Object,
+}
+
+/// Get state for a user for channels and/or channel groups.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetState {
+    /// The channel names to get the state for.
+    pub channels: Vec<String>,
+
+    /// The channel group names to get state for.
+    pub channel_groups: Vec<String>,
+
+    /// The User UUID to get state for.
+    pub uuid: UUID,
 }
