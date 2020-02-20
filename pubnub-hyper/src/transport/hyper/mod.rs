@@ -52,6 +52,16 @@ impl Hyper {
     pub fn new() -> HyperBuilder {
         HyperBuilder::default()
     }
+
+    fn build_uri(&self, path_and_query: &str) -> Result<Uri, http::Error> {
+        let url = Uri::builder()
+            .scheme("https")
+            .authority(self.origin.as_str())
+            .path_and_query(path_and_query)
+            .build()?;
+        debug!("URL: {}", url);
+        Ok(url)
+    }
 }
 
 #[async_trait]
@@ -72,12 +82,7 @@ impl Transport for Hyper {
             channel = encoded_channel,
             message = encoded_payload,
         );
-        let url = Uri::builder()
-            .scheme("https")
-            .authority(self.origin.as_str())
-            .path_and_query(path_and_query.as_str())
-            .build()?;
-        debug!("URL: {}", url);
+        let url = self.build_uri(&path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -111,12 +116,7 @@ impl Transport for Hyper {
             tt = request.timetoken.t,
             tr = request.timetoken.r,
         );
-        let url = Uri::builder()
-            .scheme("https")
-            .authority(self.origin.as_str())
-            .path_and_query(path_and_query.as_str())
-            .build()?;
-        debug!("URL: {}", url);
+        let url = self.build_uri(&path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
