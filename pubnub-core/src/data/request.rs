@@ -19,14 +19,11 @@ pub struct Publish {
 /// Subscribe to messages on channels and/or channel groups.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subscribe {
-    /// The channel name(s) you are subscribing to.
-    /// Verify that channels are comprised of valid characters.
-    /// You may subscribe to mulitple channels using a comma seperator.
-    /// If subscribing to no channels (only channel groups),
-    /// use a comma char (,) as a placeholder.
-    /// You may subscribe to channels, channels & channel groups,
-    /// or just channel groups.
+    /// The channel names you are subscribing to.
     pub channels: Vec<String>,
+
+    /// The channel group names you are subscribing to.
+    pub channel_groups: Vec<String>,
 
     /// A timetoken to use.
     /// tt: 0 (zero) for the initial subscribe, or a valid timetoken if

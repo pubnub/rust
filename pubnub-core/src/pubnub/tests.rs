@@ -99,6 +99,7 @@ fn mocked_pubnub_subscribe_ok() {
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
                                 channels: vec![test_channel.to_owned()],
+                                channel_groups: vec![],
                                 timetoken: Timetoken::default(),
                             }))
                             .return_once(move |_| {
@@ -112,6 +113,7 @@ fn mocked_pubnub_subscribe_ok() {
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
                                 channels: vec![test_channel.to_owned()],
+                                channel_groups: vec![],
                                 timetoken: Timetoken { t: 150, r: 1 },
                             }))
                             .return_once(move |_| {
