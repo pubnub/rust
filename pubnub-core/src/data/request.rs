@@ -8,8 +8,10 @@ use crate::data::timetoken::Timetoken;
 pub struct Publish {
     /// A channel name to publish the message to.
     pub channel: String,
+
     /// The body of the message.
     pub payload: Object,
+
     /// Additional information associated with the message.
     pub meta: Option<Object>,
 }
@@ -25,6 +27,7 @@ pub struct Subscribe {
     /// You may subscribe to channels, channels & channel groups,
     /// or just channel groups.
     pub channels: Vec<String>,
+
     /// A timetoken to use.
     /// tt: 0 (zero) for the initial subscribe, or a valid timetoken if
     /// resuming / continuing / fast-forwarding from a previous subscribe flow.
