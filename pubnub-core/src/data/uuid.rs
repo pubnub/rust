@@ -1,4 +1,5 @@
 //! UUID type.
+use std::fmt::{self, Display, Formatter};
 use std::ops::Deref;
 
 /// A unique alphanumeric ID for identifying the client to the PubNub Presence
@@ -25,5 +26,11 @@ impl Deref for UUID {
     #[must_use]
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl Display for UUID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
