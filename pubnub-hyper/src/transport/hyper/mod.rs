@@ -1,6 +1,7 @@
 //! Hyper transport implementation.
 use crate::core::data::{
     message::{Message, Type},
+    object::Object,
     request,
     timetoken::Timetoken,
 };
@@ -158,6 +159,62 @@ impl Transport for Hyper {
 
         Ok((messages, timetoken))
     }
+
+    async fn set_state_request(&self, request: request::SetState) -> Result<(), Self::Error> {
+        let request::SetState {
+            channels,
+            channel_groups,
+            uuid,
+            state,
+        } = request;
+
+        let channels = EncodedChannelsList::from(channels);
+        let channel_groups = EncodedChannelsList::from(channel_groups);
+        encode_json!(state => state);
+
+        // Prepare the URL.
+        let path_and_query = format!(
+            "/v2/presence/sub-key/{sub_key}/channel/{channel}/uuid/{uuid}/data?channel-group={channel_group}&state={state}",
+            sub_key = self.subscribe_key,
+            channel = channels,
+            channel_group = channel_groups,
+            uuid = uuid,
+            state = state,
+        );
+        let url = self.build_uri(&path_and_query)?;
+
+        // Send network request
+        let response = self.http_client.get(url).await?;
+        let _ = handle_presence_response(response).await?;
+
+        Ok(())
+    }
+
+    async fn get_state_request(&self, request: request::GetState) -> Result<Object, Self::Error> {
+        let request::GetState {
+            channels,
+            channel_groups,
+            uuid,
+        } = request;
+
+        let channels = EncodedChannelsList::from(channels);
+        let channel_groups = EncodedChannelsList::from(channel_groups);
+
+        // Prepare the URL.
+        let path_and_query = format!(
+            "/v2/presence/sub-key/{sub_key}/channel/{channel}/uuid/{uuid}?channel-group={channel_group}",
+            sub_key = self.subscribe_key,
+            channel = channels,
+            channel_group = channel_groups,
+            uuid = uuid,
+        );
+        let url = self.build_uri(&path_and_query)?;
+
+        let response = self.http_client.get(url).await?;
+        let data_json = handle_presence_response(response).await?;
+
+        Ok(data_json)
+    }
 }
 
 async fn handle_json_response(response: Response<Body>) -> Result<json::JsonValue, error::Error> {
@@ -174,6 +231,19 @@ async fn handle_json_response(response: Response<Body>) -> Result<json::JsonValu
     let data_json = json::parse(data)?;
 
     Ok(data_json)
+}
+
+async fn handle_presence_response(
+    response: Response<Body>,
+) -> Result<json::JsonValue, error::Error> {
+    let mut presence_data = handle_json_response(response).await?;
+
+    if presence_data["error"] == true {
+        let error_message: String = format!("{}", presence_data["message"]);
+        return Err(error::Error::Server(error_message));
+    }
+
+    Ok(presence_data.remove("state"))
 }
 
 impl HyperBuilder {
