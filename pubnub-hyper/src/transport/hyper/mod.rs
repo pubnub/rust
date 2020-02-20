@@ -14,7 +14,7 @@ use async_trait::async_trait;
 
 use derive_builder::Builder;
 use futures_util::stream::StreamExt;
-use hyper::{client::HttpConnector, Body, Client, Uri};
+use hyper::{client::HttpConnector, Body, Client, Response, Uri};
 use hyper_tls::HttpsConnector;
 use std::time::Duration;
 
@@ -79,25 +79,16 @@ impl Transport for Hyper {
             .build()?;
         debug!("URL: {}", url);
 
-        // Send network request
+        // Send network request.
         let response = self.http_client.get(url).await?;
-        let mut body = response.into_body();
-        let mut bytes = Vec::new();
+        let data_json = handle_json_response(response).await?;
 
-        // Receive the response as a byte stream
-        while let Some(chunk) = body.next().await {
-            bytes.extend(chunk?);
-        }
-
-        // Convert the resolved byte stream to JSON
-        let data = std::str::from_utf8(&bytes)?;
-        let data_json = json::parse(data)?;
+        // Parse timetoken.
         let timetoken = Timetoken {
             t: data_json[2].as_str().unwrap().parse().unwrap(),
             r: 0, // TODO
         };
 
-        // Deliever the timetoken response from PubNub
         Ok(timetoken)
     }
 
@@ -127,27 +118,17 @@ impl Transport for Hyper {
             .build()?;
         debug!("URL: {}", url);
 
-        // Send network request
-        let res = self.http_client.get(url).await?;
-        let mut body = res.into_body();
-        let mut bytes = Vec::new();
+        // Send network request.
+        let response = self.http_client.get(url).await?;
+        let data_json = handle_json_response(response).await?;
 
-        // Receive the response as a byte stream
-        while let Some(chunk) = body.next().await {
-            bytes.extend(chunk?);
-        }
-
-        // Convert the resolved byte stream to JSON
-        let data = std::str::from_utf8(&bytes)?;
-        let data_json = json::parse(data)?;
-
-        // Decode the stream timetoken
+        // Parse timetoken.
         let timetoken = Timetoken {
             t: data_json["t"]["t"].as_str().unwrap().parse().unwrap(),
             r: data_json["t"]["r"].as_u32().unwrap_or(0),
         };
 
-        // Capture Messages in Vec Buffer
+        // Parse messages.
         let messages = data_json["m"]
             .members()
             .map(|message| Message {
@@ -166,9 +147,24 @@ impl Transport for Hyper {
             })
             .collect::<Vec<_>>();
 
-        // Deliver the message response from PubNub
         Ok((messages, timetoken))
     }
+}
+
+async fn handle_json_response(response: Response<Body>) -> Result<json::JsonValue, error::Error> {
+    let mut body = response.into_body();
+    let mut bytes = Vec::new();
+
+    // Receive the response as a byte stream
+    while let Some(chunk) = body.next().await {
+        bytes.extend(chunk?);
+    }
+
+    // Convert the resolved byte stream to JSON.
+    let data = std::str::from_utf8(&bytes)?;
+    let data_json = json::parse(data)?;
+
+    Ok(data_json)
 }
 
 impl HyperBuilder {
