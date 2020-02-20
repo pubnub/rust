@@ -109,13 +109,14 @@ impl Transport for Hyper {
 
         // Prepare encoded channels and channel_groups.
         let encoded_channels = EncodedChannelsList::from(request.channels);
-        // let encoded_channel_groups = EncodedChannelsList::from(req.channel_groups.into_iter());
+        let encoded_channel_groups = EncodedChannelsList::from(request.channel_groups);
 
         // Prepare the URL.
         let path_and_query = format!(
-            "/v2/subscribe/{sub_key}/{channels}/0?tt={tt}&tr={tr}",
+            "/v2/subscribe/{sub_key}/{channels}/0?channel-group={channel_groups}&tt={tt}&tr={tr}",
             sub_key = self.subscribe_key,
             channels = encoded_channels,
+            channel_groups = encoded_channel_groups,
             tt = request.timetoken.t,
             tr = request.timetoken.r,
         );
