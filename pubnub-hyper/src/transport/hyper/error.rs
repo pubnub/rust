@@ -22,6 +22,14 @@ pub enum Error {
     /// Invalid JSON.
     #[error("Invalid JSON")]
     Json(#[from] json::Error),
+
+    /// Server error.
+    #[error("Server responded with error")]
+    Server(String),
+
+    /// Unexpected response schema.
+    #[error("Unexpected response schema")]
+    UnexpectedResponseSchema(json::JsonValue),
 }
 
 impl ErrorIter for Error {}
