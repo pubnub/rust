@@ -1,3 +1,5 @@
+#![cfg(feature = "mock")]
+
 use super::*;
 use crate::builder::Builder;
 use crate::mock::runtime::MockRuntime;
