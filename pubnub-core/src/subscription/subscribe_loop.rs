@@ -1,4 +1,5 @@
 use super::registry::Registry as GenericRegistry;
+use crate::data::message::Message;
 use crate::data::timetoken::Timetoken;
 use crate::data::{request, response};
 use crate::transport::Service;
@@ -57,6 +58,12 @@ pub(crate) struct SubscribeLoopParams<TTransport> {
     pub channel_groups: Registry,
 }
 
+#[derive(Debug)]
+struct StateData {
+    pub channels: Registry,
+    pub channel_groups: Registry,
+}
+
 /// Implements the subscribe loop, which efficiently polls for new messages.
 pub(crate) async fn subscribe_loop<TTransport>(params: SubscribeLoopParams<TTransport>)
 where
@@ -73,16 +80,21 @@ where
 
         transport,
 
-        mut channels,
-        mut channel_groups,
+        channels,
+        channel_groups,
     } = params;
+
+    let mut state_data = StateData {
+        channels,
+        channel_groups,
+    };
 
     let mut timetoken = Timetoken::default();
 
     loop {
         // TODO: re-add cache.
-        let channels_list: Vec<String> = channels.keys().cloned().collect();
-        let channel_groups_list: Vec<String> = channel_groups.keys().cloned().collect();
+        let channels_list: Vec<String> = state_data.channels.keys().cloned().collect();
+        let channel_groups_list: Vec<String> = state_data.channel_groups.keys().cloned().collect();
         let request = request::Subscribe {
             channels: channels_list,
             channel_groups: channel_groups_list,
@@ -98,7 +110,7 @@ where
 
         let (messages, next_timetoken) = match select(control_rx_recv, response).await {
             Either::Left((msg, _)) => {
-                let outcome = handle_control_command(&mut channels, &mut channel_groups, msg).await;
+                let outcome = handle_control_command(&mut state_data, msg).await;
                 if let ControlOutcome::Terminate = outcome {
                     // Termination requested, break the loop.
                     break;
@@ -144,36 +156,7 @@ where
         debug!("timetoken: {:?}", timetoken);
 
         // Distribute messages to each listener.
-        for message in messages {
-            // TODO: provide a better interface and remove the potentially
-            // unsound `get` and `get_mut` from the registry API.
-            let listeners = {
-                let channel = &message.channel;
-                let route = match &message.route {
-                    None => None,
-                    Some(route) if route == channel => None,
-                    Some(route) => Some(route),
-                };
-                if let Some(ref route) = route {
-                    debug!("route: {} (channel group)", route);
-                    channel_groups
-                        .get_mut(route)
-                        .expect("received a message with a route that has no listeners")
-                } else {
-                    debug!("route: {} (channel)", channel);
-                    channels
-                        .get_mut(channel)
-                        .expect("received a message with a channel that has no listeners")
-                }
-            };
-
-            debug!("Delivering to {} listeners...", listeners.len());
-            for channel_tx in listeners.iter_mut() {
-                if let Err(error) = channel_tx.send(message.clone()).await {
-                    error!("Delivery error: {:?}", error);
-                }
-            }
-        }
+        dispatch_messages(&mut state_data, messages).await;
     }
 
     debug!("Stopping subscribe loop");
@@ -192,8 +175,7 @@ enum ControlOutcome {
 
 /// Handle a control command.
 async fn handle_control_command(
-    channels: &mut Registry,
-    channel_groups: &mut Registry,
+    state_data: &mut StateData,
     msg: Option<ControlCommand>,
 ) -> ControlOutcome {
     debug!("Got request: {:?}", msg);
@@ -201,6 +183,10 @@ async fn handle_control_command(
         Some(v) => v,
         None => return ControlOutcome::CanContinue,
     };
+    let StateData {
+        channels,
+        channel_groups,
+    } = state_data;
     match request {
         ControlCommand::Drop(id, listener) => {
             // Remove channel or group listener.
@@ -242,6 +228,43 @@ async fn handle_control_command(
             id_tx.send(id).expect("Unable to send subscription id");
 
             ControlOutcome::CanContinue
+        }
+    }
+}
+
+/// Dispatch messages to interested listeners.
+async fn dispatch_messages(state_data: &mut StateData, messages: Vec<Message>) {
+    // Distribute messages to each listener.
+    for message in messages {
+        // TODO: provide a better interface and remove the potentially
+        // unsound `get` and `get_mut` from the registry API.
+        let listeners = {
+            let channel = &message.channel;
+            let route = match &message.route {
+                None => None,
+                Some(route) if route == channel => None,
+                Some(route) => Some(route),
+            };
+            if let Some(ref route) = route {
+                debug!("route: {} (channel group)", route);
+                state_data
+                    .channel_groups
+                    .get_mut(route)
+                    .expect("received a message with a route that has no listeners")
+            } else {
+                debug!("route: {} (channel)", channel);
+                state_data
+                    .channels
+                    .get_mut(channel)
+                    .expect("received a message with a channel that has no listeners")
+            }
+        };
+
+        debug!("Delivering to {} listeners...", listeners.len());
+        for channel_tx in listeners.iter_mut() {
+            if let Err(error) = channel_tx.send(message.clone()).await {
+                error!("Delivery error: {:?}", error);
+            }
         }
     }
 }
