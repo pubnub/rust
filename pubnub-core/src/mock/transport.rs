@@ -1,6 +1,6 @@
 //! [`Transport`] mocks.
 
-use crate::data::{message::Message, object::Object, request, timetoken::Timetoken};
+use crate::data::{request, response};
 use crate::Transport;
 use async_trait::async_trait;
 use futures_core::future::BoxFuture;
@@ -23,22 +23,22 @@ mod gen {
             fn mock_workaround_publish_request(
                 &self,
                 request: request::Publish,
-            ) -> BoxFuture<'static, Result<Timetoken, MockTransportError>> {}
+            ) -> BoxFuture<'static, Result<response::Publish, MockTransportError>> {}
 
             fn mock_workaround_subscribe_request(
                 &self,
                 request: request::Subscribe,
-            ) -> BoxFuture<'static, Result<(Vec<Message>, Timetoken), MockTransportError>> {}
+            ) -> BoxFuture<'static, Result<response::Subscribe, MockTransportError>> {}
 
             fn mock_workaround_set_state_request(
                 &self,
                 request: request::SetState,
-            ) -> BoxFuture<'static, Result<(), MockTransportError>> {}
+            ) -> BoxFuture<'static, Result<response::SetState, MockTransportError>> {}
 
             fn mock_workaround_get_state_request(
                 &self,
                 request: request::GetState,
-            ) -> BoxFuture<'static, Result<Object, MockTransportError>> {}
+            ) -> BoxFuture<'static, Result<response::GetState, MockTransportError>> {}
         }
         trait Clone {
             fn clone(&self) -> Self {}
@@ -52,22 +52,31 @@ pub use gen::*;
 impl Transport for MockTransport {
     type Error = MockTransportError;
 
-    async fn publish_request(&self, request: request::Publish) -> Result<Timetoken, Self::Error> {
+    async fn publish_request(
+        &self,
+        request: request::Publish,
+    ) -> Result<response::Publish, Self::Error> {
         self.mock_workaround_publish_request(request).await
     }
 
     async fn subscribe_request(
         &self,
         request: request::Subscribe,
-    ) -> Result<(Vec<Message>, Timetoken), Self::Error> {
+    ) -> Result<response::Subscribe, Self::Error> {
         self.mock_workaround_subscribe_request(request).await
     }
 
-    async fn set_state_request(&self, request: request::SetState) -> Result<(), Self::Error> {
+    async fn set_state_request(
+        &self,
+        request: request::SetState,
+    ) -> Result<response::SetState, Self::Error> {
         self.mock_workaround_set_state_request(request).await
     }
 
-    async fn get_state_request(&self, request: request::GetState) -> Result<Object, Self::Error> {
+    async fn get_state_request(
+        &self,
+        request: request::GetState,
+    ) -> Result<response::GetState, Self::Error> {
         self.mock_workaround_get_state_request(request).await
     }
 }
