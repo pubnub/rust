@@ -31,7 +31,7 @@ futures-executor = "0.3"
 [features]
 default = ["mock"]
 mock = ["mockall"]
-nigthly = ["mock", "mockall/nightly"]
+nightly = ["mock", "mockall/nightly"]
 
 [badges]
 travis-ci = { repository = "pubnub/rust", branch = "master" }
