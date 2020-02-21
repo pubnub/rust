@@ -1,7 +1,7 @@
 //! [`Transport`] mocks.
 
 use crate::data::{request, response};
-use crate::Transport;
+use crate::{transport::Service, Transport};
 use async_trait::async_trait;
 use futures_core::future::BoxFuture;
 use thiserror::Error;
@@ -47,36 +47,48 @@ mod gen {
 }
 pub use gen::*;
 
-// We implement the mock manually cause `mockall` doesn't support `async_trait` yet.
+// We implement the mocks manually cause `mockall` doesn't support `async_trait` yet.
+
 #[async_trait]
-impl Transport for MockTransport {
+impl Service<request::Publish> for MockTransport {
+    type Response = response::Publish;
     type Error = MockTransportError;
 
-    async fn publish_request(
-        &self,
-        request: request::Publish,
-    ) -> Result<response::Publish, Self::Error> {
-        self.mock_workaround_publish_request(request).await
+    async fn call(&self, req: request::Publish) -> Result<Self::Response, Self::Error> {
+        self.mock_workaround_publish_request(req).await
     }
+}
 
-    async fn subscribe_request(
-        &self,
-        request: request::Subscribe,
-    ) -> Result<response::Subscribe, Self::Error> {
-        self.mock_workaround_subscribe_request(request).await
-    }
+#[async_trait]
+impl Service<request::Subscribe> for MockTransport {
+    type Response = response::Subscribe;
+    type Error = MockTransportError;
 
-    async fn set_state_request(
-        &self,
-        request: request::SetState,
-    ) -> Result<response::SetState, Self::Error> {
-        self.mock_workaround_set_state_request(request).await
+    async fn call(&self, req: request::Subscribe) -> Result<Self::Response, Self::Error> {
+        self.mock_workaround_subscribe_request(req).await
     }
+}
 
-    async fn get_state_request(
-        &self,
-        request: request::GetState,
-    ) -> Result<response::GetState, Self::Error> {
-        self.mock_workaround_get_state_request(request).await
+#[async_trait]
+impl Service<request::SetState> for MockTransport {
+    type Response = response::SetState;
+    type Error = MockTransportError;
+
+    async fn call(&self, req: request::SetState) -> Result<Self::Response, Self::Error> {
+        self.mock_workaround_set_state_request(req).await
     }
+}
+
+#[async_trait]
+impl Service<request::GetState> for MockTransport {
+    type Response = response::GetState;
+    type Error = MockTransportError;
+
+    async fn call(&self, req: request::GetState) -> Result<Self::Response, Self::Error> {
+        self.mock_workaround_get_state_request(req).await
+    }
+}
+
+impl Transport for MockTransport {
+    type Error = MockTransportError;
 }
