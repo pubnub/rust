@@ -19,7 +19,7 @@ script:
 - 'if [[ "$TRAVIS_RUST_VERSION" != "1.39.0" ]]; then cargo clippy --all -- -D warnings; fi'
 - cargo test --all
 # Feature tests.
-- ( cd pubnub-core && cargo test --no-default-features )
-- ( cd pubnub-core && cargo test --no-default-features --features mock )
-- if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then ( cd pubnub-core && cargo test --no-default-features --features nightly ); fi
-- if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then ( cd pubnub-core && cargo test --no-default-features --features mock,nightly ); fi
+- ( cd pubnub-core && cargo test --no-default-features --tests )
+- ( cd pubnub-core && cargo test --no-default-features --tests --features mock )
+- if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then ( cd pubnub-core && cargo test --no-default-features --tests --features nightly ); fi
+- if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then ( cd pubnub-core && cargo test --no-default-features --tests --features mock,nightly ); fi
