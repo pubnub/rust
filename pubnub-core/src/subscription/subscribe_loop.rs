@@ -1,12 +1,13 @@
 use super::registry::Registry as GenericRegistry;
-use crate::data::request;
 use crate::data::timetoken::Timetoken;
-use crate::transport::Transport;
+use crate::data::{request, response};
+use crate::transport::Service;
 use futures_channel::{mpsc, oneshot};
 use futures_util::future::{select, Either, FutureExt};
 use futures_util::sink::SinkExt;
 use futures_util::stream::StreamExt;
 use log::{debug, error};
+use std::fmt::Debug;
 
 pub(crate) use super::channel::{Rx as ChannelRx, Tx as ChannelTx};
 pub(crate) use super::registry::ID as SubscriptionID;
@@ -59,8 +60,8 @@ pub(crate) struct SubscribeLoopParams<TTransport> {
 /// Implements the subscribe loop, which efficiently polls for new messages.
 pub(crate) async fn subscribe_loop<TTransport>(params: SubscribeLoopParams<TTransport>)
 where
-    TTransport: Transport,
-    <TTransport as Transport>::Error: 'static,
+    TTransport: Service<request::Subscribe, Response = response::Subscribe> + Clone,
+    <TTransport as Service<request::Subscribe>>::Error: Debug + 'static,
 {
     debug!("Starting subscribe loop");
 
@@ -87,7 +88,7 @@ where
             channel_groups: channel_groups_list,
             timetoken,
         };
-        let response = transport.subscribe_request(request);
+        let response = transport.call(request);
 
         let response = response.fuse();
         futures_util::pin_mut!(response);
