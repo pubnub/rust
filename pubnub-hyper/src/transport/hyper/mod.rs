@@ -1,8 +1,7 @@
 //! Hyper transport implementation.
 use crate::core::data::{
     message::{Message, Type},
-    object::Object,
-    request,
+    request, response,
     timetoken::Timetoken,
 };
 use crate::core::json;
@@ -79,7 +78,10 @@ macro_rules! encode_json {
 impl Transport for Hyper {
     type Error = error::Error;
 
-    async fn publish_request(&self, request: request::Publish) -> Result<Timetoken, Self::Error> {
+    async fn publish_request(
+        &self,
+        request: request::Publish,
+    ) -> Result<response::Publish, Self::Error> {
         // Prepare encoded message and channel.
         encode_json!(request.payload => encoded_payload);
         let encoded_channel = utf8_percent_encode(&request.channel, NON_ALPHANUMERIC);
@@ -110,7 +112,7 @@ impl Transport for Hyper {
     async fn subscribe_request(
         &self,
         request: request::Subscribe,
-    ) -> Result<(Vec<Message>, Timetoken), Self::Error> {
+    ) -> Result<response::Subscribe, Self::Error> {
         // TODO: add caching of repeating params to avoid reencoding.
 
         // Prepare encoded channels and channel_groups.
@@ -160,7 +162,10 @@ impl Transport for Hyper {
         Ok((messages, timetoken))
     }
 
-    async fn set_state_request(&self, request: request::SetState) -> Result<(), Self::Error> {
+    async fn set_state_request(
+        &self,
+        request: request::SetState,
+    ) -> Result<response::SetState, Self::Error> {
         let request::SetState {
             channels,
             channel_groups,
@@ -190,7 +195,10 @@ impl Transport for Hyper {
         Ok(())
     }
 
-    async fn get_state_request(&self, request: request::GetState) -> Result<Object, Self::Error> {
+    async fn get_state_request(
+        &self,
+        request: request::GetState,
+    ) -> Result<response::GetState, Self::Error> {
         let request::GetState {
             channels,
             channel_groups,
