@@ -13,7 +13,7 @@ use mockall::predicate::*;
 use mockall::Sequence;
 
 use crate::data::message::{Message, Type};
-use crate::data::request;
+use crate::data::{request, response};
 use crate::json::object;
 
 fn init() {
@@ -33,7 +33,7 @@ fn mocked_pubnub_publish_ok() {
         };
 
         mock_transport
-            .expect_mock_workaround_publish_request()
+            .expect_mock_call::<request::Publish, response::Publish>()
             .with(eq(request::Publish {
                 channel: "test_channel".to_string(),
                 payload: message.clone(),
@@ -94,7 +94,7 @@ fn mocked_pubnub_subscribe_ok() {
                     .return_once(move || {
                         let mut mock = MockTransport::new();
 
-                        mock.expect_mock_workaround_subscribe_request()
+                        mock.expect_mock_call::<request::Subscribe, response::Subscribe>()
                             .times(1)
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
@@ -108,7 +108,7 @@ fn mocked_pubnub_subscribe_ok() {
                                 })
                             });
 
-                        mock.expect_mock_workaround_subscribe_request()
+                        mock.expect_mock_call::<request::Subscribe, response::Subscribe>()
                             .times(1)
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
