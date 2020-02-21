@@ -2,8 +2,9 @@
 
 use crate::data::{request, response};
 use crate::{transport::Service, Transport};
-use async_trait::async_trait;
 use futures_core::future::BoxFuture;
+use std::future::Future;
+use std::pin::Pin;
 use thiserror::Error;
 
 use mockall::mock;
@@ -20,25 +21,10 @@ mod gen {
 
     mock! {
         pub Transport {
-            fn mock_workaround_publish_request(
+            fn mock_call<TReq: 'static, TRes: 'static>(
                 &self,
-                request: request::Publish,
-            ) -> BoxFuture<'static, Result<response::Publish, MockTransportError>> {}
-
-            fn mock_workaround_subscribe_request(
-                &self,
-                request: request::Subscribe,
-            ) -> BoxFuture<'static, Result<response::Subscribe, MockTransportError>> {}
-
-            fn mock_workaround_set_state_request(
-                &self,
-                request: request::SetState,
-            ) -> BoxFuture<'static, Result<response::SetState, MockTransportError>> {}
-
-            fn mock_workaround_get_state_request(
-                &self,
-                request: request::GetState,
-            ) -> BoxFuture<'static, Result<response::GetState, MockTransportError>> {}
+                request: TReq,
+            ) -> BoxFuture<'static, Result<TRes, MockTransportError>> {}
         }
         trait Clone {
             fn clone(&self) -> Self {}
@@ -47,47 +33,38 @@ mod gen {
 }
 pub use gen::*;
 
-// We implement the mocks manually cause `mockall` doesn't support `async_trait` yet.
+// We implement the mocks manually cause `mockall` doesn't play nice with
+// `async_trait`.
 
-#[async_trait]
-impl Service<request::Publish> for MockTransport {
-    type Response = response::Publish;
-    type Error = MockTransportError;
+macro_rules! impl_mock_service {
+    ($req:ty, $res:ty) => {
+        // This is an expanded `async_trait` implementation.
+        // It's manually tailored to simply pass the control to the `mock_call`
+        // to avoid issues with generic type arguments inferrence.
+        impl Service<$req> for MockTransport {
+            type Response = $res;
+            type Error = MockTransportError;
 
-    async fn call(&self, req: request::Publish) -> Result<Self::Response, Self::Error> {
-        self.mock_workaround_publish_request(req).await
-    }
+            fn call<'life0, 'async_trait>(
+                &'life0 self,
+                req: $req,
+            ) -> Pin<
+                Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'async_trait>,
+            >
+            where
+                'life0: 'async_trait,
+                Self: 'async_trait,
+            {
+                Box::pin(self.mock_call(req))
+            }
+        }
+    };
 }
 
-#[async_trait]
-impl Service<request::Subscribe> for MockTransport {
-    type Response = response::Subscribe;
-    type Error = MockTransportError;
-
-    async fn call(&self, req: request::Subscribe) -> Result<Self::Response, Self::Error> {
-        self.mock_workaround_subscribe_request(req).await
-    }
-}
-
-#[async_trait]
-impl Service<request::SetState> for MockTransport {
-    type Response = response::SetState;
-    type Error = MockTransportError;
-
-    async fn call(&self, req: request::SetState) -> Result<Self::Response, Self::Error> {
-        self.mock_workaround_set_state_request(req).await
-    }
-}
-
-#[async_trait]
-impl Service<request::GetState> for MockTransport {
-    type Response = response::GetState;
-    type Error = MockTransportError;
-
-    async fn call(&self, req: request::GetState) -> Result<Self::Response, Self::Error> {
-        self.mock_workaround_get_state_request(req).await
-    }
-}
+impl_mock_service![request::Publish, response::Publish];
+impl_mock_service![request::Subscribe, response::Subscribe];
+impl_mock_service![request::SetState, response::SetState];
+impl_mock_service![request::GetState, response::GetState];
 
 impl Transport for MockTransport {
     type Error = MockTransportError;
