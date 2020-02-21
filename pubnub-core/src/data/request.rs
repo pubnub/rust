@@ -1,8 +1,10 @@
 //! Types used by [`crate::Transport`].
 
 use crate::data::object::Object;
+use crate::data::presence;
 use crate::data::timetoken::Timetoken;
 use crate::data::uuid::UUID;
+use std::marker::PhantomData;
 
 /// A request to publish a message to a channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,5 +61,41 @@ pub struct GetState {
     pub channel_groups: Vec<String>,
 
     /// The User UUID to get state for.
+    pub uuid: UUID,
+}
+
+/// Retrieve UUID and State Information for subscribed devices on a specific
+/// channel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HereNow<TRespondWith>
+where
+    TRespondWith: presence::respond_with::RespondWith,
+{
+    /// The channel names to get the state for.
+    pub channels: Vec<String>,
+
+    /// The channel group names to get state for.
+    pub channel_groups: Vec<String>,
+
+    /// Type that specializes the response type.
+    pub respond_with: PhantomData<TRespondWith>,
+}
+
+/// Retrieve UUID and State Information for subscribed devices on a all
+/// channels.
+#[allow(missing_copy_implementations)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlobalHereNow<TRespondWith>
+where
+    TRespondWith: presence::respond_with::RespondWith,
+{
+    /// Type that specializes the response type.
+    pub respond_with: PhantomData<TRespondWith>,
+}
+
+/// Get list of channels user is present in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WhereNow {
+    /// The User UUID to get data for.
     pub uuid: UUID,
 }

@@ -1,4 +1,5 @@
 //! Hyper transport implementation.
+
 use crate::core::data::{
     message::{Message, Type},
     request, response,
@@ -18,6 +19,10 @@ use hyper_tls::HttpsConnector;
 use std::time::Duration;
 
 pub mod error;
+pub mod presence;
+pub mod pubsub;
+
+mod util;
 
 type HttpClient = Client<HttpsConnector<HttpConnector>>;
 
@@ -63,205 +68,8 @@ impl Hyper {
     }
 }
 
-macro_rules! encode_json {
-    ($value:expr => $to:ident) => {
-        let value_string = json::stringify($value);
-        let $to = {
-            use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-            utf8_percent_encode(&value_string, NON_ALPHANUMERIC)
-        };
-    };
-}
-
 impl Transport for Hyper {
     type Error = error::Error;
-}
-
-#[async_trait]
-impl TransportService<request::Publish> for Hyper {
-    type Response = response::Publish;
-    type Error = error::Error;
-
-    async fn call(&self, request: request::Publish) -> Result<Self::Response, Self::Error> {
-        // Prepare encoded message and channel.
-        encode_json!(request.payload => encoded_payload);
-        let encoded_channel = utf8_percent_encode(&request.channel, NON_ALPHANUMERIC);
-
-        // Prepare the URL.
-        let path_and_query = format!(
-            "/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}",
-            pub_key = self.publish_key,
-            sub_key = self.subscribe_key,
-            channel = encoded_channel,
-            message = encoded_payload,
-        );
-        let url = self.build_uri(&path_and_query)?;
-
-        // Send network request.
-        let response = self.http_client.get(url).await?;
-        let data_json = handle_json_response(response).await?;
-
-        // Parse timetoken.
-        let timetoken = Timetoken {
-            t: data_json[2].as_str().unwrap().parse().unwrap(),
-            r: 0, // TODO
-        };
-
-        Ok(timetoken)
-    }
-}
-
-#[async_trait]
-impl TransportService<request::Subscribe> for Hyper {
-    type Response = response::Subscribe;
-    type Error = error::Error;
-
-    async fn call(&self, request: request::Subscribe) -> Result<Self::Response, Self::Error> {
-        // TODO: add caching of repeating params to avoid reencoding.
-
-        // Prepare encoded channels and channel_groups.
-        let encoded_channels = EncodedChannelsList::from(request.channels);
-        let encoded_channel_groups = EncodedChannelsList::from(request.channel_groups);
-
-        // Prepare the URL.
-        let path_and_query = format!(
-            "/v2/subscribe/{sub_key}/{channels}/0?channel-group={channel_groups}&tt={tt}&tr={tr}",
-            sub_key = self.subscribe_key,
-            channels = encoded_channels,
-            channel_groups = encoded_channel_groups,
-            tt = request.timetoken.t,
-            tr = request.timetoken.r,
-        );
-        let url = self.build_uri(&path_and_query)?;
-
-        // Send network request.
-        let response = self.http_client.get(url).await?;
-        let data_json = handle_json_response(response).await?;
-
-        // Parse timetoken.
-        let timetoken = Timetoken {
-            t: data_json["t"]["t"].as_str().unwrap().parse().unwrap(),
-            r: data_json["t"]["r"].as_u32().unwrap_or(0),
-        };
-
-        // Parse messages.
-        let messages = data_json["m"]
-            .members()
-            .map(|message| Message {
-                message_type: Type::from_json(&message["e"]),
-                route: message["b"].as_str().map(str::to_string),
-                channel: message["c"].to_string(),
-                json: message["d"].clone(),
-                metadata: message["u"].clone(),
-                timetoken: Timetoken {
-                    t: message["p"]["t"].as_str().unwrap().parse().unwrap(),
-                    r: message["p"]["r"].as_u32().unwrap_or(0),
-                },
-                client: message["i"].as_str().map(str::to_string),
-                subscribe_key: message["k"].to_string(),
-                flags: message["f"].as_u32().unwrap_or(0),
-            })
-            .collect::<Vec<_>>();
-
-        Ok((messages, timetoken))
-    }
-}
-
-#[async_trait]
-impl TransportService<request::SetState> for Hyper {
-    type Response = response::SetState;
-    type Error = error::Error;
-
-    async fn call(&self, request: request::SetState) -> Result<Self::Response, Self::Error> {
-        let request::SetState {
-            channels,
-            channel_groups,
-            uuid,
-            state,
-        } = request;
-
-        let channels = EncodedChannelsList::from(channels);
-        let channel_groups = EncodedChannelsList::from(channel_groups);
-        encode_json!(state => state);
-
-        // Prepare the URL.
-        let path_and_query = format!(
-            "/v2/presence/sub-key/{sub_key}/channel/{channel}/uuid/{uuid}/data?channel-group={channel_group}&state={state}",
-            sub_key = self.subscribe_key,
-            channel = channels,
-            channel_group = channel_groups,
-            uuid = uuid,
-            state = state,
-        );
-        let url = self.build_uri(&path_and_query)?;
-
-        // Send network request
-        let response = self.http_client.get(url).await?;
-        let _ = handle_presence_response(response).await?;
-
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl TransportService<request::GetState> for Hyper {
-    type Response = response::GetState;
-    type Error = error::Error;
-
-    async fn call(&self, request: request::GetState) -> Result<Self::Response, Self::Error> {
-        let request::GetState {
-            channels,
-            channel_groups,
-            uuid,
-        } = request;
-
-        let channels = EncodedChannelsList::from(channels);
-        let channel_groups = EncodedChannelsList::from(channel_groups);
-
-        // Prepare the URL.
-        let path_and_query = format!(
-            "/v2/presence/sub-key/{sub_key}/channel/{channel}/uuid/{uuid}?channel-group={channel_group}",
-            sub_key = self.subscribe_key,
-            channel = channels,
-            channel_group = channel_groups,
-            uuid = uuid,
-        );
-        let url = self.build_uri(&path_and_query)?;
-
-        let response = self.http_client.get(url).await?;
-        let data_json = handle_presence_response(response).await?;
-
-        Ok(data_json)
-    }
-}
-
-async fn handle_json_response(response: Response<Body>) -> Result<json::JsonValue, error::Error> {
-    let mut body = response.into_body();
-    let mut bytes = Vec::new();
-
-    // Receive the response as a byte stream
-    while let Some(chunk) = body.next().await {
-        bytes.extend(chunk?);
-    }
-
-    // Convert the resolved byte stream to JSON.
-    let data = std::str::from_utf8(&bytes)?;
-    let data_json = json::parse(data)?;
-
-    Ok(data_json)
-}
-
-async fn handle_presence_response(
-    response: Response<Body>,
-) -> Result<json::JsonValue, error::Error> {
-    let mut presence_data = handle_json_response(response).await?;
-
-    if presence_data["error"] == true {
-        let error_message: String = format!("{}", presence_data["message"]);
-        return Err(error::Error::Server(error_message));
-    }
-
-    Ok(presence_data.remove("state"))
 }
 
 impl HyperBuilder {
