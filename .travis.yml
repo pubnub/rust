@@ -15,6 +15,6 @@ before_script:
 - rustup component add rustfmt
 
 script:
+- cargo fmt --all -- --check
 - 'if [[ "$TRAVIS_RUST_VERSION" != "1.39.0" ]]; then cargo clippy --all -- -D warnings; fi'
 - cargo test --all
-- cargo fmt --all -- --check
