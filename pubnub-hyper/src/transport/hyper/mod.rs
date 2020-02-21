@@ -5,12 +5,11 @@ use crate::core::data::{
     timetoken::Timetoken,
 };
 use crate::core::json;
-use crate::core::Transport;
+use crate::core::{Transport, TransportService};
+use async_trait::async_trait;
 use log::debug;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use pubnub_util::encoded_channels_list::EncodedChannelsList;
-
-use async_trait::async_trait;
 
 use derive_builder::Builder;
 use futures_util::stream::StreamExt;
@@ -74,14 +73,16 @@ macro_rules! encode_json {
     };
 }
 
-#[async_trait]
 impl Transport for Hyper {
     type Error = error::Error;
+}
 
-    async fn publish_request(
-        &self,
-        request: request::Publish,
-    ) -> Result<response::Publish, Self::Error> {
+#[async_trait]
+impl TransportService<request::Publish> for Hyper {
+    type Response = response::Publish;
+    type Error = error::Error;
+
+    async fn call(&self, request: request::Publish) -> Result<Self::Response, Self::Error> {
         // Prepare encoded message and channel.
         encode_json!(request.payload => encoded_payload);
         let encoded_channel = utf8_percent_encode(&request.channel, NON_ALPHANUMERIC);
@@ -108,11 +109,14 @@ impl Transport for Hyper {
 
         Ok(timetoken)
     }
+}
 
-    async fn subscribe_request(
-        &self,
-        request: request::Subscribe,
-    ) -> Result<response::Subscribe, Self::Error> {
+#[async_trait]
+impl TransportService<request::Subscribe> for Hyper {
+    type Response = response::Subscribe;
+    type Error = error::Error;
+
+    async fn call(&self, request: request::Subscribe) -> Result<Self::Response, Self::Error> {
         // TODO: add caching of repeating params to avoid reencoding.
 
         // Prepare encoded channels and channel_groups.
@@ -161,11 +165,14 @@ impl Transport for Hyper {
 
         Ok((messages, timetoken))
     }
+}
 
-    async fn set_state_request(
-        &self,
-        request: request::SetState,
-    ) -> Result<response::SetState, Self::Error> {
+#[async_trait]
+impl TransportService<request::SetState> for Hyper {
+    type Response = response::SetState;
+    type Error = error::Error;
+
+    async fn call(&self, request: request::SetState) -> Result<Self::Response, Self::Error> {
         let request::SetState {
             channels,
             channel_groups,
@@ -194,11 +201,14 @@ impl Transport for Hyper {
 
         Ok(())
     }
+}
 
-    async fn get_state_request(
-        &self,
-        request: request::GetState,
-    ) -> Result<response::GetState, Self::Error> {
+#[async_trait]
+impl TransportService<request::GetState> for Hyper {
+    type Response = response::GetState;
+    type Error = error::Error;
+
+    async fn call(&self, request: request::GetState) -> Result<Self::Response, Self::Error> {
         let request::GetState {
             channels,
             channel_groups,
