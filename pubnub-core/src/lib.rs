@@ -30,8 +30,10 @@ pub use async_trait::async_trait;
 
 mod builder;
 pub mod data;
-pub mod mock;
 mod pubnub;
 mod runtime;
 mod subscription;
 mod transport;
+
+#[cfg(feature = "mock")]
+pub mod mock;
