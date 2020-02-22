@@ -21,7 +21,7 @@ mod gen {
 
     mock! {
         pub Transport {
-            fn mock_call<TReq: 'static, TRes: 'static>(
+            fn call<TReq: 'static, TRes: 'static>(
                 &self,
                 request: TReq,
             ) -> BoxFuture<'static, Result<TRes, MockTransportError>> {}
@@ -55,7 +55,7 @@ macro_rules! impl_mock_service {
                 'life0: 'async_trait,
                 Self: 'async_trait,
             {
-                Box::pin(self.mock_call(req))
+                Box::pin(MockTransport::call(self, req))
             }
         }
     };
