@@ -4,6 +4,7 @@ use super::error;
 use crate::core::json;
 use futures_util::stream::StreamExt;
 use hyper::{Body, Response, Uri};
+use json::{object::Object as JsonObject, JsonValue};
 use log::debug;
 
 use super::Hyper;
@@ -34,4 +35,18 @@ pub(super) async fn handle_json_response(
     let data_json = json::parse(data)?;
 
     Ok(data_json)
+}
+
+pub(super) fn json_as_array(val: &JsonValue) -> Option<&Vec<JsonValue>> {
+    match val {
+        JsonValue::Array(val) => Some(val),
+        _ => None,
+    }
+}
+
+pub(super) fn json_as_object(val: &JsonValue) -> Option<&JsonObject> {
+    match val {
+        JsonValue::Object(val) => Some(val),
+        _ => None,
+    }
 }

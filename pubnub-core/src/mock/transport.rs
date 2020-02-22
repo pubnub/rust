@@ -1,6 +1,6 @@
 //! [`Transport`] mocks.
 
-use crate::data::{request, response};
+use crate::data::{presence, request, response};
 use crate::{transport::Service, Transport};
 use futures_core::future::BoxFuture;
 use std::future::Future;
@@ -63,8 +63,34 @@ macro_rules! impl_mock_service {
 
 impl_mock_service![request::Publish, response::Publish];
 impl_mock_service![request::Subscribe, response::Subscribe];
+
 impl_mock_service![request::SetState, response::SetState];
 impl_mock_service![request::GetState, response::GetState];
+impl_mock_service![
+    request::HereNow<presence::respond_with::OccupancyOnly>,
+    response::HereNow<presence::respond_with::OccupancyOnly>
+];
+impl_mock_service![
+    request::HereNow<presence::respond_with::OccupancyAndUUIDs>,
+    response::HereNow<presence::respond_with::OccupancyAndUUIDs>
+];
+impl_mock_service![
+    request::HereNow<presence::respond_with::Full>,
+    response::HereNow<presence::respond_with::Full>
+];
+impl_mock_service![
+    request::GlobalHereNow<presence::respond_with::OccupancyOnly>,
+    response::GlobalHereNow<presence::respond_with::OccupancyOnly>
+];
+impl_mock_service![
+    request::GlobalHereNow<presence::respond_with::OccupancyAndUUIDs>,
+    response::GlobalHereNow<presence::respond_with::OccupancyAndUUIDs>
+];
+impl_mock_service![
+    request::GlobalHereNow<presence::respond_with::Full>,
+    response::GlobalHereNow<presence::respond_with::Full>
+];
+impl_mock_service![request::WhereNow, response::WhereNow];
 
 impl Transport for MockTransport {
     type Error = MockTransportError;
