@@ -7,13 +7,13 @@ pub trait Transport:
     Clone
     + Send
     + Sync
-    // Send a Publish Request and return the timetoken.
+    // Publish.
     + Service<request::Publish, Response = response::Publish, Error = <Self as Transport>::Error>
-    // Send a Subscribe Request and return the messages received.
+    // Subscribe.
     + Service<request::Subscribe, Response = response::Subscribe, Error = <Self as Transport>::Error>
-    // Send a Set State Request and return the response.
+    // Set state.
     + Service<request::SetState, Response = response::SetState, Error = <Self as Transport>::Error>
-    // Send a Get State Request and return the state.
+    // Get state.
     + Service<request::GetState, Response = response::GetState, Error = <Self as Transport>::Error>
 {
     /// Transport-specific error type this transport can generate.
