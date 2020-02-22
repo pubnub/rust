@@ -13,6 +13,12 @@ impl From<String> for UUID {
     }
 }
 
+impl From<&str> for UUID {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
 impl From<UUID> for String {
     fn from(value: UUID) -> String {
         value.0
