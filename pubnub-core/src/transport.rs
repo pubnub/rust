@@ -1,4 +1,4 @@
-use crate::data::{request, response};
+use crate::data::{presence, request, response};
 use async_trait::async_trait;
 
 /// Transport abstracts away the underlying mechanism through which the PubNub
@@ -15,6 +15,16 @@ pub trait Transport:
     + Service<request::SetState, Response = response::SetState, Error = <Self as Transport>::Error>
     // Get state.
     + Service<request::GetState, Response = response::GetState, Error = <Self as Transport>::Error>
+    // Here now.
+    + Service<request::HereNow<presence::respond_with::OccupancyOnly>, Response = response::HereNow<presence::respond_with::OccupancyOnly>, Error = <Self as Transport>::Error>
+    + Service<request::HereNow<presence::respond_with::OccupancyAndUUIDs>, Response = response::HereNow<presence::respond_with::OccupancyAndUUIDs>, Error = <Self as Transport>::Error>
+    + Service<request::HereNow<presence::respond_with::Full>, Response = response::HereNow<presence::respond_with::Full>, Error = <Self as Transport>::Error>
+    // Global Here now.
+    + Service<request::GlobalHereNow<presence::respond_with::OccupancyOnly>, Response = response::GlobalHereNow<presence::respond_with::OccupancyOnly>, Error = <Self as Transport>::Error>
+    + Service<request::GlobalHereNow<presence::respond_with::OccupancyAndUUIDs>, Response = response::GlobalHereNow<presence::respond_with::OccupancyAndUUIDs>, Error = <Self as Transport>::Error>
+    + Service<request::GlobalHereNow<presence::respond_with::Full>, Response = response::GlobalHereNow<presence::respond_with::Full>, Error = <Self as Transport>::Error>
+    // Where now.
+    + Service<request::WhereNow, Response = response::WhereNow, Error = <Self as Transport>::Error>
 {
     /// Transport-specific error type this transport can generate.
     type Error: std::error::Error + Send + Sync;
