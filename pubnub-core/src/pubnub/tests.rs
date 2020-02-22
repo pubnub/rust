@@ -33,7 +33,7 @@ fn mocked_pubnub_publish_ok() {
         };
 
         mock_transport
-            .expect_mock_call::<request::Publish, response::Publish>()
+            .expect_call::<request::Publish, response::Publish>()
             .with(eq(request::Publish {
                 channel: "test_channel".to_string(),
                 payload: message.clone(),
@@ -94,7 +94,7 @@ fn mocked_pubnub_subscribe_ok() {
                     .return_once(move || {
                         let mut mock = MockTransport::new();
 
-                        mock.expect_mock_call::<request::Subscribe, response::Subscribe>()
+                        mock.expect_call::<request::Subscribe, response::Subscribe>()
                             .times(1)
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
@@ -108,7 +108,7 @@ fn mocked_pubnub_subscribe_ok() {
                                 })
                             });
 
-                        mock.expect_mock_call::<request::Subscribe, response::Subscribe>()
+                        mock.expect_call::<request::Subscribe, response::Subscribe>()
                             .times(1)
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
