@@ -11,13 +11,16 @@ pub struct EncodedChannelsList(String);
 impl EncodedChannelsList {
     /// Create a new [`EncodedChannelsList`] from an interator of [`String`]
     /// values.
-    pub fn from_string_iter<I>(iter: I) -> Self
+    pub fn from_string_iter<T, I>(iter: I) -> Self
     where
-        I: IntoIterator<Item = String>,
+        T: AsRef<String>,
+        I: IntoIterator<Item = T>,
     {
         Self(
             iter.into_iter()
-                .map(|channel| utf8_percent_encode(&channel, NON_ALPHANUMERIC).to_string())
+                .map(|channel| {
+                    utf8_percent_encode(channel.as_ref().as_str(), NON_ALPHANUMERIC).to_string()
+                })
                 .collect::<Vec<_>>()
                 .as_slice()
                 .join("%2C"),
@@ -25,8 +28,8 @@ impl EncodedChannelsList {
     }
 }
 
-impl From<Vec<String>> for EncodedChannelsList {
-    fn from(vec: Vec<String>) -> Self {
+impl<T: AsRef<String>> From<Vec<T>> for EncodedChannelsList {
+    fn from(vec: Vec<T>) -> Self {
         Self::from_string_iter(vec.into_iter())
     }
 }

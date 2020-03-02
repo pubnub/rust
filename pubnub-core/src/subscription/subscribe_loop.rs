@@ -1,7 +1,7 @@
 use super::registry::Registry as GenericRegistry;
 use crate::data::message::Message;
 use crate::data::timetoken::Timetoken;
-use crate::data::{request, response};
+use crate::data::{channel, request, response};
 use crate::transport::Service;
 use futures_channel::{mpsc, oneshot};
 use futures_util::future::{select, Either, FutureExt};
@@ -13,7 +13,7 @@ use std::fmt::Debug;
 pub(crate) use super::channel::{Rx as ChannelRx, Tx as ChannelTx};
 pub(crate) use super::registry::ID as SubscriptionID;
 
-pub(crate) type Registry = GenericRegistry<ChannelTx>;
+pub(crate) type Registry = GenericRegistry<channel::Name, ChannelTx>;
 
 pub(crate) type ReadyTx = oneshot::Sender<()>;
 
@@ -42,8 +42,8 @@ pub(crate) enum ControlCommand {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ListenerType {
-    Channel(String),      // Channel name
-    ChannelGroup(String), // Channel Group name
+    Channel(channel::Name),      // Channel name
+    ChannelGroup(channel::Name), // Channel Group name
 }
 
 #[derive(Debug)]
@@ -93,11 +93,11 @@ where
 
     loop {
         // TODO: re-add cache.
-        let channels_list: Vec<String> = state_data.channels.keys().cloned().collect();
-        let channel_groups_list: Vec<String> = state_data.channel_groups.keys().cloned().collect();
+        let channels: Vec<_> = state_data.channels.keys().cloned().collect();
+        let channel_groups: Vec<_> = state_data.channel_groups.keys().cloned().collect();
         let request = request::Subscribe {
-            channels: channels_list,
-            channel_groups: channel_groups_list,
+            channels,
+            channel_groups,
             timetoken,
         };
         let response = transport.call(request);
@@ -246,13 +246,13 @@ async fn dispatch_messages(state_data: &mut StateData, messages: Vec<Message>) {
                 Some(route) => Some(route),
             };
             if let Some(ref route) = route {
-                debug!("route: {} (channel group)", route);
+                debug!("route: {} (channel group)", &route);
                 state_data
                     .channel_groups
                     .get_mut(route)
                     .expect("received a message with a route that has no listeners")
             } else {
-                debug!("route: {} (channel)", channel);
+                debug!("route: {} (channel)", &channel);
                 state_data
                     .channels
                     .get_mut(channel)

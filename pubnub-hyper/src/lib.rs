@@ -12,7 +12,7 @@
 //! use futures_util::stream::StreamExt;
 //! use pubnub_hyper::runtime::tokio_global::TokioGlobal;
 //! use pubnub_hyper::transport::hyper::Hyper;
-//! use pubnub_hyper::{core::json::object, Builder};
+//! use pubnub_hyper::{core::data::channel, core::json::object, Builder};
 //!
 //! # async {
 //! let transport = Hyper::new()
@@ -29,8 +29,9 @@
 //!     "content" => "Hello, world!",
 //! };
 //!
-//! let mut stream = pubnub.subscribe("my-channel").await;
-//! let timetoken = pubnub.publish("my-channel", message.clone()).await?;
+//! let channel_name: channel::Name = "my-channel".parse().unwrap();
+//! let mut stream = pubnub.subscribe(channel_name.clone()).await;
+//! let timetoken = pubnub.publish(channel_name, message.clone()).await?;
 //!
 //! let received = stream.next().await;
 //! assert_eq!(received.unwrap().json, message);

@@ -1,3 +1,4 @@
+use crate::data::channel;
 use crate::data::object::Object;
 use crate::data::request;
 use crate::data::timetoken::Timetoken;
@@ -43,14 +44,15 @@ where
     /// # use pubnub_core::mock::{transport::MockTransport, runtime::MockRuntime};
     /// # let transport = MockTransport::new();
     /// # let runtime = MockRuntime::new();
-    /// use pubnub_core::{json::object, Builder};
+    /// use pubnub_core::{data::channel, json::object, Builder};
     ///
     /// # async {
     /// let pubnub = Builder::with_components(transport, runtime).build();
     ///
+    /// let channel_name: channel::Name = "my-channel".parse().unwrap();
     /// let timetoken = pubnub
     ///     .publish(
-    ///         "my-channel",
+    ///         channel_name,
     ///         object! {
     ///             "username" => "JoeBob",
     ///             "content" => "Hello, world!",
@@ -64,11 +66,11 @@ where
     /// ```
     pub async fn publish(
         &self,
-        channel: &str,
+        channel: channel::Name,
         message: Object,
     ) -> Result<Timetoken, <TTransport as Transport>::Error> {
         let request = request::Publish {
-            channel: channel.to_string(),
+            channel,
             meta: None,
             payload: message,
         };
@@ -83,7 +85,7 @@ where
     /// # use pubnub_core::mock::{transport::MockTransport, runtime::MockRuntime};
     /// # let transport = MockTransport::new();
     /// # let runtime = MockRuntime::new();
-    /// use pubnub_core::{json::object, Builder};
+    /// use pubnub_core::{data::channel, json::object, Builder};
     ///
     /// # async {
     /// let pubnub = Builder::with_components(transport, runtime).build();
@@ -96,8 +98,9 @@ where
     ///     "uuid" => "JoeBob",
     /// };
     ///
+    /// let channel_name: channel::Name = "my-channel".parse().unwrap();
     /// let timetoken = pubnub
-    ///     .publish_with_metadata("my-channel", message, metadata)
+    ///     .publish_with_metadata(channel_name, message, metadata)
     ///     .await?;
     ///
     /// println!("Timetoken: {}", timetoken);
@@ -106,12 +109,12 @@ where
     /// ```
     pub async fn publish_with_metadata(
         &self,
-        channel: &str,
+        channel: channel::Name,
         message: Object,
         metadata: Object,
     ) -> Result<Timetoken, <TTransport as Transport>::Error> {
         let request = request::Publish {
-            channel: channel.to_string(),
+            channel,
             meta: Some(metadata),
             payload: message,
         };
@@ -137,18 +140,19 @@ where
     /// # let transport = MockTransport::new();
     /// # let runtime = MockRuntime::new();
     /// use futures_util::stream::StreamExt;
-    /// use pubnub_core::{json::object, Builder};
+    /// use pubnub_core::{data::channel, json::object, Builder};
     ///
     /// # async {
     /// let mut pubnub = Builder::with_components(transport, runtime).build();
-    /// let mut stream = pubnub.subscribe("my-channel").await;
+    /// let channel_name: channel::Name = "my-channel".parse().unwrap();
+    /// let mut stream = pubnub.subscribe(channel_name).await;
     ///
     /// while let Some(message) = stream.next().await {
     ///     println!("Received message: {:?}", message);
     /// }
     /// # };
     /// ```
-    pub async fn subscribe(&mut self, channel: &str) -> Subscription<TRuntime> {
+    pub async fn subscribe(&mut self, channel: channel::Name) -> Subscription<TRuntime> {
         let supervisor_arc_clone = self.subscribe_loop_supervisor.clone();
         let mut supervisor_guard = supervisor_arc_clone.lock().await;
         supervisor_guard.subscribe(self, channel).await

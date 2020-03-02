@@ -23,8 +23,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "content" => "Hello, world!",
     };
 
-    let mut stream = pubnub.subscribe("my-channel").await;
-    let timetoken = pubnub.publish("my-channel", message).await?;
+    let mut stream = pubnub.subscribe("my-channel".parse().unwrap()).await;
+    let timetoken = pubnub
+        .publish("my-channel".parse().unwrap(), message)
+        .await?;
     println!("timetoken = {:?}", timetoken);
 
     let received = stream.next().await;

@@ -2,6 +2,7 @@ use futures_channel::mpsc;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use json::JsonValue;
 use log::debug;
+use pubnub_hyper::core::data::channel;
 use pubnub_hyper::core::data::message::Type;
 use pubnub_hyper::runtime::tokio_global::TokioGlobal;
 use pubnub_hyper::transport::hyper::Hyper;
@@ -66,7 +67,7 @@ fn shuffle<T>(prng: &mut PCG32, list: &mut Vec<T>) -> Vec<T> {
 fn pubnub_subscribe_ok() {
     init();
     current_thread_block_on(async {
-        let channel = "demo2";
+        let channel: channel::Name = "demo2".parse().unwrap();
 
         let transport = Hyper::new()
             .agent("Rust-Agent-Test")
@@ -85,12 +86,12 @@ fn pubnub_subscribe_ok() {
 
         {
             // Create a subscription
-            let mut subscription = pubnub.subscribe(channel).await;
+            let mut subscription = pubnub.subscribe(channel.clone()).await;
 
             // Send a message to it
             let message = JsonValue::String("Hello, world!".to_string());
             debug!("Publishing...");
-            let status = pubnub.publish(channel, message).await;
+            let status = pubnub.publish(channel.clone(), message).await;
             assert!(status.is_ok());
 
             // Receive the message
@@ -121,7 +122,7 @@ fn pubnub_subscribe_ok() {
 fn pubnub_subscribeloop_drop() {
     init();
     current_thread_block_on(async {
-        let channel = "demo2";
+        let channel: channel::Name = "demo2".parse().unwrap();
 
         let transport = Hyper::new()
             .agent("Rust-Agent-Test")
@@ -140,18 +141,18 @@ fn pubnub_subscribeloop_drop() {
 
         {
             // Create a bunch of subscriptions
-            let _sub0 = pubnub.subscribe(channel).await;
-            let _sub1 = pubnub.subscribe(channel).await;
-            let _sub2 = pubnub.subscribe(channel).await;
-            let _sub3 = pubnub.subscribe(channel).await;
-            let _sub4 = pubnub.subscribe(channel).await;
-            let _sub5 = pubnub.subscribe(channel).await;
-            let _sub6 = pubnub.subscribe(channel).await;
-            let _sub7 = pubnub.subscribe(channel).await;
-            let _sub8 = pubnub.subscribe(channel).await;
-            let _sub9 = pubnub.subscribe(channel).await;
-            let _sub10 = pubnub.subscribe(channel).await;
-            let _sub11 = pubnub.subscribe(channel).await;
+            let _sub0 = pubnub.subscribe(channel.clone()).await;
+            let _sub1 = pubnub.subscribe(channel.clone()).await;
+            let _sub2 = pubnub.subscribe(channel.clone()).await;
+            let _sub3 = pubnub.subscribe(channel.clone()).await;
+            let _sub4 = pubnub.subscribe(channel.clone()).await;
+            let _sub5 = pubnub.subscribe(channel.clone()).await;
+            let _sub6 = pubnub.subscribe(channel.clone()).await;
+            let _sub7 = pubnub.subscribe(channel.clone()).await;
+            let _sub8 = pubnub.subscribe(channel.clone()).await;
+            let _sub9 = pubnub.subscribe(channel.clone()).await;
+            let _sub10 = pubnub.subscribe(channel.clone()).await;
+            let _sub11 = pubnub.subscribe(channel.clone()).await;
 
             // HA-HAAAA! Now we drop 12 at once and see if the `Drop` impl hangs!
         }
@@ -167,7 +168,7 @@ fn pubnub_subscribeloop_drop() {
 fn pubnub_subscribeloop_recreate() {
     init();
     current_thread_block_on(async {
-        let channel = "demo2";
+        let channel: channel::Name = "demo2".parse().unwrap();
 
         let transport = Hyper::new()
             .agent("Rust-Agent-Test")
@@ -186,7 +187,7 @@ fn pubnub_subscribeloop_recreate() {
 
         // Create two subscribe loops, dropping each
         {
-            let _ = pubnub.subscribe(channel).await;
+            let _ = pubnub.subscribe(channel.clone()).await;
         }
         assert!(subscribe_loop_exit_rx.next().await.is_some());
 
@@ -220,22 +221,34 @@ fn pubnub_subscribe_clone_ok() {
             .runtime(TokioGlobal)
             .subscribe_loop_exit_tx(subscribe_loop_exit_tx)
             .build();
-        streams.push(pubnub1.subscribe("channel1").await);
+        streams.push(pubnub1.subscribe("channel1".parse().unwrap()).await);
 
         // Create a cloned client and immediate subscribe
         let mut pubnub2 = pubnub1.clone();
-        streams.push(pubnub2.subscribe("channel2").await);
+        streams.push(pubnub2.subscribe("channel2".parse().unwrap()).await);
 
         // Subscribe to two more channels from each clone
-        streams.push(pubnub1.subscribe("channel3").await);
-        streams.push(pubnub2.subscribe("channel4").await);
+        streams.push(pubnub1.subscribe("channel3".parse().unwrap()).await);
+        streams.push(pubnub2.subscribe("channel4".parse().unwrap()).await);
 
         // Create a list of publish futures, mix-and-match clients
         let mut publishers = vec![
-            pubnub1.publish("channel1", JsonValue::String("test1".to_string())),
-            pubnub2.publish("channel2", JsonValue::String("test2".to_string())),
-            pubnub2.publish("channel3", JsonValue::String("test3".to_string())),
-            pubnub1.publish("channel4", JsonValue::String("test4".to_string())),
+            pubnub1.publish(
+                "channel1".parse().unwrap(),
+                JsonValue::String("test1".to_string()),
+            ),
+            pubnub2.publish(
+                "channel2".parse().unwrap(),
+                JsonValue::String("test2".to_string()),
+            ),
+            pubnub2.publish(
+                "channel3".parse().unwrap(),
+                JsonValue::String("test3".to_string()),
+            ),
+            pubnub1.publish(
+                "channel4".parse().unwrap(),
+                JsonValue::String("test4".to_string()),
+            ),
         ];
 
         // Randomly shuffle the list of publishers into a FuturesUnordered
@@ -297,10 +310,10 @@ fn pubnub_subscribe_clones_share_loop() {
         let mut pubnub2 = pubnub1.clone();
 
         // Subscribe to spawn the subscribe loop on the original.
-        let sub1 = pubnub1.subscribe("channel1").await;
+        let sub1 = pubnub1.subscribe("channel1".parse().unwrap()).await;
 
         // Subscribe to potentially spawn the subscribe loop on the clone.
-        let sub2 = pubnub2.subscribe("channel2").await;
+        let sub2 = pubnub2.subscribe("channel2".parse().unwrap()).await;
 
         // Dropping `sub1` should not exit the loop if it's shared, but will
         // if the loop is not shared it would exit.
@@ -332,7 +345,7 @@ fn pubnub_subscribe_clones_share_loop() {
 fn pubnub_publish_ok() {
     init();
     current_thread_block_on(async {
-        let channel = "demo";
+        let channel = "demo".parse().unwrap();
 
         let transport = Hyper::new()
             .agent("Rust-Agent-Test")

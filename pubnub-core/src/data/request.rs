@@ -1,5 +1,6 @@
 //! Types used by [`crate::Transport`].
 
+use crate::data::channel;
 use crate::data::object::Object;
 use crate::data::presence;
 use crate::data::timetoken::Timetoken;
@@ -10,7 +11,7 @@ use std::marker::PhantomData;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Publish {
     /// A channel name to publish the message to.
-    pub channel: String,
+    pub channel: channel::Name,
 
     /// The body of the message.
     pub payload: Object,
@@ -23,10 +24,10 @@ pub struct Publish {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subscribe {
     /// The channel names you are subscribing to.
-    pub channels: Vec<String>,
+    pub channels: Vec<channel::Name>,
 
     /// The channel group names you are subscribing to.
-    pub channel_groups: Vec<String>,
+    pub channel_groups: Vec<channel::Name>,
 
     /// A timetoken to use.
     /// tt: 0 (zero) for the initial subscribe, or a valid timetoken if
@@ -39,10 +40,10 @@ pub struct Subscribe {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetState {
     /// The channel names to set state for.
-    pub channels: Vec<String>,
+    pub channels: Vec<channel::Name>,
 
     /// The channel group names to set state for.
-    pub channel_groups: Vec<String>,
+    pub channel_groups: Vec<channel::Name>,
 
     /// The User UUID to set state for.
     pub uuid: UUID,
@@ -55,10 +56,10 @@ pub struct SetState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetState {
     /// The channel names to get the state for.
-    pub channels: Vec<String>,
+    pub channels: Vec<channel::Name>,
 
     /// The channel group names to get state for.
-    pub channel_groups: Vec<String>,
+    pub channel_groups: Vec<channel::Name>,
 
     /// The User UUID to get state for.
     pub uuid: UUID,
@@ -72,10 +73,10 @@ where
     TRespondWith: presence::respond_with::RespondWith,
 {
     /// The channel names to get the state for.
-    pub channels: Vec<String>,
+    pub channels: Vec<channel::Name>,
 
     /// The channel group names to get state for.
-    pub channel_groups: Vec<String>,
+    pub channel_groups: Vec<channel::Name>,
 
     /// Type that specializes the response type.
     pub respond_with: PhantomData<TRespondWith>,
