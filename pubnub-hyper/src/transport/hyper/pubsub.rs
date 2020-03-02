@@ -22,7 +22,7 @@ impl TransportService<request::Publish> for Hyper {
     async fn call(&self, request: request::Publish) -> Result<Self::Response, Self::Error> {
         // Prepare encoded message and channel.
         encode_json!(request.payload => encoded_payload);
-        let encoded_channel = utf8_percent_encode(&request.channel, NON_ALPHANUMERIC);
+        let encoded_channel = utf8_percent_encode(request.channel.as_ref(), NON_ALPHANUMERIC);
 
         // Prepare the URL.
         let path_and_query = format!(

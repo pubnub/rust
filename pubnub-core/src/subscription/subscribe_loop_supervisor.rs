@@ -3,6 +3,7 @@ use super::subscribe_loop::{
     subscribe_loop, ControlCommand, ControlTx, ExitTx, ListenerType, SubscribeLoopParams,
 };
 use super::subscription::Subscription;
+use crate::data::channel;
 use crate::runtime::Runtime;
 use crate::transport::Transport;
 use crate::PubNub;
@@ -47,7 +48,7 @@ impl SubscribeLoopSupervisor {
     pub async fn subscribe<'a, TTransport, TRuntime>(
         &mut self,
         pubnub: &'a mut PubNub<TTransport, TRuntime>,
-        channel: &str,
+        channel: channel::Name,
     ) -> Subscription<TRuntime>
     where
         TTransport: Transport + 'static,
@@ -67,7 +68,7 @@ impl SubscribeLoopSupervisor {
 
                 // TODO: unify interfaces to either use `ListenerType` or
                 // `&str` when we refer to a channel.
-                let listener = ListenerType::Channel(channel.to_string());
+                let listener = ListenerType::Channel(channel.clone());
 
                 let control_comm_result = control_tx
                     .send(ControlCommand::Add(listener, channel_tx, id_tx))
@@ -104,7 +105,7 @@ impl SubscribeLoopSupervisor {
                 // one.
 
                 let mut channels = Registry::new();
-                let (id, _) = channels.register(channel.to_string(), channel_tx);
+                let (id, _) = channels.register(channel.clone(), channel_tx);
 
                 let (control_tx, control_rx) = mpsc::channel(10);
                 let (ready_tx, ready_rx) = oneshot::channel();
@@ -148,7 +149,7 @@ impl SubscribeLoopSupervisor {
 
         Subscription {
             runtime: pubnub.runtime.clone(),
-            name: ListenerType::Channel(channel.to_string()),
+            name: ListenerType::Channel(channel),
             id,
             control_tx,
             channel_rx,

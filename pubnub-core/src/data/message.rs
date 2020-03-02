@@ -1,5 +1,6 @@
 //! Message and relevant types.
 
+use super::channel;
 use super::timetoken::Timetoken;
 use json::JsonValue;
 
@@ -13,9 +14,9 @@ pub struct Message {
     /// Enum Type of Message.
     pub message_type: Type,
     /// Wildcard channel or channel group.
-    pub route: Option<String>,
+    pub route: Option<channel::Name>,
     /// Origin Channel of Message Receipt.
-    pub channel: String,
+    pub channel: channel::Name,
     /// Decoded JSON Message Payload.
     pub json: JsonValue,
     /// Metadata of Message.
@@ -77,12 +78,12 @@ impl Default for Message {
     fn default() -> Self {
         Self {
             message_type: Type::Unknown(0),
-            route: Option::default(),
-            channel: String::default(),
+            route: None,
+            channel: channel::Name::default(),
             json: JsonValue::Null,
             metadata: JsonValue::Null,
             timetoken: Timetoken::default(),
-            client: Option::default(),
+            client: None,
             subscribe_key: String::default(),
             flags: Default::default(),
         }

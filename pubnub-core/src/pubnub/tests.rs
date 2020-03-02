@@ -13,7 +13,7 @@ use mockall::predicate::*;
 use mockall::Sequence;
 
 use crate::data::message::{Message, Type};
-use crate::data::{request, response};
+use crate::data::{channel, request, response};
 use crate::json::object;
 
 fn init() {
@@ -35,7 +35,7 @@ fn mocked_pubnub_publish_ok() {
         mock_transport
             .expect_call::<request::Publish, response::Publish>()
             .with(eq(request::Publish {
-                channel: "test_channel".to_string(),
+                channel: "test_channel".parse().unwrap(),
                 payload: message.clone(),
                 meta: None,
             }))
@@ -44,7 +44,7 @@ fn mocked_pubnub_publish_ok() {
         let pubnub = Builder::with_components(mock_transport, mock_runtime).build();
 
         let timetoken = pubnub
-            .publish("test_channel", message)
+            .publish("test_channel".parse().unwrap(), message)
             .await
             .expect("unexpected failure");
         assert_eq!(timetoken.t, 123);
@@ -63,7 +63,7 @@ fn mocked_pubnub_subscribe_ok() {
         .spawn_local(async {
             // Setup.
 
-            let test_channel = "test_channel";
+            let test_channel: channel::Name = "test_channel".parse().unwrap();
 
             let (sub_drop_req_tx, sub_drop_req_rx) = oneshot::channel::<()>();
             let (sub_drop_done_tx, sub_drop_done_rx) = oneshot::channel::<()>();
@@ -71,8 +71,8 @@ fn mocked_pubnub_subscribe_ok() {
 
             let messages = vec![Message {
                 message_type: Type::Publish,
-                route: Some(test_channel.to_owned()),
-                channel: test_channel.to_owned(),
+                route: Some(test_channel.clone()),
+                channel: test_channel.clone(),
                 json: object! {
                     "test" => "value",
                 },
@@ -88,6 +88,7 @@ fn mocked_pubnub_subscribe_ok() {
             let mock_transport = {
                 let mut mock = MockTransport::new();
 
+                let test_channel = test_channel.clone();
                 mock.expect_clone()
                     .times(1)
                     .in_sequence(&mut seq)
@@ -98,7 +99,7 @@ fn mocked_pubnub_subscribe_ok() {
                             .times(1)
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
-                                channels: vec![test_channel.to_owned()],
+                                channels: vec![test_channel.clone()],
                                 channel_groups: vec![],
                                 timetoken: Timetoken::default(),
                             }))
@@ -112,7 +113,7 @@ fn mocked_pubnub_subscribe_ok() {
                             .times(1)
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
-                                channels: vec![test_channel.to_owned()],
+                                channels: vec![test_channel.clone()],
                                 channel_groups: vec![],
                                 timetoken: Timetoken { t: 150, r: 1 },
                             }))
@@ -160,7 +161,7 @@ fn mocked_pubnub_subscribe_ok() {
                 .subscribe_loop_exit_tx(sub_loop_exit_tx)
                 .build();
 
-            let mut subscription = pubnub.subscribe(test_channel).await;
+            let mut subscription = pubnub.subscribe(test_channel.clone()).await;
 
             let message = subscription.next().await;
             // We got the message we expected to get.
