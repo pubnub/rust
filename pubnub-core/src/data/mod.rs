@@ -1,5 +1,6 @@
 //! Data structs and enums.
 
+pub mod channel;
 pub mod message;
 pub mod object;
 pub mod presence;
