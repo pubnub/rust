@@ -1,10 +1,15 @@
 use super::mvec::MVec;
+use std::borrow::Borrow;
 use std::collections::{hash_map::Entry, HashMap};
+use std::hash::Hash;
 
 /// A registry of channels.
 #[derive(Debug)]
-pub(crate) struct Registry<T> {
-    pub(super) map: HashMap<String, MVec<T>>,
+pub(crate) struct Registry<K, V>
+where
+    K: Eq + Hash,
+{
+    pub(super) map: HashMap<K, MVec<V>>,
 }
 
 /// Newtype to protect access to the registry ID.
@@ -23,14 +28,17 @@ pub enum UnregistrationEffect {
     NamePreserved,
 }
 
-impl<T> Registry<T> {
+impl<K, V> Registry<K, V>
+where
+    K: Eq + Hash,
+{
     pub fn new() -> Self {
         Self {
             map: HashMap::new(),
         }
     }
 
-    pub fn register<S: Into<String>>(&mut self, name: S, value: T) -> (ID, RegistrationEffect) {
+    pub fn register(&mut self, name: K, value: V) -> (ID, RegistrationEffect) {
         let entry = self.map.entry(name.into());
 
         let effect = match &entry {
@@ -45,7 +53,11 @@ impl<T> Registry<T> {
         (ID(id), effect)
     }
 
-    pub fn unregister(&mut self, name: &str, id: ID) -> Option<(T, UnregistrationEffect)> {
+    pub fn unregister<Q: ?Sized>(&mut self, name: &Q, id: ID) -> Option<(V, UnregistrationEffect)>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
         let ID(id) = id;
 
         let mvec = self.map.get_mut(name)?;
@@ -62,7 +74,11 @@ impl<T> Registry<T> {
     }
 
     // TODO: provide better interface for iteration over mutable items.
-    pub fn get_mut(&mut self, name: &str) -> Option<&mut MVec<T>> {
+    pub fn get_mut<Q: ?Sized>(&mut self, name: &Q) -> Option<&mut MVec<V>>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
         self.map.get_mut(name)
     }
 
@@ -70,7 +86,7 @@ impl<T> Registry<T> {
         self.map.is_empty()
     }
 
-    pub fn keys(&self) -> impl Iterator<Item = &String> {
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
         self.map.keys()
     }
 }
