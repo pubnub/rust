@@ -7,6 +7,7 @@ use crate::core::data::{
     request, response,
     timetoken::Timetoken,
 };
+use crate::core::json;
 use crate::core::TransportService;
 use crate::encode_json;
 use async_trait::async_trait;
@@ -81,24 +82,29 @@ impl TransportService<request::Subscribe> for Hyper {
         };
 
         // Parse messages.
-        let messages = data_json["m"]
-            .members()
-            .map(|message| Message {
-                message_type: Type::from_json(&message["e"]),
-                route: message["b"].as_str().map(str::to_string),
-                channel: message["c"].to_string(),
-                json: message["d"].clone(),
-                metadata: message["u"].clone(),
-                timetoken: Timetoken {
-                    t: message["p"]["t"].as_str().unwrap().parse().unwrap(),
-                    r: message["p"]["r"].as_u32().unwrap_or(0),
-                },
-                client: message["i"].as_str().map(str::to_string),
-                subscribe_key: message["k"].to_string(),
-                flags: message["f"].as_u32().unwrap_or(0),
-            })
-            .collect::<Vec<_>>();
+        let messages = {
+            let result: Option<Vec<_>> = data_json["m"].members().map(parse_message).collect();
+            result.ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?
+        };
 
         Ok((messages, timetoken))
     }
+}
+
+fn parse_message(message: &json::JsonValue) -> Option<Message> {
+    let message = Message {
+        message_type: Type::from_json(&message["e"]),
+        route: message["b"].as_str().map(|s| s.parse().ok())?,
+        channel: message["c"].as_str()?.parse().ok()?,
+        json: message["d"].clone(),
+        metadata: message["u"].clone(),
+        timetoken: Timetoken {
+            t: message["p"]["t"].as_str()?.parse().ok()?,
+            r: message["p"]["r"].as_u32().unwrap_or(0),
+        },
+        client: message["i"].as_str().map(str::to_string),
+        subscribe_key: message["k"].to_string(),
+        flags: message["f"].as_u32().unwrap_or(0),
+    };
+    Some(message)
 }
