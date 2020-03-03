@@ -1,4 +1,4 @@
-use super::mvec::MVec;
+use super::mvec::{MVec, MVecIterMut};
 use std::borrow::Borrow;
 use std::collections::{hash_map::Entry, HashMap};
 use std::hash::Hash;
@@ -39,7 +39,7 @@ where
     }
 
     pub fn register(&mut self, name: K, value: V) -> (ID, RegistrationEffect) {
-        let entry = self.map.entry(name.into());
+        let entry = self.map.entry(name);
 
         let effect = match &entry {
             Entry::Vacant(_) => RegistrationEffect::NewName,
@@ -73,13 +73,12 @@ where
         Some((removed, effect))
     }
 
-    // TODO: provide better interface for iteration over mutable items.
-    pub fn get_mut<Q: ?Sized>(&mut self, name: &Q) -> Option<&mut MVec<V>>
+    pub fn get_iter_mut<'a, Q: ?Sized>(&'a mut self, name: &Q) -> Option<MVecIterMut<'a, V>>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
     {
-        self.map.get_mut(name)
+        self.map.get_mut(name).map(MVec::iter_mut)
     }
 
     pub fn is_empty(&self) -> bool {

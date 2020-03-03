@@ -236,8 +236,6 @@ async fn handle_control_command(
 async fn dispatch_messages(state_data: &mut StateData, messages: Vec<Message>) {
     // Distribute messages to each listener.
     for message in messages {
-        // TODO: provide a better interface and remove the potentially
-        // unsound `get` and `get_mut` from the registry API.
         let listeners = {
             let channel = &message.channel;
             let route = match &message.route {
@@ -249,19 +247,22 @@ async fn dispatch_messages(state_data: &mut StateData, messages: Vec<Message>) {
                 debug!("route: {} (channel group)", &route);
                 state_data
                     .channel_groups
-                    .get_mut(route)
+                    .get_iter_mut(route)
                     .expect("received a message with a route that has no listeners")
             } else {
                 debug!("route: {} (channel)", &channel);
                 state_data
                     .channels
-                    .get_mut(channel)
+                    .get_iter_mut(channel)
                     .expect("received a message with a channel that has no listeners")
             }
         };
 
-        debug!("Delivering to {} listeners...", listeners.len());
-        for channel_tx in listeners.iter_mut() {
+        debug!(
+            "Delivering to {} listeners...",
+            listeners.size_hint().1.unwrap()
+        );
+        for channel_tx in listeners {
             if let Err(error) = channel_tx.send(message.clone()).await {
                 error!("Delivery error: {:?}", error);
             }

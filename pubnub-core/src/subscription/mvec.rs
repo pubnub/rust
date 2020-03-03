@@ -21,10 +21,6 @@ pub(crate) struct MVecIterMut<'a, T> {
 }
 
 impl<T> MVec<T> {
-    pub(crate) fn len(&self) -> usize {
-        self.inner.len()
-    }
-
     pub(crate) fn counter(&self) -> usize {
         self.counter
     }
@@ -63,5 +59,9 @@ impl<'a, T> Iterator for MVecIterMut<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
