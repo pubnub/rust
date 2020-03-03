@@ -1,6 +1,6 @@
 use crate::runtime::Runtime;
 use crate::subscription::subscribe_loop_supervisor::SubscribeLoopSupervisor;
-use crate::transport::Transport;
+use crate::transport::{Service, Transport};
 use futures_util::lock::Mutex;
 use std::sync::Arc;
 
@@ -42,5 +42,22 @@ where
     /// Get a reference to a runtime being used.
     pub fn runtime(&self) -> &TRuntime {
         &self.runtime
+    }
+}
+
+impl<TTransport, TRuntime> PubNub<TTransport, TRuntime>
+where
+    TTransport: Transport + 'static,
+    TRuntime: Runtime + 'static,
+{
+    /// Perform a transport call.
+    pub async fn call<TRequest>(
+        &self,
+        req: TRequest,
+    ) -> Result<<TTransport as Service<TRequest>>::Response, <TTransport as Service<TRequest>>::Error>
+    where
+        TTransport: Service<TRequest>,
+    {
+        self.transport.call(req).await
     }
 }
