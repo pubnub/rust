@@ -8,25 +8,11 @@ use pubnub_hyper::runtime::tokio_global::TokioGlobal;
 use pubnub_hyper::transport::hyper::Hyper;
 use pubnub_hyper::Builder;
 use randomize::PCG32;
-use std::future::Future;
-use tokio::runtime;
+
+mod common;
 
 const NOV_14_2019: u64 = 15_736_896_000_000_000;
 const NOV_14_2120: u64 = 47_609_856_000_000_000; // TODO: Update this in 100 years
-
-fn init() {
-    let env = env_logger::Env::default().default_filter_or("pubnub=trace");
-    let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
-}
-
-fn current_thread_block_on<F: Future>(future: F) -> F::Output {
-    let mut rt = runtime::Builder::new()
-        .enable_all()
-        .basic_scheduler()
-        .build()
-        .unwrap();
-    rt.block_on(future)
-}
 
 /// Generate a pseudorandom seed for the PRNG.
 fn generate_seed() -> (u64, u64) {
@@ -65,8 +51,8 @@ fn shuffle<T>(prng: &mut PCG32, list: &mut Vec<T>) -> Vec<T> {
 
 #[test]
 fn pubnub_subscribe_ok() {
-    init();
-    current_thread_block_on(async {
+    common::init();
+    common::current_thread_block_on(async {
         let channel: channel::Name = "demo2".parse().unwrap();
 
         let transport = Hyper::new()
@@ -120,8 +106,8 @@ fn pubnub_subscribe_ok() {
 
 #[test]
 fn pubnub_subscribeloop_drop() {
-    init();
-    current_thread_block_on(async {
+    common::init();
+    common::current_thread_block_on(async {
         let channel: channel::Name = "demo2".parse().unwrap();
 
         let transport = Hyper::new()
@@ -166,8 +152,8 @@ fn pubnub_subscribeloop_drop() {
 
 #[test]
 fn pubnub_subscribeloop_recreate() {
-    init();
-    current_thread_block_on(async {
+    common::init();
+    common::current_thread_block_on(async {
         let channel: channel::Name = "demo2".parse().unwrap();
 
         let transport = Hyper::new()
@@ -200,8 +186,8 @@ fn pubnub_subscribeloop_recreate() {
 
 #[test]
 fn pubnub_subscribe_clone_ok() {
-    init();
-    current_thread_block_on(async {
+    common::init();
+    common::current_thread_block_on(async {
         let seed = generate_seed();
         let mut prng = PCG32::seed(seed.0, seed.1);
         let mut streams = Vec::new();
@@ -287,8 +273,8 @@ fn pubnub_subscribe_clone_ok() {
 
 #[test]
 fn pubnub_subscribe_clones_share_loop() {
-    init();
-    current_thread_block_on(async {
+    common::init();
+    common::current_thread_block_on(async {
         let transport = Hyper::new()
             .agent("Rust-Agent-Test")
             .publish_key("demo")
@@ -343,8 +329,8 @@ fn pubnub_subscribe_clones_share_loop() {
 
 #[test]
 fn pubnub_publish_ok() {
-    init();
-    current_thread_block_on(async {
+    common::init();
+    common::current_thread_block_on(async {
         let channel = "demo".parse().unwrap();
 
         let transport = Hyper::new()
