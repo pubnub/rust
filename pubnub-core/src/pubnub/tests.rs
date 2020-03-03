@@ -1,7 +1,7 @@
 #![cfg(feature = "mock")]
 
-use super::*;
 use crate::builder::Builder;
+use crate::data::timetoken::Timetoken;
 use crate::mock::runtime::MockRuntime;
 use crate::mock::transport::MockTransport;
 use futures_channel::{mpsc, oneshot};

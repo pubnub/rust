@@ -1,13 +1,11 @@
-use crate::data::channel;
-use crate::data::object::Object;
-use crate::data::request;
-use crate::data::timetoken::Timetoken;
 use crate::runtime::Runtime;
 use crate::subscription::subscribe_loop_supervisor::SubscribeLoopSupervisor;
-use crate::subscription::Subscription;
 use crate::transport::Transport;
 use futures_util::lock::Mutex;
 use std::sync::Arc;
+
+mod publish;
+mod subscribe;
 
 #[cfg(test)]
 mod tests;
@@ -36,128 +34,6 @@ where
     TTransport: Transport + 'static,
     TRuntime: Runtime + 'static,
 {
-    /// Publish a message over the PubNub network.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use pubnub_core::mock::{transport::MockTransport, runtime::MockRuntime};
-    /// # let transport = MockTransport::new();
-    /// # let runtime = MockRuntime::new();
-    /// use pubnub_core::{data::channel, json::object, Builder};
-    ///
-    /// # async {
-    /// let pubnub = Builder::with_components(transport, runtime).build();
-    ///
-    /// let channel_name: channel::Name = "my-channel".parse().unwrap();
-    /// let timetoken = pubnub
-    ///     .publish(
-    ///         channel_name,
-    ///         object! {
-    ///             "username" => "JoeBob",
-    ///             "content" => "Hello, world!",
-    ///         },
-    ///     )
-    ///     .await?;
-    ///
-    /// println!("Timetoken: {}", timetoken);
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// # };
-    /// ```
-    pub async fn publish(
-        &self,
-        channel: channel::Name,
-        message: Object,
-    ) -> Result<Timetoken, <TTransport as Transport>::Error> {
-        let request = request::Publish {
-            channel,
-            meta: None,
-            payload: message,
-        };
-        self.transport.call(request).await
-    }
-
-    /// Publish a message over the PubNub network with an extra metadata payload.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use pubnub_core::mock::{transport::MockTransport, runtime::MockRuntime};
-    /// # let transport = MockTransport::new();
-    /// # let runtime = MockRuntime::new();
-    /// use pubnub_core::{data::channel, json::object, Builder};
-    ///
-    /// # async {
-    /// let pubnub = Builder::with_components(transport, runtime).build();
-    ///
-    /// let message = object! {
-    ///     "username" => "JoeBob",
-    ///     "content" => "Hello, world!",
-    /// };
-    /// let metadata = object! {
-    ///     "uuid" => "JoeBob",
-    /// };
-    ///
-    /// let channel_name: channel::Name = "my-channel".parse().unwrap();
-    /// let timetoken = pubnub
-    ///     .publish_with_metadata(channel_name, message, metadata)
-    ///     .await?;
-    ///
-    /// println!("Timetoken: {}", timetoken);
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// # };
-    /// ```
-    pub async fn publish_with_metadata(
-        &self,
-        channel: channel::Name,
-        message: Object,
-        metadata: Object,
-    ) -> Result<Timetoken, <TTransport as Transport>::Error> {
-        let request = request::Publish {
-            channel,
-            meta: Some(metadata),
-            payload: message,
-        };
-        self.transport.call(request).await
-    }
-
-    /// Subscribe to a message stream over the PubNub network.
-    ///
-    /// The PubNub client only maintains a single subscribe loop for all subscription streams. This
-    /// has a benefit that it optimizes for a low number of sockets to the PubNub network. It has a
-    /// downside that requires _all_ streams to consume faster than the subscribe loop produces.
-    /// A slow consumer will create a head-of-line blocking bottleneck in the processing of
-    /// received messages. All streams can only consume as fast as the slowest.
-    ///
-    /// For example, with 3 total subscription streams and 1 that takes 30 seconds to process each
-    /// message; the other 2 streams will be blocked waiting for that 30-second duration on the
-    /// slow consumer.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use pubnub_core::mock::{transport::MockTransport, runtime::MockRuntime};
-    /// # let transport = MockTransport::new();
-    /// # let runtime = MockRuntime::new();
-    /// use futures_util::stream::StreamExt;
-    /// use pubnub_core::{data::channel, json::object, Builder};
-    ///
-    /// # async {
-    /// let mut pubnub = Builder::with_components(transport, runtime).build();
-    /// let channel_name: channel::Name = "my-channel".parse().unwrap();
-    /// let mut stream = pubnub.subscribe(channel_name).await;
-    ///
-    /// while let Some(message) = stream.next().await {
-    ///     println!("Received message: {:?}", message);
-    /// }
-    /// # };
-    /// ```
-    pub async fn subscribe(&mut self, channel: channel::Name) -> Subscription<TRuntime> {
-        let supervisor_arc_clone = self.subscribe_loop_supervisor.clone();
-        let mut supervisor_guard = supervisor_arc_clone.lock().await;
-        supervisor_guard.subscribe(self, channel).await
-    }
-
     /// Get a reference to a transport being used.
     pub fn transport(&self) -> &TTransport {
         &self.transport
