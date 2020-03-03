@@ -6,5 +6,6 @@ pub mod object;
 pub mod presence;
 pub mod request;
 pub mod response;
+pub mod target;
 pub mod timetoken;
 pub mod uuid;
