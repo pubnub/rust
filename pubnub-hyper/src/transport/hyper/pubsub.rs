@@ -26,11 +26,12 @@ impl TransportService<request::Publish> for Hyper {
 
         // Prepare the URL.
         let path_and_query = format!(
-            "/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}",
+            "/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}?uuid={uuid}",
             pub_key = self.publish_key,
             sub_key = self.subscribe_key,
             channel = encoded_channel,
             message = encoded_payload,
+            uuid = self.uuid,
         );
         let url = build_uri(&self, &path_and_query)?;
 
@@ -62,12 +63,13 @@ impl TransportService<request::Subscribe> for Hyper {
 
         // Prepare the URL.
         let path_and_query = format!(
-            "/v2/subscribe/{sub_key}/{channels}/0?channel-group={channel_groups}&tt={tt}&tr={tr}",
+            "/v2/subscribe/{sub_key}/{channels}/0?channel-group={channel_groups}&tt={tt}&tr={tr}&uuid={uuid}",
             sub_key = self.subscribe_key,
             channels = encoded_channels,
             channel_groups = encoded_channel_groups,
             tt = request.timetoken.t,
             tr = request.timetoken.r,
+            uuid = self.uuid,
         );
         let url = build_uri(&self, &path_and_query)?;
 
