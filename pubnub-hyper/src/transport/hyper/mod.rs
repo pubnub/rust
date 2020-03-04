@@ -55,8 +55,8 @@ impl HyperBuilder {
     fn default_http_client() -> HttpClient {
         let https = HttpsConnector::new();
         Client::builder()
-            .keep_alive_timeout(Some(Duration::from_secs(300)))
-            .max_idle_per_host(10000)
+            .pool_idle_timeout(Some(Duration::from_secs(300)))
+            .pool_max_idle_per_host(10000)
             .build::<_, Body>(https)
     }
 }
