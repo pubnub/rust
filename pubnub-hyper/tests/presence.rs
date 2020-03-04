@@ -248,3 +248,53 @@ fn global_here_now() {
         }
     });
 }
+
+#[test]
+fn where_now() {
+    common::init();
+    common::current_thread_block_on(async {
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
+        let other_transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
+
+        let pubnub = Builder::with_components(transport, TokioGlobal).build();
+        let other_pubnub = Builder::with_components(other_transport, TokioGlobal).build();
+
+        let test_channel: channel::Name = format!("my-channel-{}", random_hex_string())
+            .try_into()
+            .unwrap();
+
+        {
+            let val = other_pubnub
+                .call(request::Subscribe {
+                    channels: vec![test_channel.clone()],
+                    channel_groups: vec![],
+                    timetoken: Timetoken::default(),
+                })
+                .await;
+            assert!(val.is_ok());
+        }
+
+        // Wait for PunNub network to react.
+        sleep(10000).await;
+
+        {
+            let val = pubnub
+                .call(request::WhereNow {
+                    uuid: other_pubnub.transport().uuid().clone(),
+                })
+                .await
+                .unwrap();
+            assert_eq!(val, vec![test_channel.clone()]);
+        }
+    });
+}
