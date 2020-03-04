@@ -38,7 +38,7 @@ trait HereNowParse<T: presence::respond_with::RespondWith> {
             let mut values = HashMap::new();
             for (k, v) in channels.iter() {
                 let channel_info = self.parse(v)?;
-                values.insert(k.to_string(), channel_info);
+                values.insert(k.parse().ok()?, channel_info);
             }
             values
         };

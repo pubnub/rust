@@ -1,4 +1,5 @@
 //! Presence API related types.
+use super::channel;
 use super::object::Object;
 use super::uuid::UUID;
 use std::collections::HashMap;
@@ -78,5 +79,5 @@ pub struct GlobalInfo<T: respond_with::RespondWith> {
     pub total_occupancy: u64,
 
     /// Per-channel info.
-    pub channels: HashMap<String, T::Response>,
+    pub channels: HashMap<channel::Name, T::Response>,
 }
