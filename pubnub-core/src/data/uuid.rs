@@ -7,6 +7,14 @@ use std::ops::Deref;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UUID(String);
 
+impl UUID {
+    /// Generates a random UUID according to UUID v4 spec.
+    #[must_use]
+    pub fn random() -> UUID {
+        uuid::Uuid::new_v4().into()
+    }
+}
+
 impl From<String> for UUID {
     fn from(value: String) -> Self {
         Self(value)
@@ -16,6 +24,12 @@ impl From<String> for UUID {
 impl From<&str> for UUID {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
+    }
+}
+
+impl From<uuid::Uuid> for UUID {
+    fn from(value: uuid::Uuid) -> Self {
+        Self(value.to_hyphenated().to_string())
     }
 }
 
