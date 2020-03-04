@@ -30,11 +30,13 @@ trait HereNowParse<T: presence::respond_with::RespondWith> {
     }
 
     fn parse_global(&self, data_json: &json::JsonValue) -> Option<presence::GlobalInfo<T>> {
-        let total_channels = data_json["total_channels"].as_u64()?;
-        let total_occupancy = data_json["total_occupancy"].as_u64()?;
+        let payload = json_as_object(&data_json["payload"])?;
+
+        let total_channels = payload["total_channels"].as_u64()?;
+        let total_occupancy = payload["total_occupancy"].as_u64()?;
 
         let channels = {
-            let channels = json_as_object(&data_json["channels"])?;
+            let channels = json_as_object(&payload["channels"])?;
             let mut values = HashMap::new();
             for (k, v) in channels.iter() {
                 let channel_info = self.parse(v)?;
