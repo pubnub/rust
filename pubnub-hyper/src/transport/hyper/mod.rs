@@ -1,5 +1,6 @@
 //! Hyper transport implementation.
 
+use crate::core::data::uuid::UUID;
 use crate::core::Transport;
 use derive_builder::Builder;
 use hyper::{client::HttpConnector, Body, Client};
@@ -36,6 +37,10 @@ pub struct Hyper {
     /// User-Agent header value to use at HTTP requests.
     #[builder(setter(into), default = "\"Rust-Agent\".to_owned()")]
     agent: String,
+
+    /// A UUID to identify as.
+    #[builder(setter(into), default = "Self::default_uuid()")]
+    uuid: UUID,
 }
 
 impl Hyper {
@@ -58,5 +63,9 @@ impl HyperBuilder {
             .pool_idle_timeout(Some(Duration::from_secs(300)))
             .pool_max_idle_per_host(10000)
             .build::<_, Body>(https)
+    }
+
+    fn default_uuid() -> UUID {
+        UUID::random()
     }
 }
