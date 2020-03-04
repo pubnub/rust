@@ -5,7 +5,7 @@ use crate::core::json;
 use futures_util::stream::StreamExt;
 use hyper::{Body, Response, Uri};
 use json::{object::Object as JsonObject, JsonValue};
-use log::debug;
+use log::{debug, trace};
 
 use super::Hyper;
 
@@ -33,6 +33,8 @@ pub(super) async fn handle_json_response(
     // Convert the resolved byte stream to JSON.
     let data = std::str::from_utf8(&bytes)?;
     let data_json = json::parse(data)?;
+
+    trace!("Response JSON: {}", data_json);
 
     Ok(data_json)
 }
