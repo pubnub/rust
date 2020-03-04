@@ -157,3 +157,94 @@ fn here_now_single_channel() {
         }
     });
 }
+
+#[test]
+fn global_here_now() {
+    common::init();
+    common::current_thread_block_on(async {
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
+
+        let pubnub = Builder::with_components(transport, TokioGlobal).build();
+
+        let test_channel: channel::Name = format!("my-channel-{}", random_hex_string())
+            .try_into()
+            .unwrap();
+
+        {
+            let val = pubnub
+                .call(request::Subscribe {
+                    channels: vec![test_channel.clone()],
+                    channel_groups: vec![],
+                    timetoken: Timetoken::default(),
+                })
+                .await;
+            assert!(val.is_ok());
+        }
+
+        // Wait for PunNub network to react.
+        sleep(15000).await;
+
+        {
+            let val = pubnub
+                .call(
+                    request::GlobalHereNow::<presence::respond_with::OccupancyOnly> {
+                        respond_with: std::marker::PhantomData,
+                    },
+                )
+                .await
+                .unwrap();
+            assert!(val.total_channels >= 1);
+            assert!(val.total_occupancy >= 1);
+            assert_eq!(
+                val.channels[&test_channel],
+                presence::ChannelInfo { occupancy: 1 }
+            );
+        }
+
+        {
+            let val = pubnub
+                .call(
+                    request::GlobalHereNow::<presence::respond_with::OccupancyAndUUIDs> {
+                        respond_with: std::marker::PhantomData,
+                    },
+                )
+                .await
+                .unwrap();
+            assert!(val.total_channels >= 1);
+            assert!(val.total_occupancy >= 1);
+            assert_eq!(
+                val.channels[&test_channel],
+                presence::ChannelInfoWithOccupants {
+                    occupancy: 1,
+                    occupants: vec![pubnub.transport().uuid().clone()],
+                },
+            );
+        }
+
+        {
+            let val = pubnub
+                .call(request::GlobalHereNow::<presence::respond_with::Full> {
+                    respond_with: std::marker::PhantomData,
+                })
+                .await
+                .unwrap();
+            assert!(val.total_channels >= 1);
+            assert!(val.total_occupancy >= 1);
+            assert_eq!(
+                val.channels[&test_channel],
+                presence::ChannelInfoWithOccupants {
+                    occupancy: 1,
+                    occupants: vec![presence::ChannelOccupantFullDetails {
+                        uuid: pubnub.transport().uuid().clone(),
+                        state: json::Null,
+                    }],
+                },
+            );
+        }
+    });
+}
