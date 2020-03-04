@@ -1,5 +1,6 @@
 //! Types used by [`crate::Transport`].
 
+use crate::data::channel;
 use crate::data::message::Message;
 use crate::data::object::Object;
 use crate::data::presence;
@@ -24,4 +25,4 @@ pub type HereNow<T> = <T as presence::respond_with::RespondWith>::Response;
 pub type GlobalHereNow<T> = presence::GlobalInfo<T>;
 
 /// A response to a where now request. List of channels.
-pub type WhereNow = Vec<String>;
+pub type WhereNow = Vec<channel::Name>;
