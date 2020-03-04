@@ -1,3 +1,4 @@
+use log::info;
 use pubnub_hyper::core::data::{channel, presence, request, response, timetoken::Timetoken};
 use pubnub_hyper::runtime::tokio_global::TokioGlobal;
 use pubnub_hyper::transport::hyper::Hyper;
@@ -11,6 +12,7 @@ const SAMPLE_UUID: &'static str = "903145ee-7c15-4579-aa5d-38a900717512";
 
 /// Delay execution for the specified amount of milliseconds.
 async fn sleep(ms: u64) {
+    info!(target: "pubnub", "Sleeping for {} ms", ms);
     tokio::time::delay_for(std::time::Duration::from_millis(ms)).await
 }
 
