@@ -16,6 +16,7 @@ async-trait = "0.1"
 derive_builder = "0.9"
 error-iter = "0.2"
 futures-util = { version = "0.3", features = ["async-await", "async-await-macro"] }
+getset = "0.1"
 http = "0.2"
 hyper = { version = "0.13.3", features = ["stream"] }
 hyper-tls = "0.4"

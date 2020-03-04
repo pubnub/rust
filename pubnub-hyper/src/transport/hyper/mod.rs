@@ -3,6 +3,7 @@
 use crate::core::data::uuid::UUID;
 use crate::core::Transport;
 use derive_builder::Builder;
+use getset::Getters;
 use hyper::{client::HttpConnector, Body, Client};
 use hyper_tls::HttpsConnector;
 use std::time::Duration;
@@ -18,7 +19,8 @@ type HttpClient = Client<HttpsConnector<HttpConnector>>;
 
 /// Implements transport for PubNub using the `hyper` crate to communicate with
 /// the PubNub REST API.
-#[derive(Debug, Clone, Builder)]
+#[derive(Debug, Clone, Builder, Getters)]
+#[getset(get = "pub")]
 pub struct Hyper {
     /// An HTTP client to use.
     #[builder(default = "Self::default_http_client()")]
