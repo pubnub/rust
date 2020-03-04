@@ -185,7 +185,7 @@ impl TransportService<request::GetState> for Hyper {
         let mut data_json = handle_presence_response(response).await?;
 
         // Parse response.
-        Ok(data_json.remove("state"))
+        Ok(data_json.remove("payload"))
     }
 }
 
