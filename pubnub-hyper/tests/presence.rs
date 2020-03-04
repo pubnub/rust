@@ -189,7 +189,7 @@ fn global_here_now() {
         }
 
         // Wait for PunNub network to react.
-        sleep(30000).await;
+        sleep(60000).await;
 
         {
             let val = pubnub
