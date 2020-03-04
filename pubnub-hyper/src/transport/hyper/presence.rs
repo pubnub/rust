@@ -424,7 +424,7 @@ impl TransportService<request::WhereNow> for Hyper {
             let channels = json_as_array(&payloads["channels"]).ok_or_else(err_fn)?;
             let results: Option<_> = channels
                 .iter()
-                .map(|val| val.as_str().map(std::borrow::ToOwned::to_owned))
+                .map(|val| val.as_str().and_then(|s| s.parse().ok()))
                 .collect();
             results.ok_or_else(err_fn)?
         };
