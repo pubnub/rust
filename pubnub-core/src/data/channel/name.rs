@@ -1,5 +1,3 @@
-//! Channel related types.
-
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::str::FromStr;
