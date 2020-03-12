@@ -1,9 +1,9 @@
 use super::registry::Registry;
 use super::subscribe_loop::{
-    subscribe_loop, ControlCommand, ControlTx, ExitTx, ListenerType, SubscribeLoopParams,
+    subscribe_loop, ControlCommand, ControlTx, ExitTx, SubscribeLoopParams,
 };
 use super::subscription::Subscription;
-use crate::data::channel;
+use crate::data::pubsub;
 use crate::runtime::Runtime;
 use crate::transport::Transport;
 use crate::PubNub;
@@ -48,7 +48,7 @@ impl SubscribeLoopSupervisor {
     pub async fn subscribe<'a, TTransport, TRuntime>(
         &mut self,
         pubnub: &'a mut PubNub<TTransport, TRuntime>,
-        channel: channel::Name,
+        to: pubsub::SubscribeTo,
     ) -> Subscription<TRuntime>
     where
         TTransport: Transport + 'static,
@@ -62,16 +62,12 @@ impl SubscribeLoopSupervisor {
                 // Send a command to add the channel to the running
                 // subscribe loop.
 
-                debug!("Adding channel {:?} to the running loop", channel);
+                debug!("Adding destination {:?} to the running loop", to);
 
                 let (id_tx, id_rx) = oneshot::channel();
 
-                // TODO: unify interfaces to either use `ListenerType` or
-                // `&str` when we refer to a channel.
-                let listener = ListenerType::Channel(channel.clone());
-
                 let control_comm_result = control_tx
-                    .send(ControlCommand::Add(listener, channel_tx, id_tx))
+                    .send(ControlCommand::Add(to.clone(), channel_tx, id_tx))
                     .await;
 
                 if control_comm_result.is_err() {
@@ -104,8 +100,8 @@ impl SubscribeLoopSupervisor {
                 // Since there's no subscribe loop loop found, spawn a new
                 // one.
 
-                let mut channels = Registry::new();
-                let (id, _) = channels.register(channel.clone(), channel_tx);
+                let mut registry = Registry::new();
+                let (id, _) = registry.register(to.clone(), channel_tx);
 
                 let (control_tx, control_rx) = mpsc::channel(10);
                 let (ready_tx, ready_rx) = oneshot::channel();
@@ -118,8 +114,7 @@ impl SubscribeLoopSupervisor {
 
                     transport: pubnub.transport.clone(),
 
-                    channels,
-                    channel_groups: Registry::new(),
+                    to: registry,
                 };
 
                 // Spawn the subscribe loop onto the runtime
@@ -149,7 +144,7 @@ impl SubscribeLoopSupervisor {
 
         Subscription {
             runtime: pubnub.runtime.clone(),
-            name: ListenerType::Channel(channel),
+            destination: to,
             id,
             control_tx,
             channel_rx,

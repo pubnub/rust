@@ -12,7 +12,7 @@ use futures_util::task::{LocalSpawnExt, SpawnExt};
 use mockall::predicate::eq;
 use mockall::Sequence;
 
-use crate::data::message::{Message, Type};
+use crate::data::message::{self, Message};
 use crate::data::{channel, pubsub, request, response};
 use crate::json::object;
 
@@ -69,8 +69,8 @@ fn mocked_pubnub_subscribe_ok() {
             let (sub_loop_exit_tx, mut sub_loop_exit_rx) = mpsc::channel::<()>(1);
 
             let messages = vec![Message {
-                message_type: Type::Publish,
-                route: Some(test_channel.clone()),
+                message_type: message::Type::Publish,
+                route: None,
                 channel: test_channel.clone(),
                 json: object! {
                     "test" => "value",
