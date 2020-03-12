@@ -1,3 +1,4 @@
+mod message_destinations;
 mod mvec;
 mod registry;
 

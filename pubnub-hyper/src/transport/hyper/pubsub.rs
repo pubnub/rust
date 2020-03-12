@@ -3,7 +3,7 @@
 use super::util::{build_uri, handle_json_response};
 use super::{error, Hyper};
 use crate::core::data::{
-    message::{Message, Type},
+    message::{self, Message},
     pubsub, request, response,
     timetoken::Timetoken,
 };
@@ -92,10 +92,37 @@ impl TransportService<request::Subscribe> for Hyper {
     }
 }
 
+fn parse_message_type(i: &json::JsonValue) -> Option<message::Type> {
+    let i = i.as_u32()?;
+    Some(match i {
+        0 => message::Type::Publish,
+        1 => message::Type::Signal,
+        2 => message::Type::Objects,
+        3 => message::Type::Action,
+        i => message::Type::Unknown(i),
+    })
+}
+
+fn parse_message_route(route: &json::JsonValue) -> Result<Option<message::Route>, ()> {
+    if route.is_null() {
+        return Ok(None);
+    }
+    let route = route.as_str().ok_or(())?;
+    // First try parsing as wildcard, it is more restrictive.
+    if let Ok(val) = route.parse() {
+        return Ok(Some(message::Route::ChannelWildcard(val)));
+    }
+    // Then try parsing as regular name for a channel group.
+    if let Ok(val) = route.parse() {
+        return Ok(Some(message::Route::ChannelGroup(val)));
+    }
+    Err(())
+}
+
 fn parse_message(message: &json::JsonValue) -> Option<Message> {
     let message = Message {
-        message_type: Type::from_json(&message["e"]),
-        route: message["b"].as_str().map(|s| s.parse().ok())?,
+        message_type: parse_message_type(&message["e"])?,
+        route: parse_message_route(&message["b"]).ok()?,
         channel: message["c"].as_str()?.parse().ok()?,
         json: message["d"].clone(),
         metadata: message["u"].clone(),
