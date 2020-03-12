@@ -3,6 +3,7 @@
 use crate::data::channel;
 use crate::data::object::Object;
 use crate::data::presence;
+use crate::data::pubsub;
 use crate::data::timetoken::Timetoken;
 use crate::data::uuid::UUID;
 use std::marker::PhantomData;
@@ -23,11 +24,8 @@ pub struct Publish {
 /// Subscribe to messages on channels and/or channel groups.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subscribe {
-    /// The channel names you are subscribing to.
-    pub channels: Vec<channel::Name>,
-
-    /// The channel group names you are subscribing to.
-    pub channel_groups: Vec<channel::Name>,
+    /// The destinations to subscribe to.
+    pub to: Vec<pubsub::SubscribeTo>,
 
     /// A timetoken to use.
     /// tt: 0 (zero) for the initial subscribe, or a valid timetoken if

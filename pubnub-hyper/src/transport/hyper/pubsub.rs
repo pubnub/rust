@@ -4,7 +4,7 @@ use super::util::{build_uri, handle_json_response};
 use super::{error, Hyper};
 use crate::core::data::{
     message::{Message, Type},
-    request, response,
+    pubsub, request, response,
     timetoken::Timetoken,
 };
 use crate::core::json;
@@ -12,7 +12,7 @@ use crate::core::TransportService;
 use crate::encode_json;
 use async_trait::async_trait;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use pubnub_util::encoded_channels_list::EncodedChannelsList;
+use pubnub_util::url_encoded_list::UrlEncodedList;
 
 #[async_trait]
 impl TransportService<request::Publish> for Hyper {
@@ -58,15 +58,14 @@ impl TransportService<request::Subscribe> for Hyper {
         // TODO: add caching of repeating params to avoid reencoding.
 
         // Prepare encoded channels and channel_groups.
-        let encoded_channels = EncodedChannelsList::from(request.channels);
-        let encoded_channel_groups = EncodedChannelsList::from(request.channel_groups);
+        let (channel, channel_groups) = process_subscribe_to(&request.to);
 
         // Prepare the URL.
         let path_and_query = format!(
             "/v2/subscribe/{sub_key}/{channels}/0?channel-group={channel_groups}&tt={tt}&tr={tr}&uuid={uuid}",
             sub_key = self.subscribe_key,
-            channels = encoded_channels,
-            channel_groups = encoded_channel_groups,
+            channels = channel,
+            channel_groups = channel_groups,
             tt = request.timetoken.t,
             tr = request.timetoken.r,
             uuid = self.uuid,
@@ -109,4 +108,22 @@ fn parse_message(message: &json::JsonValue) -> Option<Message> {
         flags: message["f"].as_u32().unwrap_or(0),
     };
     Some(message)
+}
+
+fn process_subscribe_to(to: &[pubsub::SubscribeTo]) -> (String, String) {
+    let channels = to.iter().filter_map(|to| {
+        to.as_channel()
+            .map(AsRef::<str>::as_ref)
+            .or_else(|| to.as_channel_wildcard().map(AsRef::<str>::as_ref))
+    });
+    let channel_groups = to.iter().filter_map(pubsub::SubscribeTo::as_channel_group);
+
+    let channels = UrlEncodedList::from(channels).into_inner();
+    let channels = if channels.is_empty() {
+        "-".to_owned()
+    } else {
+        channels
+    };
+
+    (channels, UrlEncodedList::from(channel_groups).into_inner())
 }

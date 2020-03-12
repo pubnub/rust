@@ -13,7 +13,7 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 
 use crate::data::message::{Message, Type};
-use crate::data::{channel, request, response};
+use crate::data::{channel, pubsub, request, response};
 use crate::json::object;
 
 fn init() {
@@ -99,8 +99,7 @@ fn mocked_pubnub_subscribe_ok() {
                             .times(1)
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
-                                channels: vec![test_channel.clone()],
-                                channel_groups: vec![],
+                                to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                                 timetoken: Timetoken::default(),
                             }))
                             .return_once(move |_| {
@@ -113,8 +112,7 @@ fn mocked_pubnub_subscribe_ok() {
                             .times(1)
                             .in_sequence(&mut seq)
                             .with(eq(request::Subscribe {
-                                channels: vec![test_channel.clone()],
-                                channel_groups: vec![],
+                                to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                                 timetoken: Timetoken { t: 150, r: 1 },
                             }))
                             .return_once(move |_| {
