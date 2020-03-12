@@ -1,7 +1,7 @@
 use super::registry::Registry as GenericRegistry;
 use crate::data::message::Message;
 use crate::data::timetoken::Timetoken;
-use crate::data::{channel, request, response};
+use crate::data::{channel, pubsub, request, response};
 use crate::transport::Service;
 use futures_channel::{mpsc, oneshot};
 use futures_util::future::{select, Either, FutureExt};
@@ -93,13 +93,21 @@ where
 
     loop {
         // TODO: re-add cache.
-        let channels: Vec<_> = state_data.channels.keys().cloned().collect();
-        let channel_groups: Vec<_> = state_data.channel_groups.keys().cloned().collect();
-        let request = request::Subscribe {
-            channels,
-            channel_groups,
-            timetoken,
-        };
+        let to: Vec<pubsub::SubscribeTo> = state_data
+            .channels
+            .keys()
+            .cloned()
+            .map(|ch| pubsub::SubscribeTo::Channel(ch))
+            .chain(
+                state_data
+                    .channel_groups
+                    .keys()
+                    .cloned()
+                    .map(|ch| pubsub::SubscribeTo::ChannelGroup(ch)),
+            )
+            .collect();
+
+        let request = request::Subscribe { to, timetoken };
         let response = transport.call(request);
 
         let response = response.fuse();

@@ -1,5 +1,7 @@
 use log::info;
-use pubnub_hyper::core::data::{channel, presence, request, response, timetoken::Timetoken};
+use pubnub_hyper::core::data::{
+    channel, presence, pubsub, request, response, timetoken::Timetoken,
+};
 use pubnub_hyper::runtime::tokio_global::TokioGlobal;
 use pubnub_hyper::transport::hyper::Hyper;
 use pubnub_hyper::Builder;
@@ -91,8 +93,7 @@ fn here_now_single_channel() {
         {
             let val = pubnub
                 .call(request::Subscribe {
-                    channels: vec![test_channel.clone()],
-                    channel_groups: vec![],
+                    to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                     timetoken: Timetoken::default(),
                 })
                 .await;
@@ -180,8 +181,7 @@ fn global_here_now() {
         {
             let val = pubnub
                 .call(request::Subscribe {
-                    channels: vec![test_channel.clone()],
-                    channel_groups: vec![],
+                    to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                     timetoken: Timetoken::default(),
                 })
                 .await;
@@ -278,8 +278,7 @@ fn where_now() {
         {
             let val = other_pubnub
                 .call(request::Subscribe {
-                    channels: vec![test_channel.clone()],
-                    channel_groups: vec![],
+                    to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                     timetoken: Timetoken::default(),
                 })
                 .await;
