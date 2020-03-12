@@ -8,7 +8,7 @@ use crate::core::TransportService;
 use crate::encode_json;
 use async_trait::async_trait;
 use hyper::{Body, Response};
-use pubnub_util::encoded_channels_list::EncodedChannelsList;
+use pubnub_util::url_encoded_list::UrlEncodedList;
 use std::collections::HashMap;
 
 async fn handle_presence_response(
@@ -134,8 +134,8 @@ impl TransportService<request::SetState> for Hyper {
             state,
         } = request;
 
-        let channels = EncodedChannelsList::from(channels);
-        let channel_groups = EncodedChannelsList::from(channel_groups);
+        let channels = UrlEncodedList::from(channels);
+        let channel_groups = UrlEncodedList::from(channel_groups);
         encode_json!(state => state);
 
         // Prepare the URL.
@@ -169,8 +169,8 @@ impl TransportService<request::GetState> for Hyper {
             uuid,
         } = request;
 
-        let channels = EncodedChannelsList::from(channels);
-        let channel_groups = EncodedChannelsList::from(channel_groups);
+        let channels = UrlEncodedList::from(channels);
+        let channel_groups = UrlEncodedList::from(channel_groups);
 
         // Prepare the URL.
         let path_and_query = format!(
@@ -206,8 +206,8 @@ impl TransportService<request::HereNow<presence::respond_with::OccupancyOnly>> f
             ..
         } = request;
 
-        let channels = EncodedChannelsList::from(channels);
-        let channel_groups = EncodedChannelsList::from(channel_groups);
+        let channels = UrlEncodedList::from(channels);
+        let channel_groups = UrlEncodedList::from(channel_groups);
 
         // Prepare the URL.
         let path_and_query = format!(
@@ -244,8 +244,8 @@ impl TransportService<request::HereNow<presence::respond_with::OccupancyAndUUIDs
             ..
         } = request;
 
-        let channels = EncodedChannelsList::from(channels);
-        let channel_groups = EncodedChannelsList::from(channel_groups);
+        let channels = UrlEncodedList::from(channels);
+        let channel_groups = UrlEncodedList::from(channel_groups);
 
         // Prepare the URL.
         let path_and_query = format!(
@@ -283,8 +283,8 @@ impl TransportService<request::HereNow<presence::respond_with::Full>> for Hyper 
             ..
         } = request;
 
-        let channels = EncodedChannelsList::from(channels);
-        let channel_groups = EncodedChannelsList::from(channel_groups);
+        let channels = UrlEncodedList::from(channels);
+        let channel_groups = UrlEncodedList::from(channel_groups);
 
         // Prepare the URL.
         let path_and_query = format!(
