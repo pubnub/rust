@@ -1,5 +1,5 @@
-use super::subscribe_loop::{ChannelRx, ControlCommand, ControlTx, ListenerType, SubscriptionID};
-use crate::data::message::Message;
+use super::subscribe_loop::{ChannelRx, ControlCommand, ControlTx, SubscriptionID};
+use crate::data::{message::Message, pubsub};
 use crate::runtime::Runtime;
 use futures_channel::mpsc;
 use futures_util::sink::SinkExt;
@@ -16,8 +16,8 @@ use std::pin::Pin;
 /// [`PubNub::subscribe`]: crate::pubnub::PubNub::subscribe
 #[derive(Debug)]
 pub struct Subscription<TRuntime: Runtime> {
-    pub(crate) runtime: TRuntime,  // Runtime to use for managing resources
-    pub(crate) name: ListenerType, // Channel or Group name
+    pub(crate) runtime: TRuntime, // Runtime to use for managing resources
+    pub(crate) destination: pubsub::SubscribeTo, // Subscription destination
     pub(crate) id: SubscriptionID, // Unique identifier for the listener
     pub(crate) control_tx: ControlTx, // For cleaning up resources at the subscribe loop when dropped
     pub(crate) channel_rx: ChannelRx, // Stream that produces messages
@@ -39,14 +39,14 @@ impl<TRuntime: Runtime> Stream for Subscription<TRuntime> {
 impl<TRuntime: Runtime> Subscription<TRuntime> {
     /// Prepare drop command.
     fn drop_command(&self) -> ControlCommand {
-        ControlCommand::Drop(self.id, self.name.clone())
+        ControlCommand::Drop(self.id, self.destination.clone())
     }
 }
 
 /// Remove listener from the associated `SubscribeLoop` when the `Subscription` is dropped.
 impl<TRuntime: Runtime> Drop for Subscription<TRuntime> {
     fn drop(&mut self) {
-        debug!("Dropping Subscription: {:?}", self.name);
+        debug!("Dropping Subscription: {:?}", self.destination);
 
         let command = self.drop_command();
         let mut control_tx = self.control_tx.clone();
