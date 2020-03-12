@@ -4,6 +4,7 @@ use crate::transport::{Service, Transport};
 use futures_util::lock::Mutex;
 use std::sync::Arc;
 
+mod presence;
 mod publish;
 mod subscribe;
 
