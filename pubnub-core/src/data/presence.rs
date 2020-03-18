@@ -25,7 +25,7 @@ pub mod respond_with {
         type Response;
     }
 
-    use super::*;
+    use super::{ChannelInfo, ChannelInfoWithOccupants, ChannelOccupantFullDetails, UUID};
 
     impl RespondWith for OccupancyOnly {
         type Response = ChannelInfo;

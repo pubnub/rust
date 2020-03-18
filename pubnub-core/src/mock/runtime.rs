@@ -8,7 +8,7 @@ use mockall::mock;
 
 mod gen {
     #![allow(missing_docs)]
-    use super::*;
+    use super::{mock, Future, Pin};
 
     mock! {
         pub Runtime {

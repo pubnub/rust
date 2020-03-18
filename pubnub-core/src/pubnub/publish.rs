@@ -13,6 +13,10 @@ where
 {
     /// Publish a message over the PubNub network.
     ///
+    /// # Errors
+    ///
+    /// Returns transport-specific errors.
+    ///
     /// # Example
     ///
     /// ```
@@ -53,6 +57,10 @@ where
     }
 
     /// Publish a message over the PubNub network with an extra metadata payload.
+    ///
+    /// # Errors
+    ///
+    /// Returns transport-specific errors.
     ///
     /// # Example
     ///

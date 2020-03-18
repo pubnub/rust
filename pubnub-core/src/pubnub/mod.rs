@@ -51,6 +51,10 @@ where
     TRuntime: Runtime + 'static,
 {
     /// Perform a transport call.
+    ///
+    /// # Errors
+    ///
+    /// Returns transport-specific errors.
     pub async fn call<TRequest>(
         &self,
         req: TRequest,

@@ -1,6 +1,6 @@
 //! Publish / subscribe.
 
-use super::util::*;
+use super::util::{build_uri, handle_json_response};
 use super::{error, Hyper};
 use crate::core::data::{
     message::{Message, Type},
