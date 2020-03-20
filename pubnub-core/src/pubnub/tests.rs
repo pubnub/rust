@@ -9,7 +9,7 @@ use futures_executor::{block_on, LocalPool};
 use futures_util::stream::StreamExt;
 use futures_util::task::{LocalSpawnExt, SpawnExt};
 
-use mockall::predicate::*;
+use mockall::predicate::eq;
 use mockall::Sequence;
 
 use crate::data::message::{Message, Type};

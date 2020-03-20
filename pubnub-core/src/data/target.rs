@@ -47,7 +47,7 @@ impl Standard {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::Standard;
 
     #[test]
     fn standard_valid() {

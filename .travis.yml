@@ -16,7 +16,7 @@ before_script:
 
 script:
 - if [[ "$TRAVIS_RUST_VERSION" != "1.39.0" ]]; then cargo fmt --all -- --check; fi
-- if [[ "$TRAVIS_RUST_VERSION" != "1.39.0" ]]; then cargo clippy --all -- -D warnings; fi
+- if [[ "$TRAVIS_RUST_VERSION" != "1.39.0" ]]; then cargo clippy --all --tests -- -D warnings; fi
 - cargo test --all
 # Feature tests.
 - ( cd pubnub-core && cargo test --no-default-features --tests )

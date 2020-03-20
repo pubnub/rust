@@ -58,7 +58,7 @@ impl Display for Name {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::Name;
 
     #[test]
     fn name_valid() {
