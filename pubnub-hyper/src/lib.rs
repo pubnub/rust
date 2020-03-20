@@ -4,7 +4,7 @@
 //! ultra-fast, incredibly reliable message transport over the PubNub edge
 //! network.
 //!
-//! Uses `pubnub-core`(pubnub_core) under the hood.
+//! Uses [`pubnub-core`](pubnub-core) under the hood.
 //!
 //! # Example
 //!

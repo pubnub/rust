@@ -7,7 +7,7 @@
 //! - Multiplexes subscription polling for multiple logical streams over a
 //!   single transport invocation to optimize kernel network subsystem pressure.
 //!
-//! Build your own client, or use preconfigured [`pubnub-hyper`](pubnub_hyper).
+//! Build your own client, or use preconfigured [`pubnub-hyper`](pubnub-hyper).
 
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
