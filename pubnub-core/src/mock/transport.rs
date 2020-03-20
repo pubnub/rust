@@ -17,7 +17,7 @@ pub struct MockTransportError;
 
 mod gen {
     #![allow(missing_docs)]
-    use super::*;
+    use super::{mock, BoxFuture, MockTransportError};
 
     mock! {
         pub Transport {

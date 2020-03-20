@@ -1,6 +1,6 @@
 //! Presence.
 
-use super::util::*;
+use super::util::{build_uri, handle_json_response, json_as_array, json_as_object};
 use super::{error, Hyper};
 use crate::core::data::{presence, request, response};
 use crate::core::json;
