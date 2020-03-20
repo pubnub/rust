@@ -11,6 +11,7 @@
 
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
+#![deny(missing_docs)]
 #![allow(clippy::doc_markdown)]
 #![forbid(unsafe_code)]
 #![warn(
