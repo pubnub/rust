@@ -8,7 +8,7 @@ use std::fmt::Write;
 
 mod common;
 
-const SAMPLE_UUID: &'static str = "903145ee-7c15-4579-aa5d-38a900717512";
+const SAMPLE_UUID: &str = "903145ee-7c15-4579-aa5d-38a900717512";
 
 /// Delay execution for the specified amount of milliseconds.
 async fn sleep(ms: u64) {
@@ -47,15 +47,15 @@ fn get_set_state() {
         };
 
         {
-            let val = pubnub
+            pubnub
                 .call(request::SetState {
                     channels: vec![test_channel.clone()],
                     channel_groups: vec![],
                     uuid: SAMPLE_UUID.into(),
                     state: sample_state.clone(),
                 })
-                .await;
-            assert_eq!(val.unwrap(), ());
+                .await
+                .unwrap();
         }
 
         {

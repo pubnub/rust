@@ -5,7 +5,9 @@ authors = ["MOZGIII <mike-n@narod.ru>"]
 edition = "2018"
 description = "PubNub utils"
 repository = "https://github.com/pubnub/rust"
+homepage = "https://www.pubnub.com/"
 keywords = ["pubnub", "publish-subscribe", "subscribe"]
+categories = ["network-programming"]
 readme = "../README.md"
 license-file = "../LICENSE"
 

@@ -4,7 +4,7 @@
 //! ultra-fast, incredibly reliable message transport over the PubNub edge
 //! network.
 //!
-//! Uses `pubnub-core`(pubnub_core) under the hood.
+//! Uses [`pubnub-core`](pubnub-core) under the hood.
 //!
 //! # Example
 //!
@@ -41,6 +41,8 @@
 
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
+#![deny(missing_docs)]
+#![deny(intra_doc_link_resolution_failure)]
 #![allow(clippy::doc_markdown)]
 #![forbid(unsafe_code)]
 #![warn(
