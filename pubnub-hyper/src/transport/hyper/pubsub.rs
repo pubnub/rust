@@ -85,7 +85,13 @@ impl TransportService<request::Subscribe> for Hyper {
 
         // Parse messages.
         let messages = {
-            let result: Option<Vec<_>> = data_json["m"].members().map(parse_message).collect();
+            let result: Option<Vec<_>> = data_json["m"]
+                .members()
+                .map(|message| match json_as_object(message) {
+                    Some(message) => parse_message(message).ok(),
+                    None => None,
+                })
+                .collect();
             result.ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?
         };
 
@@ -120,22 +126,42 @@ fn parse_message_route(route: &json::JsonValue) -> Result<Option<message::Route>
     Err(())
 }
 
-fn parse_message(message: &json::JsonValue) -> Option<Message> {
+#[derive(Debug, Clone, PartialEq)]
+enum ParseMessageError {
+    Type,
+    Route,
+    Channel,
+    Timetoken,
+    SubscribeKey,
+}
+
+fn parse_message(message: &json::object::Object) -> Result<Message, ParseMessageError> {
     let message = Message {
-        message_type: parse_message_type(&message["e"])?,
-        route: parse_message_route(&message["b"]).ok()?,
-        channel: message["c"].as_str()?.parse().ok()?,
+        message_type: parse_message_type(&message["e"]).ok_or(ParseMessageError::Type)?,
+        route: parse_message_route(&message["b"]).map_err(|_| ParseMessageError::Route)?,
+        channel: message["c"]
+            .as_str()
+            .ok_or(ParseMessageError::Channel)?
+            .parse()
+            .map_err(|_| ParseMessageError::Channel)?,
         json: message["d"].clone(),
         metadata: message["u"].clone(),
         timetoken: Timetoken {
-            t: message["p"]["t"].as_str()?.parse().ok()?,
+            t: message["p"]["t"]
+                .as_str()
+                .ok_or(ParseMessageError::Timetoken)?
+                .parse()
+                .map_err(|_| ParseMessageError::Timetoken)?,
             r: message["p"]["r"].as_u32().unwrap_or(0),
         },
-        client: message["i"].as_str().map(str::to_string),
-        subscribe_key: message["k"].to_string(),
+        client: message["i"].as_str().map(std::borrow::ToOwned::to_owned),
+        subscribe_key: message["k"]
+            .as_str()
+            .ok_or(ParseMessageError::SubscribeKey)?
+            .to_owned(),
         flags: message["f"].as_u32().unwrap_or(0),
     };
-    Some(message)
+    Ok(message)
 }
 
 fn process_subscribe_to(to: &[pubsub::SubscribeTo]) -> (String, String) {
