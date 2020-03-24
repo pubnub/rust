@@ -50,7 +50,7 @@ impl std::fmt::Display for UrlEncodedList {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::UrlEncodedList;
 
     #[test]
     fn empty() {
