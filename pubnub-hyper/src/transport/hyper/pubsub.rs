@@ -1,5 +1,6 @@
 //! Publish / subscribe.
 
+use super::util::json_as_object;
 use super::util::{build_uri, handle_json_response};
 use super::{error, Hyper};
 use crate::core::data::{
@@ -153,4 +154,40 @@ fn process_subscribe_to(to: &[pubsub::SubscribeTo]) -> (String, String) {
     };
 
     (channels, UrlEncodedList::from(channel_groups).into_inner())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::util::json_as_object;
+    use super::parse_message;
+    use crate::core::data::{
+        message::{self, Message, Route},
+        timetoken::Timetoken,
+    };
+
+    #[test]
+    fn subscribe_parse_message() {
+        let string_sample = r#"{"t":{"t":"15850559815683819","r":12},"m":[{"a":"3","e":0,"f":514,"i":"31257c03-3722-4409-a0ea-e7b072540115","p":{"t":"15850559815660696","r":12},"k":"demo","c":"demo2","d":"Hello, world!","b":"demo2"}]}"#;
+        let json_sample = json::parse(string_sample).unwrap();
+        let message_json_object = json_as_object(&json_sample["m"][0]).unwrap();
+
+        let actual_message = parse_message(&message_json_object).unwrap();
+
+        let expected_message = Message {
+            message_type: message::Type::Publish,
+            route: Some(Route::ChannelWildcard("demo2".parse().unwrap())),
+            channel: "demo2".parse().unwrap(),
+            json: json::from("Hello, world!"),
+            metadata: json::Null,
+            timetoken: Timetoken {
+                t: 15850559815660696,
+                r: 12,
+            },
+            client: Some("31257c03-3722-4409-a0ea-e7b072540115".to_owned()),
+            subscribe_key: "demo".to_owned(),
+            flags: 514,
+        };
+
+        assert_eq!(expected_message, actual_message);
+    }
 }
