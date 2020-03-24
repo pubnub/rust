@@ -9,7 +9,7 @@ use json::JsonValue;
 /// This is the message structure yielded by [`Subscription`].
 ///
 /// [`Subscription`]: crate::Subscription
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     /// Enum Type of Message.
     pub message_type: Type,
