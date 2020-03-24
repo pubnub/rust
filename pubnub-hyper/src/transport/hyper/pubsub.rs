@@ -206,7 +206,7 @@ mod tests {
             json: json::from("Hello, world!"),
             metadata: json::Null,
             timetoken: Timetoken {
-                t: 15850559815660696,
+                t: 15_850_559_815_660_696,
                 r: 12,
             },
             client: Some("31257c03-3722-4409-a0ea-e7b072540115".to_owned()),

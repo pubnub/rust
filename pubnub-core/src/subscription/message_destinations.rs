@@ -72,7 +72,7 @@ mod tests {
         }
     }
 
-    fn assert_iter_eq(m: Message, expected: &[pubsub::SubscribeTo]) {
+    fn assert_iter_eq(m: &Message, expected: &[pubsub::SubscribeTo]) {
         let iter = MessageDestinations::new(&m);
         let vec: Vec<_> = iter.collect();
         assert_eq!(vec, expected);
@@ -81,12 +81,12 @@ mod tests {
     #[test]
     fn test() {
         assert_iter_eq(
-            message(None, "test"),
+            &message(None, "test"),
             &[pubsub::SubscribeTo::Channel("test".parse().unwrap())],
         );
 
         assert_iter_eq(
-            message(route_channel_wildcard("qwe.*"), "test"),
+            &message(route_channel_wildcard("qwe.*"), "test"),
             &[
                 pubsub::SubscribeTo::ChannelWildcard("qwe.*".parse().unwrap()),
                 pubsub::SubscribeTo::Channel("test".parse().unwrap()),
@@ -94,7 +94,7 @@ mod tests {
         );
 
         assert_iter_eq(
-            message(route_channel_group("qwe"), "test"),
+            &message(route_channel_group("qwe"), "test"),
             &[
                 pubsub::SubscribeTo::ChannelGroup("qwe".parse().unwrap()),
                 pubsub::SubscribeTo::Channel("test".parse().unwrap()),
