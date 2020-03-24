@@ -10,6 +10,11 @@ matrix:
     - rust: nightly
   fast_finish: true
 
+env:
+  global:
+  - RUST_LOG=trace
+  - RUST_BACKTRACE=full
+
 before_script:
 - rustup component add clippy
 - rustup component add rustfmt
