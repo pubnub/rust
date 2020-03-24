@@ -100,7 +100,7 @@ impl TransportService<request::Subscribe> for Hyper {
 }
 
 fn parse_message_type(i: &json::JsonValue) -> Option<message::Type> {
-    let i = i.as_u32()?;
+    let i = if i.is_null() { 0 } else { i.as_u32()? };
     Some(match i {
         0 => message::Type::Publish,
         1 => message::Type::Signal,
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn subscribe_parse_message() {
-        let string_sample = r#"{"t":{"t":"15850559815683819","r":12},"m":[{"a":"3","e":0,"f":514,"i":"31257c03-3722-4409-a0ea-e7b072540115","p":{"t":"15850559815660696","r":12},"k":"demo","c":"demo2","d":"Hello, world!","b":"demo2"}]}"#;
+        let string_sample = r#"{"t":{"t":"15850559815683819","r":12},"m":[{"a":"3","f":514,"i":"31257c03-3722-4409-a0ea-e7b072540115","p":{"t":"15850559815660696","r":12},"k":"demo","c":"demo2","d":"Hello, world!","b":"demo2"}]}"#;
         let json_sample = json::parse(string_sample).unwrap();
         let message_json_object = json_as_object(&json_sample["m"][0]).unwrap();
 
