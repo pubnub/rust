@@ -17,8 +17,7 @@ use crate::data::{channel, request, response};
 use crate::json::object;
 
 fn init() {
-    let env = env_logger::Env::default().default_filter_or("pubnub=trace");
-    let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
+    pubnub_test_util::init_log();
 }
 
 #[test]
