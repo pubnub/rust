@@ -1,8 +1,7 @@
 use std::future::Future;
 
 pub fn init() {
-    let env = env_logger::Env::default().default_filter_or("pubnub=trace");
-    let _ = env_logger::Builder::from_env(env).is_test(true).try_init();
+    pubnub_test_util::init_log();
 }
 
 pub fn current_thread_block_on<F: Future>(future: F) -> F::Output {
