@@ -164,7 +164,7 @@ fn parse_message(message: &json::object::Object) -> Result<Message, ParseMessage
     Ok(message)
 }
 
-fn process_subscribe_to(to: &[pubsub::SubscribeTo]) -> (String, String) {
+pub(super) fn process_subscribe_to(to: &[pubsub::SubscribeTo]) -> (String, String) {
     let channels = to.iter().filter_map(|to| {
         to.as_channel()
             .map(AsRef::<str>::as_ref)

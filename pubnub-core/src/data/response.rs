@@ -26,3 +26,6 @@ pub type GlobalHereNow<T> = presence::GlobalInfo<T>;
 
 /// A response to a where now request. List of channels.
 pub type WhereNow = Vec<channel::Name>;
+
+/// A response to a heartbeat request.
+pub type Heartbeat = ();
