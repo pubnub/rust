@@ -98,3 +98,20 @@ pub struct WhereNow {
     /// The User UUID to get list of channels for.
     pub uuid: UUID,
 }
+
+/// Announce a heartbeat.
+#[allow(missing_copy_implementations)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Heartbeat {
+    /// The presence timeout period. If `None`, the default value is used.
+    pub heartbeat: Option<u32>,
+
+    /// The subscription destinations to announce heartbeat for.
+    pub to: Vec<pubsub::SubscribeTo>,
+
+    /// The User UUID to announce subscribtion for.
+    pub uuid: UUID,
+
+    /// State to set for channels and channel groups.
+    pub state: Object,
+}
