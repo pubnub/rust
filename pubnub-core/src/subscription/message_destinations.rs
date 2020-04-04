@@ -51,7 +51,9 @@ impl<'a> Iterator for MessageDestinations<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::MessageDestinations;
+    use crate::data::message::{self, Message};
+    use crate::data::pubsub;
 
     fn route_channel_wildcard(s: &'static str) -> Option<message::Route> {
         let val = s.parse().unwrap();
