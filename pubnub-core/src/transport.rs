@@ -25,6 +25,8 @@ pub trait Transport:
     + Service<request::GlobalHereNow<presence::respond_with::Full>, Response = response::GlobalHereNow<presence::respond_with::Full>, Error = <Self as Transport>::Error>
     // Where now.
     + Service<request::WhereNow, Response = response::WhereNow, Error = <Self as Transport>::Error>
+    // Heartbeat.
+    + Service<request::Heartbeat, Response = response::Heartbeat, Error = <Self as Transport>::Error>
 {
     /// Transport-specific error type this transport can generate.
     type Error: std::error::Error + Send + Sync;
