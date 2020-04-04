@@ -1,0 +1,15 @@
+[package]
+name = "pubnub-test-util"
+version = "0.1.0"
+authors = ["MOZGIII <mike-n@narod.ru>"]
+edition = "2018"
+description = "PubNub test utils"
+repository = "https://github.com/pubnub/rust"
+homepage = "https://www.pubnub.com/"
+keywords = ["pubnub", "publish-subscribe", "subscribe"]
+categories = ["network-programming"]
+readme = "../README.md"
+license-file = "../LICENSE"
+
+[dependencies]
+env_logger = "0.7"
