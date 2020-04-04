@@ -2,5 +2,6 @@
 members = [
   "pubnub-core",
   "pubnub-hyper",
-  "pubnub-util"
+  "pubnub-util",
+  "pubnub-test-util"
 ]
