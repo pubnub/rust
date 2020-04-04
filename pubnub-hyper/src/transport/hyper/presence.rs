@@ -1,5 +1,6 @@
 //! Presence.
 
+use super::pubsub::process_subscribe_to;
 use super::util::{build_uri, handle_json_response, json_as_array, json_as_object};
 use super::{error, Hyper};
 use crate::core::data::{presence, request, response};
@@ -429,5 +430,42 @@ impl TransportService<request::WhereNow> for Hyper {
             results.ok_or_else(err_fn)?
         };
         Ok(channles)
+    }
+}
+
+#[async_trait]
+impl TransportService<request::Heartbeat> for Hyper {
+    type Response = response::Heartbeat;
+    type Error = error::Error;
+
+    async fn call(&self, request: request::Heartbeat) -> Result<Self::Response, Self::Error> {
+        let request::Heartbeat {
+            heartbeat,
+            to,
+            state,
+            uuid,
+        } = request;
+
+        // Prepare encoded channels and channel_groups.
+        let (channels, channel_groups) = process_subscribe_to(&to);
+        encode_json!(state => state);
+
+        // Prepare the URL.
+        let path_and_query = format!(
+            "/v2/presence/sub-key/{sub_key}/channel/{channels}/heartbeat?channel-group={channel_groups}&uuid={uuid}&state={state}&heartbeat={heartbeat}",
+            sub_key = self.subscribe_key,
+            channels = channels,
+            channel_groups = channel_groups,
+            uuid = uuid,
+            heartbeat = heartbeat.unwrap_or(300), // TODO: properly omit this value if not specified
+            state = state,
+        );
+        let url = build_uri(&self, &path_and_query)?;
+
+        // Send network request.
+        let response = self.http_client.get(url).await?;
+        let _ = handle_presence_response(response).await?;
+
+        Ok(())
     }
 }
