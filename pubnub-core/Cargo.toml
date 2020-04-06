@@ -19,7 +19,7 @@ futures-core = "0.3"
 futures-util = { version = "0.3", features = ["async-await", "async-await-macro", "sink", "channel"] }
 json = "0.12"
 log = "0.4"
-mockall = { version = "0.6", optional = true }
+mockall = { version = "0.7", optional = true }
 percent-encoding = "2.1"
 thiserror = "1.0"
 uuid = { version = "0.8", features = ["v4"] }

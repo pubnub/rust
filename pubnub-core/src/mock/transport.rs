@@ -15,23 +15,21 @@ use mockall::mock;
 #[error("mock tranport error")]
 pub struct MockTransportError;
 
-mod gen {
-    #![allow(missing_docs)]
-    use super::{mock, BoxFuture, MockTransportError};
-
-    mock! {
-        pub Transport {
-            fn call<TReq: 'static, TRes: 'static>(
-                &self,
-                request: TReq,
-            ) -> BoxFuture<'static, Result<TRes, MockTransportError>> {}
-        }
-        trait Clone {
-            fn clone(&self) -> Self {}
-        }
+mock! {
+    /// Mock Transport.
+    pub Transport {
+        /// Issue a transport call.
+        ///
+        /// A signlt point to mock all the services.
+        fn call<TReq: 'static, TRes: 'static>(
+            &self,
+            request: TReq,
+        ) -> BoxFuture<'static, Result<TRes, MockTransportError>> {}
+    }
+    trait Clone {
+        fn clone(&self) -> Self {}
     }
 }
-pub use gen::*;
 
 // We implement the mocks manually cause `mockall` doesn't play nice with
 // `async_trait`.
