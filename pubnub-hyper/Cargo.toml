@@ -26,6 +26,7 @@ log = "0.4"
 percent-encoding = "2.1"
 thiserror = "1.0"
 tokio = "0.2"
+uritemplate = "0.1"
 
 [dev-dependencies]
 pubnub-test-util = { version = "0.1", path = "../pubnub-test-util" }
