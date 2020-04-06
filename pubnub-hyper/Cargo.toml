@@ -13,6 +13,7 @@ license-file = "../LICENSE"
 
 [dependencies]
 pubnub-core = { version = "=0.1.0", path = "../pubnub-core" }
+pubnub-util = { version = "=0.1.0", path = "../pubnub-util", default-features = false, features = ["uritemplate_api"] }
 async-trait = "0.1"
 derive_builder = "0.9"
 error-iter = "0.2"
@@ -24,7 +25,6 @@ hyper-tls = "0.4"
 log = "0.4"
 thiserror = "1.0"
 tokio = "0.2"
-uritemplate = "0.1"
 
 [dev-dependencies]
 pubnub-test-util = { version = "0.1", path = "../pubnub-test-util" }

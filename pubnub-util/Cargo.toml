@@ -13,10 +13,12 @@ license-file = "../LICENSE"
 
 [dependencies]
 percent-encoding = { version = "2.1", optional = true }
+uritemplate = { version = "0.1", optional = true }
 
 [features]
-default = ["url-encoded-list"]
+default = ["url-encoded-list", "uritemplate_api"]
 url-encoded-list = ["percent-encoding"]
+uritemplate_api = ["uritemplate"]
 
 [badges]
 travis-ci = { repository = "pubnub/rust", branch = "master" }
