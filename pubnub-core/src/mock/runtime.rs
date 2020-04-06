@@ -6,20 +6,17 @@ use std::pin::Pin;
 
 use mockall::mock;
 
-mod gen {
-    #![allow(missing_docs)]
-    use super::{mock, Future, Pin};
-
-    mock! {
-        pub Runtime {
-            fn mock_workaround_spawn<O: 'static>(&self, future: Pin<Box<dyn Future<Output = O> + Send + 'static>>) {}
-        }
-        trait Clone {
-            fn clone(&self) -> Self;
-        }
+mock! {
+    /// Mock Runtime.
+    pub Runtime {
+        /// A function to expect to catch a `spawn` call.
+        /// Workaround for `async_trait` integration.
+        fn mock_workaround_spawn<O: 'static>(&self, future: Pin<Box<dyn Future<Output = O> + Send + 'static>>) {}
+    }
+    trait Clone {
+        fn clone(&self) -> Self;
     }
 }
-pub use gen::*;
 
 impl std::fmt::Debug for MockRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
