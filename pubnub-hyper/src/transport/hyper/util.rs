@@ -1,5 +1,7 @@
 //! Common utilities.
 
+pub(crate) mod uritemplate;
+
 use super::error;
 use crate::core::json;
 use futures_util::stream::StreamExt;
