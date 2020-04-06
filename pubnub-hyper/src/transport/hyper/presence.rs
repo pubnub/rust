@@ -1,7 +1,6 @@
 //! Presence.
 
 use super::pubsub::inject_subscribe_to;
-use super::util::uritemplate::{IfEmpty, UriTemplate};
 use super::util::{build_uri, handle_json_response, json_as_array, json_as_object};
 use super::{error, Hyper};
 use crate::core::data::{presence, request, response};
@@ -9,6 +8,7 @@ use crate::core::json;
 use crate::core::TransportService;
 use async_trait::async_trait;
 use hyper::{Body, Response};
+use pubnub_util::uritemplate::{IfEmpty, UriTemplate};
 use std::collections::HashMap;
 
 async fn handle_presence_response(

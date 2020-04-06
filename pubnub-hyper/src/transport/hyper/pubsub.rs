@@ -1,7 +1,6 @@
 //! Publish / subscribe.
 
 use super::util::json_as_object;
-use super::util::uritemplate::{IfEmpty, UriTemplate};
 use super::util::{build_uri, handle_json_response};
 use super::{error, Hyper};
 use crate::core::data::{
@@ -12,6 +11,7 @@ use crate::core::data::{
 use crate::core::json;
 use crate::core::TransportService;
 use async_trait::async_trait;
+use pubnub_util::uritemplate::{IfEmpty, UriTemplate};
 
 #[async_trait]
 impl TransportService<request::Publish> for Hyper {
@@ -33,7 +33,7 @@ impl TransportService<request::Publish> for Hyper {
                 .set_scalar("channel", channel)
                 .set_scalar("message", json::stringify(payload))
                 .set_scalar("uuid", self.uuid.clone())
-                .set_optional_scalar("meta", meta.map(|e| json::stringify(e)))
+                .set_optional_scalar("meta", meta.map(json::stringify))
                 .build();
         let url = build_uri(&self, &path_and_query)?;
 
