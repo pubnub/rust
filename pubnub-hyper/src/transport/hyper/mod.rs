@@ -13,7 +13,7 @@ pub mod presence;
 pub mod pubsub;
 
 #[macro_use]
-mod util;
+pub(crate) mod util;
 
 type HttpClient = Client<HttpsConnector<HttpConnector>>;
 
