@@ -22,7 +22,7 @@ impl TransportService<request::Publish> for Hyper {
         let request::Publish {
             channel,
             payload,
-            .. // TODO: use meta
+            meta,
         } = request;
 
         // Prepare the URL.
@@ -33,6 +33,7 @@ impl TransportService<request::Publish> for Hyper {
                 .set_scalar("channel", channel)
                 .set_scalar("message", json::stringify(payload))
                 .set_scalar("uuid", self.uuid.clone())
+                .set_optional_scalar("meta", meta.map(|e| json::stringify(e)))
                 .build();
         let url = build_uri(&self, &path_and_query)?;
 
