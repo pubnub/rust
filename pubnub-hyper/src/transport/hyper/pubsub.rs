@@ -62,21 +62,19 @@ impl TransportService<request::Subscribe> for Hyper {
             heartbeat,
         } = request;
 
-        if heartbeat.is_some() {
-            todo!();
-        }
-
         // TODO: add caching of repeating params to avoid reencoding.
 
         // Prepare the URL.
-        let path_and_query =
-            UriTemplate::new("/v2/subscribe/{sub_key}/{channel}/0{?channel-group,tt,tr,uuid}")
-                .set_scalar("sub_key", self.subscribe_key.clone())
-                .tap(|val| inject_subscribe_to(val, &to))
-                .set_scalar("tt", timetoken.t.to_string())
-                .set_scalar("tr", timetoken.r.to_string())
-                .set_scalar("uuid", self.uuid.clone())
-                .build();
+        let path_and_query = UriTemplate::new(
+            "/v2/subscribe/{sub_key}/{channel}/0{?channel-group,tt,tr,uuid,heartbeat}",
+        )
+        .set_scalar("sub_key", self.subscribe_key.clone())
+        .tap(|val| inject_subscribe_to(val, &to))
+        .set_scalar("tt", timetoken.t.to_string())
+        .set_scalar("tr", timetoken.r.to_string())
+        .set_scalar("uuid", self.uuid.clone())
+        .set_optional_scalar("heartbeat", heartbeat.map(|e| e.to_string()))
+        .build();
         let url = build_uri(&self, &path_and_query)?;
 
         // Send network request.
