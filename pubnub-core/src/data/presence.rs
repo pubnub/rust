@@ -81,3 +81,6 @@ pub struct GlobalInfo<T: respond_with::RespondWith> {
     /// Per-channel info.
     pub channels: HashMap<channel::Name, T::Response>,
 }
+
+/// The heartbeat type alias. Used for hearbeats.
+pub type HeartbeatValue = u32;

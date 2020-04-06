@@ -104,7 +104,7 @@ pub struct WhereNow {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Heartbeat {
     /// The presence timeout period. If `None`, the default value is used.
-    pub heartbeat: Option<u32>,
+    pub heartbeat: Option<presence::HeartbeatValue>,
 
     /// The subscription destinations to announce heartbeat for.
     pub to: Vec<pubsub::SubscribeTo>,
