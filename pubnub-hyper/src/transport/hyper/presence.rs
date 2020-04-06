@@ -438,7 +438,7 @@ impl TransportService<request::Heartbeat> for Hyper {
                 .set_scalar("sub_key", self.subscribe_key.clone())
                 .tap(|val| inject_subscribe_to(val, &to))
                 .set_scalar("uuid", uuid)
-                .set_scalar("heartbeat", heartbeat.unwrap_or(300).to_string()) // TODO: properly omit this value if not specified
+                .set_optional_scalar("heartbeat", heartbeat.map(|e|e.to_string()))
                 .set_scalar("state", json::stringify(state))
                 .build();
         let url = build_uri(&self, &path_and_query)?;
