@@ -14,3 +14,6 @@
 
 #[cfg(feature = "url-encoded-list")]
 pub mod url_encoded_list;
+
+#[cfg(feature = "uritemplate_api")]
+pub mod uritemplate;
