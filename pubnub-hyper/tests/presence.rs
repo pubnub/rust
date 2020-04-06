@@ -1,3 +1,4 @@
+use json::JsonValue;
 use log::info;
 use pubnub_hyper::core::data::{
     channel, presence, pubsub, request, response, timetoken::Timetoken,
@@ -299,6 +300,48 @@ fn where_now() {
                 .await
                 .unwrap();
             assert_eq!(val, vec![test_channel.clone()]);
+        }
+    });
+}
+
+#[test]
+fn heartbeat() {
+    common::init();
+    common::current_thread_block_on(async {
+        let transport = Hyper::new()
+            .agent("Rust-Agent-Test")
+            .publish_key("demo")
+            .subscribe_key("demo")
+            .build()
+            .unwrap();
+
+        let pubnub = Builder::with_components(transport, TokioGlobal).build();
+
+        let test_channel: channel::Name = format!("my-channel-{}", random_hex_string())
+            .try_into()
+            .unwrap();
+
+        {
+            let val = pubnub
+                .call(request::Subscribe {
+                    to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
+                    timetoken: Timetoken::default(),
+                    heartbeat: None,
+                })
+                .await;
+            assert!(val.is_ok());
+        }
+
+        {
+            let val = pubnub
+                .call(request::Heartbeat {
+                    heartbeat: Some(300),
+                    to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
+                    uuid: pubnub.transport().uuid().clone(),
+                    state: JsonValue::String("Hello, world!".to_string()),
+                })
+                .await;
+            assert!(val.is_ok());
         }
     });
 }
