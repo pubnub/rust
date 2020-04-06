@@ -21,9 +21,15 @@ impl TransportService<request::Publish> for Hyper {
     type Error = error::Error;
 
     async fn call(&self, request: request::Publish) -> Result<Self::Response, Self::Error> {
+        let request::Publish {
+            channel,
+            payload,
+            .. // TODO: use meta
+        } = request;
+
         // Prepare encoded message and channel.
-        encode_json!(request.payload => encoded_payload);
-        let encoded_channel = utf8_percent_encode(request.channel.as_ref(), NON_ALPHANUMERIC);
+        encode_json!(payload => encoded_payload);
+        let encoded_channel = utf8_percent_encode(channel.as_ref(), NON_ALPHANUMERIC);
 
         // Prepare the URL.
         let path_and_query = format!(
@@ -56,10 +62,15 @@ impl TransportService<request::Subscribe> for Hyper {
     type Error = error::Error;
 
     async fn call(&self, request: request::Subscribe) -> Result<Self::Response, Self::Error> {
+        let request::Subscribe {
+            to,
+            timetoken,
+        } = request;
+
         // TODO: add caching of repeating params to avoid reencoding.
 
         // Prepare encoded channels and channel_groups.
-        let (channel, channel_groups) = process_subscribe_to(&request.to);
+        let (channel, channel_groups) = process_subscribe_to(&to);
 
         // Prepare the URL.
         let path_and_query = format!(
@@ -67,8 +78,8 @@ impl TransportService<request::Subscribe> for Hyper {
             sub_key = self.subscribe_key,
             channels = channel,
             channel_groups = channel_groups,
-            tt = request.timetoken.t,
-            tr = request.timetoken.r,
+            tt = timetoken.t,
+            tr = timetoken.r,
             uuid = self.uuid,
         );
         let url = build_uri(&self, &path_and_query)?;
