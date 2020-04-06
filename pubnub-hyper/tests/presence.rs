@@ -95,6 +95,7 @@ fn here_now_single_channel() {
                 .call(request::Subscribe {
                     to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                     timetoken: Timetoken::default(),
+                    heartbeat: None,
                 })
                 .await;
             assert!(val.is_ok());
@@ -183,6 +184,7 @@ fn global_here_now() {
                 .call(request::Subscribe {
                     to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                     timetoken: Timetoken::default(),
+                    heartbeat: None,
                 })
                 .await;
             assert!(val.is_ok());
@@ -280,6 +282,7 @@ fn where_now() {
                 .call(request::Subscribe {
                     to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                     timetoken: Timetoken::default(),
+                    heartbeat: None,
                 })
                 .await;
             assert!(val.is_ok());
