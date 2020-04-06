@@ -1,6 +1,7 @@
 //! Publish / subscribe.
 
 use super::util::json_as_object;
+use super::util::uritemplate::{IfEmpty, UriTemplate};
 use super::util::{build_uri, handle_json_response};
 use super::{error, Hyper};
 use crate::core::data::{
@@ -10,10 +11,7 @@ use crate::core::data::{
 };
 use crate::core::json;
 use crate::core::TransportService;
-use crate::encode_json;
 use async_trait::async_trait;
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use pubnub_util::url_encoded_list::UrlEncodedList;
 
 #[async_trait]
 impl TransportService<request::Publish> for Hyper {
@@ -27,19 +25,15 @@ impl TransportService<request::Publish> for Hyper {
             .. // TODO: use meta
         } = request;
 
-        // Prepare encoded message and channel.
-        encode_json!(payload => encoded_payload);
-        let encoded_channel = utf8_percent_encode(channel.as_ref(), NON_ALPHANUMERIC);
-
         // Prepare the URL.
-        let path_and_query = format!(
-            "/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}?uuid={uuid}",
-            pub_key = self.publish_key,
-            sub_key = self.subscribe_key,
-            channel = encoded_channel,
-            message = encoded_payload,
-            uuid = self.uuid,
-        );
+        let path_and_query =
+            UriTemplate::new("/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}{?uuid}")
+                .set_scalar("pub_key", self.publish_key.clone())
+                .set_scalar("sub_key", self.subscribe_key.clone())
+                .set_scalar("channel", channel)
+                .set_scalar("message", json::stringify(payload))
+                .set_scalar("uuid", self.uuid.clone())
+                .build();
         let url = build_uri(&self, &path_and_query)?;
 
         // Send network request.
@@ -74,19 +68,15 @@ impl TransportService<request::Subscribe> for Hyper {
 
         // TODO: add caching of repeating params to avoid reencoding.
 
-        // Prepare encoded channels and channel_groups.
-        let (channel, channel_groups) = process_subscribe_to(&to);
-
         // Prepare the URL.
-        let path_and_query = format!(
-            "/v2/subscribe/{sub_key}/{channels}/0?channel-group={channel_groups}&tt={tt}&tr={tr}&uuid={uuid}",
-            sub_key = self.subscribe_key,
-            channels = channel,
-            channel_groups = channel_groups,
-            tt = timetoken.t,
-            tr = timetoken.r,
-            uuid = self.uuid,
-        );
+        let path_and_query =
+            UriTemplate::new("/v2/subscribe/{sub_key}/{channel}/0{?channel-group,tt,tr,uuid}")
+                .set_scalar("sub_key", self.subscribe_key.clone())
+                .tap(|val| inject_subscribe_to(val, &to))
+                .set_scalar("tt", timetoken.t.to_string())
+                .set_scalar("tr", timetoken.r.to_string())
+                .set_scalar("uuid", self.uuid.clone())
+                .build();
         let url = build_uri(&self, &path_and_query)?;
 
         // Send network request.
@@ -180,22 +170,18 @@ fn parse_message(message: &json::object::Object) -> Result<Message, ParseMessage
     Ok(message)
 }
 
-pub(super) fn process_subscribe_to(to: &[pubsub::SubscribeTo]) -> (String, String) {
+pub(super) fn inject_subscribe_to(template: &mut UriTemplate, to: &[pubsub::SubscribeTo]) {
     let channels = to.iter().filter_map(|to| {
         to.as_channel()
             .map(AsRef::<str>::as_ref)
             .or_else(|| to.as_channel_wildcard().map(AsRef::<str>::as_ref))
     });
-    let channel_groups = to.iter().filter_map(pubsub::SubscribeTo::as_channel_group);
+    template.set_list_with_if_empty("channel", channels, IfEmpty::Dash);
 
-    let channels = UrlEncodedList::from(channels).into_inner();
-    let channels = if channels.is_empty() {
-        "-".to_owned()
-    } else {
-        channels
-    };
-
-    (channels, UrlEncodedList::from(channel_groups).into_inner())
+    let channel_groups = to
+        .iter()
+        .filter_map(|to| to.as_channel_group().map(AsRef::<str>::as_ref));
+    template.set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip);
 }
 
 #[cfg(test)]
