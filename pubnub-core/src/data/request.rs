@@ -32,6 +32,9 @@ pub struct Subscribe {
     /// resuming / continuing / fast-forwarding from a previous subscribe flow.
     /// tr: Region as returned from the initial call with tt=0.
     pub timetoken: Timetoken,
+
+    /// The heartbeat value to send to the PubNub network.
+    pub heartbeat: Option<presence::HeartbeatValue>,
 }
 
 /// Set state for a user for channels and/or channel groups.

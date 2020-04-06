@@ -65,7 +65,12 @@ impl TransportService<request::Subscribe> for Hyper {
         let request::Subscribe {
             to,
             timetoken,
+            heartbeat,
         } = request;
+
+        if heartbeat.is_some() {
+            todo!();
+        }
 
         // TODO: add caching of repeating params to avoid reencoding.
 

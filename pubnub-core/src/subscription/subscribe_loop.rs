@@ -82,7 +82,11 @@ where
         // TODO: re-add cache.
         let to: Vec<pubsub::SubscribeTo> = state_data.to.keys().cloned().collect();
 
-        let request = request::Subscribe { to, timetoken };
+        let request = request::Subscribe {
+            to,
+            timetoken,
+            heartbeat: None,
+        };
         let response = transport.call(request);
 
         let response = response.fuse();

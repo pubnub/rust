@@ -101,6 +101,7 @@ fn mocked_pubnub_subscribe_ok() {
                             .with(eq(request::Subscribe {
                                 to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                                 timetoken: Timetoken::default(),
+                                heartbeat: None,
                             }))
                             .return_once(move |_| {
                                 Box::pin(async move {
@@ -114,6 +115,7 @@ fn mocked_pubnub_subscribe_ok() {
                             .with(eq(request::Subscribe {
                                 to: vec![pubsub::SubscribeTo::Channel(test_channel.clone())],
                                 timetoken: Timetoken { t: 150, r: 1 },
+                                heartbeat: None,
                             }))
                             .return_once(move |_| {
                                 Box::pin(async move {
