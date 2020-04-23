@@ -138,7 +138,7 @@ impl TransportService<request::SetState> for Hyper {
         let path_and_query =
             UriTemplate::new("/v2/presence/sub-key/{sub_key}/channel/{channel}/uuid/{uuid}/data{?channel-group,state}")
                 .set_scalar("sub_key", self.subscribe_key.clone())
-                .set_list_with_if_empty("channel", channels, IfEmpty::Dash)
+                .set_list_with_if_empty("channel", channels, IfEmpty::Comma)
                 .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
                 .set_scalar("uuid", uuid)
                 .set_scalar("state", json::stringify(state))
@@ -170,7 +170,7 @@ impl TransportService<request::GetState> for Hyper {
             "/v2/presence/sub-key/{sub_key}/channel/{channel}/uuid/{uuid}{?channel-group}",
         )
         .set_scalar("sub_key", self.subscribe_key.clone())
-        .set_list_with_if_empty("channel", channels, IfEmpty::Dash)
+        .set_list_with_if_empty("channel", channels, IfEmpty::Comma)
         .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
         .set_scalar("uuid", uuid)
         .build();
@@ -205,7 +205,7 @@ impl TransportService<request::HereNow<presence::respond_with::OccupancyOnly>> f
             "/v2/presence/sub-key/{sub_key}/channel/{channel}?disable_uuids=1&state=0{&channel-group}",
         )
         .set_scalar("sub_key", self.subscribe_key.clone())
-        .set_list_with_if_empty("channel", channels, IfEmpty::Dash)
+        .set_list_with_if_empty("channel", channels, IfEmpty::Comma)
         .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
         .build();
         let url = build_uri(&self, &path_and_query)?;
@@ -241,7 +241,7 @@ impl TransportService<request::HereNow<presence::respond_with::OccupancyAndUUIDs
             "/v2/presence/sub-key/{sub_key}/channel/{channel}?disable_uuids=0&state=0{&channel-group}",
         )
         .set_scalar("sub_key", self.subscribe_key.clone())
-        .set_list_with_if_empty("channel", channels, IfEmpty::Dash)
+        .set_list_with_if_empty("channel", channels, IfEmpty::Comma)
         .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
         .build();
         let url = build_uri(&self, &path_and_query)?;
@@ -278,7 +278,7 @@ impl TransportService<request::HereNow<presence::respond_with::Full>> for Hyper 
             "/v2/presence/sub-key/{sub_key}/channel/{channel}?disable_uuids=0&state=1{&channel-group}",
         )
         .set_scalar("sub_key", self.subscribe_key.clone())
-        .set_list_with_if_empty("channel", channels, IfEmpty::Dash)
+        .set_list_with_if_empty("channel", channels, IfEmpty::Comma)
         .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
         .build();
         let url = build_uri(&self, &path_and_query)?;

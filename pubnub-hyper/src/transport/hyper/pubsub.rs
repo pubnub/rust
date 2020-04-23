@@ -175,7 +175,7 @@ pub(super) fn inject_subscribe_to(template: &mut UriTemplate, to: &[pubsub::Subs
             .map(AsRef::<str>::as_ref)
             .or_else(|| to.as_channel_wildcard().map(AsRef::<str>::as_ref))
     });
-    template.set_list_with_if_empty("channel", channels, IfEmpty::Dash);
+    template.set_list_with_if_empty("channel", channels, IfEmpty::Comma);
 
     let channel_groups = to
         .iter()
