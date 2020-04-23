@@ -174,7 +174,7 @@ fn process_subscribe_to(to: &[pubsub::SubscribeTo]) -> (String, String) {
 
     let channels = UrlEncodedList::from(channels).into_inner();
     let channels = if channels.is_empty() {
-        "-".to_owned()
+        ",".to_owned()
     } else {
         channels
     };
