@@ -13,8 +13,8 @@ pub struct UriTemplate(uritemplate::UriTemplate);
 pub enum IfEmpty {
     /// Assign empty value.
     Set,
-    /// Assign dash (`-`).
-    Dash,
+    /// Assign comma (`,`).
+    Comma,
     /// Omit the whole variable.
     Skip,
 }
@@ -73,7 +73,7 @@ impl UriTemplate {
             Some(first) => self.set_list(varname, std::iter::once(first).chain(var)),
             None => match if_empty {
                 IfEmpty::Set => self.set_list(varname, std::iter::empty::<String>()),
-                IfEmpty::Dash => self.set_scalar(varname, "-"),
+                IfEmpty::Comma => self.set_scalar(varname, ","),
                 IfEmpty::Skip => self,
             },
         }
