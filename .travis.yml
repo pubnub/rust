@@ -24,9 +24,9 @@ before_script:
 - rustup component add rustfmt
 
 script:
-- if [[ "$TRAVIS_RUST_VERSION" != "1.39.0" ]]; then cargo fmt --all -- --check; fi
-- if [[ "$TRAVIS_RUST_VERSION" != "1.39.0" ]]; then cargo clippy --all --tests -- -D warnings; fi
-- if [[ "$TRAVIS_RUST_VERSION" != "1.39.0" ]]; then cargo doc --workspace --no-deps; fi
+- if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then cargo fmt --all -- --check; fi
+- if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then cargo clippy --all --tests -- -D warnings; fi
+- if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then cargo doc --workspace --no-deps; fi
 - cargo test --all
 # Feature tests.
 - ( cd pubnub-core && cargo test --no-default-features --tests )
