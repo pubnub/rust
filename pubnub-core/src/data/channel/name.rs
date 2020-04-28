@@ -3,16 +3,6 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 /// A list of the symbols, prohibited for use in the channel name.
-///
-/// Event though the [documented prohibited symbols] are more restrictive,
-/// practice shows that PubNub network is capable of returning channel names
-/// with the symbols that are outside the documented restructions in the
-/// response body. To avoid unnesessary errors when receiving messages from
-/// the PubNub network, we prohibit less symbols than documented.
-///
-/// This list may be extended in the future to match the official documentation.
-///
-/// [documented prohibited symbols]: https://www.pubnub.com/docs/web-javascript/data-streams-publish-and-subscribe#channel_name_design_consideration
 pub const PROHIBITED_SYMBOLS: &[char] = &[','];
 
 /// A Channel name.
