@@ -27,6 +27,8 @@ pub trait Transport:
     + Service<request::WhereNow, Response = response::WhereNow, Error = <Self as Transport>::Error>
     // Heartbeat.
     + Service<request::Heartbeat, Response = response::Heartbeat, Error = <Self as Transport>::Error>
+    // PAMv3.
+    + Service<request::Grant, Response = response::Grant, Error = <Self as Transport>::Error>
 {
     /// Transport-specific error type this transport can generate.
     type Error: std::error::Error + Send + Sync;

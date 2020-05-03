@@ -29,3 +29,6 @@ pub type WhereNow = Vec<channel::Name>;
 
 /// A response to a heartbeat request.
 pub type Heartbeat = ();
+
+/// A response to a PAMv3 grant request.
+pub type Grant = String;
