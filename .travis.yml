@@ -8,10 +8,6 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
-    # TODO: re-enable the CI when we sort out the issues
-    - rust: 1.39.0
-    - rust: stable
-    - rust: beta
   fast_finish: true
 
 env:
