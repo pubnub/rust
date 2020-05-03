@@ -12,3 +12,12 @@ insert_final_newline = true
 [*.rs]
 indent_style = space
 indent_size = 4
+
+# Ignore paths
+[/**/testdata/**]
+charset = none
+end_of_line = none
+insert_final_newline = none
+trim_trailing_whitespace = none
+indent_style = none
+indent_size = none
