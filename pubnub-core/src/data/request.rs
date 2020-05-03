@@ -2,10 +2,12 @@
 
 use crate::data::channel;
 use crate::data::object::Object;
+use crate::data::pam;
 use crate::data::presence;
 use crate::data::pubsub;
 use crate::data::timetoken::Timetoken;
 use crate::data::uuid::UUID;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// A request to publish a message to a channel.
@@ -118,3 +120,6 @@ pub struct Heartbeat {
     /// State to set for channels and channel groups.
     pub state: Object,
 }
+
+/// PAMv3 Grant.
+pub type Grant = pam::GrantBody;
