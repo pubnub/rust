@@ -9,6 +9,7 @@ use hyper_tls::HttpsConnector;
 use std::time::Duration;
 
 pub mod error;
+pub mod pam;
 pub mod presence;
 pub mod pubsub;
 
@@ -29,6 +30,9 @@ pub struct Hyper {
     /// Subscribe key to use in requests.
     #[builder(setter(into))]
     subscribe_key: String,
+    /// Secret key matching the subscribe key.
+    #[builder(setter(into, strip_option), default = "None")]
+    secret_key: Option<String>,
     /// Publish key to use in requests.
     #[builder(setter(into))]
     publish_key: String,
