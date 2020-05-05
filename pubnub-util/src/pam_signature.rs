@@ -22,10 +22,10 @@ pub struct Request<'a> {
 #[must_use]
 pub fn sign(secret: &str, request: Request<'_>) -> String {
     let plain_message = format_plain_message(request);
-    let encryprted_message = encrypt(secret, &plain_message);
-    let base64_encryprted_message =
-        base64::encode_config(encryprted_message, base64::URL_SAFE_NO_PAD);
-    format!("v2.{}", base64_encryprted_message)
+    let encrypted_message = encrypt(secret, &plain_message);
+    let base64_encrypted_message =
+        base64::encode_config(encrypted_message, base64::URL_SAFE_NO_PAD);
+    format!("v2.{}", base64_encrypted_message)
 }
 
 #[allow(clippy::needless_pass_by_value)] // we consume here
