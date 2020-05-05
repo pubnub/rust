@@ -28,7 +28,6 @@ pub fn sign(secret: &str, request: Request<'_>) -> String {
     format!("v2.{}", base64_encrypted_message)
 }
 
-#[allow(clippy::needless_pass_by_value)] // we consume here
 fn format_plain_message(request: Request<'_>) -> String {
     format!(
         "{method}\n{pub_key}\n{path}\n{query_string}\n{body}",
