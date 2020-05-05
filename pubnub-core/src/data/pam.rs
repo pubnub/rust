@@ -99,7 +99,7 @@ pub struct Resources {
     /// A shallow mapping of channel names to permissions.
     pub channels: HashMap<String, BitMask>,
 
-    ///A shallow mapping of channel groups to permissions.
+    /// A shallow mapping of channel groups to permissions.
     pub groups: HashMap<String, BitMask>,
 
     /// A shallow mapping of user IDs to permissions.
