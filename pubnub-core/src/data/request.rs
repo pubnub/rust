@@ -7,7 +7,6 @@ use crate::data::presence;
 use crate::data::pubsub;
 use crate::data::timetoken::Timetoken;
 use crate::data::uuid::UUID;
-use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// A request to publish a message to a channel.
