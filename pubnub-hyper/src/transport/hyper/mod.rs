@@ -30,12 +30,12 @@ pub struct Hyper {
     /// Subscribe key to use in requests.
     #[builder(setter(into))]
     subscribe_key: String,
-    /// Secret key matching the subscribe key.
-    #[builder(setter(into, strip_option), default = "None")]
-    secret_key: Option<String>,
     /// Publish key to use in requests.
     #[builder(setter(into))]
     publish_key: String,
+    /// Secret key matching the subscribe key.
+    #[builder(setter(into, strip_option), default = "None")]
+    secret_key: Option<String>,
 
     /// The authority URL part to use to connet to the PubNub edge network
     #[builder(setter(into), default = "\"ps.pndsn.com\".to_owned()")]
