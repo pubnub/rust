@@ -33,52 +33,52 @@ fn grant() {
                         resources: pam::Resources {
                             channels: {
                                 let mut map = HashMap::new();
-                                map.insert("channel_a".into(), pam::BitMask(4));
-                                map.insert("channel_b".into(), pam::BitMask(1));
+                                map.insert("channel_a".into(), pam::BitMask::MANAGE);
+                                map.insert("channel_b".into(), pam::BitMask::READ);
                                 map
                             },
                             groups: {
                                 let mut map = HashMap::new();
-                                map.insert("groups_a".into(), pam::BitMask(4));
-                                map.insert("groups_b".into(), pam::BitMask(1));
+                                map.insert("groups_a".into(), pam::BitMask::MANAGE);
+                                map.insert("groups_b".into(), pam::BitMask::READ);
                                 map
                             },
                             users: {
                                 let mut map = HashMap::new();
-                                map.insert("users_a".into(), pam::BitMask(4));
-                                map.insert("users_b".into(), pam::BitMask(1));
+                                map.insert("users_a".into(), pam::BitMask::MANAGE);
+                                map.insert("users_b".into(), pam::BitMask::READ);
                                 map
                             },
                             spaces: {
                                 let mut map = HashMap::new();
-                                map.insert("spaces_a".into(), pam::BitMask(4));
-                                map.insert("spaces_b".into(), pam::BitMask(1));
+                                map.insert("spaces_a".into(), pam::BitMask::MANAGE);
+                                map.insert("spaces_b".into(), pam::BitMask::READ);
                                 map
                             },
                         },
                         patterns: pam::Patterns {
                             channels: {
                                 let mut map = HashMap::new();
-                                map.insert("channel_c".into(), pam::BitMask(4));
-                                map.insert("channel_d".into(), pam::BitMask(1));
+                                map.insert("channel_c".into(), pam::BitMask::MANAGE);
+                                map.insert("channel_d".into(), pam::BitMask::READ);
                                 map
                             },
                             groups: {
                                 let mut map = HashMap::new();
-                                map.insert("groups_c".into(), pam::BitMask(4));
-                                map.insert("groups_d".into(), pam::BitMask(1));
+                                map.insert("groups_c".into(), pam::BitMask::MANAGE);
+                                map.insert("groups_d".into(), pam::BitMask::READ);
                                 map
                             },
                             users: {
                                 let mut map = HashMap::new();
-                                map.insert("users_c".into(), pam::BitMask(4));
-                                map.insert("users_d".into(), pam::BitMask(1));
+                                map.insert("users_c".into(), pam::BitMask::MANAGE);
+                                map.insert("users_d".into(), pam::BitMask::READ);
                                 map
                             },
                             spaces: {
                                 let mut map = HashMap::new();
-                                map.insert("spaces_c".into(), pam::BitMask(4));
-                                map.insert("spaces_d".into(), pam::BitMask(1));
+                                map.insert("spaces_c".into(), pam::BitMask::MANAGE);
+                                map.insert("spaces_d".into(), pam::BitMask::READ);
                                 map
                             },
                         },

@@ -1,58 +1,70 @@
 //! PAMv3 related types.
 
 use super::object::Object;
+use bitflags::bitflags;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-/// Permissions bitmask. Values can be combined with a bitwise OR operation.
-///
-/// |Name    |Value (binary)|Value (hex)|Value (dec)|Description                                      |
-/// |--------|--------------|-----------|-----------|-------------------------------------------------|
-/// |`READ`  |`0b0000_0001` |`0x01`     |`1`        |Applies to Subscribe, History, Presence, Objects |
-/// |`WRITE` |`0b0000_0010` |`0x02`     |`2`        |Applies to Publish, Objects                      |
-/// |`MANAGE`|`0b0000_0100` |`0x04`     |`4`        |Applies to Channel-Groups, Objects               |
-/// |`DELETE`|`0b0000_1000` |`0x08`     |`8`        |Applies to History                               |
-/// |`CREATE`|`0b0001_0000` |`0x10`     |`16`       |Applies to Objects                               |
-///
-/// ## Permissions matrix:
-///
-/// |Resource type|Permission|API                    |Allowances                                         |
-/// |-------------|----------|-----------------------|---------------------------------------------------|
-/// |`channels`   |`READ`    |Subscribe              |Receiving messages on a channel                    |
-/// |`channels`   |`READ`    |Presence Here Now      |Listing UUIDs subscribed to a channel              |
-/// |`channels`   |`READ`    |Presence User State    |Set/get state on a channel                         |
-/// |`channels`   |`READ`    |Push; Add Device       |Adding a device to a channel for push notifications|
-/// |`channels`   |`READ`    |History                |Receiving historical messages on a channel         |
-/// |`channels`   |`DELETE`  |History; Delete        |Deleting historical messages on a channel          |
-/// |`channels`   |`WRITE`   |Publish                |Sending messages on a channel                      |
-/// |`channels`   |`WRITE`   |Signal                 |Sending signals on a channel                       |
-/// |`groups`     |`READ`    |Subscribe              |Receiving messages on a channel-group              |
-/// |`groups`     |`READ`    |Presence Here Now      |Listing UUIDs subscribed to a channel-group        |
-/// |`groups`     |`READ`    |Presence User State    |Set/get state on a channel-group                   |
-/// |`groups`     |`READ`    |Groups; List           |Listing all channels in a channel-group            |
-/// |`groups`     |`MANAGE`  |Groups; Add Channels   |Adding channels to a channel-group                 |
-/// |`groups`     |`MANAGE`  |Groups; Remove Channels|Removing channels from a channel-group             |
-/// |`groups`     |`MANAGE`  |Delete Group           |Deleting a channel-group                           |
-/// |`users`      |`CREATE`  |User; Create           |Creating a user by `UserID`                        |
-/// |`users`      |`DELETE`  |User; Delete           |Deleting a user and all of its space memberships   |
-/// |`users`      |`MANAGE`  |User; Add membership   |Adding space membership for a user                 |
-/// |`users`      |`READ`    |User; Read             |Reading a user's information and space memberships |
-/// |`users`      |`WRITE`   |User; Update           |Updating a user's information                      |
-/// |`spaces`     |`CREATE`  |Space; Create          |Creating a space by `SpaceID`                      |
-/// |`spaces`     |`DELETE`  |Space; Delete          |Deleting a space and all of its members            |
-/// |`spaces`     |`MANAGE`  |Space; Add members     |Adding members to a space                          |
-/// |`spaces`     |`READ`    |Space; Read            |Reading a space's information and member users     |
-/// |`spaces`     |`WRITE`   |Space; Update          |Updating a space's information                     |
-/// |`spaces`     |`MANAGE`  |Space; User Memberships|Adding and removing members from a space           |
-///
-/// **⚠️ Use of undocumented bitmask values or combinations with resource
-/// types is considered undefined behavior; Using undefined behavior in
-/// grant requests or within tokens passed to any PubNub REST API are
-/// allowed to break in unexpected ways, including spawning
-/// ["nasal demons"](http://www.catb.org/jargon/html/N/nasal-demons.html).**
-// TODO: use bitflags.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BitMask(pub u64);
+bitflags! {
+    /// Permissions bitmask. Values can be combined with a bitwise OR operation.
+    ///
+    /// |Name    |Value (binary)|Value (hex)|Value (dec)|Description                                      |
+    /// |--------|--------------|-----------|-----------|-------------------------------------------------|
+    /// |`READ`  |`0b0000_0001` |`0x01`     |`1`        |Applies to Subscribe, History, Presence, Objects |
+    /// |`WRITE` |`0b0000_0010` |`0x02`     |`2`        |Applies to Publish, Objects                      |
+    /// |`MANAGE`|`0b0000_0100` |`0x04`     |`4`        |Applies to Channel-Groups, Objects               |
+    /// |`DELETE`|`0b0000_1000` |`0x08`     |`8`        |Applies to History                               |
+    /// |`CREATE`|`0b0001_0000` |`0x10`     |`16`       |Applies to Objects                               |
+    ///
+    /// ## Permissions matrix:
+    ///
+    /// |Resource type|Permission|API                    |Allowances                                         |
+    /// |-------------|----------|-----------------------|---------------------------------------------------|
+    /// |`channels`   |`READ`    |Subscribe              |Receiving messages on a channel                    |
+    /// |`channels`   |`READ`    |Presence Here Now      |Listing UUIDs subscribed to a channel              |
+    /// |`channels`   |`READ`    |Presence User State    |Set/get state on a channel                         |
+    /// |`channels`   |`READ`    |Push; Add Device       |Adding a device to a channel for push notifications|
+    /// |`channels`   |`READ`    |History                |Receiving historical messages on a channel         |
+    /// |`channels`   |`DELETE`  |History; Delete        |Deleting historical messages on a channel          |
+    /// |`channels`   |`WRITE`   |Publish                |Sending messages on a channel                      |
+    /// |`channels`   |`WRITE`   |Signal                 |Sending signals on a channel                       |
+    /// |`groups`     |`READ`    |Subscribe              |Receiving messages on a channel-group              |
+    /// |`groups`     |`READ`    |Presence Here Now      |Listing UUIDs subscribed to a channel-group        |
+    /// |`groups`     |`READ`    |Presence User State    |Set/get state on a channel-group                   |
+    /// |`groups`     |`READ`    |Groups; List           |Listing all channels in a channel-group            |
+    /// |`groups`     |`MANAGE`  |Groups; Add Channels   |Adding channels to a channel-group                 |
+    /// |`groups`     |`MANAGE`  |Groups; Remove Channels|Removing channels from a channel-group             |
+    /// |`groups`     |`MANAGE`  |Delete Group           |Deleting a channel-group                           |
+    /// |`users`      |`CREATE`  |User; Create           |Creating a user by `UserID`                        |
+    /// |`users`      |`DELETE`  |User; Delete           |Deleting a user and all of its space memberships   |
+    /// |`users`      |`MANAGE`  |User; Add membership   |Adding space membership for a user                 |
+    /// |`users`      |`READ`    |User; Read             |Reading a user's information and space memberships |
+    /// |`users`      |`WRITE`   |User; Update           |Updating a user's information                      |
+    /// |`spaces`     |`CREATE`  |Space; Create          |Creating a space by `SpaceID`                      |
+    /// |`spaces`     |`DELETE`  |Space; Delete          |Deleting a space and all of its members            |
+    /// |`spaces`     |`MANAGE`  |Space; Add members     |Adding members to a space                          |
+    /// |`spaces`     |`READ`    |Space; Read            |Reading a space's information and member users     |
+    /// |`spaces`     |`WRITE`   |Space; Update          |Updating a space's information                     |
+    /// |`spaces`     |`MANAGE`  |Space; User Memberships|Adding and removing members from a space           |
+    ///
+    /// **⚠️ Use of undocumented bitmask values or combinations with resource
+    /// types is considered undefined behavior; Using undefined behavior in
+    /// grant requests or within tokens passed to any PubNub REST API are
+    /// allowed to break in unexpected ways, including spawning
+    /// ["nasal demons"](http://www.catb.org/jargon/html/N/nasal-demons.html).**
+    pub struct BitMask: u64 {
+        /// Applies to Subscribe, History, Presence, Objects
+        const READ = 0b0000_0001;
+        /// Applies to Publish, Objects
+        const WRITE = 0b0000_0010;
+        /// Applies to Channel-Groups, Objects
+        const MANAGE = 0b0000_0100;
+        /// Applies to History
+        const DELETE = 0b0000_1000;
+        /// Applies to Objects
+        const CREATE = 0b0001_0000;
+    }
+}
 
 /// The PAMv3 grant request body.
 #[derive(Debug, Clone, PartialEq, Eq)]

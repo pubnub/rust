@@ -59,7 +59,7 @@ fn prepare_grant_body(input: pam::GrantBody) -> String {
     let map = |input: &HashMap<String, pam::BitMask>| -> json::JsonValue {
         let mut data = json::JsonValue::new_object();
         for (key, val) in input {
-            data[key] = val.0.into();
+            data[key] = val.bits().into();
         }
         data
     };
@@ -167,52 +167,52 @@ mod tests {
                 resources: pam::Resources {
                     channels: {
                         let mut map = HashMap::new();
-                        map.insert("channel_a".into(), pam::BitMask(4));
-                        map.insert("channel_b".into(), pam::BitMask(0));
+                        map.insert("channel_a".into(), pam::BitMask::MANAGE);
+                        map.insert("channel_b".into(), pam::BitMask::empty());
                         map
                     },
                     groups: {
                         let mut map = HashMap::new();
-                        map.insert("groups_a".into(), pam::BitMask(4));
-                        map.insert("groups_b".into(), pam::BitMask(0));
+                        map.insert("groups_a".into(), pam::BitMask::MANAGE);
+                        map.insert("groups_b".into(), pam::BitMask::empty());
                         map
                     },
                     users: {
                         let mut map = HashMap::new();
-                        map.insert("users_a".into(), pam::BitMask(4));
-                        map.insert("users_b".into(), pam::BitMask(0));
+                        map.insert("users_a".into(), pam::BitMask::MANAGE);
+                        map.insert("users_b".into(), pam::BitMask::empty());
                         map
                     },
                     spaces: {
                         let mut map = HashMap::new();
-                        map.insert("spaces_a".into(), pam::BitMask(4));
-                        map.insert("spaces_b".into(), pam::BitMask(0));
+                        map.insert("spaces_a".into(), pam::BitMask::MANAGE);
+                        map.insert("spaces_b".into(), pam::BitMask::empty());
                         map
                     },
                 },
                 patterns: pam::Patterns {
                     channels: {
                         let mut map = HashMap::new();
-                        map.insert("channel_c".into(), pam::BitMask(4));
-                        map.insert("channel_d".into(), pam::BitMask(0));
+                        map.insert("channel_c".into(), pam::BitMask::MANAGE);
+                        map.insert("channel_d".into(), pam::BitMask::empty());
                         map
                     },
                     groups: {
                         let mut map = HashMap::new();
-                        map.insert("groups_c".into(), pam::BitMask(4));
-                        map.insert("groups_d".into(), pam::BitMask(0));
+                        map.insert("groups_c".into(), pam::BitMask::MANAGE);
+                        map.insert("groups_d".into(), pam::BitMask::empty());
                         map
                     },
                     users: {
                         let mut map = HashMap::new();
-                        map.insert("users_c".into(), pam::BitMask(4));
-                        map.insert("users_d".into(), pam::BitMask(0));
+                        map.insert("users_c".into(), pam::BitMask::MANAGE);
+                        map.insert("users_d".into(), pam::BitMask::empty());
                         map
                     },
                     spaces: {
                         let mut map = HashMap::new();
-                        map.insert("spaces_c".into(), pam::BitMask(4));
-                        map.insert("spaces_d".into(), pam::BitMask(0));
+                        map.insert("spaces_c".into(), pam::BitMask::MANAGE);
+                        map.insert("spaces_d".into(), pam::BitMask::empty());
                         map
                     },
                 },
