@@ -6,6 +6,11 @@ use std::collections::HashMap;
 
 mod common;
 
+fn secret_key_from_env() -> String {
+    std::env::var("PUBNUB_TEST_SUBSCRIBE_KEY")
+        .expect("you must pass the secret key at PUBNUB_TEST_SUBSCRIBE_KEY")
+}
+
 #[test]
 fn grant() {
     common::init();
@@ -14,7 +19,7 @@ fn grant() {
             .agent("Rust-Agent-Test")
             .publish_key("demo")
             .subscribe_key("demo")
-            .secret_key("wMfbo9G0xVUG8yfTfYw5qIdfJkTd7A")
+            .secret_key(secret_key_from_env())
             .build()
             .unwrap();
 
