@@ -23,7 +23,7 @@ impl TransportService<request::Publish> for Hyper {
 
         // Prepare the URL.
         let path_and_query =
-            UriTemplate::new("/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}{?uuid}")
+            UriTemplate::new("/publish/{pub_key}/{sub_key}/0/{channel}/0/{message}{?uuid,meta}")
                 .set_scalar("pub_key", self.publish_key.clone())
                 .set_scalar("sub_key", self.subscribe_key.clone())
                 .set_scalar("channel", channel)
