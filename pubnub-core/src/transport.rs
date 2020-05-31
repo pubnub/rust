@@ -29,6 +29,11 @@ pub trait Transport:
     + Service<request::Heartbeat, Response = response::Heartbeat, Error = <Self as Transport>::Error>
     // PAMv3.
     + Service<request::Grant, Response = response::Grant, Error = <Self as Transport>::Error>
+    // History.
+    + Service<request::GetHistory, Response = response::GetHistory, Error = <Self as Transport>::Error>
+    + Service<request::DeleteHistory, Response = response::DeleteHistory, Error = <Self as Transport>::Error>
+    + Service<request::MessageCountsWithTimetoken, Response = response::MessageCountsWithTimetoken, Error = <Self as Transport>::Error>
+    + Service<request::MessageCountsWithChannelTimetokens, Response = response::MessageCountsWithChannelTimetokens, Error = <Self as Transport>::Error>
 {
     /// Transport-specific error type this transport can generate.
     type Error: std::error::Error + Send + Sync;
