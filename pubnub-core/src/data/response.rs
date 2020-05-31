@@ -1,10 +1,12 @@
 //! Types used by [`crate::Transport`].
 
 use crate::data::channel;
+use crate::data::history;
 use crate::data::message::Message;
 use crate::data::object::Object;
 use crate::data::presence;
 use crate::data::timetoken::Timetoken;
+use std::collections::HashMap;
 
 /// A response to a publish request.
 pub type Publish = Timetoken;
@@ -32,3 +34,18 @@ pub type Heartbeat = ();
 
 /// A response to a PAMv3 grant request.
 pub type Grant = String;
+
+/// A response to a get history request.
+pub type GetHistory = HashMap<channel::Name, Vec<history::Item>>;
+
+/// A response to a delete history request.
+pub type DeleteHistory = ();
+
+/// A response to a message counts request.
+pub type MessageCounts = HashMap<channel::Name, usize>;
+
+/// A response to a message counts with timetoken request.
+pub type MessageCountsWithTimetoken = HashMap<channel::Name, usize>;
+
+/// A response to a message counts with channel timetokens request.
+pub type MessageCountsWithChannelTimetokens = HashMap<channel::Name, usize>;
