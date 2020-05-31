@@ -1,5 +1,7 @@
 {
   "[rust]": {
     "editor.formatOnSave": true
-  }
+  },
+  "rust-analyzer.cargo.allFeatures": false,
+  "rust-analyzer.checkOnSave.allFeatures": false
 }
