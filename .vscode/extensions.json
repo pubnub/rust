@@ -1,0 +1,4 @@
+{
+  "recommendations": ["matklad.rust-analyzer"],
+  "unwantedRecommendations": []
+}
