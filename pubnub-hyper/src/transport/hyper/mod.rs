@@ -13,6 +13,8 @@ pub mod pam;
 pub mod presence;
 pub mod pubsub;
 
+mod shared_parsers;
+
 #[macro_use]
 pub(crate) mod util;
 

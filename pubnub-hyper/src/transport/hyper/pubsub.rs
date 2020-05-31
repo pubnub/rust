@@ -2,12 +2,8 @@
 
 use super::util::json_as_object;
 use super::util::{build_uri, handle_json_response};
-use super::{error, Hyper};
-use crate::core::data::{
-    message::{self, Message},
-    pubsub, request, response,
-    timetoken::Timetoken,
-};
+use super::{error, shared_parsers::parse_message, Hyper};
+use crate::core::data::{message::Message, pubsub, request, response, timetoken::Timetoken};
 use crate::core::json;
 use crate::core::TransportService;
 use async_trait::async_trait;
@@ -82,91 +78,11 @@ impl TransportService<request::Subscribe> for Hyper {
         let response = self.http_client.get(url).await?;
         let data_json = handle_json_response(response).await?;
 
-        // Parse timetoken.
-        let timetoken = Timetoken {
-            t: data_json["t"]["t"].as_str().unwrap().parse().unwrap(),
-            r: data_json["t"]["r"].as_u32().unwrap_or(0),
-        };
-
-        // Parse messages.
-        let messages = {
-            let result: Option<Vec<_>> = data_json["m"]
-                .members()
-                .map(|message| match json_as_object(message) {
-                    Some(message) => parse_message(message).ok(),
-                    None => None,
-                })
-                .collect();
-            result.ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?
-        };
-
+        // Parse response.
+        let (messages, timetoken) = parse_subscribe(&data_json)
+            .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
         Ok((messages, timetoken))
     }
-}
-
-fn parse_message_type(i: &json::JsonValue) -> Option<message::Type> {
-    let i = if i.is_null() { 0 } else { i.as_u32()? };
-    Some(match i {
-        0 => message::Type::Publish,
-        1 => message::Type::Signal,
-        2 => message::Type::Objects,
-        3 => message::Type::Action,
-        i => message::Type::Unknown(i),
-    })
-}
-
-fn parse_message_route(route: &json::JsonValue) -> Result<Option<message::Route>, ()> {
-    if route.is_null() {
-        return Ok(None);
-    }
-    let route = route.as_str().ok_or(())?;
-    // First try parsing as wildcard, it is more restrictive.
-    if let Ok(val) = route.parse() {
-        return Ok(Some(message::Route::ChannelWildcard(val)));
-    }
-    // Then try parsing as regular name for a channel group.
-    if let Ok(val) = route.parse() {
-        return Ok(Some(message::Route::ChannelGroup(val)));
-    }
-    Err(())
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum ParseMessageError {
-    Type,
-    Route,
-    Channel,
-    Timetoken,
-    SubscribeKey,
-}
-
-fn parse_message(message: &json::object::Object) -> Result<Message, ParseMessageError> {
-    let message = Message {
-        message_type: parse_message_type(&message["e"]).ok_or(ParseMessageError::Type)?,
-        route: parse_message_route(&message["b"]).map_err(|_| ParseMessageError::Route)?,
-        channel: message["c"]
-            .as_str()
-            .ok_or(ParseMessageError::Channel)?
-            .parse()
-            .map_err(|_| ParseMessageError::Channel)?,
-        json: message["d"].clone(),
-        metadata: message["u"].clone(),
-        timetoken: Timetoken {
-            t: message["p"]["t"]
-                .as_str()
-                .ok_or(ParseMessageError::Timetoken)?
-                .parse()
-                .map_err(|_| ParseMessageError::Timetoken)?,
-            r: message["p"]["r"].as_u32().unwrap_or(0),
-        },
-        client: message["i"].as_str().map(std::borrow::ToOwned::to_owned),
-        subscribe_key: message["k"]
-            .as_str()
-            .ok_or(ParseMessageError::SubscribeKey)?
-            .to_owned(),
-        flags: message["f"].as_u32().unwrap_or(0),
-    };
-    Ok(message)
 }
 
 pub(super) fn inject_subscribe_to(template: &mut UriTemplate, to: &[pubsub::SubscribeTo]) {
@@ -183,22 +99,42 @@ pub(super) fn inject_subscribe_to(template: &mut UriTemplate, to: &[pubsub::Subs
     template.set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip);
 }
 
+fn parse_subscribe(data_json: &json::JsonValue) -> Option<(Vec<Message>, Timetoken)> {
+    // Parse timetoken.
+    let timetoken = Timetoken {
+        t: data_json["t"]["t"].as_str().unwrap().parse().unwrap(),
+        r: data_json["t"]["r"].as_u32().unwrap_or(0),
+    };
+
+    // Parse messages.
+    let messages = {
+        let result: Option<Vec<_>> = data_json["m"]
+            .members()
+            .map(|message| match json_as_object(message) {
+                Some(message) => parse_message(message).ok(),
+                None => None,
+            })
+            .collect();
+        result?
+    };
+
+    Some((messages, timetoken))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::super::util::json_as_object;
-    use super::parse_message;
+    use super::parse_subscribe;
     use crate::core::data::{
         message::{self, Message, Route},
         timetoken::Timetoken,
     };
 
     #[test]
-    fn subscribe_parse_message() {
+    fn test_parse_subscribe() {
         let string_sample = r#"{"t":{"t":"15850559815683819","r":12},"m":[{"a":"3","f":514,"i":"31257c03-3722-4409-a0ea-e7b072540115","p":{"t":"15850559815660696","r":12},"k":"demo","c":"demo2","d":"Hello, world!","b":"demo2"}]}"#;
         let json_sample = json::parse(string_sample).unwrap();
-        let message_json_object = json_as_object(&json_sample["m"][0]).unwrap();
 
-        let actual_message = parse_message(&message_json_object).unwrap();
+        let actual_response = parse_subscribe(&json_sample).unwrap();
 
         let expected_message = Message {
             message_type: message::Type::Publish,
@@ -215,6 +151,14 @@ mod tests {
             flags: 514,
         };
 
-        assert_eq!(expected_message, actual_message);
+        let expected_response = (
+            vec![expected_message],
+            Timetoken {
+                t: 15850559815683819,
+                r: 12,
+            },
+        );
+
+        assert_eq!(expected_response, actual_response);
     }
 }
