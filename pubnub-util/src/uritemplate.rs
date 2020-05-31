@@ -28,9 +28,9 @@ impl UriTemplate {
     }
 
     /// Bind a variable to a scalar value.
-    pub fn set_scalar(&mut self, varname: impl AsRef<str>, var: impl Into<String>) -> &mut Self {
+    pub fn set_scalar(&mut self, varname: impl AsRef<str>, var: impl ToString) -> &mut Self {
         self.0
-            .set(varname.as_ref(), TemplateVar::Scalar(var.into()));
+            .set(varname.as_ref(), TemplateVar::Scalar(var.to_string()));
         self
     }
 
@@ -39,7 +39,7 @@ impl UriTemplate {
     pub fn set_optional_scalar(
         &mut self,
         varname: impl AsRef<str>,
-        var: Option<impl Into<String>>,
+        var: Option<impl ToString>,
     ) -> &mut Self {
         match var {
             Some(var) => self.set_scalar(varname, var),
@@ -48,21 +48,21 @@ impl UriTemplate {
     }
 
     /// Bind a variable to a list value.
-    pub fn set_list<T: Into<String>>(
+    pub fn set_list<T: ToString>(
         &mut self,
         varname: impl AsRef<str>,
         var: impl IntoIterator<Item = T>,
     ) -> &mut Self {
         self.0.set(
             varname.as_ref(),
-            TemplateVar::List(var.into_iter().map(Into::into).collect()),
+            TemplateVar::List(var.into_iter().map(|val| val.to_string()).collect()),
         );
         self
     }
 
     /// Bind a variable to a list value, specifying what happends if the value
     /// us empty.
-    pub fn set_list_with_if_empty<T: Into<String>>(
+    pub fn set_list_with_if_empty<T: ToString>(
         &mut self,
         varname: impl AsRef<str>,
         var: impl IntoIterator<Item = T>,
