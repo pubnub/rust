@@ -246,7 +246,9 @@ fn message_counts() {
         {
             let channels = pubnub
                 .call(request::MessageCountsWithChannelTimetokens {
-                    channels: vec![(test_channel.clone(), test_timetoken)],
+                    channels: vec![(test_channel.clone(), test_timetoken)]
+                        .into_iter()
+                        .collect(),
                 })
                 .await
                 .unwrap();
