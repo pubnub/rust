@@ -97,7 +97,6 @@ impl TransportService<request::DeleteHistory> for Hyper {
         let response = self.http_client.request(req).await?;
         let _data_json = handle_history_response(response).await?;
 
-        // Parse response.
         Ok(())
     }
 }
