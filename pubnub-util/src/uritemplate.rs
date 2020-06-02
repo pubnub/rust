@@ -28,6 +28,7 @@ impl UriTemplate {
     }
 
     /// Bind a variable to a scalar value.
+    #[allow(clippy::needless_pass_by_value)] // clippy bug
     pub fn set_scalar(&mut self, varname: impl AsRef<str>, var: impl ToString) -> &mut Self {
         self.0
             .set(varname.as_ref(), TemplateVar::Scalar(var.to_string()));
