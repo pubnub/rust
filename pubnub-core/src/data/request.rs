@@ -8,7 +8,7 @@ use crate::data::presence;
 use crate::data::pubsub;
 use crate::data::timetoken::Timetoken;
 use crate::data::uuid::UUID;
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 /// A request to publish a message to a channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -202,5 +202,5 @@ pub struct MessageCountsWithTimetoken {
 pub struct MessageCountsWithChannelTimetokens {
     /// A list of channels with timetokens to get message counts at.
     /// Timetoken value must be non-zero.
-    pub channels: Vec<(channel::Name, history::Timetoken)>,
+    pub channels: HashMap<channel::Name, history::Timetoken>,
 }
