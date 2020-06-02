@@ -215,7 +215,7 @@ fn message_counts() {
         let test_payload = json::object! {
             my_payload: "my_value",
         };
-        let test_timetoken = 3600 * 10000000;
+        let test_timetoken = 3600 * 10_000_000;
 
         {
             pubnub

@@ -190,7 +190,7 @@ fn parse_get_history(
         .map(|(channel, items)| {
             let items = json_as_array(items)?;
             let items: Option<Vec<_>> = items
-                .into_iter()
+                .iter()
                 .map(|item| match json_as_object(item) {
                     Some(item) => parse_item(item),
                     None => None,
@@ -229,7 +229,7 @@ mod tests {
 
         let expected_item = history::Item {
             message: json::object! { "my_payload": "my_value" },
-            timetoken: 15909263655404500,
+            timetoken: 15_909_263_655_404_500,
             metadata: json::Null,
         };
 
