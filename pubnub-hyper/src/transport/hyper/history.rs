@@ -146,14 +146,8 @@ impl TransportService<request::MessageCountsWithChannelTimetokens> for Hyper {
     ) -> Result<Self::Response, Self::Error> {
         let request::MessageCountsWithChannelTimetokens { channels } = request;
 
-        // Tranform input to the proper format.
-        let cap = channels.len();
-        let mut names = Vec::with_capacity(cap);
-        let mut timetokens = Vec::with_capacity(cap);
-        for (channel, timetoken) in channels.into_iter() {
-            names.push(channel);
-            timetokens.push(timetoken);
-        }
+        // Unzip Vector-of-Tuples into separate Vectors.
+        let (names, timetokens): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
 
         // Prepare the URL.
         let path_and_query = UriTemplate::new(
