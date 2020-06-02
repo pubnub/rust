@@ -211,8 +211,11 @@ fn parse_message_counts(data_json: &json::JsonValue) -> Option<HashMap<channel::
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use json::JsonValue;
+    use super::{
+        history,
+        json::{self, JsonValue},
+        parse_item,
+    };
 
     #[test]
     fn test_parse_item() {
