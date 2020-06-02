@@ -17,7 +17,7 @@ async fn handle_presence_response(
     let presence_data = handle_json_response(response).await?;
 
     if presence_data["error"] == true {
-        let error_message: String = format!("{}", presence_data["message"]);
+        let error_message = presence_data["message"].to_string();
         return Err(error::Error::Server(error_message));
     }
 

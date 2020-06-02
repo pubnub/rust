@@ -18,7 +18,7 @@ async fn handle_history_response(
     let history_data = handle_json_response(response).await?;
 
     if history_data["error"] == true {
-        let error_message: String = format!("{}", history_data["message"]);
+        let error_message = history_data["message"].to_string();
         return Err(error::Error::Server(error_message));
     }
 
