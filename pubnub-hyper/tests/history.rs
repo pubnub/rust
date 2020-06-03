@@ -188,10 +188,7 @@ fn delete_history() {
                 })
                 .await
                 .unwrap();
-            assert_eq!(channels.len(), 1);
-
-            let test_channel_messages = &channels[&test_channel];
-            assert_eq!(test_channel_messages.len(), 0);
+            assert_eq!(channels.len(), 0);
         }
     });
 }
