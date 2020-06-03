@@ -60,7 +60,7 @@ fn get_history() {
         }
 
         // Give the network some time to react.
-        sleep(1000).await;
+        sleep(5000).await;
 
         {
             let channels = pubnub
@@ -142,7 +142,7 @@ fn delete_history() {
         }
 
         // Give the network some time to react.
-        sleep(1000).await;
+        sleep(5000).await;
 
         {
             let channels = pubnub
@@ -174,7 +174,7 @@ fn delete_history() {
         }
 
         // Give the network some time to react.
-        sleep(1000).await;
+        sleep(5000).await;
 
         {
             let channels = pubnub
