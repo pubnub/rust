@@ -92,6 +92,17 @@ impl_mock_service![request::WhereNow, response::WhereNow];
 impl_mock_service![request::Heartbeat, response::Heartbeat];
 impl_mock_service![request::Grant, response::Grant];
 
+impl_mock_service![request::GetHistory, response::GetHistory];
+impl_mock_service![request::DeleteHistory, response::DeleteHistory];
+impl_mock_service![
+    request::MessageCountsWithTimetoken,
+    response::MessageCountsWithTimetoken
+];
+impl_mock_service![
+    request::MessageCountsWithChannelTimetokens,
+    response::MessageCountsWithChannelTimetokens
+];
+
 impl Transport for MockTransport {
     type Error = MockTransportError;
 }

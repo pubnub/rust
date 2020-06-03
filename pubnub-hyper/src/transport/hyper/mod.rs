@@ -9,9 +9,12 @@ use hyper_tls::HttpsConnector;
 use std::time::Duration;
 
 pub mod error;
+pub mod history;
 pub mod pam;
 pub mod presence;
 pub mod pubsub;
+
+mod shared_parsers;
 
 #[macro_use]
 pub(crate) mod util;

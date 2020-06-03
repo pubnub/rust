@@ -1,5 +1,6 @@
 //! Types used by [`crate::Transport`].
 
+use super::history;
 use crate::data::channel;
 use crate::data::object::Object;
 use crate::data::pam;
@@ -7,7 +8,7 @@ use crate::data::presence;
 use crate::data::pubsub;
 use crate::data::timetoken::Timetoken;
 use crate::data::uuid::UUID;
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 /// A request to publish a message to a channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,3 +123,84 @@ pub struct Heartbeat {
 
 /// PAMv3 Grant.
 pub type Grant = pam::GrantBody;
+
+/// Fetch history.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetHistory {
+    /// The channel names to get the history for.
+    pub channels: Vec<channel::Name>,
+
+    /// The batch history is limited to 500 channels and only the last 25
+    /// messages per channel.
+    pub max: Option<usize>,
+
+    /// Direction of time traversal. Default is false, which means timeline is
+    /// traversed newest to oldest.
+    pub reverse: Option<bool>,
+
+    /// If provided, lets you select a "start date", in Timetoken format.
+    /// If not provided, it will default to current time.
+    /// Page through results by providing a start OR end time token.
+    /// Retrieve a slice of the time line by providing both a start AND end time
+    /// token.
+    /// Start is "exclusive" - that is, the first item returned will be
+    /// the one immediately after the start Timetoken value.
+    pub start: Option<history::Timetoken>,
+
+    /// If provided, lets you select an "end date", in Timetoken format.
+    /// If not provided, it will provide up to the number of messages defined
+    /// in the "max" parameter. Page through results by providing a start OR end
+    /// time token. Retrieve a slice of the time line by providing both a start
+    /// AND end time token.
+    /// End is "exclusive" - that is, if a message is associated exactly with
+    /// the end Timetoken, it will be included in the result.
+    pub end: Option<history::Timetoken>,
+
+    /// Whether to request metadata to be populated in the returned items or
+    /// not.
+    pub include_metadata: Option<bool>,
+}
+
+/// Delete from history.
+///
+/// Delete API is asynchronously processed. Getting a successful response
+/// implies the Delete request has been received and will be processed soon.
+///
+/// After the delete has been processed, a webhook is called if the subkey
+/// specifies one. If multiple (say N) channels are given in the request
+/// a single 200 is returned but N webhook calls will be made.
+///
+/// There is a setting to accept delete from history requests for a key, which
+/// you must enable by checking the `Enable Delete-From-History` checkbox in the
+/// key settings for your key in the Administration Portal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeleteHistory {
+    /// The channel names to detete history at.
+    pub channels: Vec<channel::Name>,
+
+    /// Start time is not inclusive, as in message with timestamp start will not
+    /// be deleted.
+    pub start: Option<history::Timetoken>,
+
+    /// End time is inclusive, as in message with timestamp end will be deleted.
+    pub end: Option<history::Timetoken>,
+}
+
+/// Get message counts over a time period.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageCountsWithTimetoken {
+    /// The channel names to get message counts at.
+    pub channels: Vec<channel::Name>,
+
+    /// A single timetoken to cover all channels.
+    /// Must be greater than zero.
+    pub timetoken: history::Timetoken,
+}
+
+/// Get message counts over a time period per channel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageCountsWithChannelTimetokens {
+    /// A list of channels with timetokens to get message counts at.
+    /// Timetoken value must be non-zero.
+    pub channels: HashMap<channel::Name, history::Timetoken>,
+}
