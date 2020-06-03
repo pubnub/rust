@@ -9,12 +9,12 @@ use json::JsonValue;
 /// This is the message structure yielded by [`Subscription`].
 ///
 /// [`Subscription`]: crate::Subscription
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     /// Enum Type of Message.
     pub message_type: Type,
     /// Wildcard channel or channel group.
-    pub route: Option<channel::Name>,
+    pub route: Option<Route>,
     /// Origin Channel of Message Receipt.
     pub channel: channel::Name,
     /// Decoded JSON Message Payload.
@@ -29,6 +29,15 @@ pub struct Message {
     pub subscribe_key: String,
     /// Message flags.
     pub flags: u32,
+}
+
+/// Message route.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Route {
+    /// Message arrived on a wildcard channel.
+    ChannelWildcard(channel::WildcardSpec),
+    /// Message arrived on a channel group.
+    ChannelGroup(channel::Name),
 }
 
 /// # PubNub Message Types
@@ -53,24 +62,6 @@ pub enum Type {
     Presence,
     /// Unknown type. The value may have special meaning in some contexts.
     Unknown(u32),
-}
-
-impl Type {
-    /// # Create a `MessageType` from an integer
-    ///
-    /// Subscribe message pyloads include a non-enumerated integer to describe message types. We
-    /// instead provide a concrete type, using this function to convert the integer into the
-    /// appropriate type.
-    #[must_use]
-    pub fn from_json(i: &JsonValue) -> Self {
-        match i.as_u32().unwrap_or(0) {
-            0 => Self::Publish,
-            1 => Self::Signal,
-            2 => Self::Objects,
-            3 => Self::Action,
-            i => Self::Unknown(i),
-        }
-    }
 }
 
 impl Default for Message {

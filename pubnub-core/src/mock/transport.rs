@@ -89,6 +89,8 @@ impl_mock_service![
     response::GlobalHereNow<presence::respond_with::Full>
 ];
 impl_mock_service![request::WhereNow, response::WhereNow];
+impl_mock_service![request::Heartbeat, response::Heartbeat];
+impl_mock_service![request::Grant, response::Grant];
 
 impl Transport for MockTransport {
     type Error = MockTransportError;

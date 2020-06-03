@@ -13,7 +13,7 @@ license-file = "../LICENSE"
 
 [dependencies]
 pubnub-core = { version = "=0.1.0", path = "../pubnub-core" }
-pubnub-util = { version = "=0.1.0", path = "../pubnub-util" }
+pubnub-util = { version = "=0.1.0", path = "../pubnub-util", default-features = false, features = ["uritemplate_api", "pam_signature"] }
 async-trait = "0.1"
 derive_builder = "0.9"
 error-iter = "0.2"
@@ -23,7 +23,6 @@ http = "0.2"
 hyper = { version = "0.13.3", features = ["stream"] }
 hyper-tls = "0.4"
 log = "0.4"
-percent-encoding = "2.1"
 thiserror = "1.0"
 tokio = "0.2"
 

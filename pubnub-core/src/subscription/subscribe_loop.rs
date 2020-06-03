@@ -1,7 +1,8 @@
+use super::message_destinations::MessageDestinations;
 use super::registry::Registry as GenericRegistry;
 use crate::data::message::Message;
 use crate::data::timetoken::Timetoken;
-use crate::data::{channel, request, response};
+use crate::data::{pubsub, request, response};
 use crate::transport::Service;
 use futures_channel::{mpsc, oneshot};
 use futures_util::future::{select, Either, FutureExt};
@@ -13,7 +14,7 @@ use std::fmt::Debug;
 pub(crate) use super::channel::{Rx as ChannelRx, Tx as ChannelTx};
 pub(crate) use super::registry::ID as SubscriptionID;
 
-pub(crate) type Registry = GenericRegistry<channel::Name, ChannelTx>;
+pub(crate) type Registry = GenericRegistry<pubsub::SubscribeTo, ChannelTx>;
 
 pub(crate) type ReadyTx = oneshot::Sender<()>;
 
@@ -30,20 +31,12 @@ pub(crate) enum ControlCommand {
     /// A stream for a channel or channel group is being dropped.
     ///
     /// Only sent from `Subscription` to `SubscribeLoop`.
-    Drop(SubscriptionID, ListenerType),
+    Drop(SubscriptionID, pubsub::SubscribeTo),
 
     /// A stream for a channel or channel group is being created.
     ///
     /// Only sent from `PubNub` to `SubscribeLoop`.
-    Add(ListenerType, ChannelTx, SubscriptionIdTx),
-}
-
-/// # Type of listener (a channel or a channel group)
-#[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ListenerType {
-    Channel(channel::Name),      // Channel name
-    ChannelGroup(channel::Name), // Channel Group name
+    Add(pubsub::SubscribeTo, ChannelTx, SubscriptionIdTx),
 }
 
 #[derive(Debug)]
@@ -54,14 +47,12 @@ pub(crate) struct SubscribeLoopParams<TTransport> {
 
     pub transport: TTransport,
 
-    pub channels: Registry,
-    pub channel_groups: Registry,
+    pub to: Registry,
 }
 
 #[derive(Debug)]
 struct StateData {
-    pub channels: Registry,
-    pub channel_groups: Registry,
+    pub to: Registry,
 }
 
 /// Implements the subscribe loop, which efficiently polls for new messages.
@@ -80,25 +71,21 @@ where
 
         transport,
 
-        channels,
-        channel_groups,
+        to,
     } = params;
 
-    let mut state_data = StateData {
-        channels,
-        channel_groups,
-    };
+    let mut state_data = StateData { to };
 
     let mut timetoken = Timetoken::default();
 
     loop {
         // TODO: re-add cache.
-        let channels: Vec<_> = state_data.channels.keys().cloned().collect();
-        let channel_groups: Vec<_> = state_data.channel_groups.keys().cloned().collect();
+        let to: Vec<pubsub::SubscribeTo> = state_data.to.keys().cloned().collect();
+
         let request = request::Subscribe {
-            channels,
-            channel_groups,
+            to,
             timetoken,
+            heartbeat: None,
         };
         let response = transport.call(request);
 
@@ -183,46 +170,33 @@ async fn handle_control_command(
         Some(v) => v,
         None => return ControlOutcome::CanContinue,
     };
-    let StateData {
-        channels,
-        channel_groups,
-    } = state_data;
+    let StateData { to } = state_data;
     match request {
-        ControlCommand::Drop(id, listener) => {
-            // Remove channel or group listener.
-            let (name, kind, registry, other_is_empty) = match listener {
-                ListenerType::Channel(name) => {
-                    (name, "channel", channels, channel_groups.is_empty())
-                }
-                ListenerType::ChannelGroup(name) => {
-                    (name, "group", channel_groups, channels.is_empty())
-                }
-            };
+        ControlCommand::Drop(id, destination) => {
+            // Log the event.
+            debug!(
+                "Unregistering the listener at subscribe loop: {:?} {:?}",
+                destination, id
+            );
 
-            // Unregister the listener from the registry.
-            debug!("Removing {} from SubscribeLoop: {}", kind, name);
-
-            let (_, _effect) = registry
-                .unregister(&name, id)
-                .expect("Unable to get channel listeners");
+            // Unregister specified listener from the registry.
+            let (_, _effect) = to
+                .unregister(&destination, id)
+                .expect("Unable to unregister destination from a subscribe loop");
 
             // TODO: avoid terminating loop here to avoid special casing.
-            if other_is_empty && registry.is_empty() {
+            if to.is_empty() {
                 ControlOutcome::Terminate
             } else {
                 ControlOutcome::CanContinue
             }
         }
-        ControlCommand::Add(listener, channel_tx, id_tx) => {
-            // Add channel or group listener.
-            let (name, kind, registry) = match listener {
-                ListenerType::Channel(name) => (name, "channel", channels),
-                ListenerType::ChannelGroup(name) => (name, "group", channel_groups),
-            };
-            debug!("Adding {} to SubscribeLoop: {}", kind, name);
+        ControlCommand::Add(destination, channel_tx, id_tx) => {
+            // Log the event.
+            debug!("Registering listener at subscribe loop: {:?}", destination);
 
-            // Register new channel listener with the registry.
-            let (id, _effect) = registry.register(name, channel_tx);
+            // Register the destination listener with the registry.
+            let (id, _effect) = to.register(destination, channel_tx);
 
             // Send Subscription ID.
             id_tx.send(id).expect("Unable to send subscription id");
@@ -236,35 +210,25 @@ async fn handle_control_command(
 async fn dispatch_messages(state_data: &mut StateData, messages: Vec<Message>) {
     // Distribute messages to each listener.
     for message in messages {
-        let listeners = {
-            let channel = &message.channel;
-            let route = match &message.route {
-                None => None,
-                Some(route) if route == channel => None,
-                Some(route) => Some(route),
+        let destinations = MessageDestinations::new(&message);
+        for destination in destinations {
+            let listeners = state_data.to.get_iter_mut(&destination);
+            let listeners = match listeners {
+                None => {
+                    debug!("No listeners for message");
+                    continue;
+                }
+                Some(v) => v,
             };
-            if let Some(ref route) = route {
-                debug!("route: {} (channel group)", &route);
-                state_data
-                    .channel_groups
-                    .get_iter_mut(route)
-                    .expect("received a message with a route that has no listeners")
-            } else {
-                debug!("route: {} (channel)", &channel);
-                state_data
-                    .channels
-                    .get_iter_mut(channel)
-                    .expect("received a message with a channel that has no listeners")
-            }
-        };
-
-        debug!(
-            "Delivering to {} listeners...",
-            listeners.size_hint().1.unwrap()
-        );
-        for channel_tx in listeners {
-            if let Err(error) = channel_tx.send(message.clone()).await {
-                error!("Delivery error: {:?}", error);
+            debug!(
+                "Delivering to {:?} listeners for {:?}...",
+                listeners.size_hint(),
+                destination
+            );
+            for channel_tx in listeners {
+                if let Err(error) = channel_tx.send(message.clone()).await {
+                    error!("Delivery error: {:?}", error);
+                }
             }
         }
     }

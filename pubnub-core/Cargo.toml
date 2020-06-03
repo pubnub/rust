@@ -13,6 +13,7 @@ license-file = "../LICENSE"
 
 [dependencies]
 async-trait = "0.1"
+bitflags = "1.2"
 error-iter = "0.2"
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = "0.3"

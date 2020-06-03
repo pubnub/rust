@@ -1,0 +1,27 @@
+POST
+demo
+/v3/pam/demo/grant
+PoundsSterling=%C2%A313.37&timestamp=123456789
+{
+    "ttl": 1440,
+    "permissions": {
+        "resources" : {
+            "channels": {
+                "inbox-jay": 3
+            },
+            "groups": {},
+            "users": {},
+            "spaces": {}
+        },
+        "patterns" : {
+            "channels": {},
+            "groups": {},
+            "users": {},
+            "spaces": {}
+        },
+        "meta": {
+            "user-id": "jay@example.com",
+            "contains-unicode": "The 來 test."
+        }
+    }
+}

@@ -2,7 +2,9 @@
 
 use crate::data::channel;
 use crate::data::object::Object;
+use crate::data::pam;
 use crate::data::presence;
+use crate::data::pubsub;
 use crate::data::timetoken::Timetoken;
 use crate::data::uuid::UUID;
 use std::marker::PhantomData;
@@ -23,17 +25,17 @@ pub struct Publish {
 /// Subscribe to messages on channels and/or channel groups.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subscribe {
-    /// The channel names you are subscribing to.
-    pub channels: Vec<channel::Name>,
-
-    /// The channel group names you are subscribing to.
-    pub channel_groups: Vec<channel::Name>,
+    /// The destinations to subscribe to.
+    pub to: Vec<pubsub::SubscribeTo>,
 
     /// A timetoken to use.
     /// tt: 0 (zero) for the initial subscribe, or a valid timetoken if
     /// resuming / continuing / fast-forwarding from a previous subscribe flow.
     /// tr: Region as returned from the initial call with tt=0.
     pub timetoken: Timetoken,
+
+    /// The heartbeat value to send to the PubNub network.
+    pub heartbeat: Option<presence::HeartbeatValue>,
 }
 
 /// Set state for a user for channels and/or channel groups.
@@ -100,3 +102,23 @@ pub struct WhereNow {
     /// The User UUID to get list of channels for.
     pub uuid: UUID,
 }
+
+/// Announce a heartbeat.
+#[allow(missing_copy_implementations)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Heartbeat {
+    /// The presence timeout period. If `None`, the default value is used.
+    pub heartbeat: Option<presence::HeartbeatValue>,
+
+    /// The subscription destinations to announce heartbeat for.
+    pub to: Vec<pubsub::SubscribeTo>,
+
+    /// The User UUID to announce subscribtion for.
+    pub uuid: UUID,
+
+    /// State to set for channels and channel groups.
+    pub state: Object,
+}
+
+/// PAMv3 Grant.
+pub type Grant = pam::GrantBody;

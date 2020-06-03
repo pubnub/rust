@@ -1,5 +1,5 @@
 use super::PubNub;
-use crate::data::channel;
+use crate::data::{channel, pubsub};
 use crate::runtime::Runtime;
 use crate::subscription::Subscription;
 use crate::transport::Transport;
@@ -43,6 +43,8 @@ where
     pub async fn subscribe(&mut self, channel: channel::Name) -> Subscription<TRuntime> {
         let supervisor_arc_clone = self.subscribe_loop_supervisor.clone();
         let mut supervisor_guard = supervisor_arc_clone.lock().await;
-        supervisor_guard.subscribe(self, channel).await
+        supervisor_guard
+            .subscribe(self, pubsub::SubscribeTo::Channel(channel))
+            .await
     }
 }
