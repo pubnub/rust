@@ -1,6 +1,6 @@
 //! PAM v3 signature implemetnation.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha256;
 
 /// The request to sign.
@@ -43,8 +43,8 @@ type HmacSha256 = Hmac<Sha256>;
 
 fn encrypt(secret: &str, plain_message: &str) -> [u8; 32] {
     let mut mac = HmacSha256::new_varkey(secret.as_bytes()).expect("HMAC can take key of any size");
-    mac.input(plain_message.as_bytes());
-    let code = mac.result().code();
+    mac.update(plain_message.as_bytes());
+    let code = mac.finalize().into_bytes();
     code.into()
 }
 
