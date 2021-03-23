@@ -44,12 +44,12 @@ pub enum ParseMessageError {
 pub fn parse_message(message: &json::object::Object) -> Result<Message, ParseMessageError> {
     let message = Message {
         message_type: parse_message_type(&message["e"]).ok_or(ParseMessageError::Type)?,
-        route: parse_message_route(&message["b"]).map_err(|_| ParseMessageError::Route)?,
+        route: parse_message_route(&message["b"]).or(Err(ParseMessageError::Route))?,
         channel: message["c"]
             .as_str()
             .ok_or(ParseMessageError::Channel)?
             .parse()
-            .map_err(|_| ParseMessageError::Channel)?,
+            .or(Err(ParseMessageError::Channel))?,
         json: message["d"].clone(),
         metadata: message["u"].clone(),
         timetoken: Timetoken {
@@ -57,7 +57,7 @@ pub fn parse_message(message: &json::object::Object) -> Result<Message, ParseMes
                 .as_str()
                 .ok_or(ParseMessageError::Timetoken)?
                 .parse()
-                .map_err(|_| ParseMessageError::Timetoken)?,
+                .or(Err(ParseMessageError::Timetoken))?,
             r: message["p"]["r"].as_u32().unwrap_or(0),
         },
         client: message["i"].as_str().map(std::borrow::ToOwned::to_owned),

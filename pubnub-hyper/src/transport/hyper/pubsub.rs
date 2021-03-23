@@ -79,8 +79,8 @@ impl TransportService<request::Subscribe> for Hyper {
         let data_json = handle_json_response(response).await?;
 
         // Parse response.
-        let (messages, timetoken) = parse_subscribe(&data_json)
-            .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+        let (messages, timetoken) =
+            parse_subscribe(&data_json).ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok((messages, timetoken))
     }
 }

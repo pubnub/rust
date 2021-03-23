@@ -21,7 +21,7 @@ impl TransportService<request::Grant> for Hyper {
         let secret_key = self
             .secret_key
             .as_ref()
-            .ok_or_else(|| error::Configuration::SecretKeyUnavailable)?;
+            .ok_or(error::Configuration::SecretKeyUnavailable)?;
 
         // Prepare the request body and the signature.
         let body = prepare_grant_body(request);
