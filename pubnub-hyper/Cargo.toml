@@ -15,7 +15,7 @@ license-file = "../LICENSE"
 pubnub-core = { version = "=0.1.0", path = "../pubnub-core" }
 pubnub-util = { version = "=0.1.0", path = "../pubnub-util", default-features = false, features = ["uritemplate_api", "pam_signature"] }
 async-trait = "0.1"
-derive_builder = "0.9"
+derive_builder = "0.10.0-alpha"
 error-iter = "0.2"
 futures-util = { version = "0.3", features = ["async-await", "async-await-macro"] }
 getset = "0.1"
