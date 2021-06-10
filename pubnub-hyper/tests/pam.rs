@@ -12,6 +12,7 @@ fn secret_key_from_env() -> String {
 }
 
 #[test]
+#[ignore]
 fn grant() {
     common::init();
     common::current_thread_block_on(async {
