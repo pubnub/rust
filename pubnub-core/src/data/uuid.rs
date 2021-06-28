@@ -5,6 +5,7 @@ use std::ops::Deref;
 /// A unique alphanumeric ID for identifying the client to the PubNub Presence
 /// System, as well as for PubNub Analytics.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct UUID(String);
 
 impl UUID {

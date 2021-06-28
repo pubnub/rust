@@ -16,7 +16,7 @@ const SAMPLE_UUID: &str = "903145ee-7c15-4579-aa5d-38a900717512";
 /// Delay execution for the specified amount of milliseconds.
 async fn sleep(ms: u64) {
     info!(target: "pubnub", "Sleeping for {} ms", ms);
-    tokio::time::delay_for(std::time::Duration::from_millis(ms)).await
+    tokio::time::sleep(std::time::Duration::from_millis(ms)).await
 }
 
 /// Generate a string of random numbers.

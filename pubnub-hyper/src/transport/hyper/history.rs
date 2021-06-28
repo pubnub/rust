@@ -60,7 +60,7 @@ impl TransportService<request::GetHistory> for Hyper {
 
         // Parse response.
         let channels = parse_get_history(&data_json)
-            .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+            .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(channels)
     }
 }
@@ -130,7 +130,7 @@ impl TransportService<request::MessageCountsWithTimetoken> for Hyper {
 
         // Parse response.
         let channels = parse_message_counts(&data_json)
-            .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+            .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(channels)
     }
 }
@@ -165,7 +165,7 @@ impl TransportService<request::MessageCountsWithChannelTimetokens> for Hyper {
 
         // Parse response.
         let channels = parse_message_counts(&data_json)
-            .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+            .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(channels)
     }
 }

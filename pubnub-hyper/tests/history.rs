@@ -10,7 +10,7 @@ mod common;
 /// Delay execution for the specified amount of milliseconds.
 async fn sleep(ms: u64) {
     info!(target: "pubnub", "Sleeping for {} ms", ms);
-    tokio::time::delay_for(std::time::Duration::from_millis(ms)).await
+    tokio::time::sleep(std::time::Duration::from_millis(ms)).await
 }
 
 /// Generate a string of random numbers.

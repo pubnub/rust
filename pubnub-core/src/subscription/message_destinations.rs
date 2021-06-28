@@ -55,14 +55,14 @@ mod tests {
     use crate::data::message::{self, Message};
     use crate::data::pubsub;
 
-    fn route_channel_wildcard(s: &'static str) -> Option<message::Route> {
+    fn route_channel_wildcard(s: &'static str) -> message::Route {
         let val = s.parse().unwrap();
-        Some(message::Route::ChannelWildcard(val))
+        message::Route::ChannelWildcard(val)
     }
 
-    fn route_channel_group(s: &'static str) -> Option<message::Route> {
+    fn route_channel_group(s: &'static str) -> message::Route {
         let val = s.parse().unwrap();
-        Some(message::Route::ChannelGroup(val))
+        message::Route::ChannelGroup(val)
     }
 
     fn message(route: Option<message::Route>, channel: &'static str) -> Message {
@@ -88,7 +88,7 @@ mod tests {
         );
 
         assert_iter_eq(
-            &message(route_channel_wildcard("qwe.*"), "test"),
+            &message(Some(route_channel_wildcard("qwe.*")), "test"),
             &[
                 pubsub::SubscribeTo::ChannelWildcard("qwe.*".parse().unwrap()),
                 pubsub::SubscribeTo::Channel("test".parse().unwrap()),
@@ -96,7 +96,7 @@ mod tests {
         );
 
         assert_iter_eq(
-            &message(route_channel_group("qwe"), "test"),
+            &message(Some(route_channel_group("qwe")), "test"),
             &[
                 pubsub::SubscribeTo::ChannelGroup("qwe".parse().unwrap()),
                 pubsub::SubscribeTo::Channel("test".parse().unwrap()),

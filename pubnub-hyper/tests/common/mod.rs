@@ -5,9 +5,8 @@ pub fn init() {
 }
 
 pub fn current_thread_block_on<F: Future>(future: F) -> F::Output {
-    let mut rt = tokio::runtime::Builder::new()
+    let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .basic_scheduler()
         .build()
         .expect("unable to build tokio runtime");
     rt.block_on(future)

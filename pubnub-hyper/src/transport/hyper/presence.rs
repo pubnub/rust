@@ -71,7 +71,7 @@ impl HereNowParse<presence::respond_with::OccupancyAndUUIDs> for () {
         data_json: &json::JsonValue,
     ) -> Option<
         <presence::respond_with::OccupancyAndUUIDs as presence::respond_with::RespondWith>::Response
->{
+    >{
         let occupancy = data_json["occupancy"].as_u64()?;
 
         let occupants = {
@@ -147,7 +147,7 @@ impl TransportService<request::SetState> for Hyper {
 
         // Send network request.
         let response = self.http_client.get(url).await?;
-        let _ = handle_presence_response(response).await?;
+        handle_presence_response(response).await?;
 
         Ok(())
     }
@@ -216,7 +216,7 @@ impl TransportService<request::HereNow<presence::respond_with::OccupancyOnly>> f
 
         // Parse response.
         let value = HereNowParse::<presence::respond_with::OccupancyOnly>::parse(&(), &data_json)
-            .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+            .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(value)
     }
 }
@@ -253,7 +253,7 @@ impl TransportService<request::HereNow<presence::respond_with::OccupancyAndUUIDs
         // Parse response.
         let value =
             HereNowParse::<presence::respond_with::OccupancyAndUUIDs>::parse(&(), &data_json)
-                .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+                .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(value)
     }
 }
@@ -289,7 +289,7 @@ impl TransportService<request::HereNow<presence::respond_with::Full>> for Hyper 
 
         // Parse response.
         let value = HereNowParse::<presence::respond_with::Full>::parse(&(), &data_json)
-            .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+            .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(value)
     }
 }
@@ -319,7 +319,7 @@ impl TransportService<request::GlobalHereNow<presence::respond_with::OccupancyOn
         // Parse response.
         let value =
             HereNowParse::<presence::respond_with::OccupancyOnly>::parse_global(&(), &data_json)
-                .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+                .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(value)
     }
 }
@@ -351,7 +351,7 @@ impl TransportService<request::GlobalHereNow<presence::respond_with::OccupancyAn
             &(),
             &data_json,
         )
-        .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+        .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(value)
     }
 }
@@ -380,7 +380,7 @@ impl TransportService<request::GlobalHereNow<presence::respond_with::Full>> for 
 
         // Parse response.
         let value = HereNowParse::<presence::respond_with::Full>::parse_global(&(), &data_json)
-            .ok_or_else(|| error::Error::UnexpectedResponseSchema(data_json))?;
+            .ok_or(error::Error::UnexpectedResponseSchema(data_json))?;
         Ok(value)
     }
 }
@@ -445,7 +445,7 @@ impl TransportService<request::Heartbeat> for Hyper {
 
         // Send network request.
         let response = self.http_client.get(url).await?;
-        let _ = handle_presence_response(response).await?;
+        handle_presence_response(response).await?;
 
         Ok(())
     }

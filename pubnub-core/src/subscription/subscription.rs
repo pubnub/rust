@@ -71,6 +71,6 @@ fn is_drop_send_result_error(result: Result<(), mpsc::SendError>) -> bool {
             // successfully.
             false
         }
-        _ => true,
+        Err(_) => true,
     }
 }

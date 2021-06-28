@@ -45,9 +45,9 @@ impl SubscribeLoopSupervisor {
 }
 
 impl SubscribeLoopSupervisor {
-    pub async fn subscribe<'a, TTransport, TRuntime>(
+    pub async fn subscribe<TTransport, TRuntime>(
         &mut self,
-        pubnub: &'a mut PubNub<TTransport, TRuntime>,
+        pubnub: &mut PubNub<TTransport, TRuntime>,
         to: pubsub::SubscribeTo,
     ) -> Subscription<TRuntime>
     where

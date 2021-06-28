@@ -45,9 +45,9 @@
     missing_docs,
     missing_debug_implementations,
     missing_copy_implementations,
-    intra_doc_link_resolution_failure
+    broken_intra_doc_links
 )]
-#![allow(clippy::doc_markdown)]
+#![allow(clippy::default_trait_access, clippy::doc_markdown)]
 #![forbid(unsafe_code)]
 
 /// Re-export core for ease of use.

@@ -12,16 +12,16 @@ readme = "../README.md"
 license-file = "../LICENSE"
 
 [dependencies]
-base64 = { version = "0.12", optional = true }
-hmac = { version = "0.7", optional = true }
+base64 = { version = "0.13", optional = true }
+hmac = { version = "0.10", optional = true }
 percent-encoding = { version = "2.1", optional = true }
-sha2 = { version = "0.8", optional = true }
-uritemplate = { version = "0.1", optional = true }
+sha2 = { version = "0.9", optional = true }
+uritemplate-next = { version = "0.2", optional = true }
 
 [features]
 default = ["url-encoded-list", "uritemplate_api", "pam_signature"]
 url-encoded-list = ["percent-encoding"]
-uritemplate_api = ["uritemplate"]
+uritemplate_api = ["uritemplate-next"]
 pam_signature = ["hmac", "sha2", "base64"]
 
 [badges]
