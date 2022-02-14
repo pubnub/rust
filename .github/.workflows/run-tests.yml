@@ -1,0 +1,79 @@
+name: Tests
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Integration and Unit tests
+    runs-on: ubuntu-latest
+    env:
+      TEST_LOG: trace
+      RUST_BACKTRACE: full
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+      - name: Checkout actions
+        uses: actions/checkout@v2
+        with:
+          repository: pubnub/client-engineering-deployment-tools
+          ref: v1
+          token: ${{ secrets.GH_TOKEN }}
+          path: .github/.release/actions
+      - name: Setup Rust 1.46.0
+        uses: ./.github/.release/actions/actions/installers/rust
+        with:
+          rust-version: 1.46.0
+      - name: Build and run tests for Rust 1.46.0
+        run: |
+          rustup component add clippy
+          rustup component add rustfmt
+          cargo test --all
+          # Feature tests.
+          pushd pubnub-core && cargo test --no-default-features --tests && popd
+          pushd pubnub-core && cargo test --no-default-features --tests --features mock && popd
+      - name: "Setup Rust 'stable'"
+        uses: ./.github/.release/actions/actions/installers/rust
+        with:
+          rust-version: stable
+      - name: "Build and run tests for Rust 'stable'"
+        run: |
+          rustup component add clippy
+          rustup component add rustfmt
+          cargo fmt --all -- --check
+          cargo clippy --all --tests -- -D warnings
+          cargo doc --workspace --no-deps
+          cargo test --all
+          # Feature tests.
+          pushd pubnub-core && cargo test --no-default-features --tests && popd
+          pushd pubnub-core && cargo test --no-default-features --tests --features mock && popd
+      - name: "Setup Rust 'beta'"
+        uses: ./.github/.release/actions/actions/installers/rust
+        with:
+          rust-version: beta
+      - name: "Build and run tests for Rust 'beta'"
+        run: |
+          rustup component add clippy
+          rustup component add rustfmt
+          cargo test --all
+          # Feature tests.
+          pushd pubnub-core && cargo test --no-default-features --tests && popd
+          pushd pubnub-core && cargo test --no-default-features --tests --features mock && popd
+      - name: "Setup Rust 'nightly'"
+        uses: ./.github/.release/actions/actions/installers/rust
+        with:
+          rust-version: nightly
+      - name: "Build and run tests for Rust 'nightly'"
+        continue-on-error: true
+        run: |
+          rustup component add clippy
+          rustup component add rustfmt
+          cargo test --all
+          # Feature tests.
+          pushd pubnub-core && cargo test --no-default-features --tests && popd
+          pushd pubnub-core && cargo test --no-default-features --tests --features mock && popd
+          pushd pubnub-core && cargo test --no-default-features --tests --features nightly && popd
+          pushd pubnub-core && cargo test --no-default-features --tests --features mock,nightly && popd

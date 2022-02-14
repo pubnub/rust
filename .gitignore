@@ -1,3 +1,7 @@
 Cargo.lock
 target/
 .env
+
+# GitHub Actions #
+##################
+.github/.release
