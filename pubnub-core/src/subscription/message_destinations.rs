@@ -75,7 +75,7 @@ mod tests {
     }
 
     fn assert_iter_eq(m: &Message, expected: &[pubsub::SubscribeTo]) {
-        let iter = MessageDestinations::new(&m);
+        let iter = MessageDestinations::new(m);
         let vec: Vec<_> = iter.collect();
         assert_eq!(vec, expected);
     }

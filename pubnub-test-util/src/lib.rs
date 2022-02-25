@@ -1,6 +1,7 @@
 //! Test utilities used in PubNub crates suite.
 
 #![allow(unknown_lints)]
+#![allow(renamed_and_removed_lints)]
 #![deny(
     clippy::all,
     clippy::pedantic,
