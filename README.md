@@ -7,7 +7,7 @@ The PubNub Rust SDK is based on Tokio `1.0`. This library uses `HTTP/2` to commu
 
 ## MSRV
 
-Supports Rust 1.46.0 and higher.
+Supports Rust 1.49.0 and higher.
 
 ## Get Started
 
