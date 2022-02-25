@@ -67,7 +67,7 @@ mod tests {
         assert_eq!(
             format_plain_message(SAMPLE_REQUEST),
             EXPECTED_FORMATTED_BLOB,
-        )
+        );
     }
 
     #[test]
@@ -75,6 +75,6 @@ mod tests {
         assert_eq!(
             sign("wMfbo9G0xVUG8yfTfYw5qIdfJkTd7A", SAMPLE_REQUEST),
             "v2.W7Vim_epW4RyuT427E7cS2HiMADRP0wLP6-RkTWPtaM",
-        )
+        );
     }
 }
