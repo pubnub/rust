@@ -7,7 +7,7 @@
     missing_docs,
     missing_debug_implementations,
     missing_copy_implementations,
-    broken_intra_doc_links
+    rustdoc::broken_intra_doc_links
 )]
 #![allow(clippy::doc_markdown)]
 #![forbid(unsafe_code)]
