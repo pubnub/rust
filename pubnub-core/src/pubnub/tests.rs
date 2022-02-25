@@ -48,7 +48,7 @@ fn mocked_pubnub_publish_ok() {
             .expect("unexpected failure");
         assert_eq!(timetoken.t, 123);
         assert_eq!(timetoken.r, 456);
-    })
+    });
 }
 
 #[test]
@@ -185,7 +185,7 @@ fn mocked_pubnub_subscribe_ok() {
         })
         .unwrap();
 
-    pool.run()
+    pool.run();
 }
 
 #[allow(clippy::too_many_lines)]
@@ -333,5 +333,5 @@ fn mocked_pubnub_subscribe_trasport_error_does_not_stall_loop() {
         })
         .unwrap();
 
-    pool.run()
+    pool.run();
 }

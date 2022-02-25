@@ -52,7 +52,7 @@ impl TransportService<request::GetHistory> for Hyper {
         .set_optional_scalar("end", end)
         .set_optional_scalar("include_meta", include_metadata)
         .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -85,7 +85,7 @@ impl TransportService<request::DeleteHistory> for Hyper {
                 .set_optional_scalar("start", start)
                 .set_optional_scalar("end", end)
                 .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Prepare the request.
         let req = Request::builder()
@@ -122,7 +122,7 @@ impl TransportService<request::MessageCountsWithTimetoken> for Hyper {
                 .set_list("channels", channels)
                 .set_scalar("timetoken", timetoken)
                 .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -157,7 +157,7 @@ impl TransportService<request::MessageCountsWithChannelTimetokens> for Hyper {
         .set_list("channels", names)
         .set_list("channelsTimetoken", timetokens)
         .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;

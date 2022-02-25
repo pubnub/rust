@@ -7,7 +7,7 @@ use std::time::{SystemTime, SystemTimeError};
 /// This is the timetoken structure that PubNub uses as a stream index.
 /// It allows clients to resume streaming from where they left off for added
 /// resiliency.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy, Default)]
 pub struct Timetoken {
     /// Timetoken
     pub t: u64,
@@ -54,16 +54,6 @@ impl Timetoken {
         let t = (secs * 10_000_000) | (u64::from(nanos) / 100);
 
         Ok(Self { t, r: region })
-    }
-}
-
-impl Default for Timetoken {
-    #[must_use]
-    fn default() -> Self {
-        Self {
-            t: u64::default(),
-            r: u32::default(),
-        }
     }
 }
 

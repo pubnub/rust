@@ -161,6 +161,7 @@ enum ControlOutcome {
 }
 
 /// Handle a control command.
+#[allow(clippy::unused_async)]
 async fn handle_control_command(
     state_data: &mut StateData,
     msg: Option<ControlCommand>,

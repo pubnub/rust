@@ -74,6 +74,7 @@ impl HyperBuilder {
             .build::<_, Body>(https)
     }
 
+    // TODO: Remove random default UUID and require user to specify one. https://github.com/pubnub/rust/issues/66
     fn default_uuid() -> UUID {
         UUID::random()
     }

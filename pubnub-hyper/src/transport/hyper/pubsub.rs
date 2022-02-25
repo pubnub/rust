@@ -31,7 +31,7 @@ impl TransportService<request::Publish> for Hyper {
                 .set_scalar("uuid", self.uuid.clone())
                 .set_optional_scalar("meta", meta.map(json::stringify))
                 .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -72,7 +72,7 @@ impl TransportService<request::Subscribe> for Hyper {
         .set_scalar("uuid", self.uuid.clone())
         .set_optional_scalar("heartbeat", heartbeat.map(|e| e.to_string()))
         .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;

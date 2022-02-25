@@ -16,10 +16,14 @@ use std::pin::Pin;
 /// [`PubNub::subscribe`]: crate::pubnub::PubNub::subscribe
 #[derive(Debug)]
 pub struct Subscription<TRuntime: Runtime> {
-    pub(crate) runtime: TRuntime, // Runtime to use for managing resources
-    pub(crate) destination: pubsub::SubscribeTo, // Subscription destination
-    pub(crate) id: SubscriptionID, // Unique identifier for the listener
-    pub(crate) control_tx: ControlTx, // For cleaning up resources at the subscribe loop when dropped
+    pub(crate) runtime: TRuntime,
+    // Runtime to use for managing resources
+    pub(crate) destination: pubsub::SubscribeTo,
+    // Subscription destination
+    pub(crate) id: SubscriptionID,
+    // Unique identifier for the listener
+    pub(crate) control_tx: ControlTx,
+    // For cleaning up resources at the subscribe loop when dropped
     pub(crate) channel_rx: ChannelRx, // Stream that produces messages
 }
 
@@ -55,9 +59,10 @@ impl<TRuntime: Runtime> Drop for Subscription<TRuntime> {
         // See: https://boats.gitlab.io/blog/post/poll-drop/
         self.runtime.spawn(async move {
             let drop_send_result = control_tx.send(command).await;
-            if is_drop_send_result_error(drop_send_result) {
-                panic!("Unable to unsubscribe");
-            }
+            assert!(
+                !is_drop_send_result_error(drop_send_result),
+                "Unable to unsubscribe"
+            );
         });
     }
 }

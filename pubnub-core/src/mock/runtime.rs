@@ -29,6 +29,6 @@ impl Runtime for MockRuntime {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        self.mock_workaround_spawn(Box::pin(future))
+        self.mock_workaround_spawn(Box::pin(future));
     }
 }

@@ -121,7 +121,7 @@ impl UriTemplate {
 
     /// Delete all variable bindings.
     pub fn delete_all(&mut self) {
-        self.0.delete_all()
+        self.0.delete_all();
     }
 
     /// Build a URL from the template and bound variable values.

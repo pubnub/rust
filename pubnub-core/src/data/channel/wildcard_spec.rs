@@ -130,18 +130,18 @@ mod tests {
 
     #[test]
     fn valid() {
-        assert_eq!(is_valid("stocks.*"), true); // from https://support.pubnub.com/support/solutions/articles/14000043663-how-do-i-subscribe-to-a-wildcard-channel-
-        assert_eq!(is_valid(""), true);
+        assert!(is_valid("stocks.*")); // from https://support.pubnub.com/support/solutions/articles/14000043663-how-do-i-subscribe-to-a-wildcard-channel-
+        assert!(is_valid(""));
     }
 
     #[test]
     fn valid_from_docs() {
         // From https://support.pubnub.com/support/solutions/articles/14000043664-how-many-channel-segments-are-supported-with-wildcard-subscribe-
 
-        assert_eq!(is_valid("a.*"), true);
-        assert_eq!(is_valid("a.b.*"), true);
-        assert_eq!(is_valid("a.b"), true);
-        assert_eq!(is_valid("a.b.c"), true);
+        assert!(is_valid("a.*"));
+        assert!(is_valid("a.b.*"));
+        assert!(is_valid("a.b"));
+        assert!(is_valid("a.b.c"));
 
         // Technically speaking, the last two examples are just single channels
         // without any wildcards, but you can subscribe to any of the above
@@ -152,12 +152,12 @@ mod tests {
     fn invalid_incorrect_from_docs() {
         // From https://support.pubnub.com/support/solutions/articles/14000043664-how-many-channel-segments-are-supported-with-wildcard-subscribe-
 
-        assert_eq!(is_valid("*"), false); // can not wildcard at the top level to subscribe to all channels
-        assert_eq!(is_valid(".*"), false); // can not start with a .
-        assert_eq!(is_valid("a.*.b"), false); // * must be at the end
-        assert_eq!(is_valid("a."), false); // the . must be followed by a * when it is at the end of the name
-        assert_eq!(is_valid("a*"), false); // * must always be preceded with a .
-        assert_eq!(is_valid("a*b"), false); // * must always be preceded with a . and .* must always be at the end
+        assert!(!is_valid("*")); // can not wildcard at the top level to subscribe to all channels
+        assert!(!is_valid(".*")); // can not start with a .
+        assert!(!is_valid("a.*.b")); // * must be at the end
+        assert!(!is_valid("a.")); // the . must be followed by a * when it is at the end of the name
+        assert!(!is_valid("a*")); // * must always be preceded with a .
+        assert!(!is_valid("a*b")); // * must always be preceded with a . and .* must always be at the end
 
         // NOTE: The above invalid channel names will actually succeed if you
         // attempt to subscribe to them. They will even succeed when you publish
@@ -182,8 +182,8 @@ mod tests {
         // two . characters (more than three segments) it will succeed, but
         // you will not be able to publish to those channels.
 
-        assert_eq!(is_valid("a.b.c.d"), false); // too many segments
-        assert_eq!(is_valid("a.b.c.*"), false); // too many segments
+        assert!(!is_valid("a.b.c.d")); // too many segments
+        assert!(!is_valid("a.b.c.*")); // too many segments
 
         // If you do attempt to publish to channel names with more than three
         // segments (three or more . delimiters), then you will receive a 400

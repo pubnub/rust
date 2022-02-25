@@ -143,7 +143,7 @@ impl TransportService<request::SetState> for Hyper {
                 .set_scalar("uuid", uuid)
                 .set_scalar("state", json::stringify(state))
                 .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -174,7 +174,7 @@ impl TransportService<request::GetState> for Hyper {
         .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
         .set_scalar("uuid", uuid)
         .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -208,7 +208,7 @@ impl TransportService<request::HereNow<presence::respond_with::OccupancyOnly>> f
         .set_list_with_if_empty("channel", channels, IfEmpty::Comma)
         .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
         .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -244,7 +244,7 @@ impl TransportService<request::HereNow<presence::respond_with::OccupancyAndUUIDs
         .set_list_with_if_empty("channel", channels, IfEmpty::Comma)
         .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
         .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -281,7 +281,7 @@ impl TransportService<request::HereNow<presence::respond_with::Full>> for Hyper 
         .set_list_with_if_empty("channel", channels, IfEmpty::Comma)
         .set_list_with_if_empty("channel-group", channel_groups, IfEmpty::Skip)
         .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -310,7 +310,7 @@ impl TransportService<request::GlobalHereNow<presence::respond_with::OccupancyOn
             UriTemplate::new("/v2/presence/sub-key/{sub_key}?disable_uuids=1&state=0")
                 .set_scalar("sub_key", self.subscribe_key.clone())
                 .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -340,7 +340,7 @@ impl TransportService<request::GlobalHereNow<presence::respond_with::OccupancyAn
             UriTemplate::new("/v2/presence/sub-key/{sub_key}?disable_uuids=0&state=0")
                 .set_scalar("sub_key", self.subscribe_key.clone())
                 .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -372,7 +372,7 @@ impl TransportService<request::GlobalHereNow<presence::respond_with::Full>> for 
             UriTemplate::new("/v2/presence/sub-key/{sub_key}?disable_uuids=0&state=1")
                 .set_scalar("sub_key", self.subscribe_key.clone())
                 .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -398,7 +398,7 @@ impl TransportService<request::WhereNow> for Hyper {
             .set_scalar("sub_key", self.subscribe_key.clone())
             .set_scalar("uuid", uuid)
             .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
@@ -441,7 +441,7 @@ impl TransportService<request::Heartbeat> for Hyper {
                 .set_optional_scalar("heartbeat", heartbeat.map(|e|e.to_string()))
                 .set_scalar("state", json::stringify(state))
                 .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Send network request.
         let response = self.http_client.get(url).await?;
