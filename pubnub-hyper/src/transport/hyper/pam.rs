@@ -40,7 +40,7 @@ impl TransportService<request::Grant> for Hyper {
             .set_scalar("signature", signature)
             .set_scalar("timestamp", timestamp.to_string())
             .build();
-        let url = build_uri(&self, &path_and_query)?;
+        let url = build_uri(self, &path_and_query)?;
 
         // Prepare the request.
         let req = Request::builder()
