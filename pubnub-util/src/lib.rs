@@ -10,6 +10,7 @@
     rustdoc::broken_intra_doc_links
 )]
 #![allow(clippy::doc_markdown)]
+#![allow(unknown_lints)]
 #![forbid(unsafe_code)]
 
 #[cfg(feature = "url-encoded-list")]

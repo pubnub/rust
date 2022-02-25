@@ -17,6 +17,7 @@
     missing_copy_implementations,
     rustdoc::broken_intra_doc_links
 )]
+#![allow(unknown_lints)]
 #![allow(clippy::doc_markdown)]
 #![forbid(unsafe_code)]
 
