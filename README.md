@@ -1,6 +1,6 @@
 # PubNub Rust SDK
 
-[![Build Status](https://travis-ci.com/pubnub/rust.svg?branch=master)](https://travis-ci.com/pubnub/rust)
+[![Build Status](https://app.travis-ci.com/pubnub/rust.svg?branch=master)](https://app.travis-ci.com/github/pubnub/rust)
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 The PubNub Rust SDK is based on Tokio `1.0`. This library uses `HTTP/2` to communicate with the PubNub Edge Messaging Network.
