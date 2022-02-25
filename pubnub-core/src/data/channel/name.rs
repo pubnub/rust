@@ -80,35 +80,35 @@ mod tests {
     #[test]
     fn valid() {
         // Spec.
-        assert_eq!(is_valid(""), true);
-        assert_eq!(is_valid("qwe"), true);
-        assert_eq!(is_valid("123"), true);
+        assert!(is_valid(""));
+        assert!(is_valid("qwe"));
+        assert!(is_valid("123"));
     }
 
     #[test]
     fn valid_but_not_officially() {
         // Spec.
-        assert_eq!(is_valid("/"), true);
-        assert_eq!(is_valid("\\"), true);
-        assert_eq!(is_valid("."), true);
-        assert_eq!(is_valid("*"), true);
-        assert_eq!(is_valid(":"), true);
+        assert!(is_valid("/"));
+        assert!(is_valid("\\"));
+        assert!(is_valid("."));
+        assert!(is_valid("*"));
+        assert!(is_valid(":"));
 
         // Real world examples.
-        assert_eq!(is_valid("a.b"), true);
-        assert_eq!(is_valid("a:b"), true);
-        assert_eq!(is_valid("a/b"), true);
-        assert_eq!(is_valid("\\a"), true);
-        assert_eq!(is_valid("channels_.*"), true);
-        assert_eq!(is_valid("channels_*"), true);
+        assert!(is_valid("a.b"));
+        assert!(is_valid("a:b"));
+        assert!(is_valid("a/b"));
+        assert!(is_valid("\\a"));
+        assert!(is_valid("channels_.*"));
+        assert!(is_valid("channels_*"));
     }
 
     #[test]
     fn invalid() {
         // Spec.
-        assert_eq!(is_valid(","), false);
+        assert!(!is_valid(","));
 
         // Real world examples.
-        assert_eq!(is_valid("a,b"), false);
+        assert!(!is_valid("a,b"));
     }
 }
