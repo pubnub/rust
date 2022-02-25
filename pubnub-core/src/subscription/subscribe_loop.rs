@@ -161,7 +161,7 @@ enum ControlOutcome {
 }
 
 /// Handle a control command.
-async fn handle_control_command(
+fn handle_control_command(
     state_data: &mut StateData,
     msg: Option<ControlCommand>,
 ) -> ControlOutcome {

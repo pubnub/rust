@@ -55,9 +55,7 @@ impl<TRuntime: Runtime> Drop for Subscription<TRuntime> {
         // See: https://boats.gitlab.io/blog/post/poll-drop/
         self.runtime.spawn(async move {
             let drop_send_result = control_tx.send(command).await;
-            if is_drop_send_result_error(drop_send_result) {
-                panic!("Unable to unsubscribe");
-            }
+            assert!(!is_drop_send_result_error(drop_send_result), "Unable to unsubscribe");
         });
     }
 }
