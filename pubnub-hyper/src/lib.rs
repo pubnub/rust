@@ -39,16 +39,16 @@
 //! # };
 //! ```
 
+#![allow(unknown_lints)]
 #![deny(
     clippy::all,
     clippy::pedantic,
     missing_docs,
     missing_debug_implementations,
     missing_copy_implementations,
-    rustdoc::broken_intra_doc_links
+    broken_intra_doc_links
 )]
 #![allow(clippy::default_trait_access, clippy::doc_markdown)]
-#![allow(unknown_lints)]
 #![forbid(unsafe_code)]
 
 /// Re-export core for ease of use.
