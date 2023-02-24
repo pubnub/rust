@@ -11,36 +11,23 @@ defaults:
     shell: bash
 
 jobs:
-  check:
-    name: Run cargo check tool to check if the codes are valid
+  linters:
+    name: Launch all cargo linters to check condition of the codes
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
+    - name: Run cargo check tool to check if the codes are valid
       run: |
        cargo check --verbose --workspace --all-targets --all-features
-
-
-  clippy:
-    name: Run cargo clippy tool to check if all the best code practices are followed
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
+    - name: Run cargo clippy tool to check if all the best code practices are followed
       run: |
        cargo clippy --verbose --workspace --all-targets --all-features
-
-
-  fmt:
-    name: Run cargo fmt tool to check if codes are well formatted 
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
+    - name: Run cargo fmt tool to check if codes are well formatted 
       run: |
        cargo fmt --check --verbose --all
 
-  all-cargo-deny:
+  all-linters:
     name: Tests
     runs-on: ubuntu-latest
     needs: [cargo-deny]
