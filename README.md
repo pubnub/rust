@@ -5,6 +5,7 @@
 <div align = "center">
 
 <p style="color:#d02129;font-family:'proxima-nova'">PubNub</p>
+![PubNub Logo](https://www.pubnub.com/pubnub_logo.svg)
 
 ![Tests](https://github.com/pubnub/rust/actions/workflows/run-tests.yml/badge.svg)
 ![Validations](https://github.com/pubnub/rust/actions/workflows/run-validations.yml/badge.svg)
