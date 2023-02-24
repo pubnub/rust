@@ -32,12 +32,14 @@ You will need the publish and subscribe keys to authenticate your app. Get your 
 Add pubnub to your rust project using `Cargo.toml`:
 
 ```toml
+[dependencies]
 pubnub = "x.x.x"
 ```
 
 or 
 
 ```toml
+[dependencies]
 pubnub = { version = "x.x.x", features = ["TODO"] }
 ```
 
