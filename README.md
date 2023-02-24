@@ -58,5 +58,5 @@ You can find more examples in our [examples](TODO) directory!
 
 This project is licensed under the [MIT license].
 
-[MIT license]: https://github.com/tokio-rs/tokio/blob/master/LICENSE
+[MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 
