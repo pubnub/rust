@@ -30,7 +30,7 @@ jobs:
   all-linters:
     name: Tests
     runs-on: ubuntu-latest
-    needs: [cargo-deny]
+    needs: [linters]
     steps:
       - name: Tests summary
         run: echo -e "\033[38;2;95;215;0m\033[1mAll Deny check successfully passed"
