@@ -26,7 +26,7 @@ jobs:
           path: .github/.release/actions
       - name: Run tests
         run: |
-          echo "Hello. What you would like to test in Rust?"
+          cargo test 
       - name: Cancel workflow runs for commit on error
         if: failure()
         uses: ./.github/.release/actions/actions/utils/fast-jobs-failure
