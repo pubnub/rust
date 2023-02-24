@@ -1,0 +1,90 @@
+# Root options
+targets = [
+    #{ triple = "x86_64-unknown-linux-musl" },
+]
+all-features = false
+no-default-features = false
+feature-depth = 1
+
+# This section is considered when running `cargo deny check advisories`
+# More documentation for the advisories section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+vulnerability = "deny"
+unmaintained = "warn"
+yanked = "warn"
+notice = "warn"
+ignore = [
+    #"RUSTSEC-0000-0000",
+]
+
+# This section is considered when running `cargo deny check licenses`
+# More documentation for the licenses section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
+[licenses]
+unlicensed = "deny"
+allow = [
+    # Before inserting a new license here, please check if it is already in the list of
+    # licenses that are allowed: https://blueoakcouncil.org/list
+
+    "MIT",
+    #"Apache-2.0",
+    #"Apache-2.0 WITH LLVM-exception",
+]
+deny = [
+    #"Nokia",
+]
+copyleft = "warn"
+allow-osi-fsf-free = "neither"
+default = "deny"
+confidence-threshold = 0.8
+exceptions = [
+    #{ allow = ["Zlib"], name = "adler32", version = "*" },
+]
+
+[licenses.private]
+ignore = false
+registries = [
+    #"https://sekretz.com/registry
+]
+
+# This section is considered when running `cargo deny check bans`.
+# More documentation about the 'bans' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "warn"
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+allow = [
+    #{ name = "ansi_term", version = "=0.11.0" },
+]
+deny = [
+    #{ name = "ansi_term", version = "=0.11.0" },
+    #{ name = "ansi_term", version = "=0.11.0", wrappers = [] },
+]
+skip = [
+    #{ name = "ansi_term", version = "=0.11.0" },
+]
+skip-tree = [
+    #{ name = "ansi_term", version = "=0.11.0", depth = 20 },
+]
+
+# This section is considered when running `cargo deny check sources`.
+# More documentation about the 'sources' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[sources.allow-org]
+github = []
+gitlab = []
+bitbucket = []
