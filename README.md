@@ -4,10 +4,10 @@
 
 <div align = "center">
 
-<p style="color:d02129,font-family:'proxima-nova'">PubNub</p>
+<p style="color:#d02129;font-family:'proxima-nova'">PubNub</p>
 
-[![Tests](https://github.com/pubnub/rust/actions/workflows/run-tests.yml/badge.svg)]
-[![Validations](https://github.com/pubnub/rust/actions/workflows/run-validations.yml/badge.svg)]
+![Tests](https://github.com/pubnub/rust/actions/workflows/run-tests.yml/badge.svg)
+![Validations](https://github.com/pubnub/rust/actions/workflows/run-validations.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/pubnub/rust/LICENSE)
 
 **Make your app come alive with real-time experiences!**
