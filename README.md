@@ -51,8 +51,15 @@ Try the following sample code to get up and running quicky!
 // TODO
 ```
 
-You can find more examples in our [examples](TODO) directory!
+You can find more examples in our [examples](examples/) directory!
 
+## Documentation
+
+* [API reference for Rust](TODO)
+
+## Support
+
+If you **need help** or have a **general question**, contact support@pubnub.com.
 
 ## License
 

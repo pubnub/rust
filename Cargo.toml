@@ -5,4 +5,5 @@ members = [
 
     # Internal crates
     "crates/contract-tests",
+    "examples/",
 ]
