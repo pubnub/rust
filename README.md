@@ -33,14 +33,14 @@ Add pubnub to your rust project using `Cargo.toml`:
 
 ```toml
 [dependencies]
-pubnub = "x.x.x"
+pubnub = "0.0.0"
 ```
 
 or 
 
 ```toml
 [dependencies]
-pubnub = { version = "x.x.x", features = ["TODO"] }
+pubnub = { version = "0.0.0", features = ["full"] }
 ```
 
 ### Example
