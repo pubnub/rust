@@ -1,0 +1,28 @@
+{
+  ".pubnub.yml": [
+    {
+      "pattern": "^version: (v?(\\d+\\.?){2,}([a-zA-Z0-9-]+(\\.?\\d+)?)?)$",
+      "clearedPrefix": true,
+      "clearedSuffix": false
+    }
+  ],
+  "README.md": [
+    {
+      "pattern": "^pubnub\\s=\\s\\\"((\\d+\\.?){2,}([a-zA-Z0-9-]+(\\.?\\d+)?)?)\\\"$",
+      "clearedPrefix": true,
+      "clearedSuffix": false
+    },
+    {
+      "pattern": "^version\\s=\\s\\\"((\\d+\\.?){2,}([a-zA-Z0-9-]+(\\.?\\d+)?)?)\\\"$",
+      "clearedPrefix": true,
+      "clearedSuffix": false
+    }
+  ],
+  "crates/pubnub/Cargo.toml": [
+     {
+      "pattern": "^version\\s=\\s\\\"((\\d+\\.?){2,}([a-zA-Z0-9-]+(\\.?\\d+)?)?)\\\"$",
+      "clearedPrefix": true,
+      "clearedSuffix": false
+    }
+  ]
+}

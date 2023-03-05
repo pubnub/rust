@@ -24,9 +24,10 @@ jobs:
           ref: v1
           token: ${{ secrets.GH_TOKEN }}
           path: .github/.release/actions
+      # TODO: setup features for contract tests
       - name: Run tests
         run: |
-          echo "Hello. What you would like to test in Rust?"
+          cargo test 
       - name: Cancel workflow runs for commit on error
         if: failure()
         uses: ./.github/.release/actions/actions/utils/fast-jobs-failure

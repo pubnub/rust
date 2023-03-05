@@ -1,0 +1,9 @@
+[workspace]
+
+members = [
+    "crates/pubnub",
+
+    # Internal crates
+    "crates/contract-tests",
+    "examples/",
+]
