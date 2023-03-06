@@ -59,5 +59,5 @@ PubnubWorld::cucumber()
     })
     
     })
-    .run_and_exit("tests/features/publish").await;
+    .run_and_exit("../features/publish").await;
 }
