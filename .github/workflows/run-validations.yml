@@ -39,10 +39,10 @@ jobs:
     - uses: actions/checkout@v3
     - name: Run cargo check tool to check if the codes are valid
       run: |
-       cargo check --verbose --workspace --all-targets --all-features
+       cargo check --workspace --all-targets --all-features
     - name: Run cargo clippy tool to check if all the best code practices are followed
       run: |
-       cargo clippy --verbose --workspace --all-targets --all-features
+       cargo clippy --workspace --all-targets --all-features -- -D warnings
     - name: Run cargo fmt tool to check if codes are well formatted 
       run: |
        cargo fmt --check --verbose --all
