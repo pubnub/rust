@@ -49,7 +49,7 @@ async fn main() {
                     .find(|&t| t.starts_with("contract="))
                     .is_some()
                 {
-                    let tag = _scenario
+                    let tag = scenario
                         .tags
                         .iter()
                         .find(|&t| t.starts_with("contract="))
