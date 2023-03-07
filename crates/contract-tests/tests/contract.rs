@@ -41,9 +41,9 @@ async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error
 #[tokio::main]
 async fn main() {
     PubnubWorld::cucumber()
-        .before(|_feature, _rule, _scenario, _world| {
+        .before(|_feature, _rule, scenario, _world| {
             futures::FutureExt::boxed(async move {
-                if _scenario
+                if scenario
                     .tags
                     .iter()
                     .find(|&t| t.starts_with("contract="))
