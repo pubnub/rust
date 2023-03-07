@@ -30,7 +30,10 @@ allow = [
     # licenses that are allowed: https://blueoakcouncil.org/list
 
     "MIT",
-    #"Apache-2.0",
+    "Apache-2.0",
+    "BlueOak-1.0.0",
+    "Unicode-DFS-2016",
+    "BSD-3-Clause",
     #"Apache-2.0 WITH LLVM-exception",
 ]
 deny = [
