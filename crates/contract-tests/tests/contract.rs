@@ -57,7 +57,7 @@ async fn main() {
                     let splitted_values: Vec<&str> = tag.split("=").collect();
                     if !splitted_values[1].is_empty() {
                         let script_name = splitted_values[1];
-                        init_server(script_name.to_string()).await;
+                        init_server(script_name.to_string()).await.unwrap();
                     }
                 }
             })
