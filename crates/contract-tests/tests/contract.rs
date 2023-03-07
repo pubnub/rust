@@ -43,18 +43,13 @@ async fn main() {
     PubnubWorld::cucumber()
         .before(|_feature, _rule, scenario, _world| {
             futures::FutureExt::boxed(async move {
-                if scenario
-                    .tags
-                    .iter()
-                    .find(|&t| t.starts_with("contract="))
-                    .is_some()
-                {
+                if scenario.tags.iter().any(|t| t.starts_with("contract=")) {
                     let tag = scenario
                         .tags
                         .iter()
                         .find(|&t| t.starts_with("contract="))
                         .unwrap();
-                    let splitted_values: Vec<&str> = tag.split("=").collect();
+                    let splitted_values: Vec<&str> = tag.split('=').collect();
                     if !splitted_values[1].is_empty() {
                         let script_name = splitted_values[1];
                         init_server(script_name.to_string()).await.unwrap();
