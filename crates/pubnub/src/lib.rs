@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 //! # Pubnub Rust SDK
 //!
 //! <div align = "center">
