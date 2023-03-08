@@ -7,5 +7,3 @@ All tests can be executed with:
 ```shell
 cargo test
 ```
-
-License: MIT

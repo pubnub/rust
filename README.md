@@ -64,5 +64,3 @@ If you **need help** or have a **general question**, contact support@pubnub.com.
 This project is licensed under the [MIT license].
 
 [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
-
-License: MIT
