@@ -6,7 +6,7 @@
       "clearedSuffix": false
     }
   ],
-  "README.md": [
+  "lib.rs": [
     {
       "pattern": "^pubnub\\s=\\s\\\"((\\d+\\.?){2,}([a-zA-Z0-9-]+(\\.?\\d+)?)?)\\\"$",
       "clearedPrefix": true,
