@@ -1,10 +1,8 @@
-# :warning: Work in progress! :warning:
-
 # Pubnub Rust SDK
 
 <div align = "center">
 
-![PubNub](logo.svg)
+![PubNub](https://raw.githubusercontent.com/pubnub/rust/phoenix/logo.svg)
 
 ![Tests](https://github.com/pubnub/rust/actions/workflows/run-tests.yml/badge.svg)
 ![Validations](https://github.com/pubnub/rust/actions/workflows/run-validations.yml/badge.svg)
@@ -36,7 +34,7 @@ Add pubnub to your rust project using `Cargo.toml`:
 pubnub = "0.0.0"
 ```
 
-or 
+or
 
 ```toml
 [dependencies]
@@ -67,3 +65,4 @@ This project is licensed under the [MIT license].
 
 [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 
+License: MIT

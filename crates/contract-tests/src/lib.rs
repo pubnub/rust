@@ -1,4 +1,9 @@
-#[test]
-fn it_works() {
-    assert_eq!(2 + 2, 4);
-}
+//! # Contract tests for PubNub SDK
+//!
+//! This directory contains tests for `pubnub` crate.
+//!
+//! All tests can be executed with:
+//!
+//! ```shell
+//! cargo test
+//! ```
