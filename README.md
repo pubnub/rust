@@ -1,5 +1,6 @@
 # PubNub Rust SDK
 
+
 <div align = "center">
 
 ![PubNub](https://raw.githubusercontent.com/pubnub/rust/phoenix/logo.svg)
@@ -16,7 +17,7 @@
 
 This is the official PubNub Rust SDK repository.
 
-[PubNub](https://www.pubnub.com/) takes care of the infrastructure and APIs needed for the realtime communication layer of your application. Work on your app's logic and let PubNub handle sending and receiving data across the world in less than 100ms.
+[PubNub](https://www.pubnub.com/) takes care of the infrastructure and APIs needed for the realtime //! communication layer of your application. Work on your app's logic and let PubNub handle sending and receiving //! data across the world in less than 100ms.
 
 ## Getting started
 
@@ -24,7 +25,7 @@ Below you can find everything you need to start messaging!
 
 ### Get PubNub keys
 
-You will need the publish and subscribe keys to authenticate your app. Get your keys from the [Admin Portal](https://dashboard.pubnub.com/login).
+You will need the publish and subscribe keys to authenticate your app. Get your keys from the [Admin Portal]//! (https://dashboard.pubnub.com/login).
 
 ### Install using [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
@@ -63,3 +64,4 @@ If you **need help** or have a **general question**, contact support@pubnub.com.
 This project is licensed under the [MIT license].
 
 [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
+
