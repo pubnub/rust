@@ -29,7 +29,7 @@
 //!
 //! You will need the publish and subscribe keys to authenticate your app. Get your keys from the [Admin Portal]//! (https://dashboard.pubnub.com/login).
 //!
-//! ### Install using [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+//! ### Import using [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 //!
 //! Add `pubnub` to your Rust project in the `Cargo.toml` file:
 //!
