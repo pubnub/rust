@@ -1,44 +1,42 @@
-# :warning: Work in progress! :warning:
+# PubNub Rust SDK
 
-# Pubnub Rust SDK
 
 <div align = "center">
 
-![PubNub](logo.svg)
+![PubNub](https://raw.githubusercontent.com/pubnub/rust/phoenix/logo.svg)
 
 ![Tests](https://github.com/pubnub/rust/actions/workflows/run-tests.yml/badge.svg)
 ![Validations](https://github.com/pubnub/rust/actions/workflows/run-validations.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/pubnub/rust/LICENSE)
 
 **Make your app come alive with real-time experiences!**
+
 </div>
 
 ## Overview
 
 This is the official PubNub Rust SDK repository.
 
-[PubNub](https://www.pubnub.com/) takes care of the infrastructure and APIs needed for the realtime communication layer of your application. Work on your app's logic and let PubNub handle sending and receiving data across the world in less than 100ms.
+[PubNub](https://www.pubnub.com/) takes care of the infrastructure and APIs needed for the realtime //! communication layer of your application. Work on your app's logic and let PubNub handle sending and receiving //! data across the world in less than 100ms.
 
-## Getting Started
+## Getting started
 
 Below you can find everything you need to start messaging!
 
-### Get keys
+### Get PubNub keys
 
-You will need the publish and subscribe keys to authenticate your app. Get your keys from the [Admin Portal](https://dashboard.pubnub.com/login).
+You will need the publish and subscribe keys to authenticate your app. Get your keys from the [Admin Portal]//! (https://dashboard.pubnub.com/login).
 
-### Cargo.toml
+### Import using [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
-Add pubnub to your rust project using `Cargo.toml`:
+Add `pubnub` to your Rust project in the `Cargo.toml` file:
 
 ```toml
+// default features
 [dependencies]
 pubnub = "0.0.0"
-```
 
-or 
-
-```toml
+// all features
 [dependencies]
 pubnub = { version = "0.0.0", features = ["full"] }
 ```
