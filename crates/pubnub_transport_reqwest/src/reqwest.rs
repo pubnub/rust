@@ -24,10 +24,10 @@ fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
 
 #[async_trait::async_trait]
 impl Transport for TransportReqwest {
-    async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
-        let result = match req.method {
-            TransportMethod::Get => self.send_via_get_method(req).await,
-            TransportMethod::Post => self.send_via_post_method(req).await,
+    async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
+        let result = match request.method {
+            TransportMethod::Get => self.send_via_get_method(request).await,
+            TransportMethod::Post => self.send_via_post_method(request).await,
         }?;
 
         Ok(TransportResponse {
