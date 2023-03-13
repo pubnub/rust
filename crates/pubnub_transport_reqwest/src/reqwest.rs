@@ -93,7 +93,7 @@ mod should {
         };
 
         let request = TransportRequest {
-            path: format!("{}{}", path, message).into(),
+            path: format!("{}{}", path, message),
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
             method: Get,
             body: None,
@@ -126,7 +126,7 @@ mod should {
             path: path.into(),
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
             method: Post,
-            body: Some(String::from(message).chars().map(|c| c as u8).collect()),
+            body: Some(message.chars().map(|c| c as u8).collect()),
             headers: [].into(),
         };
 
