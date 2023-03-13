@@ -76,7 +76,7 @@ mod should {
     use pubnub_core::{Transport, TransportRequest};
 
     #[tokio::test]
-    async fn test_test_test() {
+    async fn send_via_get_method() {
         let server = MockServer::start();
         let message = "\"Hello\"";
         let path = "/publish/sub_key/pub_key/0/chat/0/";
@@ -104,7 +104,7 @@ mod should {
     }
 
     #[tokio::test]
-    async fn test_via_post() {
+    async fn send_via_post_method() {
         let server = MockServer::start();
         let message = "\"Hello from post\"";
         let path = "/publish/sub_key/pub_key/0/chat/0";
