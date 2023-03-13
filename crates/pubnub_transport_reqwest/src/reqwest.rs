@@ -61,49 +61,64 @@ impl Transport for TransportReqwest {
 #[cfg(test)]
 mod should {
     use crate::reqwest::TransportReqwest;
+    use httpmock::Method::{GET, POST};
+    use httpmock::MockServer;
     use pubnub_core::TransportMethod::{Get, Post};
     use pubnub_core::{Transport, TransportRequest};
 
     #[tokio::test]
     async fn test_test_test() {
+        let server = MockServer::start();
+        let message = "\"Hello\"";
+        let path = "/publish/sub_key/pub_key/0/chat/0/";
+        let hello_mock = server.mock(|when, then| {
+            when.method(GET)
+                .path(format!("{}{}", path, message.replace("\"", "%22")));
+            then.status(200).body("[1,\"Sent\",\"16787176144828000\"]");
+        });
+
         let transport = TransportReqwest {
             reqwest_client: reqwest::Client::default(),
-            hostname: "https://ps.pndsn.com".into(),
+            hostname: server.base_url(),
         };
 
         let request = TransportRequest {
-            path: "/publish/demo-36/demo-36/0/chat/0/\"Hello\"".into(),
+            path: format!("{}{}", path, message).into(),
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
             method: Get,
             body: None,
             headers: [].into(),
         };
-
-        println!("{:?}", transport.send(request).await.unwrap())
+        let response = transport.send(request).await.unwrap();
+        hello_mock.assert();
+        assert_eq!(response.status, 200);
     }
 
     #[tokio::test]
     async fn test_via_post() {
+        let server = MockServer::start();
+        let message = "\"Hello from post\"";
+        let path = "/publish/sub_key/pub_key/0/chat/0";
+        let hello_mock = server.mock(|when, then| {
+            when.method(POST).path(path).body(message);
+            then.status(200).body("[1,\"Sent\",\"16787176144828000\"]");
+        });
+
         let transport = TransportReqwest {
             reqwest_client: reqwest::Client::default(),
-            hostname: "https://ps.pndsn.com".into(),
+            hostname: server.base_url(),
         };
 
         let request = TransportRequest {
-            path: "/publish/demo-36/demo-36/0/chat/0".into(),
+            path: path.into(),
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
             method: Post,
-            body: Some(
-                String::from("\"Hello from post\"")
-                    .chars()
-                    .map(|c| c as u8)
-                    .collect(),
-            ),
+            body: Some(String::from(message).chars().map(|c| c as u8).collect()),
             headers: [].into(),
         };
 
-        let result = transport.send(request).await.unwrap();
-
-        println!("{:?}", String::from_utf8(result.body.unwrap()))
+        let response = transport.send(request).await.unwrap();
+        hello_mock.assert();
+        assert_eq!(response.status, 200);
     }
 }
