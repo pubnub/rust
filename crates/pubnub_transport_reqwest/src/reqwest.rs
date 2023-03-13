@@ -68,18 +68,17 @@ impl TransportReqwest {
     ) -> Result<reqwest::Response, PubNubError> {
         let path = prepare_path(req.path, req.query_parameters);
 
-        match req.body {
-            None => Err(TransportError(String::from(
-                "Body should not be empty for POST",
-            ))),
-            Some(vec_bytes) => self
-                .reqwest_client
-                .post(format!("{}{}", &self.hostname, path))
-                .body(vec_bytes)
-                .send()
-                .await
-                .map_err(|e| TransportError(e.to_string())),
-        }
+        req.body
+            .ok_or(TransportError("Body should not be empty for POST".into()))
+            .map(|vec_bytes| async move {
+                self.reqwest_client
+                    .post(format!("{}{}", &self.hostname, path))
+                    .body(vec_bytes)
+                    .send()
+                    .await
+                    .map_err(|e| TransportError(e.to_string()))
+            })?
+            .await
     }
 }
 
