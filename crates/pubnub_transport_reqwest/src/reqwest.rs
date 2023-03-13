@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-use std::fmt::format;
 use pubnub_core::{Transport, TransportMethod, TransportRequest};
 use pubnub_core::transport_response::TransportResponse;
-use pubnub_core::TransportMethod::Get;
 
 struct TransportReqwest {
     reqwest_client: reqwest::Client,
@@ -10,7 +7,7 @@ struct TransportReqwest {
 }
 
 #[async_trait::async_trait]
-impl pubnub_core::Transport for TransportReqwest {
+impl Transport for TransportReqwest {
     async fn send(&self, req: TransportRequest) -> Result<TransportResponse, ()> {
 
         let path = req.query_parameters.iter().fold(format!("{}?", req.path), |url, (k, v)| {
@@ -28,7 +25,7 @@ impl pubnub_core::Transport for TransportReqwest {
                             ..Default::default()
                         }
                     })
-                    .map_err(|e| ())
+                    .map_err(|_e| ())
             }
             TransportMethod::Post => {
                 todo!()
@@ -46,7 +43,7 @@ mod should {
     use crate::reqwest::TransportReqwest;
 
     #[tokio::test]
-    async fn testTestTest() {
+    async fn test_test_test() {
         let transport = TransportReqwest {
             reqwest_client: reqwest::Client::default(),
             hostname: "https://ps.pndsn.com".into(),
