@@ -77,9 +77,10 @@ mod should {
 
     #[tokio::test]
     async fn send_via_get_method() {
-        let server = MockServer::start();
         let message = "\"Hello\"";
         let path = "/publish/sub_key/pub_key/0/chat/0/";
+
+        let server = MockServer::start();
         let hello_mock = server.mock(|when, then| {
             when.method(GET)
                 .path(format!("{}{}", path, message.replace("\"", "%22")));
@@ -98,16 +99,19 @@ mod should {
             body: None,
             headers: [].into(),
         };
+
         let response = transport.send(request).await.unwrap();
+
         hello_mock.assert();
         assert_eq!(response.status, 200);
     }
 
     #[tokio::test]
     async fn send_via_post_method() {
-        let server = MockServer::start();
         let message = "\"Hello from post\"";
         let path = "/publish/sub_key/pub_key/0/chat/0";
+
+        let server = MockServer::start();
         let hello_mock = server.mock(|when, then| {
             when.method(POST).path(path).body(message);
             then.status(200).body("[1,\"Sent\",\"16787176144828000\"]");
@@ -127,6 +131,7 @@ mod should {
         };
 
         let response = transport.send(request).await.unwrap();
+
         hello_mock.assert();
         assert_eq!(response.status, 200);
     }
