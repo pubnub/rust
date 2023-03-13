@@ -5,6 +5,7 @@ use pubnub_core::{Transport, TransportMethod, TransportRequest};
 use reqwest::Response;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug, Default)]
 struct TransportReqwest {
     reqwest_client: reqwest::Client,
     hostname: String,
@@ -97,7 +98,7 @@ mod should {
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
             method: Get,
             body: None,
-            headers: [].into(),
+            ..Default::default()
         };
 
         let response = transport.send(request).await.unwrap();
@@ -127,12 +128,24 @@ mod should {
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
             method: Post,
             body: Some(message.chars().map(|c| c as u8).collect()),
-            headers: [].into(),
+            ..Default::default()
         };
 
         let response = transport.send(request).await.unwrap();
 
         hello_mock.assert();
         assert_eq!(response.status, 200);
+    }
+
+    #[tokio::test]
+    async fn return_err_on_post_empty_body() {
+        let transport = TransportReqwest::default();
+
+        let request = TransportRequest {
+            body: None,
+            ..Default::default()
+        };
+
+        assert!(transport.send(request).await.is_err());
     }
 }
