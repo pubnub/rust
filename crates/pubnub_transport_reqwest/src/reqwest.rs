@@ -28,15 +28,13 @@ impl Transport for TransportReqwest {
         let result = match req.method {
             TransportMethod::Get => self.send_via_get_method(req).await,
             TransportMethod::Post => self.send_via_post_method(req).await,
-        };
-
-        let reqwest_response = result?;
+        }?;
 
         Ok(TransportResponse {
-            status: reqwest_response.status().as_u16(),
-            body: if reqwest_response.content_length().is_some() {
+            status: result.status().as_u16(),
+            body: if result.content_length().is_some() {
                 Some(
-                    reqwest_response
+                    result
                         .bytes()
                         .await
                         .map(|b| b.to_vec())
