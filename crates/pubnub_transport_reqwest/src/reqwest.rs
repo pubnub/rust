@@ -1,5 +1,5 @@
-use pubnub_core::{Transport, TransportMethod, TransportRequest};
 use pubnub_core::transport_response::TransportResponse;
+use pubnub_core::{Transport, TransportMethod, TransportRequest};
 
 struct TransportReqwest {
     reqwest_client: reqwest::Client,
@@ -9,38 +9,40 @@ struct TransportReqwest {
 #[async_trait::async_trait]
 impl Transport for TransportReqwest {
     async fn send(&self, req: TransportRequest) -> Result<TransportResponse, ()> {
-
-        let path = req.query_parameters.iter().fold(format!("{}?", req.path), |url, (k, v)| {
-            format!("{}{}={}&", url, k, v)
-        });
-        match req.method {
-            TransportMethod::Get => {
-                self.reqwest_client.get(format!("{}{}", &self.hostname, path))
-                    .send()
-                    .await
-                    .map(|reqwest_response| {
-                        TransportResponse {
-                            status: reqwest_response.status().as_u16(),
-                            body: None,//Some(reqwest_response.bytes().await.as_ref().unwrap().to_vec()),
-                            ..Default::default()
-                        }
-                    })
-                    .map_err(|_e| ())
-            }
+        let path = req
+            .query_parameters
+            .iter()
+            .fold(format!("{}?", req.path), |url, (k, v)| {
+                format!("{}{}={}&", url, k, v)
+            });
+        Ok(match req.method {
+            TransportMethod::Get => self
+                .reqwest_client
+                .get(format!("{}{}", &self.hostname, path))
+                .send()
+                .await
+                .map(|reqwest_response| async move {
+                    TransportResponse {
+                        status: reqwest_response.status().as_u16(),
+                        body: Some(reqwest_response.bytes().await.unwrap().to_vec()),
+                        ..Default::default()
+                    }
+                })
+                .map_err(|_e| ()),
             TransportMethod::Post => {
                 todo!()
             }
         }
-
+        .unwrap()
+        .await)
     }
 }
 
-
 #[cfg(test)]
 mod should {
+    use crate::reqwest::TransportReqwest;
     use pubnub_core::TransportMethod::Get;
     use pubnub_core::{Transport, TransportRequest};
-    use crate::reqwest::TransportReqwest;
 
     #[tokio::test]
     async fn test_test_test() {
