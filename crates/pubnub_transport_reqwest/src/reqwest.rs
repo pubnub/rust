@@ -15,26 +15,33 @@ impl Transport for TransportReqwest {
             .fold(format!("{}?", req.path), |url, (k, v)| {
                 format!("{}{}={}&", url, k, v)
             });
-        Ok(match req.method {
-            TransportMethod::Get => self
-                .reqwest_client
-                .get(format!("{}{}", &self.hostname, path))
-                .send()
-                .await
-                .map(|reqwest_response| async move {
-                    TransportResponse {
+        match req.method {
+            TransportMethod::Get => {
+                let result = self
+                    .reqwest_client
+                    .get(format!("{}{}", &self.hostname, path))
+                    .send()
+                    .await;
+
+                match result {
+                    Ok(reqwest_response) => Ok(TransportResponse {
                         status: reqwest_response.status().as_u16(),
-                        body: Some(reqwest_response.bytes().await.unwrap().to_vec()),
+                        body: Some(
+                            reqwest_response
+                                .bytes()
+                                .await
+                                .map(|b| b.to_vec())
+                                .map_err(|_| ())?,
+                        ),
                         ..Default::default()
-                    }
-                })
-                .map_err(|_e| ()),
+                    }),
+                    Err(_) => Err(()),
+                }
+            }
             TransportMethod::Post => {
                 todo!()
             }
         }
-        .unwrap()
-        .await)
     }
 }
 
