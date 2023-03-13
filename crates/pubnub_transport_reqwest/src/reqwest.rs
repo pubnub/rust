@@ -11,17 +11,6 @@ struct TransportReqwest {
     hostname: String,
 }
 
-fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
-    if query_params.is_empty() {
-        return path;
-    }
-    query_params
-        .iter()
-        .fold(format!("{}?", path), |acc_query, (k, v)| {
-            format!("{}{}={}&", acc_query, k, v)
-        })
-}
-
 #[async_trait::async_trait]
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
@@ -78,6 +67,17 @@ impl TransportReqwest {
             .await
             .map_err(|e| TransportError(e.to_string()))
     }
+}
+
+fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
+    if query_params.is_empty() {
+        return path;
+    }
+    query_params
+        .iter()
+        .fold(format!("{}?", path), |acc_query, (k, v)| {
+            format!("{}{}={}&", acc_query, k, v)
+        })
 }
 
 #[cfg(test)]
