@@ -51,10 +51,10 @@ impl Transport for TransportReqwest {
 impl TransportReqwest {
     async fn send_via_get_method(
         &self,
-        req: TransportRequest,
+        request: TransportRequest,
     ) -> Result<reqwest::Response, PubNubError> {
         self.reqwest_client
-            .get(format!("{}{}", &self.hostname, req.path))
+            .get(format!("{}{}", &self.hostname, request.path))
             .send()
             .await
             .map_err(|e| TransportError(e.to_string()))
@@ -62,11 +62,12 @@ impl TransportReqwest {
 
     async fn send_via_post_method(
         &self,
-        req: TransportRequest,
+        request: TransportRequest,
     ) -> Result<reqwest::Response, PubNubError> {
-        let path = prepare_path(req.path, req.query_parameters);
+        let path = prepare_path(request.path, request.query_parameters);
 
-        req.body
+        request
+            .body
             .ok_or(TransportError("Body should not be empty for POST".into()))
             .map(|vec_bytes| {
                 self.reqwest_client
