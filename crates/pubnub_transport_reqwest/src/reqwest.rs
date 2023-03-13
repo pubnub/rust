@@ -26,13 +26,17 @@ impl Transport for TransportReqwest {
                 match result {
                     Ok(reqwest_response) => Ok(TransportResponse {
                         status: reqwest_response.status().as_u16(),
-                        body: Some(
-                            reqwest_response
-                                .bytes()
-                                .await
-                                .map(|b| b.to_vec())
-                                .map_err(|_| ())?,
-                        ),
+                        body: if reqwest_response.content_length().is_some() {
+                            Some(
+                                reqwest_response
+                                    .bytes()
+                                    .await
+                                    .map(|b| b.to_vec())
+                                    .map_err(|_| ())?,
+                            )
+                        } else {
+                            None
+                        },
                         ..Default::default()
                     }),
                     Err(_) => Err(()),
