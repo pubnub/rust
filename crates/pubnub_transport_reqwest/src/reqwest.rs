@@ -2,7 +2,6 @@ use pubnub_core::error::PubNubError;
 use pubnub_core::error::PubNubError::TransportError;
 use pubnub_core::transport_response::TransportResponse;
 use pubnub_core::{Transport, TransportMethod, TransportRequest};
-use reqwest::Response;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default)]
@@ -96,7 +95,7 @@ mod should {
         let server = MockServer::start();
         let hello_mock = server.mock(|when, then| {
             when.method(GET)
-                .path(format!("{}{}", path, message.replace("\"", "%22")));
+                .path(format!("{}{}", path, message.replace('\"', "%22")));
             then.status(200).body("[1,\"Sent\",\"16787176144828000\"]");
         });
 
