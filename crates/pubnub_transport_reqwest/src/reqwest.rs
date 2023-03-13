@@ -61,7 +61,7 @@ impl Transport for TransportReqwest {
 #[cfg(test)]
 mod should {
     use crate::reqwest::TransportReqwest;
-    use pubnub_core::TransportMethod::Get;
+    use pubnub_core::TransportMethod::{Get, Post};
     use pubnub_core::{Transport, TransportRequest};
 
     #[tokio::test]
@@ -80,5 +80,30 @@ mod should {
         };
 
         println!("{:?}", transport.send(request).await.unwrap())
+    }
+
+    #[tokio::test]
+    async fn test_via_post() {
+        let transport = TransportReqwest {
+            reqwest_client: reqwest::Client::default(),
+            hostname: "https://ps.pndsn.com".into(),
+        };
+
+        let request = TransportRequest {
+            path: "/publish/demo-36/demo-36/0/chat/0".into(),
+            query_parameters: [("uuid".into(), "Phoenix".into())].into(),
+            method: Post,
+            body: Some(
+                String::from("\"Hello from post\"")
+                    .chars()
+                    .map(|c| c as u8)
+                    .collect(),
+            ),
+            headers: [].into(),
+        };
+
+        let result = transport.send(request).await.unwrap();
+
+        println!("{:?}", String::from_utf8(result.body.unwrap()))
     }
 }
