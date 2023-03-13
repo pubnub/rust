@@ -82,26 +82,33 @@ fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
 #[cfg(test)]
 mod should {
     use crate::reqwest::TransportReqwest;
-    use httpmock::Method::{GET, POST};
-    use httpmock::MockServer;
     use pubnub_core::TransportMethod::{Get, Post};
     use pubnub_core::{Transport, TransportRequest};
+    use wiremock::matchers::{body_string, method, path as path_macher};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
     async fn send_via_get_method() {
         let message = "\"Hello\"";
         let path = "/publish/sub_key/pub_key/0/chat/0/";
 
-        let server = MockServer::start();
-        let hello_mock = server.mock(|when, then| {
-            when.method(GET)
-                .path(format!("{}{}", path, message.replace('\"', "%22")));
-            then.status(200).body("[1,\"Sent\",\"16787176144828000\"]");
-        });
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path_macher(format!(
+                "{}{}",
+                path,
+                message.replace('\"', "%22")
+            )))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string("[1,\"Sent\",\"16787176144828000\"]"),
+            )
+            .mount(&server)
+            .await;
 
         let transport = TransportReqwest {
             reqwest_client: reqwest::Client::default(),
-            hostname: server.base_url(),
+            hostname: server.uri(),
         };
 
         let request = TransportRequest {
@@ -114,7 +121,6 @@ mod should {
 
         let response = transport.send(request).await.unwrap();
 
-        hello_mock.assert();
         assert_eq!(response.status, 200);
     }
 
@@ -123,15 +129,19 @@ mod should {
         let message = "\"Hello from post\"";
         let path = "/publish/sub_key/pub_key/0/chat/0";
 
-        let server = MockServer::start();
-        let hello_mock = server.mock(|when, then| {
-            when.method(POST).path(path).body(message);
-            then.status(200).body("[1,\"Sent\",\"16787176144828000\"]");
-        });
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path_macher(path))
+            .and(body_string(message.to_string()))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string("[1,\"Sent\",\"16787176144828000\"]"),
+            )
+            .mount(&server)
+            .await;
 
         let transport = TransportReqwest {
             reqwest_client: reqwest::Client::default(),
-            hostname: server.base_url(),
+            hostname: server.uri(),
         };
 
         let request = TransportRequest {
@@ -144,7 +154,6 @@ mod should {
 
         let response = transport.send(request).await.unwrap();
 
-        hello_mock.assert();
         assert_eq!(response.status, 200);
     }
 
