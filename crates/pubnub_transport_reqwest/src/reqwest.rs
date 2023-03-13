@@ -2,21 +2,30 @@ use pubnub_core::error::PubNubError;
 use pubnub_core::error::PubNubError::TransportError;
 use pubnub_core::transport_response::TransportResponse;
 use pubnub_core::{Transport, TransportMethod, TransportRequest};
+use reqwest::Response;
+use std::collections::HashMap;
 
 struct TransportReqwest {
     reqwest_client: reqwest::Client,
     hostname: String,
 }
 
+fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
+    if query_params.is_empty() {
+        return path;
+    }
+    query_params
+        .iter()
+        .fold(format!("{}?", path), |acc_query, (k, v)| {
+            format!("{}{}={}&", acc_query, k, v)
+        })
+}
+
 #[async_trait::async_trait]
 impl Transport for TransportReqwest {
     async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
-        let path = req
-            .query_parameters
-            .iter()
-            .fold(format!("{}?", req.path), |url, (k, v)| {
-                format!("{}{}={}&", url, k, v)
-            });
+        let path = prepare_path(req.path, req.query_parameters);
+
         let result = match req.method {
             TransportMethod::Get => self
                 .reqwest_client
@@ -48,7 +57,7 @@ impl Transport for TransportReqwest {
                         .bytes()
                         .await
                         .map(|b| b.to_vec())
-                        .map_err(|e| PubNubError::TransportError(e.to_string()))?,
+                        .map_err(|e| TransportError(e.to_string()))?,
                 )
             } else {
                 None
