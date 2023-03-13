@@ -68,6 +68,8 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
+mod pubnub_client;
+
 #[test]
 fn it_works() {
     assert_eq!(2 + 2, 4);

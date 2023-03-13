@@ -3,6 +3,7 @@
 members = [
     "crates/pubnub",
     "crates/pubnub_core",
+    "crates/pubnub_transport_reqwest",
 
     # Internal crates
     "crates/contract-tests",

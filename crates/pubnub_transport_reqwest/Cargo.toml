@@ -1,0 +1,14 @@
+[package]
+name = "pubnub_transport_reqwest"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1.66"
+pubnub_core = { path = "../pubnub_core" }
+reqwest = "0.11.14"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"]}
