@@ -25,27 +25,9 @@ fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
 #[async_trait::async_trait]
 impl Transport for TransportReqwest {
     async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
-        let path = prepare_path(req.path, req.query_parameters);
-
         let result = match req.method {
-            TransportMethod::Get => self
-                .reqwest_client
-                .get(format!("{}{}", &self.hostname, path))
-                .send()
-                .await
-                .map_err(|e| TransportError(e.to_string())),
-            TransportMethod::Post => match req.body {
-                None => Err(TransportError(String::from(
-                    "Body should not be empty for POST",
-                ))),
-                Some(vec_bytes) => self
-                    .reqwest_client
-                    .post(format!("{}{}", &self.hostname, path))
-                    .body(vec_bytes)
-                    .send()
-                    .await
-                    .map_err(|e| TransportError(e.to_string())),
-            },
+            TransportMethod::Get => self.send_via_get_method(req).await,
+            TransportMethod::Post => self.send_via_post_method(req).await,
         };
 
         let reqwest_response = result?;
@@ -65,6 +47,39 @@ impl Transport for TransportReqwest {
             },
             ..Default::default()
         })
+    }
+}
+
+impl TransportReqwest {
+    async fn send_via_get_method(
+        &self,
+        req: TransportRequest,
+    ) -> Result<reqwest::Response, PubNubError> {
+        self.reqwest_client
+            .get(format!("{}{}", &self.hostname, req.path))
+            .send()
+            .await
+            .map_err(|e| TransportError(e.to_string()))
+    }
+
+    async fn send_via_post_method(
+        &self,
+        req: TransportRequest,
+    ) -> Result<reqwest::Response, PubNubError> {
+        let path = prepare_path(req.path, req.query_parameters);
+
+        match req.body {
+            None => Err(TransportError(String::from(
+                "Body should not be empty for POST",
+            ))),
+            Some(vec_bytes) => self
+                .reqwest_client
+                .post(format!("{}{}", &self.hostname, path))
+                .body(vec_bytes)
+                .send()
+                .await
+                .map_err(|e| TransportError(e.to_string())),
+        }
     }
 }
 
