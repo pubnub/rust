@@ -4,5 +4,5 @@ use std::collections::HashMap;
 pub struct TransportResponse {
     status: u16,
     headers: HashMap<String, String>,
-    body: Option<Vec<u8>>
+    body: Option<Vec<u8>>,
 }

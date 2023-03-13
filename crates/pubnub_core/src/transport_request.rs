@@ -4,7 +4,7 @@ use std::collections::HashMap;
 pub enum TransportMethod {
     #[default]
     Get,
-    Post
+    Post,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
