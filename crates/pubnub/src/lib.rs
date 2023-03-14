@@ -68,7 +68,9 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
+pub mod publish;
 pub mod pubnub_client;
+
 pub use pubnub_client::PubNubClient;
 
 #[test]
