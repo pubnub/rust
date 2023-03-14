@@ -1,7 +1,8 @@
 //! TODO: Add documentation
 use crate::PubNubClient;
 use derive_builder::Builder;
-use pubnub_core::PubNubError;
+use pubnub_core::{PubNubError, TransportMethod, TransportRequest};
+use std::collections::HashMap;
 
 /// TODO: Add documentation
 pub type MessageType = String;
@@ -37,14 +38,35 @@ pub struct PublishMessageViaChannel<'pub_nub> {
     /// TODO: Add documentation
     store: bool,
     /// TODO: Add documentation
+    #[builder(default = "true")]
     replicate: bool,
     /// TODO: Add documentation
     ttl: u32,
+    /// TODO: Add documentation
+    #[builder(default = "false")]
+    use_post: bool,
+    /// TODO: Add documentation
+    #[builder(default = "HashMap::new()")]
+    meta: HashMap<String, String>,
 }
 
 impl<'pub_nub> PublishMessageViaChannelBuilder<'pub_nub> {
     /// TODO: Add documentation
     pub async fn execute(&self) -> Result<PublishResult, PubNubError> {
+        if self.use_post == true {
+            TransportRequest {
+                path: format!("publish/{pubKey}/{subKey}/0/{channel}/0"),
+                method: TransportMethod::Post,
+                //body: self.message.unwrap(), TODO
+                ..Default::default()
+            }
+        } else {
+            TransportRequest {
+                path: format!("publish/{}/{}/0/{}/0/{}", sub_key, pub_key, self.cha),
+                method: TransportMethod::Get,
+                ..Default::default()
+            }
+        }
         Ok(PublishResult)
     }
 }
