@@ -1,21 +1,27 @@
 //! TODO: Add documentation
 use crate::PubNubClient;
 use derive_builder::Builder;
-use pubnub_core::{PubNubError, TransportMethod, TransportRequest};
+use pubnub_core::{PubNubError, Transport, TransportMethod, TransportRequest};
 use std::collections::HashMap;
 
 /// TODO: Add documentation
 pub type MessageType = String;
 
 /// TODO: Add documentation
-pub struct PublishMessageBuilder<'pub_nub> {
-    pub_nub_client: &'pub_nub PubNubClient,
+pub struct PublishMessageBuilder<'pub_nub, T>
+where
+    T: Transport,
+{
+    pub_nub_client: &'pub_nub PubNubClient<T>,
     message: MessageType,
 }
 
-impl<'pub_nub> PublishMessageBuilder<'pub_nub> {
+impl<'pub_nub, T> PublishMessageBuilder<'pub_nub, T>
+where
+    T: Transport,
+{
     /// TODO: Add documentation
-    pub fn channel(self, channel: String) -> PublishMessageViaChannelBuilder<'pub_nub> {
+    pub fn channel(self, channel: String) -> PublishMessageViaChannelBuilder<'pub_nub, T> {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             ..Default::default()
@@ -27,10 +33,13 @@ impl<'pub_nub> PublishMessageBuilder<'pub_nub> {
 
 /// TODO: Add documentation
 #[derive(Builder)]
-#[builder(pattern = "owned", build_fn(skip))]
-pub struct PublishMessageViaChannel<'pub_nub> {
+#[builder(pattern = "owned", build_fn(private))]
+pub struct PublishMessageViaChannel<'pub_nub, T>
+where
+    T: Transport,
+{
     #[builder(setter(custom))]
-    pub_nub_client: &'pub_nub PubNubClient,
+    pub_nub_client: &'pub_nub PubNubClient<T>,
     /// TODO: Add documentation
     message: MessageType,
     /// TODO: Add documentation
@@ -50,32 +59,55 @@ pub struct PublishMessageViaChannel<'pub_nub> {
     meta: HashMap<String, String>,
 }
 
-impl<'pub_nub> PublishMessageViaChannelBuilder<'pub_nub> {
+impl<'pub_nub, T> PublishMessageViaChannelBuilder<'pub_nub, T>
+where
+    T: Transport,
+{
     /// TODO: Add documentation
-    pub async fn execute(&self) -> Result<PublishResult, PubNubError> {
-        if self.use_post == true {
+    pub async fn execute(self) -> Result<PublishResult, PubNubError> {
+        let instance = self
+            .build()
+            .map_err(|err| PubNubError::PublishError(err.to_string()))?;
+
+        let pub_key = "";
+        let sub_key = "";
+
+        let request = if instance.use_post == true {
             TransportRequest {
-                path: format!("publish/{pubKey}/{subKey}/0/{channel}/0"),
+                path: format!("publish/{sub_key}/{pub_key}/0/{}/0", instance.channel),
                 method: TransportMethod::Post,
                 //body: self.message.unwrap(), TODO
                 ..Default::default()
             }
         } else {
             TransportRequest {
-                path: format!("publish/{}/{}/0/{}/0/{}", sub_key, pub_key, self.cha),
+                path: format!(
+                    "publish/{}/{}/0/{}/0/\"{}\"",
+                    sub_key, pub_key, instance.channel, instance.message
+                ),
                 method: TransportMethod::Get,
                 ..Default::default()
             }
-        }
-        Ok(PublishResult)
+        };
+
+        instance
+            .pub_nub_client
+            .transport
+            .send(request)
+            .await
+            .map(|_| PublishResult)
     }
 }
 
-struct PublishResult;
+/// TODO: Add documentation
+pub struct PublishResult;
 
-impl PubNubClient {
+impl<T> PubNubClient<T>
+where
+    T: Transport,
+{
     /// TODO: Add documentation
-    pub fn publish_message(&self, message: MessageType) -> PublishMessageBuilder {
+    pub fn publish_message(&self, message: MessageType) -> PublishMessageBuilder<T> {
         PublishMessageBuilder {
             message,
             pub_nub_client: self,
@@ -85,11 +117,14 @@ impl PubNubClient {
 
 #[cfg(test)]
 mod should {
-    use crate::publish::PublishMessageViaChannelBuilder;
+    use super::*;
     use crate::PubNubClient;
-    use pubnub::publish;
+    use pubnub_core::Transport;
 
-    fn test(instance: PubNubClient) {
+    fn test<T>(instance: PubNubClient<T>)
+    where
+        T: Transport,
+    {
         instance
             .publish_message("First message".into())
             .channel("Iguess".into())
