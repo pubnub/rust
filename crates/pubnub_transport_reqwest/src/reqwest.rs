@@ -15,7 +15,7 @@ struct TransportReqwest {
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
         let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);
-        info!("{}",request_url);
+        info!("{}", request_url);
         let result = match request.method {
             TransportMethod::Get => self.send_via_get_method(request, request_url).await,
             TransportMethod::Post => self.send_via_post_method(request, request_url).await,
@@ -66,14 +66,14 @@ impl TransportReqwest {
     }
 }
 
-fn prepare_url(hostname:&str, path: &str, query_params: &HashMap<String, String>) -> String {
+fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
-        return  format!("{}{}", hostname, path);
+        return format!("{}{}", hostname, path);
     }
     query_params
         .iter()
         .fold(format!("{}?", path), |acc_query, (k, v)| {
-            format!("{}{}{}={}&",hostname, acc_query, k, v)
+            format!("{}{}{}={}&", hostname, acc_query, k, v)
         })
 }
 
