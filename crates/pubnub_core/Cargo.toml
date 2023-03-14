@@ -16,3 +16,4 @@ categories = ["api-bindings", "asynchronous", "network-programming"]
 [dependencies]
 async-trait = "0.1.66"
 thiserror = "1.0"
+
