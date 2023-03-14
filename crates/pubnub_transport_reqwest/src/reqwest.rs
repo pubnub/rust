@@ -1,3 +1,4 @@
+use log::info;
 use pubnub_core::error::PubNubError;
 use pubnub_core::error::PubNubError::TransportError;
 use pubnub_core::transport_response::TransportResponse;
@@ -13,9 +14,12 @@ struct TransportReqwest {
 #[async_trait::async_trait]
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
+        let path = prepare_path(&request.path, &request.query_parameters);
+        info!("{} {}", request.method, path);
+        let requet_url = format!("{}{}", &self.hostname, path);
         let result = match request.method {
-            TransportMethod::Get => self.send_via_get_method(request).await,
-            TransportMethod::Post => self.send_via_post_method(request).await,
+            TransportMethod::Get => self.send_via_get_method(request, requet_url).await,
+            TransportMethod::Post => self.send_via_post_method(request, requet_url).await,
         }?;
 
         Ok(TransportResponse {
@@ -39,10 +43,11 @@ impl Transport for TransportReqwest {
 impl TransportReqwest {
     async fn send_via_get_method(
         &self,
-        request: TransportRequest,
+        _request: TransportRequest,
+        url: String,
     ) -> Result<reqwest::Response, PubNubError> {
         self.reqwest_client
-            .get(format!("{}{}", &self.hostname, request.path))
+            .get(url)
             .send()
             .await
             .map_err(|e| TransportError(e.to_string()))
@@ -51,26 +56,20 @@ impl TransportReqwest {
     async fn send_via_post_method(
         &self,
         request: TransportRequest,
+        url: String,
     ) -> Result<reqwest::Response, PubNubError> {
-        let path = prepare_path(request.path, request.query_parameters);
-
         request
             .body
             .ok_or(TransportError("Body should not be empty for POST".into()))
-            .map(|vec_bytes| {
-                self.reqwest_client
-                    .post(format!("{}{}", &self.hostname, path))
-                    .body(vec_bytes)
-                    .send()
-            })?
+            .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes).send())?
             .await
             .map_err(|e| TransportError(e.to_string()))
     }
 }
 
-fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
+fn prepare_path(path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
-        return path;
+        return path.to_owned();
     }
     query_params
         .iter()
@@ -81,6 +80,9 @@ fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
 
 #[cfg(test)]
 mod should {
+    fn init() {
+        env_logger::init();
+    }
     use crate::reqwest::TransportReqwest;
     use pubnub_core::TransportMethod::{Get, Post};
     use pubnub_core::{Transport, TransportRequest};
@@ -89,6 +91,7 @@ mod should {
 
     #[tokio::test]
     async fn send_via_get_method() {
+        init();
         let message = "\"Hello\"";
         let path = "/publish/sub_key/pub_key/0/chat/0/";
 
