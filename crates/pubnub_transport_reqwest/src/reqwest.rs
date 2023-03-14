@@ -15,11 +15,11 @@ struct TransportReqwest {
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
         let path = prepare_path(&request.path, &request.query_parameters);
-        info!("{} {}", request.method, path);
-        let requet_url = format!("{}{}", &self.hostname, path);
+        let request_url = format!("{}{}", &self.hostname, path);
+        info!("{} {}", request.method, request_url);
         let result = match request.method {
-            TransportMethod::Get => self.send_via_get_method(request, requet_url).await,
-            TransportMethod::Post => self.send_via_post_method(request, requet_url).await,
+            TransportMethod::Get => self.send_via_get_method(request, request_url).await,
+            TransportMethod::Post => self.send_via_post_method(request, request_url).await,
         }?;
 
         Ok(TransportResponse {
