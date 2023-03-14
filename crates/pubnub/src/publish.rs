@@ -32,6 +32,8 @@ where
 }
 
 /// TODO: Add documentation
+// TODO: use dead codes
+#[allow(dead_code)]
 #[derive(Builder)]
 #[builder(pattern = "owned", build_fn(private))]
 pub struct PublishMessageViaChannel<'pub_nub, T>
@@ -74,7 +76,7 @@ where
         let pub_key = "";
         let sub_key = "";
 
-        let request = if instance.use_post == true {
+        let request = if instance.use_post {
             TransportRequest {
                 path: format!("publish/{sub_key}/{pub_key}/0/{}/0", instance.channel),
                 method: TransportMethod::Post,
@@ -151,23 +153,5 @@ mod should {
             .await;
 
         assert!(dbg!(result).is_ok());
-    }
-
-    fn test<T>(instance: PubNubClient<T>)
-    where
-        T: Transport,
-    {
-        instance
-            .publish_message("First message".into())
-            .channel("Iguess".into())
-            .replicate(true)
-            .execute();
-
-        instance
-            .publish_message("I could send this message".into())
-            .channel("chan".into())
-            .store(true)
-            .ttl(140)
-            .execute();
     }
 }
