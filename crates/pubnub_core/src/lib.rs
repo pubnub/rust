@@ -1,4 +1,6 @@
-pub use transport_request::TransportMethod;
-mod transport;
-mod transport_request;
-mod transport_response;
+pub use transport::Transport;
+pub use transport_request::{TransportMethod, TransportRequest};
+pub mod error;
+pub mod transport;
+pub mod transport_request;
+pub mod transport_response;
