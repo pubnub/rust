@@ -45,12 +45,14 @@ where
     /// TODO: Add documentation
     channel: String,
     /// TODO: Add documentation
-    store: bool,
+    #[builder(setter(strip_option), default)]
+    store: Option<bool>,
     /// TODO: Add documentation
     #[builder(default = "true")]
     replicate: bool,
     /// TODO: Add documentation
-    ttl: u32,
+    #[builder(setter(strip_option), default)]
+    ttl: Option<u32>,
     /// TODO: Add documentation
     #[builder(default = "false")]
     use_post: bool,
@@ -100,6 +102,7 @@ where
 }
 
 /// TODO: Add documentation
+#[derive(Debug)]
 pub struct PublishResult;
 
 impl<T> PubNubClient<T>
@@ -119,7 +122,36 @@ where
 mod should {
     use super::*;
     use crate::PubNubClient;
-    use pubnub_core::Transport;
+    use pubnub_core::{transport_response::TransportResponse, Transport};
+
+    #[tokio::test]
+    async fn publish_message() {
+        #[derive(Default)]
+        struct MockTransport;
+
+        #[async_trait::async_trait]
+        impl Transport for MockTransport {
+            async fn send(
+                &self,
+                _request: TransportRequest,
+            ) -> Result<TransportResponse, PubNubError> {
+                Ok(TransportResponse::default())
+            }
+        }
+
+        let client = PubNubClient {
+            transport: MockTransport::default(),
+        };
+
+        let result = client
+            .publish_message("First message".into())
+            .channel("Iguess".into())
+            .replicate(true)
+            .execute()
+            .await;
+
+        assert!(dbg!(result).is_ok());
+    }
 
     fn test<T>(instance: PubNubClient<T>)
     where
