@@ -14,9 +14,8 @@ struct TransportReqwest {
 #[async_trait::async_trait]
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
-        let path = prepare_path(&request.path, &request.query_parameters);
-        let request_url = format!("{}{}", &self.hostname, path);
-        info!("{} {}", request.method, request_url);
+        let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);
+        info!("{}",request_url);
         let result = match request.method {
             TransportMethod::Get => self.send_via_get_method(request, request_url).await,
             TransportMethod::Post => self.send_via_post_method(request, request_url).await,
@@ -67,22 +66,19 @@ impl TransportReqwest {
     }
 }
 
-fn prepare_path(path: &str, query_params: &HashMap<String, String>) -> String {
+fn prepare_url(hostname:&str, path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
-        return path.to_owned();
+        return  format!("{}{}", hostname, path);
     }
     query_params
         .iter()
         .fold(format!("{}?", path), |acc_query, (k, v)| {
-            format!("{}{}={}&", acc_query, k, v)
+            format!("{}{}{}={}&",hostname, acc_query, k, v)
         })
 }
 
 #[cfg(test)]
 mod should {
-    fn init() {
-        env_logger::init();
-    }
     use crate::reqwest::TransportReqwest;
     use pubnub_core::TransportMethod::{Get, Post};
     use pubnub_core::{Transport, TransportRequest};
@@ -91,7 +87,6 @@ mod should {
 
     #[tokio::test]
     async fn send_via_get_method() {
-        init();
         let message = "\"Hello\"";
         let path = "/publish/sub_key/pub_key/0/chat/0/";
 
