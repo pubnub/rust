@@ -1,3 +1,5 @@
+//! TODO: docs
+
 use crate::core::{
     error::{PubNubError, PubNubError::TransportError},
     Transport, TransportMethod, TransportRequest, TransportResponse,
@@ -5,8 +7,9 @@ use crate::core::{
 use log::info;
 use std::collections::HashMap;
 
+/// TODO: Add docs
 #[derive(Clone, Debug, Default)]
-struct TransportReqwest {
+pub struct TransportReqwest {
     reqwest_client: reqwest::Client,
     hostname: String,
 }
