@@ -23,6 +23,13 @@ reqwest = "0.11"
 
 [dev-dependencies]
 async-trait = "0.1"
-tokio = { version = "1", features = ["rt", "macros"]}
+tokio = { version = "1", features = ["rt-multi-thread", "macros"]}
 wiremock = "0.5"
 env_logger = "0.10"
+cucumber = "0.19"
+futures = "0.3"
+reqwest = { version = "0.11", features = ["json"] }
+
+[[test]]
+name = "contract" 
+harness = false
