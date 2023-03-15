@@ -1,10 +1,23 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub enum TransportMethod {
     #[default]
     Get,
     Post,
+}
+
+impl Display for TransportMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                TransportMethod::Get => "GET",
+                TransportMethod::Post => "POST",
+            }
+        )
+    }
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Default)]

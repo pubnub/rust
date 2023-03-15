@@ -1,3 +1,4 @@
+use log::info;
 use pubnub_core::error::PubNubError;
 use pubnub_core::error::PubNubError::TransportError;
 use pubnub_core::transport_response::TransportResponse;
@@ -13,9 +14,11 @@ struct TransportReqwest {
 #[async_trait::async_trait]
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
+        let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);
+        info!("{}", request_url);
         let result = match request.method {
-            TransportMethod::Get => self.send_via_get_method(request).await,
-            TransportMethod::Post => self.send_via_post_method(request).await,
+            TransportMethod::Get => self.send_via_get_method(request, request_url).await,
+            TransportMethod::Post => self.send_via_post_method(request, request_url).await,
         }?;
 
         Ok(TransportResponse {
@@ -39,10 +42,11 @@ impl Transport for TransportReqwest {
 impl TransportReqwest {
     async fn send_via_get_method(
         &self,
-        request: TransportRequest,
+        _request: TransportRequest,
+        url: String,
     ) -> Result<reqwest::Response, PubNubError> {
         self.reqwest_client
-            .get(format!("{}{}", &self.hostname, request.path))
+            .get(url)
             .send()
             .await
             .map_err(|e| TransportError(e.to_string()))
@@ -51,31 +55,25 @@ impl TransportReqwest {
     async fn send_via_post_method(
         &self,
         request: TransportRequest,
+        url: String,
     ) -> Result<reqwest::Response, PubNubError> {
-        let path = prepare_path(request.path, request.query_parameters);
-
         request
             .body
             .ok_or(TransportError("Body should not be empty for POST".into()))
-            .map(|vec_bytes| {
-                self.reqwest_client
-                    .post(format!("{}{}", &self.hostname, path))
-                    .body(vec_bytes)
-                    .send()
-            })?
+            .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes).send())?
             .await
             .map_err(|e| TransportError(e.to_string()))
     }
 }
 
-fn prepare_path(path: String, query_params: HashMap<String, String>) -> String {
+fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
-        return path;
+        return format!("{}{}", hostname, path);
     }
     query_params
         .iter()
         .fold(format!("{}?", path), |acc_query, (k, v)| {
-            format!("{}{}={}&", acc_query, k, v)
+            format!("{}{}{}={}&", hostname, acc_query, k, v)
         })
 }
 
