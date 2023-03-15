@@ -1,7 +1,9 @@
 //! TODO: Add documentation
-use crate::PubNubClient;
+use crate::{
+    core::{PubNubError, Transport, TransportMethod, TransportRequest},
+    dx::PubNubClient,
+};
 use derive_builder::Builder;
-use pubnub_core::{PubNubError, Transport, TransportMethod, TransportRequest};
 use std::collections::HashMap;
 
 /// TODO: Add documentation
@@ -123,8 +125,7 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::PubNubClient;
-    use pubnub_core::{transport_response::TransportResponse, Transport};
+    use crate::{core::TransportResponse, dx::PubNubClient};
 
     #[tokio::test]
     async fn publish_message() {

@@ -68,12 +68,22 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
-pub mod publish;
-pub mod pubnub_client;
+pub mod core;
+pub mod dx;
+pub mod providers;
+pub mod transport;
 
-pub use pubnub_client::PubNubClient;
+pub fn add(left: usize, right: usize) -> usize {
+    left + right
+}
 
-#[test]
-fn it_works() {
-    assert_eq!(2 + 2, 4);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let result = add(2, 2);
+        assert_eq!(result, 4);
+    }
 }

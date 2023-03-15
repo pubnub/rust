@@ -1,6 +1,4 @@
-use crate::error::PubNubError;
-use crate::transport_request::TransportRequest;
-use crate::transport_response::TransportResponse;
+use super::{transport_response::TransportResponse, PubNubError, TransportRequest};
 
 #[async_trait::async_trait]
 pub trait Transport {

@@ -1,11 +1,28 @@
-[workspace]
+[package]
+name = "pubnub"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+authors = ["PubNub <support@pubnub.com>"]
+description = "PubNub SDK for Rust"
+repository = "https://github.com/pubnub/rust"
+documentation = "https://docs.rs/pubnub" # TODO: add docs and connect with pubnub docs
+homepage = "https://www.pubnub.com"
+categories = ["api-bindings", "asynchronous", "network-programming"]
 
-members = [
-    "crates/pubnub",
-    "crates/pubnub_core",
-    "crates/pubnub_transport_reqwest",
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-    # Internal crates
-    "crates/contract-tests",
-    "examples/",
-]
+[dependencies]
+derive_builder = "0.12"
+async-trait = "0.1"
+thiserror = "1.0"
+log = "0.4"
+
+# TODO: make it optional
+reqwest = "0.11"
+
+[dev-dependencies]
+async-trait = "0.1"
+tokio = { version = "1", features = ["rt", "macros"]}
+wiremock = "0.5"
+env_logger = "0.10"

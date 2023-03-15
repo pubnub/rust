@@ -1,8 +1,8 @@
+use crate::core::{
+    error::{PubNubError, PubNubError::TransportError},
+    Transport, TransportMethod, TransportRequest, TransportResponse,
+};
 use log::info;
-use pubnub_core::error::PubNubError;
-use pubnub_core::error::PubNubError::TransportError;
-use pubnub_core::transport_response::TransportResponse;
-use pubnub_core::{Transport, TransportMethod, TransportRequest};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default)]
@@ -79,9 +79,7 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
 
 #[cfg(test)]
 mod should {
-    use crate::reqwest::TransportReqwest;
-    use pubnub_core::TransportMethod::{Get, Post};
-    use pubnub_core::{Transport, TransportRequest};
+    use super::*;
     use wiremock::matchers::{body_string, method, path as path_macher};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -112,7 +110,7 @@ mod should {
         let request = TransportRequest {
             path: format!("{}{}", path, message),
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
-            method: Get,
+            method: TransportMethod::Get,
             body: None,
             ..Default::default()
         };
@@ -145,7 +143,7 @@ mod should {
         let request = TransportRequest {
             path: path.into(),
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
-            method: Post,
+            method: TransportMethod::Post,
             body: Some(message.chars().map(|c| c as u8).collect()),
             ..Default::default()
         };
