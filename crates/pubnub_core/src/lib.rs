@@ -1,3 +1,4 @@
+pub use error::PubNubError;
 pub use transport::Transport;
 pub use transport_request::{TransportMethod, TransportRequest};
 pub mod error;
