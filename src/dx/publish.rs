@@ -1,4 +1,13 @@
-//! TODO: Add documentation
+//! # Publish module
+//!
+//! This module provides feature that allows to publish messages to PubNub channels.
+//! It is intended to be used by the [`pubnub`] crate.
+//!
+//! [`pubnub`]: ../index.html
+//! [PubNub]: https://www.pubnub.com/
+//! [Publish API]: https://www.pubnub.com/docs/rest-api/endpoints/publish
+//! [Publish API documentation]: https://www.pubnub.com/docs/rest-api/endpoints/publish
+
 use crate::{
     core::{PubNubError, Transport, TransportMethod, TransportRequest},
     dx::PubNubClient,
@@ -9,7 +18,13 @@ use std::collections::HashMap;
 /// TODO: Add documentation
 pub type MessageType = String;
 
-/// TODO: Add documentation
+/// This struct is a step of the publish message builder.
+/// It is used to specify the channel to publish the message to.
+/// It is created by the [`publish_message`] method.
+/// It is completed by the [`channel`] method.
+///
+/// [`publish_message`]: struct.PubNubClient.html#method.publish_message
+/// [`channel`]: #method.channel
 pub struct PublishMessageBuilder<'pub_nub, T>
 where
     T: Transport,
