@@ -1,3 +1,5 @@
+//! # Error types
+//!
 //! This module contains the error types for the [`pubnub`] crate.
 //!
 //! [`pubnub`]: ../index.html

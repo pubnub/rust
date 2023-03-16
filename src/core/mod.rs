@@ -1,3 +1,7 @@
+//! # PubNub Core
+//!
+//! Core functionality of the PubNub client.
+//!
 //! The `core` module contains the core functionality of the PubNub client.
 //!
 //! This module contains the core functionality of the PubNub client. It is

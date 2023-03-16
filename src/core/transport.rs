@@ -1,4 +1,4 @@
-//! Transport module
+//! # Transport module
 //!
 //! This module contains the [`Transport`] trait and the [`TransportRequest`] and [`TransportResponse`] types.
 //!

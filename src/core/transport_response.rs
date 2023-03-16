@@ -1,3 +1,5 @@
+//! # Transport Response
+//!
 //! This module contains the `TransportResponse` struct.
 //!
 //! This struct is used to represent the response from a request to the [`PubNub API`].

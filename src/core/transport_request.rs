@@ -1,3 +1,5 @@
+//! # Transport Request
+//!
 //! This module contains the `TransportRequest` struct and related types.
 //!
 //! This module contains the `TransportRequest` struct and related types. It is
