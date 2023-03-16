@@ -1,13 +1,4 @@
-//! # Publish module
-//!
-//! This module provides feature that allows to publish messages to PubNub channels.
-//! It is intended to be used by the [`pubnub`] crate.
-//!
-//! [`pubnub`]: ../index.html
-//! [PubNub]: https://www.pubnub.com/
-//! [Publish API]: https://www.pubnub.com/docs/rest-api/endpoints/publish
-//! [Publish API documentation]: https://www.pubnub.com/docs/rest-api/endpoints/publish
-
+//! TODO: Add documentation
 use crate::{
     core::{PubNubError, Transport, TransportMethod, TransportRequest},
     dx::PubNubClient,
@@ -18,13 +9,7 @@ use std::collections::HashMap;
 /// TODO: Add documentation
 pub type MessageType = String;
 
-/// This struct is a step of the publish message builder.
-/// It is used to specify the channel to publish the message to.
-/// It is created by the [`publish_message`] method.
-/// It is completed by the [`channel`] method.
-///
-/// [`publish_message`]: struct.PubNubClient.html#method.publish_message
-/// [`channel`]: #method.channel
+/// TODO: Add documentation
 pub struct PublishMessageBuilder<'pub_nub, T>
 where
     T: Transport,
@@ -64,20 +49,61 @@ where
     /// TODO: Add documentation
     channel: String,
     /// TODO: Add documentation
-    #[builder(setter(strip_option), default)]
+    #[builder(setter(strip_option), default = "None")]
     store: Option<bool>,
     /// TODO: Add documentation
     #[builder(default = "true")]
     replicate: bool,
     /// TODO: Add documentation
-    #[builder(setter(strip_option), default)]
+    #[builder(setter(strip_option), default = "None")]
     ttl: Option<u32>,
     /// TODO: Add documentation
-    #[builder(default = "false")]
+    #[builder(setter(strip_option), default = "false")]
     use_post: bool,
     /// TODO: Add documentation
-    #[builder(default = "HashMap::new()")]
-    meta: HashMap<String, String>,
+    #[builder(setter(strip_option), default = "None")]
+    meta: Option<HashMap<String, String>>,
+    /// TODO: Add documentation
+    #[builder(setter(strip_option), default = "None")]
+    space_id: Option<String>,
+    /// TODO: Add documentation
+    #[builder(setter(strip_option), default = "None")]
+    message_type: Option<String>,
+}
+
+fn bool_to_numeric(value: bool) -> String {
+    if value { "1" } else { "0" }.to_string()
+}
+
+fn prepare_publish_query_params<T>(
+    publish_struct: &PublishMessageViaChannel<T>,
+) -> HashMap<String, String>
+where
+    T: Transport,
+{
+    let mut query_params: HashMap<String, String> = HashMap::new();
+
+    if let Some(store) = publish_struct.store {
+        query_params.insert("store".to_string(), bool_to_numeric(store));
+    }
+
+    if let Some(ttl) = publish_struct.ttl {
+        query_params.insert("ttl".to_string(), ttl.to_string());
+    }
+
+    if !publish_struct.replicate {
+        query_params.insert("norep".to_string(), true.to_string());
+    }
+
+    if let Some(space_id) = publish_struct.space_id {
+        query_params.insert("space-id".to_string(), space_id);
+    }
+
+    if let Some(message_type) = &publish_struct.message_type {
+        query_params.insert("type".to_string(), message_type.clone());
+    }
+
+    query_params
 }
 
 impl<'pub_nub, T> PublishMessageViaChannelBuilder<'pub_nub, T>
@@ -93,10 +119,13 @@ where
         let pub_key = "";
         let sub_key = "";
 
+        let query_params = prepare_publish_query_params(&instance);
+
         let request = if instance.use_post {
             TransportRequest {
                 path: format!("publish/{sub_key}/{pub_key}/0/{}/0", instance.channel),
                 method: TransportMethod::Post,
+                query_parameters: query_params,
                 //body: self.message.unwrap(), TODO
                 ..Default::default()
             }
@@ -107,6 +136,7 @@ where
                     sub_key, pub_key, instance.channel, instance.message
                 ),
                 method: TransportMethod::Get,
+                query_parameters: query_params,
                 ..Default::default()
             }
         };
@@ -165,6 +195,49 @@ mod should {
             .publish_message("First message".into())
             .channel("Iguess".into())
             .replicate(true)
+            .execute()
+            .await;
+
+        assert!(dbg!(result).is_ok());
+    }
+
+    #[tokio::test]
+    async fn verify_all_query_parameters() {
+        #[derive(Default)]
+        struct MockTransport;
+
+        #[async_trait::async_trait]
+        impl Transport for MockTransport {
+            async fn send(
+                &self,
+                request: TransportRequest,
+            ) -> Result<TransportResponse, PubNubError> {
+                assert_eq!(
+                    HashMap::<String, String>::from([
+                        ("norep".into(), "true".into()),
+                        ("store".into(), "1".into()),
+                        ("space-id".into(), "space_id".into()),
+                        ("type".into(), "message_type".into()),
+                        ("ttl".into(), "50".into())
+                    ]),
+                    request.query_parameters
+                );
+                Ok(TransportResponse::default())
+            }
+        }
+
+        let client = PubNubClient {
+            transport: MockTransport::default(),
+        };
+
+        let result = client
+            .publish_message("message".into())
+            .channel("chan".into())
+            .replicate(false)
+            .ttl(50)
+            .store(true)
+            .space_id("space_id".into())
+            .message_type("message_type".into())
             .execute()
             .await;
 
