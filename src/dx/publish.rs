@@ -16,6 +16,7 @@ where
 {
     pub_nub_client: &'pub_nub PubNubClient<T>,
     message: MessageType,
+    seqn: u16,
 }
 
 impl<'pub_nub, T> PublishMessageBuilder<'pub_nub, T>
@@ -26,6 +27,7 @@ where
     pub fn channel(self, channel: String) -> PublishMessageViaChannelBuilder<'pub_nub, T> {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
+            seqn: Some(self.seqn),
             ..Default::default()
         }
         .message(self.message)
@@ -44,6 +46,8 @@ where
 {
     #[builder(setter(custom))]
     pub_nub_client: &'pub_nub PubNubClient<T>,
+    #[builder(setter(custom))]
+    seqn: u16,
     /// TODO: Add documentation
     message: MessageType,
     /// TODO: Add documentation
@@ -103,6 +107,8 @@ where
         query_params.insert("type".to_string(), message_type.clone());
     }
 
+    query_params.insert("seqn".to_string(), publish_struct.seqn.to_string());
+
     query_params
 }
 
@@ -158,11 +164,22 @@ impl<T> PubNubClient<T>
 where
     T: Transport,
 {
+    fn seqn(&mut self) -> u16 {
+        let ret = self.next_seqn;
+        if self.next_seqn == u16::MAX {
+            self.next_seqn = 0;
+        }
+        self.next_seqn += 1;
+        ret
+    }
+
     /// TODO: Add documentation
-    pub fn publish_message(&self, message: MessageType) -> PublishMessageBuilder<T> {
+    pub fn publish_message(&mut self, message: MessageType) -> PublishMessageBuilder<T> {
+        let seqn = self.seqn();
         PublishMessageBuilder {
             message,
             pub_nub_client: self,
+            seqn,
         }
     }
 }
@@ -187,8 +204,9 @@ mod should {
             }
         }
 
-        let client = PubNubClient {
+        let mut client = PubNubClient {
             transport: MockTransport::default(),
+            next_seqn: 1,
         };
 
         let result = client
@@ -226,8 +244,9 @@ mod should {
             }
         }
 
-        let client = PubNubClient {
+        let mut client = PubNubClient {
             transport: MockTransport::default(),
+            next_seqn: 1,
         };
 
         let result = client
@@ -242,5 +261,33 @@ mod should {
             .await;
 
         assert!(dbg!(result).is_ok());
+    }
+
+    #[tokio::test]
+    async fn verify_seqn_is_incrementing() {
+        #[derive(Default)]
+        struct MockTransport;
+
+        #[async_trait::async_trait]
+        impl Transport for MockTransport {
+            async fn send(
+                &self,
+                _request: TransportRequest,
+            ) -> Result<TransportResponse, PubNubError> {
+                Ok(TransportResponse::default())
+            }
+        }
+
+        let mut client = PubNubClient {
+            transport: MockTransport::default(),
+            next_seqn: 1,
+        };
+
+        let received_seqns = vec![
+            client.publish_message("meess".into()).seqn,
+            client.publish_message("meess".into()).seqn,
+        ];
+
+        assert_eq!(vec![1, 2], received_seqns);
     }
 }
