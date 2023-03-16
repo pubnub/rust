@@ -1,9 +1,11 @@
 //! Serialization modeule
 //!
-//! This module provides a `Serialize` trait for the Pubnub protocol.
+//! This module provides a [`Serialize`] trait for the Pubnub protocol.
 //!
 //! You can implement this trait for your own types, or use the provided
-//! implementations for `Into<Vec<u8>>`.
+//! implementations for [`Into<Vec<u8>>`].
+//!
+//! [`Serialize`]: trait.Serialize.html
 
 use super::PubNubError;
 
@@ -21,11 +23,13 @@ use super::PubNubError;
 /// let bytes = vec![1, 2, 3];
 /// assert_eq!(bytes.serialize().unwrap(), vec![1, 2, 3]);
 /// ```
+///
+/// [`serialize`]: #tymethod.serialize
 pub trait Serialize {
     /// Serialize the value
     ///
     /// # Errors
-    /// Should returns an [`PubNubError::SerializeError`] if the value cannot be serialized.
+    /// Should return an [`PubNubError::SerializeError`] if the value cannot be serialized.
     ///
     /// # Examples
     /// ```
@@ -39,6 +43,8 @@ pub trait Serialize {
     ///    }
     /// }
     ///```
+    ///
+    /// [`PubNubError::SerializeError`]: ../error/enum.PubNubError.html#variant.SerializeError
     fn serialize(self) -> Result<Vec<u8>, PubNubError>;
 }
 
