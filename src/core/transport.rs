@@ -18,22 +18,18 @@ use super::{transport_response::TransportResponse, PubNubError, TransportRequest
 ///
 /// # Examples
 /// ```
-/// use pubnub::{transport::Transport, transport_request::TransportRequest, transport_response::TransportResponse, PubNubError};
+/// use pubnub::{Transport, TransportRequest, TransportResponse, PubNubError};
 ///
 /// struct MyTransport;
 ///
+/// #[async_trait::async_trait]
 /// impl Transport for MyTransport {
 ///    async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
 ///         // Send your request here
 ///
-///         Ok(TransportResponse::new(200, vec![]))
+///         Ok(TransportResponse::default())
 ///    }
 /// }
-///
-/// let transport = MyTransport;
-/// let req = TransportRequest::new("https://www.pubnub.com", "GET", vec![]);
-/// let res = transport.send(req).await;
-/// assert_eq!(res.unwrap().status(), 200);
 /// ```
 #[async_trait::async_trait]
 pub trait Transport {

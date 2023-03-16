@@ -68,7 +68,12 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
+pub use self::core::PubNubError;
+pub use self::core::Transport;
+pub use self::core::TransportRequest;
+pub use self::core::TransportResponse;
 pub mod core;
+
 pub mod dx;
 pub mod providers;
 pub mod transport;
