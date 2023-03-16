@@ -41,5 +41,6 @@ name = "contract"
 harness = false
 
 [features]
+full = ["serde"]
 default = ["serde"]
 serde = ["dep:serde", "dep:serde_json"]
