@@ -2,8 +2,8 @@
 //!
 //! This module provides a [`Serialize`] trait for the Pubnub protocol.
 //!
-//! You can implement this trait for your own types, or use the provided
-//! implementations for [`Into<Vec<u8>>`].
+//! You can implement this trait for your own types, or use one of the provided
+//! features to use a serialization library.
 //!
 //! [`Serialize`]: trait.Serialize.html
 
@@ -19,11 +19,21 @@ use super::PubNubError;
 /// [`serialize`]: #tymethod.serialize
 ///
 /// # Examples
-/// ```no_run // depends on implementation of Serialize
+/// ```no_run
 /// use pubnub::Serialize;
 ///
-/// let bytes = vec![1, 2, 3];
-/// assert_eq!(bytes.serialize().unwrap(), vec![1, 2, 3]);
+/// struct Foo {
+///   bar: String,
+/// }
+///  
+/// impl Serialize for Foo {
+///   fn serialize(self) -> Result<Vec<u8>, pubnub::PubNubError> {
+///     Ok(format!("{{\"bar\":\"{}\"}}", self.bar).into_bytes())
+///   }
+/// }
+///
+/// let bytes = Foo { bar: "baz".into() };
+/// assert_eq!(bytes.serialize().unwrap(), b"{\"bar\":\"baz\"}".to_vec());
 /// ```
 pub trait Serialize {
     /// Serialize the value
@@ -46,27 +56,4 @@ pub trait Serialize {
     /// }
     ///```
     fn serialize(self) -> Result<Vec<u8>, PubNubError>;
-}
-
-#[cfg(not(feature = "serde"))]
-impl<I> Serialize for I
-where
-    I: Into<Vec<u8>>,
-{
-    fn serialize(self) -> Result<Vec<u8>, PubNubError> {
-        Ok(self.into())
-    }
-}
-
-#[cfg(all(test, not(feature = "serde")))]
-mod should {
-    use super::*;
-    use test_case::test_case;
-
-    #[test_case(vec![1, 2, 3] => vec![1, 2, 3]; "vector of bytes")]
-    #[test_case("abc" => vec![97, 98, 99]; "string slice")]
-    #[test_case("abc".to_string() => vec![97, 98, 99]; "string")]
-    fn serialize_vector_of_bytes(input: impl Serialize) -> Vec<u8> {
-        input.serialize().unwrap()
-    }
 }
