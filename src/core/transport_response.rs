@@ -1,15 +1,26 @@
-//! TODO: Add docs
+//! This module contains the `TransportResponse` struct.
+//!
+//! This struct is used to represent the response from a request to the [`PubNub API`].
+//! It is used as the response type for the [`Transport`] trait.
+//!
+//! [`Transport`]: ../transport/trait.Transport.html
+//! [`PubNub API`]: https://www.pubnub.com/docs
+
 use std::collections::HashMap;
 
-/// TODO: Add docs
+/// This struct is used to represent the response from a request to the [`PubNub API`].
+/// It is used as the response type for the [`Transport`] trait.
+///
+/// [`Transport`]: ../transport/trait.Transport.html
+/// [`PubNub API`]: https://www.pubnub.com/docs
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct TransportResponse {
-    /// TODO: Add docs
+    /// status code of the response
     pub status: u16,
 
-    /// TODO: Add docs
+    /// headers of the response
     pub headers: HashMap<String, String>,
 
-    /// TODO: Add docs
+    /// body of the response
     pub body: Option<Vec<u8>>,
 }

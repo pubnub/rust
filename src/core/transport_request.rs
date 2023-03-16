@@ -1,7 +1,18 @@
-//! TODO: Add documentation
+//! This module contains the `TransportRequest` struct and related types.
+//!
+//! This module contains the `TransportRequest` struct and related types. It is
+//! intended to be used by the [`pubnub`] crate.
+//!
+//! [`pubnub`]: ../index.html
+
 use std::{collections::HashMap, fmt::Display};
 
-/// TODO: Add docs
+/// The method to use for a request.
+///
+/// This enum represents the method to use for a request. It is used by the
+/// [`TransportRequest`] struct.
+///
+/// [`TransportRequest`]: struct.TransportRequest.html
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub enum TransportMethod {
     /// TODO: Add docs
@@ -25,21 +36,29 @@ impl Display for TransportMethod {
     }
 }
 
-/// TODO: Add docs
+/// This struct represents a request to be sent to the PubNub API.
+///
+/// This struct represents a request to be sent to the PubNub API. It is used by
+/// the [`Transport`] trait.
+///
+/// All fields are representing certain parts of the request that can be used
+/// to prepare one.
+///
+/// [`Transport`]: ../transport/trait.Transport.html
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct TransportRequest {
-    /// TODO: Add docs
+    /// path to the resource
     pub path: String,
 
-    /// TODO: Add docs
+    /// query parameters to be sent with the request
     pub query_parameters: HashMap<String, String>,
 
-    /// TODO: Add docs
+    /// method to use for the request
     pub method: TransportMethod,
 
-    /// TODO: Add docs
+    /// headers to be sent with the request
     pub headers: HashMap<String, String>,
 
-    /// TODO: Add docs
+    /// body to be sent with the request
     pub body: Option<Vec<u8>>,
 }
