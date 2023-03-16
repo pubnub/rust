@@ -29,7 +29,6 @@ where
 
 #[cfg(test)]
 mod should {
-    use super::*;
     use crate::Serialize;
 
     #[test]
@@ -39,9 +38,7 @@ mod should {
             bar: String,
         }
 
-        let foo = Foo {
-            bar: "baz".to_string(),
-        };
-        assert_eq!(foo.serialize().unwrap(), b"{\"bar\":\"baz\"}".to_vec());
+        let sut = Foo { bar: "baz".into() };
+        assert_eq!(sut.serialize().unwrap(), b"{\"bar\":\"baz\"}".to_vec());
     }
 }
