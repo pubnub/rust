@@ -79,37 +79,37 @@ fn bool_to_numeric(value: bool) -> String {
     if value { "1" } else { "0" }.to_string()
 }
 
-fn prepare_publish_query_params<T>(
-    publish_struct: &PublishMessageViaChannel<T>,
-) -> HashMap<String, String>
+impl<'pub_nub, T> PublishMessageViaChannel<'pub_nub, T>
 where
     T: Transport,
 {
-    let mut query_params: HashMap<String, String> = HashMap::new();
+    fn prepare_publish_query_params(self) -> HashMap<String, String> {
+        let mut query_params: HashMap<String, String> = HashMap::new();
 
-    if let Some(store) = publish_struct.store {
-        query_params.insert("store".to_string(), bool_to_numeric(store));
+        if let Some(store) = self.store {
+            query_params.insert("store".to_string(), bool_to_numeric(store));
+        }
+
+        if let Some(ttl) = self.ttl {
+            query_params.insert("ttl".to_string(), ttl.to_string());
+        }
+
+        if !self.replicate {
+            query_params.insert("norep".to_string(), true.to_string());
+        }
+
+        if let Some(space_id) = &self.space_id {
+            query_params.insert("space-id".to_string(), space_id.clone());
+        }
+
+        if let Some(message_type) = &self.message_type {
+            query_params.insert("type".to_string(), message_type.clone());
+        }
+
+        query_params.insert("seqn".to_string(), self.seqn.to_string());
+
+        query_params
     }
-
-    if let Some(ttl) = publish_struct.ttl {
-        query_params.insert("ttl".to_string(), ttl.to_string());
-    }
-
-    if !publish_struct.replicate {
-        query_params.insert("norep".to_string(), true.to_string());
-    }
-
-    if let Some(space_id) = &publish_struct.space_id {
-        query_params.insert("space-id".to_string(), space_id.clone());
-    }
-
-    if let Some(message_type) = &publish_struct.message_type {
-        query_params.insert("type".to_string(), message_type.clone());
-    }
-
-    query_params.insert("seqn".to_string(), publish_struct.seqn.to_string());
-
-    query_params
 }
 
 impl<'pub_nub, T> PublishMessageViaChannelBuilder<'pub_nub, T>
@@ -125,7 +125,7 @@ where
         let pub_key = "";
         let sub_key = "";
 
-        let query_params = prepare_publish_query_params(&instance);
+        let query_params = instance.prepare_publish_query_params();
 
         let request = if instance.use_post {
             TransportRequest {
