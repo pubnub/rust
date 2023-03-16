@@ -68,12 +68,7 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
-pub mod publish;
-pub mod pubnub_client;
-
-pub use pubnub_client::PubNubClient;
-
-#[test]
-fn it_works() {
-    assert_eq!(2 + 2, 4);
-}
+pub mod core;
+pub mod dx;
+pub mod providers;
+pub mod transport;

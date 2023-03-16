@@ -1,6 +1,6 @@
 //! TODO: Add documentation
 
-use pubnub_core::Transport;
+use crate::core::Transport;
 
 /// TODO: Add documentation
 pub struct PubNubClient<T>

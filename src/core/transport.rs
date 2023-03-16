@@ -1,8 +1,9 @@
-use crate::error::PubNubError;
-use crate::transport_request::TransportRequest;
-use crate::transport_response::TransportResponse;
+//! TODO: Add docs
+use super::{transport_response::TransportResponse, PubNubError, TransportRequest};
 
+/// TODO: Add docs
 #[async_trait::async_trait]
 pub trait Transport {
+    /// TODO: Add docs
     async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError>;
 }
