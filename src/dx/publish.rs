@@ -240,5 +240,7 @@ mod should {
             .message_type("message_type".into())
             .execute()
             .await;
+
+        assert!(dbg!(result).is_ok());
     }
 }
