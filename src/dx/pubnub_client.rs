@@ -2,6 +2,9 @@
 
 use crate::core::Transport;
 
+pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub(crate) const SDK_ID: &str = "PubNub-Rust";
+
 /// TODO: Add documentation
 pub struct PubNubClient<T>
 where

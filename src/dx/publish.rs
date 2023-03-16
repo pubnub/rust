@@ -236,7 +236,8 @@ mod should {
                         ("store".into(), "1".into()),
                         ("space-id".into(), "space_id".into()),
                         ("type".into(), "message_type".into()),
-                        ("ttl".into(), "50".into())
+                        ("ttl".into(), "50".into()),
+                        ("seqn".into(), "1".into())
                     ]),
                     request.query_parameters
                 );
