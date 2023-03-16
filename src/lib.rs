@@ -68,7 +68,9 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
+pub use self::core::{PubNubError, Serialize};
 pub mod core;
+
 pub mod dx;
 pub mod providers;
 pub mod transport;

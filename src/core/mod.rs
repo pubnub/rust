@@ -11,3 +11,6 @@ pub mod transport_request;
 
 pub use transport_response::TransportResponse;
 pub mod transport_response;
+
+pub use serialize::Serialize;
+pub mod serialize;
