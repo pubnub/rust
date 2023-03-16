@@ -28,19 +28,19 @@ use std::collections::HashMap;
 ///
 /// # Example
 /// ```no_run // because it requires a running server
-/// use pubnub_client::core::transport::TransportRequest;
 ///
-/// #[tokio::main]
-/// async fn main() -> Result<(), PubNubError> {
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), PubNubError> {
+///    use pubnub_client::core::transport::TransportRequest;
+///    
 ///    let transport = TransportReqwest::new("http://localhost:8080");
 ///    let request = TransportRequest::default();
 ///
 ///    let response = transport.send(request).await?;
 ///    assert_eq!(response.status, 200);
 ///    Ok(())
-/// }
+/// # }
 /// ```
-
 #[derive(Clone, Debug, Default)]
 pub struct TransportReqwest {
     reqwest_client: reqwest::Client,
