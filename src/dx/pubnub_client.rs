@@ -20,12 +20,12 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 ///
 /// # Examples
 /// ```
-/// use pubnub_client::{PubNubClient, Keyset};
+/// use pubnub::{PubNubClient, Keyset};
 ///
 /// // note that `default` method is implemented only when the `reqwest` feature is enabled
 /// let client = PubNubClientBuilder::default()
 ///    .with_keyset(Keyset {
-///         publish_key: "pub-c-abc123",
+///         publish_key: Some("pub-c-abc123"),
 ///         subscribe_key: "sub-c-abc123",
 ///         secret_key: None,
 ///    })
@@ -36,15 +36,27 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// or using own transport implementation
 ///
 /// ```
-/// use pubnub_client::{PubNubClient, Keyset};
+/// use pubnub::{PubNubClient, Keyset};
 ///
-/// // your implemented transport that implements `Transport` trait
+/// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+/// # struct MyTransport;
+/// # impl Transport for MyTransport {
+/// #     fn send(&self, _request: TransportRequest) -> TransportResponse {
+/// #         unimplemented!()
+/// #     }
+/// # }
+/// # impl MyTransport {
+/// #     fn new() -> Self {
+/// #         Self
+/// #     }
+/// # }
+///
 /// let transport = MyTransport::new();
 ///
 /// let client = PubNubClient::builder()
 ///    .with_transport(MyTransport)
 ///    .with_keyset(Keyset {
-///         publish_key: "pub-c-abc123",
+///         publish_key: Some("pub-c-abc123"),
 ///         subscribe_key: "sub-c-abc123",
 ///         secret_key: None,
 ///    })
@@ -121,7 +133,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use pubnub_client::PubNubClientBuilder;
+    /// use pubnub::PubNubClientBuilder;
     ///
     /// let builder = PubNubClientBuilder::new();
     /// ```
@@ -133,7 +145,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use pubnub_client::{PubNubClientBuilder, Keyset};
+    /// use pubnub::{PubNubClientBuilder, Keyset};
     /// use reqwest::Client;
     ///
     /// let builder = PubNubClientBuilder::new()
@@ -159,12 +171,12 @@ where
     ///
     /// # Examples
     /// ```
-    /// use pubnub_client::{PubNubClientBuilder, Keyset};
+    /// use pubnub::{PubNubClientBuilder, Keyset};
     ///
     /// let builder = PubNubClientBuilder::default()
     ///  .with_keyset(Keyset {
     ///    subscribe_key: "sub-c-abc123",
-    ///    publish_key: "pub-c-abc123",
+    ///    publish_key: Some("pub-c-abc123"),
     ///    secret_key: None,
     ///  });
     /// ```
@@ -188,13 +200,13 @@ where
 /// [`PubNubClientBuilder::with_keyset`]: struct.PubNubClientBuilder.html#method.with_keyset
 ///
 /// # Examples
-/// ```
-/// use pubnub_client::{PubNubClientBuilder, Keyset};
+/// ```no_compile // depends on the transport implementation
+/// use pubnub::{PubNubClientBuilder, Keyset};
 ///
 /// let builder = PubNubClientBuilder::default()
 /// .with_keyset(Keyset {
 ///     subscribe_key: "sub-c-abc123",
-///     publish_key: "pub-c-abc123",
+///     publish_key: Some("pub-c-abc123"),
 ///     secret_key: None,
 /// })
 /// .with_user_id("my-user_id");
@@ -248,12 +260,12 @@ where
 ///
 /// # Examples
 /// ```
-/// use pubnub_client::Keyset;
+/// use pubnub::Keyset;
 ///
 /// Keyset {
 ///    subscribe_key: "sub-c-abc123",
-///    publish_key: "pub-c-abc123",
-///    secret_key: "sec-c-abc123",
+///    publish_key: Some("pub-c-abc123"),
+///    secret_key: Some("sec-c-abc123"),
 /// };
 /// ```
 ///

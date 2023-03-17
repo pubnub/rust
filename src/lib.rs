@@ -86,6 +86,7 @@ pub use self::core::TransportResponse;
 pub use self::core::{PubNubError, Serialize};
 pub mod core;
 
+pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod dx;
 pub mod providers;
 pub mod transport;
