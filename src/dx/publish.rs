@@ -207,6 +207,10 @@ mod should {
         PubNubClient {
             transport: MockTransport::default(),
             next_seqn: 1,
+            subscribe_key: "".into(),
+            user_id: "".into(),
+            publish_key: None,
+            secret_key: None,
         }
     }
 
@@ -225,10 +229,7 @@ mod should {
             }
         }
 
-        let mut client = PubNubClient {
-            transport: MockTransport::default(),
-            next_seqn: 1,
-        };
+        let mut client = client();
 
         let result = client
             .publish_message("First message".into())
