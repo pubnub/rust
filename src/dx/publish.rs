@@ -114,7 +114,7 @@ where
         query_params
     }
 
-    fn to_transport_request(self) -> Result<TransportRequest, PubNubError> {
+    fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
         let pub_key = "";
         let sub_key = "";
@@ -159,7 +159,7 @@ where
             .map_err(|err| PubNubError::PublishError(err.to_string()))?;
 
         let client = instance.pub_nub_client;
-        match instance.to_transport_request() {
+        match instance.create_transport_request() {
             Ok(request) => client.transport.send(request).await.map(|_| PublishResult),
             Err(error) => Err(error),
         }
@@ -266,7 +266,7 @@ mod should {
             .message_type("message_type".into())
             .build()
             .unwrap()
-            .to_transport_request()
+            .create_transport_request()
             .unwrap();
 
         assert_eq!(
@@ -305,7 +305,7 @@ mod should {
             .channel(channel.clone())
             .build()
             .unwrap()
-            .to_transport_request()
+            .create_transport_request()
             .unwrap();
 
         assert_eq!(
@@ -325,7 +325,7 @@ mod should {
             .channel(channel.clone())
             .build()
             .unwrap()
-            .to_transport_request()
+            .create_transport_request()
             .unwrap();
 
         assert_eq!(
@@ -346,7 +346,7 @@ mod should {
             .use_post(true)
             .build()
             .unwrap()
-            .to_transport_request()
+            .create_transport_request()
             .unwrap();
 
         assert_eq!(format!("publish///0/{}/0", channel), result.path);
