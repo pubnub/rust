@@ -1,4 +1,4 @@
-//! Serialization modeule
+//! Serialization module
 //!
 //! This module provides a [`Serialize`] trait for the Pubnub protocol.
 //!
