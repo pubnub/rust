@@ -44,3 +44,4 @@ full = ["serde", "reqwest"]
 default = ["serde", "reqwest"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
+

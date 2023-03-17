@@ -58,8 +58,10 @@ The `pubnub` crate is split into multiple features, which can be enabled or disa
 Feature list:
 * `full` - enables all features
 * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
+* `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 * `default` - default features that include:
    * `serde`
+   * `reqwest`
 
 ## Documentation
 
