@@ -40,7 +40,6 @@ async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error
 
 #[tokio::main]
 async fn main() {
-    let filtered_tags = vec!["na=rust".to_string(), "beta".to_string()];
     PubnubWorld::cucumber()
         .before(|_feature, _rule, scenario, _world| {
             futures::FutureExt::boxed(async move {
@@ -58,8 +57,6 @@ async fn main() {
                 }
             })
         })
-        .filter_run_and_exit("tests/features", move |_, _, sc| {
-            sc.tags.iter().any(|t| !filtered_tags.contains(t))
-        })
+        .run_and_exit("tests/features")
         .await;
 }

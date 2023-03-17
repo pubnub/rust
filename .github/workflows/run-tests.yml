@@ -43,7 +43,7 @@ jobs:
           features-path: tests/features
       - name: Run acceptance tests
         run: |
-          cargo test --test contract
+          cargo test --test contract --tags "@featureSet=publish and not @na=rust and not @beta"
 
   all-tests:
     name: Tests
