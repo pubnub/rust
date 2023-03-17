@@ -36,11 +36,11 @@
 //! Add `pubnub` to your Rust project in the `Cargo.toml` file:
 //!
 //! ```toml
-//! // default features
+//! # default features
 //! [dependencies]
 //! pubnub = "0.0.0"
 //!
-//! // all features
+//! # all features
 //! [dependencies]
 //! pubnub = { version = "0.0.0", features = ["full"] }
 //! ```
