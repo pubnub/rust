@@ -78,6 +78,9 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
+pub use self::core::Transport;
+pub use self::core::TransportRequest;
+pub use self::core::TransportResponse;
 pub use self::core::{PubNubError, Serialize};
 pub mod core;
 
