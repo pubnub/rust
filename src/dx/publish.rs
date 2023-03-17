@@ -83,16 +83,14 @@ impl<'pub_nub, T> PublishMessageViaChannel<'pub_nub, T>
 where
     T: Transport,
 {
-    fn prepare_publish_query_params(self) -> HashMap<String, String> {
+    fn prepare_publish_query_params(&self) -> HashMap<String, String> {
         let mut query_params: HashMap<String, String> = HashMap::new();
 
-        if let Some(store) = self.store {
-            query_params.insert("store".to_string(), bool_to_numeric(store));
-        }
+        self.store
+            .and_then(|s| query_params.insert("store".to_string(), bool_to_numeric(s)));
 
-        if let Some(ttl) = self.ttl {
-            query_params.insert("ttl".to_string(), ttl.to_string());
-        }
+        self.ttl
+            .and_then(|t| query_params.insert("ttl".to_string(), t.to_string()));
 
         if !self.replicate {
             query_params.insert("norep".to_string(), true.to_string());
@@ -110,6 +108,32 @@ where
 
         query_params
     }
+
+    fn to_transport_request(&self) -> TransportRequest {
+        let query_params = self.prepare_publish_query_params();
+        let pub_key = "";
+        let sub_key = "";
+
+        if self.use_post {
+            TransportRequest {
+                path: format!("publish/{sub_key}/{pub_key}/0/{}/0", self.channel),
+                method: TransportMethod::Post,
+                query_parameters: query_params,
+                //body: self.message.unwrap(), TODO
+                ..Default::default()
+            }
+        } else {
+            TransportRequest {
+                path: format!(
+                    "publish/{}/{}/0/{}/0/\"{}\"",
+                    sub_key, pub_key, self.channel, self.message
+                ),
+                method: TransportMethod::Get,
+                query_parameters: query_params,
+                ..Default::default()
+            }
+        }
+    }
 }
 
 impl<'pub_nub, T> PublishMessageViaChannelBuilder<'pub_nub, T>
@@ -122,30 +146,7 @@ where
             .build()
             .map_err(|err| PubNubError::PublishError(err.to_string()))?;
 
-        let pub_key = "";
-        let sub_key = "";
-
-        let query_params = instance.prepare_publish_query_params();
-
-        let request = if instance.use_post {
-            TransportRequest {
-                path: format!("publish/{sub_key}/{pub_key}/0/{}/0", instance.channel),
-                method: TransportMethod::Post,
-                query_parameters: query_params,
-                //body: self.message.unwrap(), TODO
-                ..Default::default()
-            }
-        } else {
-            TransportRequest {
-                path: format!(
-                    "publish/{}/{}/0/{}/0/\"{}\"",
-                    sub_key, pub_key, instance.channel, instance.message
-                ),
-                method: TransportMethod::Get,
-                query_parameters: query_params,
-                ..Default::default()
-            }
-        };
+        let request = instance.to_transport_request();
 
         instance
             .pub_nub_client
@@ -189,6 +190,26 @@ mod should {
     use super::*;
     use crate::{core::TransportResponse, dx::PubNubClient};
 
+    #[derive(Default)]
+    struct MockTransport;
+
+    fn client() -> PubNubClient<MockTransport> {
+        #[async_trait::async_trait]
+        impl Transport for MockTransport {
+            async fn send(
+                &self,
+                _request: TransportRequest,
+            ) -> Result<TransportResponse, PubNubError> {
+                Ok(TransportResponse::default())
+            }
+        }
+
+        PubNubClient {
+            transport: MockTransport::default(),
+            next_seqn: 1,
+        }
+    }
+
     #[tokio::test]
     async fn publish_message() {
         #[derive(Default)]
@@ -221,34 +242,7 @@ mod should {
 
     #[tokio::test]
     async fn verify_all_query_parameters() {
-        #[derive(Default)]
-        struct MockTransport;
-
-        #[async_trait::async_trait]
-        impl Transport for MockTransport {
-            async fn send(
-                &self,
-                request: TransportRequest,
-            ) -> Result<TransportResponse, PubNubError> {
-                assert_eq!(
-                    HashMap::<String, String>::from([
-                        ("norep".into(), "true".into()),
-                        ("store".into(), "1".into()),
-                        ("space-id".into(), "space_id".into()),
-                        ("type".into(), "message_type".into()),
-                        ("ttl".into(), "50".into()),
-                        ("seqn".into(), "1".into())
-                    ]),
-                    request.query_parameters
-                );
-                Ok(TransportResponse::default())
-            }
-        }
-
-        let mut client = PubNubClient {
-            transport: MockTransport::default(),
-            next_seqn: 1,
-        };
+        let mut client = client();
 
         let result = client
             .publish_message("message".into())
@@ -258,31 +252,26 @@ mod should {
             .store(true)
             .space_id("space_id".into())
             .message_type("message_type".into())
-            .execute()
-            .await;
+            .build()
+            .unwrap()
+            .to_transport_request();
 
-        assert!(dbg!(result).is_ok());
+        assert_eq!(
+            HashMap::<String, String>::from([
+                ("norep".into(), "true".into()),
+                ("store".into(), "1".into()),
+                ("space-id".into(), "space_id".into()),
+                ("type".into(), "message_type".into()),
+                ("ttl".into(), "50".into()),
+                ("seqn".into(), "1".into())
+            ]),
+            result.query_parameters
+        );
     }
 
     #[tokio::test]
     async fn verify_seqn_is_incrementing() {
-        #[derive(Default)]
-        struct MockTransport;
-
-        #[async_trait::async_trait]
-        impl Transport for MockTransport {
-            async fn send(
-                &self,
-                _request: TransportRequest,
-            ) -> Result<TransportResponse, PubNubError> {
-                Ok(TransportResponse::default())
-            }
-        }
-
-        let mut client = PubNubClient {
-            transport: MockTransport::default(),
-            next_seqn: 1,
-        };
+        let mut client = client();
 
         let received_seqns = vec![
             client.publish_message("meess".into()).seqn,
