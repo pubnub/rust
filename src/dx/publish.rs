@@ -2,6 +2,7 @@
 use crate::{
     core::{PubNubError, Transport, TransportMethod, TransportRequest},
     dx::PubNubClient,
+    Serialize,
 };
 use derive_builder::Builder;
 use std::collections::HashMap;
@@ -10,21 +11,23 @@ use std::collections::HashMap;
 pub type MessageType = String;
 
 /// TODO: Add documentation
-pub struct PublishMessageBuilder<'pub_nub, T>
+pub struct PublishMessageBuilder<'pub_nub, T, M>
 where
     T: Transport,
+    M: Serialize,
 {
     pub_nub_client: &'pub_nub PubNubClient<T>,
-    message: MessageType,
+    message: M,
     seqn: u16,
 }
 
-impl<'pub_nub, T> PublishMessageBuilder<'pub_nub, T>
+impl<'pub_nub, T, M> PublishMessageBuilder<'pub_nub, T, M>
 where
     T: Transport,
+    M: Serialize,
 {
     /// TODO: Add documentation
-    pub fn channel(self, channel: String) -> PublishMessageViaChannelBuilder<'pub_nub, T> {
+    pub fn channel(self, channel: String) -> PublishMessageViaChannelBuilder<'pub_nub, T, M> {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
@@ -40,16 +43,17 @@ where
 #[allow(dead_code)]
 #[derive(Builder)]
 #[builder(pattern = "owned", build_fn(private))]
-pub struct PublishMessageViaChannel<'pub_nub, T>
+pub struct PublishMessageViaChannel<'pub_nub, T, M>
 where
     T: Transport,
+    M: Serialize,
 {
     #[builder(setter(custom))]
     pub_nub_client: &'pub_nub PubNubClient<T>,
     #[builder(setter(custom))]
     seqn: u16,
     /// TODO: Add documentation
-    message: MessageType,
+    message: M,
     /// TODO: Add documentation
     channel: String,
     /// TODO: Add documentation
@@ -79,9 +83,10 @@ fn bool_to_numeric(value: bool) -> String {
     if value { "1" } else { "0" }.to_string()
 }
 
-impl<'pub_nub, T> PublishMessageViaChannel<'pub_nub, T>
+impl<'pub_nub, T, M> PublishMessageViaChannel<'pub_nub, T, M>
 where
     T: Transport,
+    M: Serialize,
 {
     fn prepare_publish_query_params(&self) -> HashMap<String, String> {
         let mut query_params: HashMap<String, String> = HashMap::new();
@@ -109,36 +114,43 @@ where
         query_params
     }
 
-    fn to_transport_request(&self) -> TransportRequest {
+    fn to_transport_request(self) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
         let pub_key = "";
         let sub_key = "";
 
         if self.use_post {
-            TransportRequest {
+            self.message.serialize().map(|m_vec| TransportRequest {
                 path: format!("publish/{sub_key}/{pub_key}/0/{}/0", self.channel),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
-                //body: self.message.unwrap(), TODO
+                body: Some(m_vec),
                 ..Default::default()
-            }
+            })
         } else {
-            TransportRequest {
-                path: format!(
-                    "publish/{}/{}/0/{}/0/\"{}\"",
-                    sub_key, pub_key, self.channel, self.message
-                ),
-                method: TransportMethod::Get,
-                query_parameters: query_params,
-                ..Default::default()
-            }
+            self.message
+                .serialize()
+                .and_then(|m_vec| {
+                    String::from_utf8(m_vec)
+                        .map_err(|e| PubNubError::SerializationError(e.to_string()))
+                })
+                .map(|m_str| TransportRequest {
+                    path: format!(
+                        "publish/{}/{}/0/{}/0/{}",
+                        sub_key, pub_key, self.channel, m_str
+                    ),
+                    method: TransportMethod::Get,
+                    query_parameters: query_params,
+                    ..Default::default()
+                })
         }
     }
 }
 
-impl<'pub_nub, T> PublishMessageViaChannelBuilder<'pub_nub, T>
+impl<'pub_nub, T, M> PublishMessageViaChannelBuilder<'pub_nub, T, M>
 where
     T: Transport,
+    M: Serialize,
 {
     /// TODO: Add documentation
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
@@ -146,14 +158,11 @@ where
             .build()
             .map_err(|err| PubNubError::PublishError(err.to_string()))?;
 
-        let request = instance.to_transport_request();
-
-        instance
-            .pub_nub_client
-            .transport
-            .send(request)
-            .await
-            .map(|_| PublishResult)
+        let client = instance.pub_nub_client;
+        match instance.to_transport_request() {
+            Ok(request) => client.transport.send(request).await.map(|_| PublishResult),
+            Err(error) => Err(error),
+        }
     }
 }
 
@@ -175,7 +184,10 @@ where
     }
 
     /// TODO: Add documentation
-    pub fn publish_message(&mut self, message: MessageType) -> PublishMessageBuilder<T> {
+    pub fn publish_message<M>(&mut self, message: M) -> PublishMessageBuilder<T, M>
+    where
+        M: Serialize,
+    {
         let seqn = self.seqn();
         PublishMessageBuilder {
             message,
@@ -231,7 +243,7 @@ mod should {
         };
 
         let result = client
-            .publish_message("First message".into())
+            .publish_message("First message")
             .channel("Iguess".into())
             .replicate(true)
             .execute()
@@ -245,7 +257,7 @@ mod should {
         let mut client = client();
 
         let result = client
-            .publish_message("message".into())
+            .publish_message("message")
             .channel("chan".into())
             .replicate(false)
             .ttl(50)
@@ -254,7 +266,8 @@ mod should {
             .message_type("message_type".into())
             .build()
             .unwrap()
-            .to_transport_request();
+            .to_transport_request()
+            .unwrap();
 
         assert_eq!(
             HashMap::<String, String>::from([
@@ -274,10 +287,72 @@ mod should {
         let mut client = client();
 
         let received_seqns = vec![
-            client.publish_message("meess".into()).seqn,
-            client.publish_message("meess".into()).seqn,
+            client.publish_message("meess").seqn,
+            client.publish_message("meess").seqn,
         ];
 
         assert_eq!(vec![1, 2], received_seqns);
+    }
+
+    #[tokio::test]
+    async fn test_send_string_when_get() {
+        let mut client = client();
+        let channel = String::from("ch");
+        let message = "this is message";
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .build()
+            .unwrap()
+            .to_transport_request()
+            .unwrap();
+
+        assert_eq!(
+            format!("publish///0/{}/0/\"{}\"", channel, message),
+            result.path
+        );
+    }
+
+    #[tokio::test]
+    async fn test_send_map_when_get() {
+        let mut client = client();
+        let channel = String::from("ch");
+        let message = HashMap::from([("a", "b")]);
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .build()
+            .unwrap()
+            .to_transport_request()
+            .unwrap();
+
+        assert_eq!(
+            format!("publish///0/{}/0/{{\"a\":\"b\"}}", channel),
+            result.path
+        );
+    }
+
+    #[tokio::test]
+    async fn test_quotes_not_escaped_when_post() {
+        let mut client = client();
+        let channel = String::from("ch");
+        let message = "this is message";
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .use_post(true)
+            .build()
+            .unwrap()
+            .to_transport_request()
+            .unwrap();
+
+        assert_eq!(format!("publish///0/{}/0", channel), result.path);
+        assert_eq!(
+            format!("\"{}\"", message),
+            String::from_utf8(result.body.unwrap()).unwrap()
+        );
     }
 }
