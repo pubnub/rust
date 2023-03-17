@@ -6,6 +6,9 @@
 //! [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 //! [`pubnub`]: ../index.html
 
-pub use self::reqwest::TransportReqwest;
 pub mod middleware;
+
+#[cfg(feature = "reqwest")]
+pub use self::reqwest::TransportReqwest;
+#[cfg(feature = "reqwest")]
 pub mod reqwest;
