@@ -34,4 +34,8 @@ pub enum PubNubError {
     /// this error is returned when the serialization of the request fails
     #[error("Publish error: {0}")]
     PublishError(String),
+
+    /// Serialization error
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
 }

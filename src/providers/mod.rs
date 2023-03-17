@@ -5,3 +5,6 @@
 //!
 //! [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 //! [`pubnub`]: ../index.html
+
+#[cfg(feature = "serde")]
+pub mod serialization_serde;
