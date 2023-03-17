@@ -1,7 +1,10 @@
+//! TODO: docs
+
 use crate::core::{PubNubError, Transport, TransportRequest, TransportResponse};
 use crate::dx::pubnub_client::{SDK_ID, VERSION};
 use uuid::Uuid;
 
+/// TODO: Add docs
 pub struct PubNubMiddleware<T>
 where
     T: Transport,
