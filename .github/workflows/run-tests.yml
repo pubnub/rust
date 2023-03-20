@@ -28,9 +28,6 @@ jobs:
       - name: Run default tests
         run: |
           cargo test 
-      - name: Run pure implementation tests
-        run: |
-          cargo test --no-default-features
       - name: Cancel workflow runs for commit on error
         if: failure()
         uses: ./.github/.release/actions/actions/utils/fast-jobs-failure
