@@ -188,7 +188,10 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{core::TransportResponse, dx::PubNubClient};
+    use crate::{
+        core::TransportResponse,
+        dx::{pubnub_client::PubNubConfig, PubNubClient},
+    };
 
     #[derive(Default)]
     struct MockTransport;
@@ -207,10 +210,12 @@ mod should {
         PubNubClient {
             transport: MockTransport::default(),
             next_seqn: 1,
-            subscribe_key: "".into(),
-            user_id: "".into(),
-            publish_key: None,
-            secret_key: None,
+            config: PubNubConfig {
+                subscribe_key: "".into(),
+                user_id: "".into(),
+                publish_key: None,
+                secret_key: None,
+            },
         }
     }
 

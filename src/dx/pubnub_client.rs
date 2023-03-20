@@ -88,19 +88,8 @@ where
     /// Sequence number for the publish requests
     pub(crate) next_seqn: u16,
 
-    /// Subscribe key
-    pub(crate) subscribe_key: String,
-
-    /// User ID
-    pub(crate) user_id: String,
-
-    /// Publish key
-    #[builder(setter(strip_option), default = "None")]
-    pub(crate) publish_key: Option<String>,
-
-    /// Secret key
-    #[builder(setter(strip_option), default = "None")]
-    pub(crate) secret_key: Option<String>,
+    /// Configuration
+    pub(crate) config: PubNubConfig,
 }
 
 impl<T> PubNubClient<T>
@@ -146,6 +135,27 @@ where
             transport: Some(transport),
         }
     }
+}
+
+/// PubNub configuration
+///
+/// Configuration for [`PubNubClient`].
+/// This struct exists to separate configuration from the client.
+///
+/// [`PubNubClient`]: struct.PubNubClient.html
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PubNubConfig {
+    /// Subscribe key
+    pub(crate) subscribe_key: String,
+
+    /// User ID
+    pub(crate) user_id: String,
+
+    /// Publish key
+    pub(crate) publish_key: Option<String>,
+
+    /// Secret key
+    pub(crate) secret_key: Option<String>,
 }
 
 /// PubNub builder for [`PubNubClient`]
@@ -333,10 +343,12 @@ where
 
         PubNubClientConfigBuilder {
             transport: self.transport,
-            publish_key: Some(publish_key),
-            subscribe_key: Some(self.keyset.subscribe_key.into()),
-            secret_key: Some(secret_key),
-            user_id: Some(user_id.into()),
+            config: Some(PubNubConfig {
+                publish_key,
+                subscribe_key: self.keyset.subscribe_key.into(),
+                secret_key,
+                user_id: user_id.into(),
+            }),
             ..Default::default()
         }
     }
