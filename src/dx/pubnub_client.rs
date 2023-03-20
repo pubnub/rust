@@ -85,6 +85,10 @@ where
     /// Transport layer
     pub(crate) transport: T,
 
+    /// Instance ID
+    #[builder(setter(strip_option), default = "None")]
+    pub(crate) instance_id: Option<String>,
+
     /// Sequence number for the publish requests
     #[builder(default = "1")]
     pub(crate) next_seqn: u16,
@@ -266,11 +270,11 @@ where
 
     /// Set keyset for the client
     ///
-    /// It returns [`PubNubClientUuidBuilder`] builder that can be used
+    /// It returns [`PubNubClientUserIdBuilder`] builder that can be used
     /// to set UUID for the client.
     /// See [`Keyset`] for more information.
     ///
-    /// [`PubNubClientUuidBuilder`]: struct.PubNubClientBuilderKeyset.html
+    /// [`PubNubClientUserIdBuilder`]: struct.PubNubClientBuilderKeyset.html
     /// [`Keyset`]: struct.Keyset.html
     ///
     /// # Examples
@@ -286,11 +290,11 @@ where
     ///    secret_key: None,
     ///  });
     /// ```
-    pub fn with_keyset<S>(self, keyset: Keyset<S>) -> PubNubClientUuidBuilder<T, S>
+    pub fn with_keyset<S>(self, keyset: Keyset<S>) -> PubNubClientUserIdBuilder<T, S>
     where
         S: Into<String>,
     {
-        PubNubClientUuidBuilder {
+        PubNubClientUserIdBuilder {
             transport: self.transport,
             keyset,
         }
@@ -323,7 +327,7 @@ where
 /// [PubNubClientBuilder](struct.PubNubClientBuilder.html)
 /// [PubNubClient](struct.PubNubClient.html)
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PubNubClientUuidBuilder<T, S>
+pub struct PubNubClientUserIdBuilder<T, S>
 where
     T: Transport,
     S: Into<String>,
@@ -332,7 +336,7 @@ where
     keyset: Keyset<S>,
 }
 
-impl<T, S> PubNubClientUuidBuilder<T, S>
+impl<T, S> PubNubClientUserIdBuilder<T, S>
 where
     T: Transport,
     S: Into<String>,
