@@ -91,11 +91,14 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
     if query_params.is_empty() {
         return format!("{}{}", hostname, path);
     }
-    query_params
+    let mut qp = query_params
         .iter()
-        .fold(format!("{}?", path), |acc_query, (k, v)| {
-            format!("{}{}{}={}&", hostname, acc_query, k, v)
-        })
+        .fold(format!("{}{}?", hostname, path), |acc_query, (k, v)| {
+            format!("{}{}={}&", acc_query, k, v)
+        });
+
+    qp.remove(qp.len() - 1);
+    qp
 }
 
 #[cfg(test)]

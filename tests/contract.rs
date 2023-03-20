@@ -1,9 +1,12 @@
 use cucumber::{given, then, when, World};
 use pubnub::dx::publish::PublishResult;
 use pubnub::dx::PubNubClient;
+use pubnub::transport::middleware::PubNubMiddleware;
 use pubnub::transport::TransportReqwest;
 use pubnub::PubNubError;
 use reqwest::Client;
+use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 struct Keyset {
@@ -27,11 +30,16 @@ impl Default for PubNubWorld {
 }
 
 impl PubNubWorld {
-    fn get_pub_nub(&self) -> PubNubClient<TransportReqwest> {
+    fn get_pub_nub(&self) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
         PubNubClient {
-            transport: TransportReqwest {
-                hostname: "http://localhost:8090/".into(),
-                reqwest_client: Client::default(),
+            transport: PubNubMiddleware {
+                transport: TransportReqwest {
+                    hostname: "http://localhost:8090/".into(),
+                    reqwest_client: Client::default(),
+                },
+                user_id: "user_id".to_string(),
+                instance_id: None,
+                include_request_id: true,
             },
             next_seqn: 1,
         }
@@ -68,6 +76,45 @@ async fn i_publish_string_as_message_to_channel(
 #[then("I receive successful response")]
 fn i_receive_successful_response(world: &mut PubNubWorld) {
     assert!(world.last_result.is_ok())
+}
+
+#[when(expr = "I publish '{string}' dictionary as message to '{word}' channel with compression")]
+fn i_publish_dictionary_as_message_to_channel_with_compression(
+    _world: &mut PubNubWorld,
+    _dictionary_json: String,
+    _channel: String,
+) {
+}
+
+#[when(expr = "I publish '{word}' dictionary as message to '{word}' channel as POST body")]
+async fn i_publish_dictionary_as_message_to_channel_as_post_body(
+    world: &mut PubNubWorld,
+    dictionary_json: String,
+    channel: String,
+) {
+    let message_hash_map: HashMap<String, String> =
+        serde_json::from_str(dictionary_json.as_str()).unwrap();
+    world.last_result = world
+        .get_pub_nub()
+        .publish_message(message_hash_map)
+        .channel(channel)
+        .use_post(true)
+        .execute()
+        .await;
+}
+
+#[when(expr = "I publish '{int}' number as message to '{word}' channel")]
+async fn i_publish_number_as_message_to_channel(
+    world: &mut PubNubWorld,
+    number: i32,
+    channel: String,
+) {
+    world.last_result = world
+        .get_pub_nub()
+        .publish_message(number)
+        .channel(channel)
+        .execute()
+        .await;
 }
 
 #[tokio::main]

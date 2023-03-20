@@ -116,8 +116,8 @@ where
 
     fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
-        let pub_key = "";
-        let sub_key = "";
+        let pub_key = "demo";
+        let sub_key = "demo";
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
