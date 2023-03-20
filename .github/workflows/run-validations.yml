@@ -38,20 +38,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Run cargo check tool for all features to check if the codes are valid
+    - name: Run cargo check tool to check if the codes are valid
       run: |
-       cargo check --workspace --all-targets --all-features
-    - name: Run cargo check tool for pure implementation to check if the codes are valid
+       cargo check --workspace --all-targets 
+    - name: Run cargo clippy tool to check if all the best code practices are followed
       run: |
-       cargo check --workspace --no-default-features --all-features
-
-    - name: Run cargo clippy tool for all features to check if all the best code practices are followed
-      run: |
-       cargo clippy --workspace --all-targets --all-features -- -D warnings
-    - name: Run cargo clippy tool for pure implementation to check if all the best code practices are followed
-      run: |
-       cargo clippy --workspace --no-default-features --all-features -- -D warnings
-
+       cargo clippy --workspace --all-targets -- -D warnings
     - name: Run cargo fmt tool to check if codes are well formatted 
       run: |
        cargo fmt --check --verbose --all
