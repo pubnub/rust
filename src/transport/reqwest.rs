@@ -186,22 +186,21 @@ impl PubNubClientBuilder<TransportReqwest> {
 #[cfg(test)]
 mod should {
     use super::*;
+    use test_case::test_case;
     use wiremock::matchers::{body_string, method, path as path_macher};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    #[test_case("/path/%22Hello%22", "/path/\"Hello\"" ; "sending string")]
+    #[test_case("/path/%7B%22a%22:%22b%22%7D", "/path/{\"a\":\"b\"}" ; "sending object")]
+    #[test_case("/path/1", "/path/1" ; "sending number")]
+    #[test_case("/path/true", "/path/true" ; "sending boolean")]
+    #[test_case("/path/[%22a%22]", "/path/[\"a\"]" ; "sending array")]
     #[tokio::test]
-    async fn send_via_get_method() {
-        let message = "\"Hello\"";
-        let path = "/publish/sub_key/pub_key/0/chat/0/";
-
+    async fn send_via_get_method(path_to_match: &str, path_to_send: &str) {
         let server = MockServer::start().await;
 
         Mock::given(method("GET"))
-            .and(path_macher(format!(
-                "{}{}",
-                path,
-                message.replace('\"', "%22")
-            )))
+            .and(path_macher(path_to_match))
             .respond_with(
                 ResponseTemplate::new(200).set_body_string("[1,\"Sent\",\"16787176144828000\"]"),
             )
@@ -214,7 +213,7 @@ mod should {
         };
 
         let request = TransportRequest {
-            path: format!("{}{}", path, message),
+            path: path_to_send.into(),
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
             method: TransportMethod::Get,
             body: None,
