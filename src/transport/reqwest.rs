@@ -1,4 +1,14 @@
-//! TODO: docs
+//! # Reqwest Transport Implementation
+//!
+//! This module contains the [`TransportReqwest`] struct.
+//! It is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
+//! It is intended to be used by the [`pubnub`] crate.
+//!
+//! [`TransportReqwest`]: ./struct.TransportReqwest.html
+//! [`PubNub API`]: https://www.pubnub.com/docs
+//! [`reqwest`]: https://docs.rs/reqwest
+//! [`pubnub`]: ../index.html
+//! [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 
 use crate::core::{
     error::{PubNubError, PubNubError::TransportError},
@@ -7,7 +17,14 @@ use crate::core::{
 use log::info;
 use std::collections::HashMap;
 
-/// TODO: Add docs
+/// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
+/// It is used as the transport type for the [`PubNubClient`].
+/// It is intended to be used by the [`pubnub`] crate.
+///
+/// [`PubNub API`]: https://www.pubnub.com/docs
+/// [`reqwest`]: https://docs.rs/reqwest
+/// [`pubnub`]: ../index.html
+/// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 #[derive(Clone, Debug, Default)]
 pub struct TransportReqwest {
     reqwest_client: reqwest::Client,

@@ -19,7 +19,9 @@
 //!
 //! This is the official PubNub Rust SDK repository.
 //!
-//! [PubNub](https://www.pubnub.com/) takes care of the infrastructure and APIs needed for the realtime //! communication layer of your application. Work on your app's logic and let PubNub handle sending and receiving //! data across the world in less than 100ms.
+//! [PubNub](https://www.pubnub.com/) takes care of the infrastructure and APIs needed for the realtime
+//! communication layer of your application. Work on your app's logic and let PubNub handle sending and receiving
+//! data across the world in less than 100ms.
 //!
 //! ## Getting started
 //!
@@ -27,7 +29,7 @@
 //!
 //! ### Get PubNub keys
 //!
-//! You will need the publish and subscribe keys to authenticate your app. Get your keys from the [Admin Portal]//! (https://dashboard.pubnub.com/login).
+//! You will need the publish and subscribe keys to authenticate your app. Get your keys from the [Admin Portal](https://dashboard.pubnub.com/login).
 //!
 //! ### Import using [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 //!
@@ -53,6 +55,14 @@
 //!
 //! You can find more examples in our [examples](examples/) directory!
 //!
+//! ## Features
+//! The `pubnub` crate is split into multiple features, which can be enabled or disabled in your `Cargo.toml` file.
+//! Feature list:
+//! * `full` - enables all features
+//! * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
+//! * `default` - default features that include:
+//!    * `serde`
+//!
 //! ## Documentation
 //!
 //! * [API reference for Rust](TODO)
@@ -68,7 +78,12 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
+pub use self::core::Transport;
+pub use self::core::TransportRequest;
+pub use self::core::TransportResponse;
+pub use self::core::{PubNubError, Serialize};
 pub mod core;
+
 pub mod dx;
 pub mod providers;
 pub mod transport;

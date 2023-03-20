@@ -12,14 +12,14 @@ defaults:
 
 jobs:
   tests:
-    name: Integration and Unit tests
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: Run tests
+      - name: Run unit tests
         run: |
-          cargo test --lib transport
+          cargo test --lib
       - name: Cancel workflow runs for commit on error
         if: failure()
         uses: ./.github/.release/actions/actions/utils/fast-jobs-failure
@@ -43,8 +43,7 @@ jobs:
           features-path: tests/features
       - name: Run acceptance tests
         run: |
-          cargo test -p pubnub --test contract -- -t "@featureSet=publish and not @na=rust and not @beta"
-
+          cargo test -p pubnub --test contract -- -t "not @beta and @featureSet=publish"
   all-tests:
     name: Tests
     runs-on: ubuntu-latest
