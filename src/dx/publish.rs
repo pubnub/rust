@@ -135,8 +135,14 @@ where
 
     fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
-        let pub_key = "";
-        let sub_key = "";
+
+        let pub_key = &self
+            .pub_nub_client
+            .config
+            .publish_key
+            .as_ref()
+            .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
+        let sub_key = &self.pub_nub_client.config.subscribe_key;
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
@@ -219,7 +225,11 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{core::TransportResponse, dx::PubNubClient};
+    use crate::{
+        core::TransportResponse,
+        dx::{pubnub_client::PubNubConfig, PubNubClient},
+        Keyset,
+    };
     use test_case::test_case;
 
     #[derive(Default)]
@@ -236,10 +246,15 @@ mod should {
             }
         }
 
-        PubNubClient {
-            transport: MockTransport::default(),
-            next_seqn: 1,
-        }
+        PubNubClient::with_transport(MockTransport::default())
+            .with_keyset(Keyset {
+                publish_key: Some(""),
+                subscribe_key: "",
+                secret_key: None,
+            })
+            .with_user_id("")
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -257,10 +272,7 @@ mod should {
             }
         }
 
-        let mut client = PubNubClient {
-            transport: MockTransport::default(),
-            next_seqn: 1,
-        };
+        let mut client = client();
 
         let result = client
             .publish_message("First message")
@@ -314,6 +326,28 @@ mod should {
         ];
 
         assert_eq!(vec![1, 2], received_seqns);
+    }
+
+    #[tokio::test]
+    async fn return_err_if_publish_key_is_not_provided() {
+        let mut client = {
+            let default_client = client();
+
+            PubNubClient {
+                config: PubNubConfig {
+                    publish_key: None,
+                    ..default_client.config
+                },
+                ..default_client
+            }
+        };
+
+        assert!(client
+            .publish_message("meess")
+            .channel("chan".into())
+            .execute()
+            .await
+            .is_err());
     }
 
     #[tokio::test]

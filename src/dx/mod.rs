@@ -8,5 +8,5 @@
 
 pub mod publish;
 
-pub use pubnub_client::PubNubClient;
+pub use pubnub_client::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod pubnub_client;

@@ -34,11 +34,11 @@ You will need the publish and subscribe keys to authenticate your app. Get your 
 Add `pubnub` to your Rust project in the `Cargo.toml` file:
 
 ```toml
-// default features
+# default features
 [dependencies]
 pubnub = "0.0.0"
 
-// all features
+# all features
 [dependencies]
 pubnub = { version = "0.0.0", features = ["full"] }
 ```
@@ -56,10 +56,12 @@ You can find more examples in our [examples](examples/) directory!
 ## Features
 The `pubnub` crate is split into multiple features, which can be enabled or disabled in your `Cargo.toml` file.
 Feature list:
-* `full` - enables all features
+* `full` - enables all not conflicting features
 * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
+* `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 * `default` - default features that include:
    * `serde`
+   * `reqwest`
 
 ## Documentation
 
