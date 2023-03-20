@@ -191,6 +191,7 @@ mod should {
     use crate::{
         core::TransportResponse,
         dx::{pubnub_client::PubNubConfig, PubNubClient},
+        Keyset,
     };
 
     #[derive(Default)]
@@ -207,16 +208,15 @@ mod should {
             }
         }
 
-        PubNubClient {
-            transport: MockTransport::default(),
-            next_seqn: 1,
-            config: PubNubConfig {
-                subscribe_key: "".into(),
-                user_id: "".into(),
-                publish_key: None,
+        PubNubClient::with_transport(MockTransport::default())
+            .with_keyset(Keyset {
+                publish_key: Some(""),
+                subscribe_key: "",
                 secret_key: None,
-            },
-        }
+            })
+            .with_user_id("")
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
