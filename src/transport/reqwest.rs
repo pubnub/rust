@@ -14,7 +14,7 @@ use crate::core::{
     error::{PubNubError, PubNubError::TransportError},
     Transport, TransportMethod, TransportRequest, TransportResponse,
 };
-use log::info;
+use log::{info, log};
 use std::collections::HashMap;
 
 /// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
@@ -27,8 +27,8 @@ use std::collections::HashMap;
 /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 #[derive(Clone, Debug, Default)]
 pub struct TransportReqwest {
-    reqwest_client: reqwest::Client,
-    hostname: String,
+    pub reqwest_client: reqwest::Client,
+    pub hostname: String,
 }
 
 #[async_trait::async_trait]
@@ -65,6 +65,7 @@ impl TransportReqwest {
         _request: TransportRequest,
         url: String,
     ) -> Result<reqwest::Response, PubNubError> {
+        info!("{}", url);
         self.reqwest_client
             .get(url)
             .send()

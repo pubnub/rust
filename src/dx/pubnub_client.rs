@@ -10,6 +10,6 @@ pub struct PubNubClient<T>
 where
     T: Transport,
 {
-    pub(crate) transport: T,
-    pub(crate) next_seqn: u16,
+    pub transport: T,
+    pub next_seqn: u16,
 }

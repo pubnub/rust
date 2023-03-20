@@ -1,4 +1,9 @@
 use cucumber::{given, then, when, World};
+use pubnub::dx::publish::PublishResult;
+use pubnub::dx::PubNubClient;
+use pubnub::transport::TransportReqwest;
+use pubnub::PubNubError;
+use reqwest::Client;
 
 #[derive(Debug, Default)]
 struct Keyset {
@@ -6,29 +11,37 @@ struct Keyset {
     pub pubkey: String,
 }
 
-#[derive(Debug, Default, World)]
-pub struct PubnubWorld {
+#[derive(Debug, World)]
+pub struct PubNubWorld {
     keyset: Keyset,
-    last_result: String,
+    last_result: Result<PublishResult, PubNubError>,
+}
+
+impl Default for PubNubWorld {
+    fn default() -> Self {
+        PubNubWorld {
+            keyset: Keyset::default(),
+            last_result: Err(PubNubError::TransportError("This is default value".into())),
+        }
+    }
+}
+
+impl PubNubWorld {
+    fn get_pub_nub(&self) -> PubNubClient<TransportReqwest> {
+        PubNubClient {
+            transport: TransportReqwest {
+                hostname: "http://localhost:8090/".into(),
+                reqwest_client: Client::default(),
+            },
+            next_seqn: 1,
+        }
+    }
 }
 
 #[given("the demo keyset")]
-fn set_keyset(world: &mut PubnubWorld) {
+fn set_keyset(world: &mut PubNubWorld) {
     world.keyset.pubkey = "demo".to_string();
     world.keyset.subkey = "demo".to_string();
-}
-
-#[given("a message")]
-fn message_defined(_world: &mut PubnubWorld) {}
-
-#[when("I publish a message")]
-fn pubnub_publish(world: &mut PubnubWorld) {
-    world.last_result = String::from("1234567890");
-}
-
-#[then(expr = "I get a timetoken {word}")]
-fn check_timetoken(world: &mut PubnubWorld, timetoken: String) {
-    assert_eq!(world.last_result, timetoken);
 }
 
 async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error>> {
@@ -38,9 +51,29 @@ async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error
     Ok(body)
 }
 
+#[when(expr = "I publish '{word}' string as message to '{word}' channel")]
+async fn i_publish_string_as_message_to_channel(
+    world: &mut PubNubWorld,
+    message: String,
+    channel: String,
+) {
+    world.last_result = world
+        .get_pub_nub()
+        .publish_message(message)
+        .channel(channel)
+        .execute()
+        .await;
+}
+
+#[then("I receive successful response")]
+fn i_receive_successful_response(world: &mut PubNubWorld) {
+    assert!(world.last_result.is_ok())
+}
+
 #[tokio::main]
 async fn main() {
-    PubnubWorld::cucumber()
+    env_logger::builder().try_init().unwrap();
+    PubNubWorld::cucumber()
         .before(|_feature, _rule, scenario, _world| {
             futures::FutureExt::boxed(async move {
                 if scenario.tags.iter().any(|t| t.starts_with("contract=")) {
@@ -60,3 +93,4 @@ async fn main() {
         .run_and_exit("tests/features/publish")
         .await;
 }
+//no calls to tomato
