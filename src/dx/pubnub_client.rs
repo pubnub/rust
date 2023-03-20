@@ -20,10 +20,11 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 ///
 /// # Examples
 /// ```
-/// use pubnub::{PubNubClient, Keyset};
+/// use pubnub::{PubNubClientBuilder, Keyset};
 ///
-/// // note that `default` method is implemented only when the `reqwest` feature is enabled
-/// let client = PubNubClientBuilder::default()
+/// // note that `with_reqwest_transport` requires `reqwest` feature
+/// // to be enabled (default)
+/// let client = PubNubClientBuilder::with_reqwest_transport()
 ///    .with_keyset(Keyset {
 ///         publish_key: Some("pub-c-abc123"),
 ///         subscribe_key: "sub-c-abc123",
@@ -33,15 +34,19 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 ///    .build();
 /// ```
 ///
-/// or using own transport implementation
+/// or using own [`Transport`] implementation
+///
+/// [`Transport`]: ../core/trait.Transport.html
 ///
 /// ```
 /// use pubnub::{PubNubClient, Keyset};
 ///
 /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
 /// # struct MyTransport;
+/// # #[async_trait::async_trait]
 /// # impl Transport for MyTransport {
-/// #     fn send(&self, _request: TransportRequest) -> TransportResponse {
+/// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
+/// pubnub::PubNubError> {
 /// #         unimplemented!()
 /// #     }
 /// # }
@@ -51,10 +56,10 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// #     }
 /// # }
 ///
+/// // note that MyTransport must implement `Transport` trait
 /// let transport = MyTransport::new();
 ///
-/// let client = PubNubClient::builder()
-///    .with_transport(MyTransport)
+/// let client = PubNubClient::with_transport(MyTransport)
 ///    .with_keyset(Keyset {
 ///         publish_key: Some("pub-c-abc123"),
 ///         subscribe_key: "sub-c-abc123",
@@ -98,6 +103,51 @@ where
     pub(crate) secret_key: Option<String>,
 }
 
+impl<T> PubNubClient<T>
+where
+    T: Transport,
+{
+    /// Create a new builder for [`PubNubClient`]
+    ///
+    /// [`PubNubClient`]: struct.PubNubClient.html
+    ///
+    /// # Examples
+    /// ```
+    /// use pubnub::{PubNubClient, Keyset};
+    ///
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # struct MyTransport;
+    /// # #[async_trait::async_trait]
+    /// # impl Transport for MyTransport {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, pubnub::PubNubError> {
+    /// #         unimplemented!()
+    /// #     }
+    /// # }
+    /// # impl MyTransport {
+    /// #     fn new() -> Self {
+    /// #         Self
+    /// #     }
+    /// # }
+    ///
+    /// // note that MyTransport must implement `Transport` trait
+    /// let transport = MyTransport::new();
+    ///
+    /// let builder = PubNubClient::with_transport(transport)
+    ///     .with_keyset(Keyset {
+    ///        publish_key: Some("pub-c-abc123"),
+    ///        subscribe_key: "sub-c-abc123",
+    ///        secret_key: None,
+    ///     })
+    ///     .with_user_id("my-user-id")
+    ///     .build();
+    /// ```
+    pub fn with_transport(transport: T) -> PubNubClientBuilder<T> {
+        PubNubClientBuilder {
+            transport: Some(transport),
+        }
+    }
+}
+
 /// PubNub builder for [`PubNubClient`]
 ///
 /// Builder for [`PubNubClient`] that is a first step to create a client.
@@ -122,21 +172,39 @@ pub struct PubNubClientBuilder<T>
 where
     T: Transport,
 {
-    transport: Option<T>,
+    pub(crate) transport: Option<T>,
 }
 
 impl<T> PubNubClientBuilder<T>
 where
     T: Transport,
 {
-    /// Create a new builder with default transport
+    /// Create a new builder with without transport
     ///
     /// # Examples
     /// ```
     /// use pubnub::PubNubClientBuilder;
     ///
-    /// let builder = PubNubClientBuilder::new();
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # struct MyTransport;
+    /// # #[async_trait::async_trait]
+    /// # impl Transport for MyTransport {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
+    /// pubnub::PubNubError> {
+    /// #         unimplemented!()
+    /// #     }
+    /// # }
+    /// # impl MyTransport {
+    /// #     fn new() -> Self {
+    /// #         Self
+    /// #     }
+    /// # }
+    ///
+    /// // note that MyTransport must implement `Transport` trait
+    /// let builder = PubNubClientBuilder::<MyTransport>::new();
     /// ```
+    ///
+    /// [`Transport`]: ../core/trait.Transport.html
     pub fn new() -> Self {
         Self { transport: None }
     }
@@ -145,11 +213,27 @@ where
     ///
     /// # Examples
     /// ```
-    /// use pubnub::{PubNubClientBuilder, Keyset};
-    /// use reqwest::Client;
+    /// use pubnub::{PubNubClient, Keyset};
     ///
-    /// let builder = PubNubClientBuilder::new()
-    ///   .with_transport(Client::new());
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # struct MyTransport;
+    /// # #[async_trait::async_trait]
+    /// # impl Transport for MyTransport {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
+    /// pubnub::PubNubError> {
+    /// #         unimplemented!()
+    /// #     }
+    /// # }
+    /// # impl MyTransport {
+    /// #     fn new() -> Self {
+    /// #         Self
+    /// #     }
+    /// # }
+    ///
+    /// // note that MyTransport must implement `Transport` trait
+    /// let transport = MyTransport::new();
+    ///
+    /// let client = PubNubClient::with_transport(transport);
     /// ```
     pub fn with_transport<U>(self, transport: U) -> PubNubClientBuilder<U>
     where
@@ -173,7 +257,9 @@ where
     /// ```
     /// use pubnub::{PubNubClientBuilder, Keyset};
     ///
-    /// let builder = PubNubClientBuilder::default()
+    /// // note that with_reqwest_transport is only available when
+    /// // the `reqwest` feature is enabled (default)
+    /// let builder = PubNubClientBuilder::with_reqwest_transport()
     ///  .with_keyset(Keyset {
     ///    subscribe_key: "sub-c-abc123",
     ///    publish_key: Some("pub-c-abc123"),
@@ -200,10 +286,10 @@ where
 /// [`PubNubClientBuilder::with_keyset`]: struct.PubNubClientBuilder.html#method.with_keyset
 ///
 /// # Examples
-/// ```no_compile // depends on the transport implementation
+/// ```
 /// use pubnub::{PubNubClientBuilder, Keyset};
 ///
-/// let builder = PubNubClientBuilder::default()
+/// let builder = PubNubClientBuilder::with_reqwest_transport()
 /// .with_keyset(Keyset {
 ///     subscribe_key: "sub-c-abc123",
 ///     publish_key: Some("pub-c-abc123"),

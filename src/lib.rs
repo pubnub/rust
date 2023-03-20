@@ -88,5 +88,9 @@ pub mod core;
 
 pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod dx;
+
 pub mod providers;
+
+#[cfg(feature = "reqwest")]
+pub use transport::reqwest;
 pub mod transport;
