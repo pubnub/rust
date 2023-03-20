@@ -109,12 +109,18 @@ where
         query_params
     }
 
-    fn to_transport_request(&self) -> TransportRequest {
+    fn to_transport_request(&self) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
-        let pub_key = "";
-        let sub_key = "";
 
-        if self.use_post {
+        let pub_key = &self
+            .pub_nub_client
+            .config
+            .publish_key
+            .as_ref()
+            .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
+        let sub_key = &self.pub_nub_client.config.subscribe_key;
+
+        Ok(if self.use_post {
             TransportRequest {
                 path: format!("publish/{sub_key}/{pub_key}/0/{}/0", self.channel),
                 method: TransportMethod::Post,
@@ -132,7 +138,7 @@ where
                 query_parameters: query_params,
                 ..Default::default()
             }
-        }
+        })
     }
 }
 
@@ -146,7 +152,7 @@ where
             .build()
             .map_err(|err| PubNubError::PublishError(err.to_string()))?;
 
-        let request = instance.to_transport_request();
+        let request = instance.to_transport_request()?;
 
         instance
             .pub_nub_client
@@ -260,7 +266,8 @@ mod should {
             .message_type("message_type".into())
             .build()
             .unwrap()
-            .to_transport_request();
+            .to_transport_request()
+            .unwrap();
 
         assert_eq!(
             HashMap::<String, String>::from([
@@ -285,5 +292,27 @@ mod should {
         ];
 
         assert_eq!(vec![1, 2], received_seqns);
+    }
+
+    #[tokio::test]
+    async fn return_err_if_publish_key_is_not_provided() {
+        let mut client = {
+            let default_client = client();
+
+            PubNubClient {
+                config: PubNubConfig {
+                    publish_key: None,
+                    ..default_client.config
+                },
+                ..default_client
+            }
+        };
+
+        assert!(client
+            .publish_message("meess".into())
+            .channel("chan".into())
+            .execute()
+            .await
+            .is_err());
     }
 }

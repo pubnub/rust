@@ -38,4 +38,7 @@ pub enum PubNubError {
     /// Serialization error
     #[error("Serialization error: {0}")]
     SerializationError(String),
+
+    #[error("No key provided error: {0}")]
+    NoKeyError(String),
 }
