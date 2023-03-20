@@ -125,7 +125,7 @@ where
             .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
         let sub_key = &self.pub_nub_client.config.subscribe_key;
 
-        Ok(if self.use_post {
+        if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
                 path: format!("publish/{sub_key}/{pub_key}/0/{}/0", self.channel),
                 method: TransportMethod::Post,
@@ -149,7 +149,7 @@ where
                     query_parameters: query_params,
                     ..Default::default()
                 })
-        })
+        }
     }
 }
 
@@ -321,7 +321,7 @@ mod should {
         };
 
         assert!(client
-            .publish_message("meess".into())
+            .publish_message("meess")
             .channel("chan".into())
             .execute()
             .await
