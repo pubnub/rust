@@ -57,6 +57,6 @@ async fn main() {
                 }
             })
         })
-        .run_and_exit("tests/features")
+        .run_and_exit("tests/features/publish")
         .await;
 }
