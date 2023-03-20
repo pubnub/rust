@@ -86,6 +86,7 @@ where
     pub(crate) transport: T,
 
     /// Sequence number for the publish requests
+    #[builder(default = "1")]
     pub(crate) next_seqn: u16,
 
     /// Configuration
