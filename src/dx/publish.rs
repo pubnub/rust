@@ -6,6 +6,7 @@ use crate::{
 };
 use derive_builder::Builder;
 use std::collections::HashMap;
+use std::ops::Not;
 
 /// TODO: Add documentation
 pub type MessageType = String;
@@ -83,6 +84,19 @@ fn bool_to_numeric(value: bool) -> String {
     if value { "1" } else { "0" }.to_string()
 }
 
+fn serialize_meta(meta: &HashMap<String, String>) -> String {
+    let mut result = String::new();
+    result.push('{');
+    meta.iter().for_each(|k| {
+        result.push_str(format!("\"{}\":\"{}\",", k.0.as_str(), k.1.as_str()).as_str());
+    });
+    if result.ends_with(',') {
+        result.remove(result.len() - 1);
+    }
+    result.push('}');
+    result
+}
+
 impl<'pub_nub, T, M> PublishMessageViaChannel<'pub_nub, T, M>
 where
     T: Transport,
@@ -97,9 +111,9 @@ where
         self.ttl
             .and_then(|t| query_params.insert("ttl".to_string(), t.to_string()));
 
-        if !self.replicate {
-            query_params.insert("norep".to_string(), true.to_string());
-        }
+        self.replicate
+            .not()
+            .then(|| query_params.insert("norep".to_string(), true.to_string()));
 
         if let Some(space_id) = &self.space_id {
             query_params.insert("space-id".to_string(), space_id.clone());
@@ -110,6 +124,11 @@ where
         }
 
         query_params.insert("seqn".to_string(), self.seqn.to_string());
+
+        self.meta
+            .as_ref()
+            .map(serialize_meta)
+            .and_then(|meta| query_params.insert("meta".to_string(), meta));
 
         query_params
     }
@@ -201,6 +220,7 @@ where
 mod should {
     use super::*;
     use crate::{core::TransportResponse, dx::PubNubClient};
+    use test_case::test_case;
 
     #[derive(Default)]
     struct MockTransport;
@@ -264,6 +284,7 @@ mod should {
             .store(true)
             .space_id("space_id".into())
             .message_type("message_type".into())
+            .meta(HashMap::from([("k".to_string(), "v".to_string())]))
             .build()
             .unwrap()
             .create_transport_request()
@@ -275,6 +296,7 @@ mod should {
                 ("store".into(), "1".into()),
                 ("space-id".into(), "space_id".into()),
                 ("type".into(), "message_type".into()),
+                ("meta".into(), "{\"k\":\"v\"}".into()),
                 ("ttl".into(), "50".into()),
                 ("seqn".into(), "1".into())
             ]),
@@ -354,5 +376,16 @@ mod should {
             format!("\"{}\"", message),
             String::from_utf8(result.body.unwrap()).unwrap()
         );
+    }
+
+    #[test_case(HashMap::from([("k".to_string(), "v".to_string())]), "{\"k\":\"v\"}" ; "hash map with elements")]
+    #[test_case(HashMap::new(), "{}" ; "empty hash map")]
+    #[test_case(HashMap::from([("k".to_string(), "".to_string())]), "{\"k\":\"\"}" ; "empty value")]
+    #[test_case(HashMap::from([("".to_string(), "v".to_string())]), "{\"\":\"v\"}" ; "empty key")]
+    #[tokio::test]
+    async fn this_test_should_test_an_fn_itself(map: HashMap<String, String>, expected_json: &str) {
+        let result = serialize_meta(&map);
+
+        assert_eq!(expected_json, result);
     }
 }
