@@ -31,14 +31,15 @@ pub enum PubNubError {
     #[error("Transport error: {0}")]
     TransportError(String),
 
-    /// this error is returned when the serialization of the request fails
+    /// this error is returned when the publication of the request fails
     #[error("Publish error: {0}")]
     PublishError(String),
 
-    /// Serialization error
+    /// this error is returned when the serialization of the response fails
     #[error("Serialization error: {0}")]
     SerializationError(String),
 
+    /// this error is returned when one of the needed keys is missing
     #[error("No key provided error: {0}")]
     NoKeyError(String),
 }

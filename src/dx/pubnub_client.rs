@@ -186,6 +186,15 @@ where
     pub(crate) transport: Option<T>,
 }
 
+impl<T> Default for PubNubClientBuilder<T>
+where
+    T: Transport,
+{
+    fn default() -> Self {
+        Self { transport: None }
+    }
+}
+
 impl<T> PubNubClientBuilder<T>
 where
     T: Transport,
@@ -217,7 +226,7 @@ where
     ///
     /// [`Transport`]: ../core/trait.Transport.html
     pub fn new() -> Self {
-        Self { transport: None }
+        Self::default()
     }
 
     /// Set transport for the client
