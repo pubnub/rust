@@ -233,6 +233,7 @@ mod should {
     use crate::{
         core::TransportResponse,
         dx::{pubnub_client::PubNubConfig, PubNubClient},
+        transport::middleware::PubNubMiddleware,
         Keyset,
     };
     use test_case::test_case;
@@ -240,7 +241,7 @@ mod should {
     #[derive(Default)]
     struct MockTransport;
 
-    fn client() -> PubNubClient<MockTransport> {
+    fn client() -> PubNubClient<PubNubMiddleware<MockTransport>> {
         #[async_trait::async_trait]
         impl Transport for MockTransport {
             async fn send(
