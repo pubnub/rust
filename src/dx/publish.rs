@@ -28,14 +28,17 @@ where
     M: Serialize,
 {
     /// TODO: Add documentation
-    pub fn channel(self, channel: String) -> PublishMessageViaChannelBuilder<'pub_nub, T, M> {
+    pub fn channel<S>(self, channel: S) -> PublishMessageViaChannelBuilder<'pub_nub, T, M>
+    where
+        S: Into<String>,
+    {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
             ..Default::default()
         }
         .message(self.message)
-        .channel(channel)
+        .channel(channel.into())
     }
 }
 
@@ -56,6 +59,7 @@ where
     /// TODO: Add documentation
     message: M,
     /// TODO: Add documentation
+    #[builder(setter(into))]
     channel: String,
     /// TODO: Add documentation
     #[builder(setter(strip_option), default = "None")]
@@ -276,7 +280,7 @@ mod should {
 
         let result = client
             .publish_message("First message")
-            .channel("Iguess".into())
+            .channel("Iguess")
             .replicate(true)
             .execute()
             .await;
@@ -290,7 +294,7 @@ mod should {
 
         let result = client
             .publish_message("message")
-            .channel("chan".into())
+            .channel("chan")
             .replicate(false)
             .ttl(50)
             .store(true)
@@ -344,7 +348,7 @@ mod should {
 
         assert!(client
             .publish_message("meess")
-            .channel("chan".into())
+            .channel("chan")
             .execute()
             .await
             .is_err());
