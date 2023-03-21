@@ -1,3 +1,5 @@
+use std::env;
+
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Serialize;
 
@@ -9,12 +11,12 @@ struct Message {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let publish_key = "demo";
-    let subscribe_key = "demo";
+    let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
+    let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
 
     let mut client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
-            subscribe_key: subscribe_key,
+            subscribe_key,
             publish_key: Some(publish_key),
             secret_key: None,
         })
@@ -29,13 +31,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     // publish a struct
-    let message = Message {
-        content: "hello world!".into(),
-        author: "me".into(),
-    };
-
     client
-        .publish_message(message)
+        .publish_message(Message {
+            content: "hello world!".into(),
+            author: "me".into(),
+        })
         .channel("my_channel")
         .execute()
         .await?;
