@@ -1,10 +1,26 @@
-//! TODO: docs
+//! PubNub middleware module.
+//!
+//! This module contains the middleware that is used to add the required query parameters to the requests.
+//! The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and `requestid` query parameters to the requests.
 
 use crate::core::{PubNubError, Transport, TransportRequest, TransportResponse};
 use crate::dx::pubnub_client::{SDK_ID, VERSION};
 use uuid::Uuid;
 
-/// TODO: Add docs
+/// PubNub middleware.
+///
+/// This middleware is used to add the required query parameters to the requests.
+/// The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and `requestid` query parameters to the requests.
+///
+/// The `pnsdk` query parameter is used to identify the SDK that is used to make the request.
+/// The `uuid` query parameter is used to identify the user that is making the request.
+/// The `instanceid` query parameter is used to identify the instance of the SDK that is making the request.
+/// The `requestid` query parameter is used to identify the request that is being made.
+///
+/// It is used internally by the [`PubNubClient`].
+/// If you are using the [`PubNubClient`] you don't need to use this middleware.
+///
+/// [`PubNubClient`]: crate::dx::PubNubClient
 pub struct PubNubMiddleware<T>
 where
     T: Transport + Send + Sync,
