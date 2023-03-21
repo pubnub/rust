@@ -71,6 +71,7 @@ impl TransportReqwest {
             .send()
             .await
             .map_err(|e| TransportError(e.to_string()))
+            .and_then(|b| if b.status().is_success(){ Ok(b) } else { Err(TransportError("error".to_owned()))} )
     }
 
     async fn send_via_post_method(

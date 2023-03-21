@@ -133,7 +133,7 @@ async fn i_publish_array_as_message_to_channel(
         .await;
 }
 
-#[when(regex = r"^I publish (.*) string as message to (.*) channel with (.*) set to (.*)$")]
+#[when(regex = r"^I publish '(.*)' string as message to '(.*)' channel with '(.*)' set to '(.*)'$")]
 async fn i_publish_message_to_channel_with_meta(
     world: &mut PubNubWorld,
     message: String,
@@ -141,7 +141,7 @@ async fn i_publish_message_to_channel_with_meta(
     param: String,
     param_value: String
 ) {
-        if param.trim_matches('\'').eq("meta") {
+        if param.eq("meta") {
         let meta_map: HashMap<String, String> =
             serde_json::from_str(param_value.trim_matches('\'')).unwrap();
             world.last_result = world
@@ -152,8 +152,8 @@ async fn i_publish_message_to_channel_with_meta(
                 .execute()
                 .await;
         }
-        else if param.trim_matches('\'').eq("store") {
-            let store: bool = param_value.trim_matches('\'').to_string() != "0";
+        else if param.eq("store") {
+            let store: bool = param_value != "0";
             world.last_result = world
                 .get_pub_nub()
                 .publish_message(message)
