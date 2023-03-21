@@ -160,7 +160,18 @@ where
 
         let client = instance.pub_nub_client;
         match instance.create_transport_request() {
-            Ok(request) => client.transport.send(request).await.map(|_| PublishResult),
+            Ok(request) => {
+                client
+                    .transport
+                    .send(request)
+                    .await
+                    .map(|response| match response.status {
+                        200 => Ok(PublishResult),
+                        other => Err(PubNubError::PublishError(format!(
+                            "Returned status {other}"
+                        ))),
+                    })?
+            }
             Err(error) => Err(error),
         }
     }
