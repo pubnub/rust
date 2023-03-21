@@ -86,7 +86,7 @@ fn i_publish_dictionary_as_message_to_channel_with_compression(
 ) {
 }
 
-#[when(expr = "I publish '{word}' dictionary as message to '{word}' channel as POST body")]
+#[when(regex = r"^I publish (.*) dictionary as message to (.*) channel as POST body$")]
 async fn i_publish_dictionary_as_message_to_channel_as_post_body(
     world: &mut PubNubWorld,
     dictionary_json: String,
