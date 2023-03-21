@@ -1,6 +1,6 @@
 //! TODO: Add documentation
 
-use crate::core::Transport;
+use crate::{core::Transport, transport::middleware::PubNubMiddleware, PubNubError};
 use derive_builder::Builder;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -76,6 +76,7 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 #[builder(
     pattern = "owned",
     name = "PubNubClientConfigBuilder",
+    build_fn(private, name = "build_internal"),
     setter(prefix = "with")
 )]
 pub struct PubNubClient<T>
@@ -139,6 +140,30 @@ where
         PubNubClientBuilder {
             transport: Some(transport),
         }
+    }
+}
+
+impl<T> PubNubClientConfigBuilder<T>
+where
+    T: Transport + Send + Sync,
+{
+    /// Build a [`PubNubClient`] from the builder
+    ///
+    /// [`PubNubClient`]: struct.PubNubClient.html
+    pub fn build(self) -> Result<PubNubClient<PubNubMiddleware<T>>, PubNubError> {
+        self.build_internal()
+            .map(|pre_build| PubNubClient {
+                transport: PubNubMiddleware {
+                    transport: pre_build.transport,
+                    // TODO: String -> Cow<'static, str>
+                    instance_id: pre_build.instance_id.clone(),
+                    user_id: pre_build.config.user_id.clone(),
+                },
+                instance_id: pre_build.instance_id,
+                next_seqn: pre_build.next_seqn,
+                config: pre_build.config,
+            })
+            .map_err(|err| PubNubError::ClientInitializationError(err.to_string()))
     }
 }
 
@@ -397,4 +422,46 @@ where
 
     /// Secret key
     pub secret_key: Option<S>,
+}
+
+#[cfg(test)]
+mod should {
+    use super::*;
+    use crate::{TransportRequest, TransportResponse};
+    use std::any::type_name;
+
+    #[test]
+    fn include_pubnub_middleware() {
+        #[derive(Default)]
+        struct MockTransport;
+
+        #[async_trait::async_trait]
+        impl Transport for MockTransport {
+            async fn send(
+                &self,
+                _request: TransportRequest,
+            ) -> Result<TransportResponse, PubNubError> {
+                Ok(TransportResponse::default())
+            }
+        }
+
+        fn type_of<T>(_: T) -> &'static str {
+            type_name::<T>()
+        }
+
+        let client = PubNubClient::with_transport(MockTransport::default())
+            .with_keyset(Keyset {
+                subscribe_key: "",
+                publish_key: Some(""),
+                secret_key: None,
+            })
+            .with_user_id("my-user_id")
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            type_of(client.transport),
+            type_name::<PubNubMiddleware<MockTransport>>()
+        );
+    }
 }

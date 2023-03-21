@@ -42,4 +42,8 @@ pub enum PubNubError {
     /// this error is returned when one of the needed keys is missing
     #[error("No key provided error: {0}")]
     NoKeyError(String),
+
+    /// this error is returned when the initialization of client fails
+    #[error("Client initialization error: {0}")]
+    ClientInitializationError(String),
 }

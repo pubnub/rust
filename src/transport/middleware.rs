@@ -7,11 +7,11 @@ use uuid::Uuid;
 /// TODO: Add docs
 pub struct PubNubMiddleware<T>
 where
-    T: Transport,
+    T: Transport + Send + Sync,
 {
     pub(crate) transport: T,
-    instance_id: Option<String>,
-    user_id: String,
+    pub(crate) instance_id: Option<String>,
+    pub(crate) user_id: String,
 }
 
 #[async_trait::async_trait]
