@@ -39,14 +39,14 @@ pub struct TransportReqwest {
     /// The hostname to use for requests.
     /// It is used as the base URL for all requests.
     ///
-    /// It defaults to `https://ps.pndsn.com`.
+    /// It defaults to `https://ps.pndsn.com/`.
     /// # Examples
     /// ```
     /// use pubnub::reqwest::TransportReqwest;
     ///
     /// let transport = {
     ///    let mut transport = TransportReqwest::default();
-    ///    transport.hostname = "https://wherever.you.want.com".into();
+    ///    transport.hostname = "https://wherever.you.want.com/".into();
     ///    transport
     /// };
     /// ```
@@ -85,7 +85,7 @@ impl Default for TransportReqwest {
     fn default() -> Self {
         Self {
             reqwest_client: reqwest::Client::default(),
-            hostname: "https://ps.pndsn.com".into(),
+            hostname: "https://ps.pndsn.com/".into(),
         }
     }
 }
@@ -141,6 +141,7 @@ impl TransportReqwest {
     }
 }
 
+// TODO: create test for merging query params
 fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
         return format!("{}{}", hostname, encode(path));

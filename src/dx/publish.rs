@@ -7,6 +7,7 @@ use crate::{
 use derive_builder::Builder;
 use std::collections::HashMap;
 use std::ops::Not;
+use urlencoding::encode;
 
 /// TODO: Add documentation
 pub type MessageType = String;
@@ -28,14 +29,17 @@ where
     M: Serialize,
 {
     /// TODO: Add documentation
-    pub fn channel(self, channel: String) -> PublishMessageViaChannelBuilder<'pub_nub, T, M> {
+    pub fn channel<S>(self, channel: S) -> PublishMessageViaChannelBuilder<'pub_nub, T, M>
+    where
+        S: Into<String>,
+    {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
             ..Default::default()
         }
         .message(self.message)
-        .channel(channel)
+        .channel(channel.into())
     }
 }
 
@@ -56,6 +60,7 @@ where
     /// TODO: Add documentation
     message: M,
     /// TODO: Add documentation
+    #[builder(setter(into))]
     channel: String,
     /// TODO: Add documentation
     #[builder(setter(strip_option), default = "None")]
@@ -133,6 +138,7 @@ where
         query_params
     }
 
+    // TODO: create test for path creation!
     fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
 
@@ -146,7 +152,7 @@ where
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("publish/{sub_key}/{pub_key}/0/{}/0", self.channel),
+                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
@@ -162,7 +168,10 @@ where
                 .map(|m_str| TransportRequest {
                     path: format!(
                         "publish/{}/{}/0/{}/0/{}",
-                        sub_key, pub_key, self.channel, m_str
+                        pub_key,
+                        sub_key,
+                        encode(&self.channel),
+                        m_str
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
@@ -277,12 +286,12 @@ mod should {
 
         let result = client
             .publish_message("First message")
-            .channel("Iguess".into())
+            .channel("Iguess")
             .replicate(true)
             .execute()
             .await;
 
-        assert!(dbg!(result).is_ok());
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
@@ -291,7 +300,7 @@ mod should {
 
         let result = client
             .publish_message("message")
-            .channel("chan".into())
+            .channel("chan")
             .replicate(false)
             .ttl(50)
             .store(true)
@@ -345,7 +354,7 @@ mod should {
 
         assert!(client
             .publish_message("meess")
-            .channel("chan".into())
+            .channel("chan")
             .execute()
             .await
             .is_err());

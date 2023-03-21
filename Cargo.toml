@@ -47,3 +47,7 @@ default = ["serde", "reqwest"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
 
+[[example]]
+name = "publish"
+required-features = ["default"]
+
