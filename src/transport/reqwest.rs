@@ -143,7 +143,7 @@ impl TransportReqwest {
 
 fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
-        return format!("{}{}", hostname, encode(path)).to_string();
+        return format!("{}{}", hostname, encode(path));
     }
     let mut qp = query_params
         .iter()
