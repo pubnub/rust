@@ -139,17 +139,26 @@ async fn i_publish_message_to_channel_with_meta(
     message: String,
     channel: String,
     param: String,
-    json_str: String
+    param_value: String
 ) {
-    let meta_map: HashMap<String, String> =
-        serde_json::from_str(json_str.trim_matches('\'')).unwrap();
-            print!("sx");
         if param.trim_matches('\'').eq("meta") {
+        let meta_map: HashMap<String, String> =
+            serde_json::from_str(param_value.trim_matches('\'')).unwrap();
             world.last_result = world
                 .get_pub_nub()
                 .publish_message(message)
                 .channel(channel)
                 .meta(meta_map)
+                .execute()
+                .await;
+        }
+        else if param.trim_matches('\'').eq("store") {
+            let store: bool = param_value.trim_matches('\'').to_string() != "0";
+            world.last_result = world
+                .get_pub_nub()
+                .publish_message(message)
+                .channel(channel)
+                .store(store)
                 .execute()
                 .await;
         }
