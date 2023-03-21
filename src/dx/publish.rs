@@ -7,6 +7,7 @@ use crate::{
 use derive_builder::Builder;
 use std::collections::HashMap;
 use std::ops::Not;
+use urlencoding::encode;
 
 /// TODO: Add documentation
 pub type MessageType = String;
@@ -151,7 +152,7 @@ where
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", self.channel),
+                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
@@ -167,7 +168,10 @@ where
                 .map(|m_str| TransportRequest {
                     path: format!(
                         "publish/{}/{}/0/{}/0/{}",
-                        pub_key, sub_key, self.channel, m_str
+                        pub_key,
+                        sub_key,
+                        encode(&self.channel),
+                        m_str
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
