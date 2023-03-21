@@ -1,4 +1,12 @@
-//! TODO: Add documentation
+//! PubNub client module
+//!
+//! This module contains the [`PubNubClient`] struct.
+//! It is used to send requests to the [`PubNub API`].
+//! It is intended to be used by the [`pubnub`] crate.
+//!
+//! [`PubNubClient`]: ./struct.PubNubClient.html]
+//! [`PubNub API`]: https://www.pubnub.com/docs
+//! [`pubnub`]: ../index.html
 
 use crate::{core::Transport, transport::middleware::PubNubMiddleware, PubNubError};
 use derive_builder::Builder;
