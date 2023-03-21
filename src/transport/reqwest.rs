@@ -22,6 +22,7 @@ use crate::{
 };
 use log::info;
 use std::collections::HashMap;
+use urlencoding::encode;
 
 /// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
 /// It is used as the transport type for the [`PubNubClient`].
@@ -142,13 +143,16 @@ impl TransportReqwest {
 
 fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
-        return format!("{}{}", hostname, path);
+        return format!("{}{}", hostname, encode(path));
     }
-    query_params
+    let mut qp = query_params
         .iter()
-        .fold(format!("{}?", path), |acc_query, (k, v)| {
-            format!("{}{}{}={}&", hostname, acc_query, k, v)
-        })
+        .fold(format!("{}{}?", hostname, path), |acc_query, (k, v)| {
+            format!("{}{}={}&", acc_query, k, encode(v))
+        });
+
+    qp.remove(qp.len() - 1);
+    qp
 }
 
 impl PubNubClientBuilder<TransportReqwest> {
