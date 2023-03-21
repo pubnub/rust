@@ -93,4 +93,5 @@ pub mod providers;
 
 #[cfg(feature = "reqwest")]
 pub use transport::reqwest;
+#[cfg(feature = "reqwest")]
 pub mod transport;
