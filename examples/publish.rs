@@ -40,5 +40,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .execute()
         .await?;
 
+    // publish with whole config options
+    client
+        .publish_message("hello with params!")
+        .channel("my_channel")
+        .store(true)
+        .meta([("meta1".into(), "meta2".into())].into())
+        .replicate(true)
+        .execute()
+        .await?;
+
     Ok(())
 }

@@ -81,6 +81,6 @@ mod should {
 
         let result = middleware.send(TransportRequest::default()).await;
 
-        assert!(dbg!(result).is_ok());
+        assert!(result.is_ok());
     }
 }

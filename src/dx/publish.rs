@@ -286,7 +286,7 @@ mod should {
             .execute()
             .await;
 
-        assert!(dbg!(result).is_ok());
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
