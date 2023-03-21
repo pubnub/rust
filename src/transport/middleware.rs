@@ -10,9 +10,9 @@ where
     T: Transport,
 {
     pub(crate) transport: T,
-    include_request_id: bool,
-    instance_id: Option<String>,
-    user_id: String,
+    pub include_request_id: bool,
+    pub instance_id: Option<String>,
+    pub user_id: String,
 }
 
 #[async_trait::async_trait]
