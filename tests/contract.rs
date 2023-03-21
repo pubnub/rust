@@ -93,7 +93,7 @@ async fn i_publish_dictionary_as_message_to_channel_as_post_body(
     channel: String,
 ) {
     let message_hash_map: HashMap<String, String> =
-        serde_json::from_str(dictionary_json.as_str()).unwrap();
+        serde_json::from_str(dictionary_json.trim_matches('\'')).unwrap();
     world.last_result = world
         .get_pub_nub()
         .publish_message(message_hash_map)
