@@ -137,6 +137,7 @@ where
         query_params
     }
 
+    // TODO: create test for path creation!
     fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
 
@@ -150,7 +151,7 @@ where
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("publish/{sub_key}/{pub_key}/0/{}/0", self.channel),
+                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", self.channel),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
@@ -166,7 +167,7 @@ where
                 .map(|m_str| TransportRequest {
                     path: format!(
                         "publish/{}/{}/0/{}/0/{}",
-                        sub_key, pub_key, self.channel, m_str
+                        pub_key, sub_key, self.channel, m_str
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
