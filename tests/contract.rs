@@ -1,7 +1,7 @@
 use cucumber::{given, then, when, World};
 use pubnub::dx::publish::PublishResult;
-use pubnub::dx::PubNubClient;
 use pubnub::dx::pubnub_client::PubNubConfig;
+use pubnub::dx::PubNubClient;
 use pubnub::transport::middleware::PubNubMiddleware;
 use pubnub::transport::TransportReqwest;
 use pubnub::PubNubError;
@@ -43,11 +43,11 @@ impl PubNubWorld {
             next_seqn: 1,
             instance_id: Some("instance".to_owned()),
             config: PubNubConfig {
-                    publish_key: Some(self.keyset.pubkey.to_owned()),
-                    subscribe_key: self.keyset.subkey.to_owned(),
-                    user_id: "some".to_owned(),
-                    secret_key: Some("some".to_owned()),
-                },
+                publish_key: Some(self.keyset.pubkey.to_owned()),
+                subscribe_key: self.keyset.subkey.to_owned(),
+                user_id: "some".to_owned(),
+                secret_key: Some("some".to_owned()),
+            },
         }
     }
 }
@@ -146,29 +146,27 @@ async fn i_publish_message_to_channel_with_meta(
     message: String,
     channel: String,
     param: String,
-    param_value: String
+    param_value: String,
 ) {
-        if param.eq("meta") {
-        let meta_map: HashMap<String, String> =
-            serde_json::from_str(param_value.as_str()).unwrap();
-            world.last_result = world
-                .get_pub_nub()
-                .publish_message(message)
-                .channel(channel)
-                .meta(meta_map)
-                .execute()
-                .await;
-        }
-        else if param.eq("store") {
-            let store: bool = param_value != "0";
-            world.last_result = world
-                .get_pub_nub()
-                .publish_message(message)
-                .channel(channel)
-                .store(store)
-                .execute()
-                .await;
-        }
+    if param.eq("meta") {
+        let meta_map: HashMap<String, String> = serde_json::from_str(param_value.as_str()).unwrap();
+        world.last_result = world
+            .get_pub_nub()
+            .publish_message(message)
+            .channel(channel)
+            .meta(meta_map)
+            .execute()
+            .await;
+    } else if param.eq("store") {
+        let store: bool = param_value != "0";
+        world.last_result = world
+            .get_pub_nub()
+            .publish_message(message)
+            .channel(channel)
+            .store(store)
+            .execute()
+            .await;
+    }
 }
 
 #[when(expr = "I publish '{int}' number as message to '{word}' channel")]
