@@ -18,7 +18,7 @@ use super::{transport_response::TransportResponse, PubNubError, TransportRequest
 ///
 /// # Examples
 /// ```
-/// use pubnub::{Transport, TransportRequest, TransportResponse, PubNubError};
+/// use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
 ///
 /// struct MyTransport;
 ///

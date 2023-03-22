@@ -8,7 +8,7 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use crate::{core::Transport, transport::middleware::PubNubMiddleware, PubNubError};
+use crate::{core::PubNubError, core::Transport, transport::middleware::PubNubMiddleware};
 use derive_builder::Builder;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -32,6 +32,7 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 ///
 /// // note that `with_reqwest_transport` requires `reqwest` feature
 /// // to be enabled (default)
+/// # fn main() -> Result<(), pubnub::core::PubNubError> {
 /// let client = PubNubClientBuilder::with_reqwest_transport()
 ///    .with_keyset(Keyset {
 ///         publish_key: Some("pub-c-abc123"),
@@ -39,7 +40,10 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 ///         secret_key: None,
 ///    })
 ///    .with_user_id("my-user-id")
-///    .build();
+///    .build()?;
+///
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// or using own [`Transport`] implementation
@@ -49,12 +53,11 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// ```
 /// use pubnub::{PubNubClient, Keyset};
 ///
-/// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+/// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
 /// # struct MyTransport;
 /// # #[async_trait::async_trait]
 /// # impl Transport for MyTransport {
-/// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
-/// pubnub::PubNubError> {
+/// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
 /// #         unimplemented!()
 /// #     }
 /// # }
@@ -64,6 +67,7 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// #     }
 /// # }
 ///
+/// # fn main() -> Result<(), pubnub::core::PubNubError> {
 /// // note that MyTransport must implement `Transport` trait
 /// let transport = MyTransport::new();
 ///
@@ -74,7 +78,10 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 ///         secret_key: None,
 ///    })
 ///    .with_user_id("my-user-id")
-///    .build();
+///    .build()?;
+///
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// # See also
@@ -118,11 +125,11 @@ where
     /// ```
     /// use pubnub::{PubNubClient, Keyset};
     ///
-    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
     /// # #[async_trait::async_trait]
     /// # impl Transport for MyTransport {
-    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, pubnub::PubNubError> {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
     /// # }
@@ -132,6 +139,7 @@ where
     /// #     }
     /// # }
     ///
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
     /// // note that MyTransport must implement `Transport` trait
     /// let transport = MyTransport::new();
     ///
@@ -142,7 +150,10 @@ where
     ///        secret_key: None,
     ///     })
     ///     .with_user_id("my-user-id")
-    ///     .build();
+    ///     .build()?;
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn with_transport(transport: T) -> PubNubClientBuilder<T> {
         PubNubClientBuilder {
@@ -242,12 +253,11 @@ where
     /// ```
     /// use pubnub::PubNubClientBuilder;
     ///
-    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
     /// # #[async_trait::async_trait]
     /// # impl Transport for MyTransport {
-    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
-    /// pubnub::PubNubError> {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
     /// # }
@@ -272,12 +282,11 @@ where
     /// ```
     /// use pubnub::{PubNubClient, Keyset};
     ///
-    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
     /// # #[async_trait::async_trait]
     /// # impl Transport for MyTransport {
-    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
-    /// pubnub::PubNubError> {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
     /// # }
@@ -435,7 +444,7 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{TransportRequest, TransportResponse};
+    use crate::core::{TransportRequest, TransportResponse};
     use std::any::type_name;
 
     #[test]

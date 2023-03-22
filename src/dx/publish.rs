@@ -11,9 +11,8 @@
 //! [`PubNub`]:https://www.pubnub.com/
 
 use crate::{
-    core::{PubNubError, Transport, TransportMethod, TransportRequest},
+    core::{PubNubError, Serialize, Transport, TransportMethod, TransportRequest},
     dx::PubNubClient,
-    Serialize,
 };
 use derive_builder::Builder;
 use std::collections::HashMap;

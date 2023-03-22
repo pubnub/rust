@@ -9,6 +9,7 @@
 pub mod middleware;
 
 #[cfg(feature = "reqwest")]
+#[doc(inline)]
 pub use self::reqwest::TransportReqwest;
 #[cfg(feature = "reqwest")]
 pub mod reqwest;

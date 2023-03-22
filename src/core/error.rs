@@ -12,7 +12,7 @@
 /// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
 /// # Examples
 /// ```
-/// use pubnub::PubNubError;
+/// use pubnub::core::PubNubError;
 ///
 /// fn foo() -> Result<(), PubNubError> {
 ///   Ok(())

@@ -6,7 +6,7 @@
 //!
 //! # Examples
 //! ```
-//! use pubnub::Serialize as _;
+//! use pubnub::core::Serialize as _;
 //! use serde::{Serialize, Deserialize};
 //!
 //! #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -18,18 +18,19 @@
 //! assert_eq!(foo.serialize().unwrap(), b"{\"bar\":\"baz\"}".to_vec());
 //! ```
 
-impl<S> crate::Serialize for S
+impl<S> crate::core::Serialize for S
 where
     S: serde::Serialize,
 {
-    fn serialize(self) -> Result<Vec<u8>, crate::PubNubError> {
-        serde_json::to_vec(&self).map_err(|e| crate::PubNubError::SerializationError(e.to_string()))
+    fn serialize(self) -> Result<Vec<u8>, crate::core::PubNubError> {
+        serde_json::to_vec(&self)
+            .map_err(|e| crate::core::PubNubError::SerializationError(e.to_string()))
     }
 }
 
 #[cfg(test)]
 mod should {
-    use crate::Serialize;
+    use crate::core::Serialize;
 
     #[test]
     fn serialize_serde_values() {

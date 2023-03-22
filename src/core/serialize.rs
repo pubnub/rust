@@ -20,14 +20,14 @@ use super::PubNubError;
 ///
 /// # Examples
 /// ```no_run
-/// use pubnub::Serialize;
+/// use pubnub::core::{Serialize, PubNubError};
 ///
 /// struct Foo {
 ///   bar: String,
 /// }
 ///  
 /// impl Serialize for Foo {
-///   fn serialize(self) -> Result<Vec<u8>, pubnub::PubNubError> {
+///   fn serialize(self) -> Result<Vec<u8>, PubNubError> {
 ///     Ok(format!("{{\"bar\":\"{}\"}}", self.bar).into_bytes())
 ///   }
 /// }
@@ -45,12 +45,12 @@ pub trait Serialize {
     ///
     /// # Examples
     /// ```
-    /// use pubnub::Serialize;
+    /// use pubnub::core::{Serialize, PubNubError};
     ///
     /// struct Foo;
     ///
     /// impl Serialize for Foo {
-    ///    fn serialize(self) -> Result<Vec<u8>, pubnub::PubNubError> {
+    ///    fn serialize(self) -> Result<Vec<u8>, PubNubError> {
     ///         Ok(vec![1, 2, 3])
     ///    }
     /// }

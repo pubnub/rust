@@ -42,7 +42,7 @@ pub struct TransportReqwest {
     /// It defaults to `https://ps.pndsn.com/`.
     /// # Examples
     /// ```
-    /// use pubnub::reqwest::TransportReqwest;
+    /// use pubnub::transport::TransportReqwest;
     ///
     /// let transport = {
     ///    let mut transport = TransportReqwest::default();
@@ -107,7 +107,7 @@ impl TransportReqwest {
     ///
     /// # Example
     /// ```
-    /// use pubnub::reqwest::TransportReqwest;
+    /// use pubnub::transport::TransportReqwest;
     ///
     /// let transport = TransportReqwest::new();
     /// ```

@@ -1,7 +1,6 @@
-use std::env;
-
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Serialize;
+use std::env;
 
 #[derive(Serialize)]
 struct Message {

@@ -104,18 +104,10 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
-pub use self::core::Transport;
-pub use self::core::TransportRequest;
-pub use self::core::TransportResponse;
-pub use self::core::{PubNubError, Serialize};
-pub mod core;
-
+#[doc(inline)]
 pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod dx;
 
+pub mod core;
 pub mod providers;
-
-#[cfg(feature = "reqwest")]
-pub use transport::reqwest;
-#[cfg(feature = "reqwest")]
 pub mod transport;
