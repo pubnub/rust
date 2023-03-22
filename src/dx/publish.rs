@@ -1,4 +1,15 @@
-//! TODO: Add documentation
+//! Publish module.
+//!
+//! Publish message to a channel.
+//! The publish module contains the [`PublishMessageBuilder`] and [`PublishMessageViaChannelBuilder`].
+//! The [`PublishMessageBuilder`] is used to publish a message to a channel.
+//!
+//! This module is accountable for publishing a message to a channel of the [`PubNub`] network.
+//!
+//! [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
+//! [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder]
+//! [`PubNub`]:https://www.pubnub.com/
+
 use crate::{
     core::{PubNubError, Transport, TransportMethod, TransportRequest},
     dx::PubNubClient,
@@ -9,10 +20,36 @@ use std::collections::HashMap;
 use std::ops::Not;
 use urlencoding::encode;
 
-/// TODO: Add documentation
-pub type MessageType = String;
-
-/// TODO: Add documentation
+/// The [`PublishMessageBuilder`] is used to publish a message to a channel.
+///
+/// This struct is used to publish a message to a channel. It is used by the [`publish`] method of the [`PubNubClient`].
+/// The [`publish`] method is used to publish a message to a channel.
+/// The [`PublishMessageBuilder`] is used to build the request to be sent to the [`PubNub`] network.
+///
+/// # Examples
+/// ```rust
+/// # use pubnub::{PubNubClientBuilder, Keyset};
+///
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut pubnub = // PubNubClient
+/// # PubNubClientBuilder::with_reqwest_transport()
+/// #     .with_keyset(Keyset{
+/// #         subscribe_key: "demo",
+/// #         publish_key: Some("demo"),
+/// #         secret_key: None,
+/// #     })
+/// #     .with_user_id("user_id")
+/// #     .build()?;
+///
+/// pubnub.publish_message("hello world!")
+///     .channel("my_channel")
+///     .execute()
+///     .await?;
+///
+/// # Ok(())
+/// # }
+/// ```
 pub struct PublishMessageBuilder<'pub_nub, T, M>
 where
     T: Transport,
@@ -28,7 +65,9 @@ where
     T: Transport,
     M: Serialize,
 {
-    /// TODO: Add documentation
+    /// The [`channel`] method is used to set the channel to publish the message to.
+    ///
+    /// [`channel`]: crate::dx::publish::PublishMessageBuilder::channel
     pub fn channel<S>(self, channel: S) -> PublishMessageViaChannelBuilder<'pub_nub, T, M>
     where
         S: Into<String>,
@@ -43,9 +82,40 @@ where
     }
 }
 
-/// TODO: Add documentation
-// TODO: use dead codes
-#[allow(dead_code)]
+/// The [`PublishMessageViaChannelBuilder`] is used to publish a message to a channel.
+/// This struct is used to publish a message to a channel. It is used by the [`publish_message`] method of the [`PubNubClient`].
+///
+/// This is next step in the publish process. The [`PublishMessageViaChannelBuilder`] is used to build the request to be sent to the [`PubNub`] network.
+///
+/// [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder
+/// [`publish_message`]: crate::dx::PubNubClient::publish_message
+/// [`PubNub`]:https://www.pubnub.com/
+/// [`PubNubClient`]: crate::dx::PubNubClient
+///
+/// # Examples
+/// ```rust
+/// # use pubnub::{PubNubClientBuilder, Keyset};
+///
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut pubnub = // PubNubClient
+/// # PubNubClientBuilder::with_reqwest_transport()
+/// #     .with_keyset(Keyset{
+/// #         subscribe_key: "demo",
+/// #         publish_key: Some("demo"),
+/// #         secret_key: None,
+/// #     })
+/// #     .with_user_id("user_id")
+/// #     .build()?;
+///
+/// pubnub.publish_message("hello world!")
+///     .channel("my_channel")
+///     .execute()
+///     .await?;
+///
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Builder)]
 #[builder(pattern = "owned", build_fn(private))]
 pub struct PublishMessageViaChannel<'pub_nub, T, M>
@@ -55,32 +125,47 @@ where
 {
     #[builder(setter(custom))]
     pub_nub_client: &'pub_nub PubNubClient<T>,
+
     #[builder(setter(custom))]
     seqn: u16,
-    /// TODO: Add documentation
+
+    /// Message to publish
     message: M,
-    /// TODO: Add documentation
+
+    /// Channel to publish to
     #[builder(setter(into))]
     channel: String,
-    /// TODO: Add documentation
+
+    /// Switch that decide if the message should be stored in history
     #[builder(setter(strip_option), default = "None")]
     store: Option<bool>,
-    /// TODO: Add documentation
+
+    /// Switch that decide if the transaction should be replicated
+    /// following the PubNub replication rules.
+    ///
+    /// See more at [`PubNub replication rules`]
+    ///
+    /// [`PubNub replication rules`]:https://www.pubnub.com/pricing/transaction-classification/
     #[builder(default = "true")]
     replicate: bool,
-    /// TODO: Add documentation
+
+    /// Set a per-message TTL time to live in storage.
     #[builder(setter(strip_option), default = "None")]
     ttl: Option<u32>,
-    /// TODO: Add documentation
+
+    /// Switch that decide if the message should be published using POST method.
     #[builder(setter(strip_option), default = "false")]
     use_post: bool,
-    /// TODO: Add documentation
+
+    /// Object to send additional information about the message.
     #[builder(setter(strip_option), default = "None")]
     meta: Option<HashMap<String, String>>,
-    /// TODO: Add documentation
+
+    /// Space ID to publish to.
     #[builder(setter(strip_option), default = "None")]
     space_id: Option<String>,
-    /// TODO: Add documentation
+
+    /// Message type to publish.
     #[builder(setter(strip_option), default = "None")]
     message_type: Option<String>,
 }
@@ -186,7 +271,34 @@ where
     T: Transport,
     M: Serialize,
 {
-    /// TODO: Add documentation
+    /// Execute the request and return the result.
+    /// This method is asynchronous and will return a future.
+    /// The future will resolve to a [`PublishResult`] or [`PubNubError`].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use pubnub::{PubNubClientBuilder, Keyset};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut pubnub = // PubNubClient
+    /// # PubNubClientBuilder::with_reqwest_transport()
+    /// #     .with_keyset(Keyset{
+    /// #         subscribe_key: "demo",
+    /// #         publish_key: Some("demo"),
+    /// #         secret_key: None,
+    /// #      })
+    /// #     .with_user_id("uuid")
+    /// #     .build()?;
+    ///
+    /// pubnub.publish_message("Hello, world!")
+    ///    .channel("my_channel")
+    ///    .execute()
+    ///    .await?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
         let instance = self
             .build()
@@ -200,7 +312,8 @@ where
     }
 }
 
-/// TODO: Add documentation
+/// Result of a publish request.
+/// This type is a placeholder for future functionality.
 #[derive(Debug)]
 pub struct PublishResult;
 
@@ -217,7 +330,7 @@ where
         ret
     }
 
-    /// TODO: Add documentation
+    /// Create a new publish message builder.
     pub fn publish_message<M>(&mut self, message: M) -> PublishMessageBuilder<T, M>
     where
         M: Serialize,
