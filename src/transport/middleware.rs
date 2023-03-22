@@ -9,12 +9,9 @@ pub struct PubNubMiddleware<T>
 where
     T: Transport + Send + Sync,
 {
-    /// TODO: [docs]
-    pub transport: T,
-    /// TODO: [docs]
-    pub instance_id: Option<String>,
-    /// TODO: [docs]
-    pub user_id: String,
+    pub(crate) transport: T,
+    pub(crate) instance_id: Option<String>,
+    pub(crate) user_id: String,
 }
 
 #[async_trait::async_trait]

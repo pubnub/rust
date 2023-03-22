@@ -1,61 +1,53 @@
 use cucumber::{given, then, when, World};
 use pubnub::dx::publish::PublishResult;
-use pubnub::dx::pubnub_client::PubNubConfig;
 use pubnub::dx::PubNubClient;
 use pubnub::transport::middleware::PubNubMiddleware;
 use pubnub::transport::TransportReqwest;
-use pubnub::PubNubError;
-use reqwest::Client;
+use pubnub::{Keyset, PubNubClientBuilder, PubNubError};
 use std::collections::HashMap;
-
-#[derive(Debug, Default)]
-struct Keyset {
-    pub subkey: String,
-    pub pubkey: String,
-}
 
 #[derive(Debug, World)]
 pub struct PubNubWorld {
-    keyset: Keyset,
+    keyset: pubnub::Keyset<String>,
     last_result: Result<PublishResult, PubNubError>,
 }
 
 impl Default for PubNubWorld {
     fn default() -> Self {
         PubNubWorld {
-            keyset: Keyset::default(),
+            keyset: Keyset::<String> {
+                subscribe_key: "demo".to_owned(),
+                publish_key: Some("demo".to_string()),
+                secret_key: Some("demo".to_string()),
+            },
             last_result: Err(PubNubError::TransportError("This is default value".into())),
         }
     }
 }
 
 impl PubNubWorld {
-    fn get_pub_nub(&self) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
-        PubNubClient {
-            transport: PubNubMiddleware {
-                transport: TransportReqwest {
-                    hostname: "http://localhost:8090/".into(),
-                    reqwest_client: Client::default(),
-                },
-                user_id: "user_id".to_string(),
-                instance_id: None,
-            },
-            next_seqn: 1,
-            instance_id: Some("instance".to_owned()),
-            config: PubNubConfig {
-                publish_key: Some(self.keyset.pubkey.to_owned()),
-                subscribe_key: self.keyset.subkey.to_owned(),
-                user_id: "some".to_owned(),
-                secret_key: Some("some".to_owned()),
-            },
-        }
+    fn get_pub_nub(
+        &self,
+        keyset: Keyset<String>,
+    ) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
+        let transport = {
+            let mut transport = TransportReqwest::default();
+            transport.hostname = "http://localhost:8090".into();
+            transport
+        };
+        PubNubClientBuilder::with_reqwest_transport()
+            .with_transport(transport)
+            .with_keyset(keyset)
+            .with_user_id("test")
+            .build()
+            .unwrap()
     }
 }
 
 #[given("the demo keyset")]
 fn set_keyset(world: &mut PubNubWorld) {
-    world.keyset.pubkey = "demo".to_string();
-    world.keyset.subkey = "demo".to_string();
+    world.keyset.publish_key = Some("demo".to_string());
+    world.keyset.subscribe_key = "demo".to_string();
 }
 
 async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error>> {
@@ -72,7 +64,7 @@ async fn i_publish_string_as_message_to_channel(
     channel: String,
 ) {
     world.last_result = world
-        .get_pub_nub()
+        .get_pub_nub(world.keyset.to_owned())
         .publish_message(message)
         .channel(channel)
         .execute()
@@ -101,7 +93,7 @@ async fn i_publish_dictionary_as_message_to_channel_as_post_body(
     let message_hash_map: HashMap<String, String> =
         serde_json::from_str(dictionary_json.as_str()).unwrap();
     world.last_result = world
-        .get_pub_nub()
+        .get_pub_nub(world.keyset.to_owned())
         .publish_message(message_hash_map)
         .channel(channel)
         .use_post(true)
@@ -118,7 +110,7 @@ async fn i_publish_dictionary_as_message_to_channel(
     let message_hash_map: HashMap<String, String> =
         serde_json::from_str(dictionary_json.as_str()).unwrap();
     world.last_result = world
-        .get_pub_nub()
+        .get_pub_nub(world.keyset.to_owned())
         .publish_message(message_hash_map)
         .channel(channel)
         .execute()
@@ -133,7 +125,7 @@ async fn i_publish_array_as_message_to_channel(
 ) {
     let message_array: [String; 2] = serde_json::from_str(array_str.as_str()).unwrap();
     world.last_result = world
-        .get_pub_nub()
+        .get_pub_nub(world.keyset.to_owned())
         .publish_message(message_array)
         .channel(channel)
         .execute()
@@ -153,7 +145,7 @@ async fn i_publish_message_to_channel_with_meta(
             let meta_map: HashMap<String, String> =
                 serde_json::from_str(param_value.as_str()).unwrap();
             world.last_result = world
-                .get_pub_nub()
+                .get_pub_nub(world.keyset.to_owned())
                 .publish_message(message)
                 .channel(channel)
                 .meta(meta_map)
@@ -163,7 +155,7 @@ async fn i_publish_message_to_channel_with_meta(
         "store" => {
             let store: bool = param_value != "0";
             world.last_result = world
-                .get_pub_nub()
+                .get_pub_nub(world.keyset.to_owned())
                 .publish_message(message)
                 .channel(channel)
                 .store(store)
@@ -181,7 +173,7 @@ async fn i_publish_number_as_message_to_channel(
     channel: String,
 ) {
     world.last_result = world
-        .get_pub_nub()
+        .get_pub_nub(world.keyset.to_owned())
         .publish_message(number)
         .channel(channel)
         .execute()
