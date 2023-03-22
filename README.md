@@ -89,7 +89,7 @@ Feature list:
 
 ## Documentation
 
-:warning: We are under the development! ** Links below not works ** :warning:
+:warning: We are under the development! ** Links below not work ** :warning:
 
 * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 * [Rust docs](https://docs.rs/pubnub/latest/pubnub/]
