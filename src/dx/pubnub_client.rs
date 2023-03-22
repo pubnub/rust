@@ -16,18 +16,13 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 
 /// PubNub client
 ///
-/// Client for PubNub API with support for all [selected] PubNub features.
+/// Client for PubNub API with support for all [`selected`] PubNub features.
 /// It is generic over transport layer, which allows to use any transport
 /// that implements [`Transport`] trait.
 ///
 /// Client can be created using [`PubNubClient::builder`] method.
 /// It is required to use [`Keyset`] to provide keys to the client
 /// and UUID to identify the client.
-///
-/// [selected]: ../index.html#features
-/// [`Transport`]: ../core/trait.Transport.html
-/// [`Keyset`]: ../core/struct.Keyset.html
-/// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
 ///
 /// # Examples
 /// ```
@@ -50,8 +45,6 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// ```
 ///
 /// or using own [`Transport`] implementation
-///
-/// [`Transport`]: ../core/trait.Transport.html
 ///
 /// ```
 /// use pubnub::{PubNubClient, Keyset};
@@ -90,6 +83,11 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// # See also
 /// [Keyset](struct.Keyset.html)
 /// [Transport](../core/trait.Transport.html)
+///
+/// [`selected`]: ../index.html#features
+/// [`Transport`]: ../core/trait.Transport.html
+/// [`Keyset`]: ../core/struct.Keyset.html
+/// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Builder)]
 #[builder(
     pattern = "owned",
@@ -121,8 +119,6 @@ where
     T: Transport,
 {
     /// Create a new builder for [`PubNubClient`]
-    ///
-    /// [`PubNubClient`]: struct.PubNubClient.html
     ///
     /// # Examples
     /// ```
@@ -158,6 +154,8 @@ where
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn with_transport(transport: T) -> PubNubClientBuilder<T> {
         PubNubClientBuilder {
             transport: Some(transport),
@@ -319,9 +317,6 @@ where
     /// to set UUID for the client.
     /// See [`Keyset`] for more information.
     ///
-    /// [`PubNubClientUserIdBuilder`]: struct.PubNubClientBuilderKeyset.html
-    /// [`Keyset`]: struct.Keyset.html
-    ///
     /// # Examples
     /// ```
     /// use pubnub::{PubNubClientBuilder, Keyset};
@@ -335,6 +330,9 @@ where
     ///    secret_key: None,
     ///  });
     /// ```
+    ///
+    /// [`PubNubClientUserIdBuilder`]: struct.PubNubClientBuilderKeyset.html
+    /// [`Keyset`]: struct.Keyset.html
     pub fn with_keyset<S>(self, keyset: Keyset<S>) -> PubNubClientUserIdBuilder<T, S>
     where
         S: Into<String>,
@@ -350,9 +348,6 @@ where
 /// It is returned by [`PubNubClientBuilder::with_keyset`]
 /// and provides method to set UUID for the client.
 /// See [`PubNubClient`] for more information.
-///
-/// [`PubNubClient`]: struct.PubNubClient.html
-/// [`PubNubClientBuilder::with_keyset`]: struct.PubNubClientBuilder.html#method.with_keyset
 ///
 /// # Examples
 /// ```
@@ -371,6 +366,9 @@ where
 /// [Keyset](struct.Keyset.html)
 /// [PubNubClientBuilder](struct.PubNubClientBuilder.html)
 /// [PubNubClient](struct.PubNubClient.html)
+///
+/// [`PubNubClient`]: struct.PubNubClient.html
+/// [`PubNubClientBuilder::with_keyset`]: struct.PubNubClientBuilder.html#method.with_keyset
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubClientUserIdBuilder<T, S>
 where

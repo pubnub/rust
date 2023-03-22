@@ -25,11 +25,6 @@ use urlencoding::encode;
 /// The [`publish_message`] method is used to publish a message to a channel.
 /// The [`PublishMessageBuilder`] is used to build the request to be sent to the [`PubNub`] network.
 ///
-/// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
-/// [`publish_message`]: crate::dx::PubNubClient::publish_message`
-/// [`PubNubClient`]: crate::dx::PubNubClient
-/// [`PubNub`]:https://www.pubnub.com/
-///
 /// # Examples
 /// ```rust
 /// # use pubnub::{PubNubClientBuilder, Keyset};
@@ -54,6 +49,11 @@ use urlencoding::encode;
 /// # Ok(())
 /// # }
 /// ```
+///
+/// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
+/// [`publish_message`]: crate::dx::PubNubClient::publish_message`
+/// [`PubNubClient`]: crate::dx::PubNubClient
+/// [`PubNub`]:https://www.pubnub.com/
 pub struct PublishMessageBuilder<'pub_nub, T, M>
 where
     T: Transport,
@@ -91,11 +91,6 @@ where
 ///
 /// This is next step in the publish process. The [`PublishMessageViaChannelBuilder`] is used to build the request to be sent to the [`PubNub`] network.
 ///
-/// [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder
-/// [`publish_message`]: crate::dx::PubNubClient::publish_message
-/// [`PubNub`]:https://www.pubnub.com/
-/// [`PubNubClient`]: crate::dx::PubNubClient
-///
 /// # Examples
 /// ```rust
 /// # use pubnub::{PubNubClientBuilder, Keyset};
@@ -120,6 +115,11 @@ where
 /// # Ok(())
 /// # }
 /// ```
+///
+/// [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder
+/// [`publish_message`]: crate::dx::PubNubClient::publish_message
+/// [`PubNub`]:https://www.pubnub.com/
+/// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Builder)]
 #[builder(pattern = "owned", build_fn(private))]
 pub struct PublishMessageViaChannel<'pub_nub, T, M>
@@ -303,6 +303,9 @@ where
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// [`PublishResult`]: struct.PublishResult.html
+    /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
         let instance = self
             .build()

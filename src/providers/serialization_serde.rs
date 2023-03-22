@@ -2,8 +2,6 @@
 //!
 //! This module provides a `serde` serializer for the Pubnub protocol.
 //!
-//! [`Serialize`]: ../trait.Serialize.html
-//!
 //! # Examples
 //! ```
 //! use pubnub::core::Serialize as _;
@@ -17,7 +15,8 @@
 //! let foo = Foo { bar: "baz".to_string() };
 //! assert_eq!(foo.serialize().unwrap(), b"{\"bar\":\"baz\"}".to_vec());
 //! ```
-
+//!
+//! [`Serialize`]: ../trait.Serialize.html
 impl<S> crate::core::Serialize for S
 where
     S: serde::Serialize,

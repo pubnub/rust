@@ -99,18 +99,18 @@ impl TransportReqwest {
     /// It provides a default [`reqwest`] client using [`reqwest::Client::default()`]
     /// and a default hostname of `https://ps.pndsn.com`.
     ///
-    /// [`TransportReqwest`]: ./struct.TransportReqwest.html
-    /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
-    /// [`pubnub`]: ../index.html
-    /// [`PubNubClientBuilder`]: ../pubnub_client/struct.PubNubClientBuilder.html
-    /// [`reqwest`]: https://docs.rs/reqwest
-    ///
     /// # Example
     /// ```
     /// use pubnub::transport::TransportReqwest;
     ///
     /// let transport = TransportReqwest::new();
     /// ```
+    ///
+    /// [`TransportReqwest`]: ./struct.TransportReqwest.html
+    /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
+    /// [`pubnub`]: ../index.html
+    /// [`PubNubClientBuilder`]: ../pubnub_client/struct.PubNubClientBuilder.html
+    /// [`reqwest`]: https://docs.rs/reqwest
     pub fn new() -> Self {
         Self::default()
     }
@@ -162,12 +162,6 @@ impl PubNubClientBuilder<TransportReqwest> {
     /// The default hostname is `https://ps.pndsn.com`.
     /// The default [`reqwest`] client is created using [`reqwest::Client::default()`].
     ///
-    /// [`PubNubClientBuilder`]: ../pubnub_client/struct.PubNubClientBuilder.html
-    /// [`TransportReqwest`]: ./struct.TransportReqwest.html
-    /// [`reqwest`]: https://docs.rs/reqwest
-    /// [`PubNub API`]: https://www.pubnub.com/docs
-    /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
-    ///
     /// # Examples
     /// ```
     /// use pubnub::{PubNubClientBuilder, Keyset};
@@ -181,6 +175,12 @@ impl PubNubClientBuilder<TransportReqwest> {
     ///     .with_user_id("user-123")
     ///     .build();
     /// ```
+    ///
+    /// [`PubNubClientBuilder`]: ../pubnub_client/struct.PubNubClientBuilder.html
+    /// [`TransportReqwest`]: ./struct.TransportReqwest.html
+    /// [`reqwest`]: https://docs.rs/reqwest
+    /// [`PubNub API`]: https://www.pubnub.com/docs
+    /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
     pub fn with_reqwest_transport() -> PubNubClientBuilder<TransportReqwest> {
         PubNubClientBuilder {
             transport: Some(TransportReqwest::new()),
