@@ -171,7 +171,7 @@ where
                         pub_key,
                         sub_key,
                         encode(&self.channel),
-                        m_str
+                        encode(&m_str)
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
@@ -375,7 +375,11 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("publish///0/{}/0/\"{}\"", channel, message),
+            format!(
+                "publish///0/{}/0/{}",
+                channel,
+                encode(&format!("\"{}\"", message))
+            ),
             result.path
         );
     }
@@ -395,7 +399,7 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("publish///0/{}/0/{{\"a\":\"b\"}}", channel),
+            format!("publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
             result.path
         );
     }
