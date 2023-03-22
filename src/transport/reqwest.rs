@@ -34,6 +34,7 @@ use urlencoding::encode;
 /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 #[derive(Clone, Debug)]
 pub struct TransportReqwest {
+    /// TODO: [docs]
     pub reqwest_client: reqwest::Client,
 
     /// The hostname to use for requests.

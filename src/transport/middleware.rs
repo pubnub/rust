@@ -9,8 +9,11 @@ pub struct PubNubMiddleware<T>
 where
     T: Transport + Send + Sync,
 {
+    /// TODO: [docs]
     pub transport: T,
+    /// TODO: [docs]
     pub instance_id: Option<String>,
+    /// TODO: [docs]
     pub user_id: String,
 }
 
