@@ -21,9 +21,14 @@ use urlencoding::encode;
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///
-/// This struct is used to publish a message to a channel. It is used by the [`publish`] method of the [`PubNubClient`].
-/// The [`publish`] method is used to publish a message to a channel.
+/// This struct is used to publish a message to a channel. It is used by the [`publish_message`] method of the [`PubNubClient`].
+/// The [`publish_message`] method is used to publish a message to a channel.
 /// The [`PublishMessageBuilder`] is used to build the request to be sent to the [`PubNub`] network.
+///
+/// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
+/// [`publish_message`]: crate::dx::PubNubClient::publish_message`
+/// [`PubNubClient`]: crate::dx::PubNubClient
+/// [`PubNub`]:https://www.pubnub.com/
 ///
 /// # Examples
 /// ```rust
