@@ -92,18 +92,18 @@ where
     T: Transport,
 {
     /// Transport layer
-    pub transport: T,
+    pub(crate) transport: T,
 
     /// Instance ID
     #[builder(setter(strip_option), default = "None")]
-    pub instance_id: Option<String>,
+    pub(crate) instance_id: Option<String>,
 
     /// Sequence number for the publish requests
     #[builder(default = "1")]
-    pub next_seqn: u16,
+    pub(crate) next_seqn: u16,
 
     /// Configuration
-    pub config: PubNubConfig,
+    pub(crate) config: PubNubConfig,
 }
 
 impl<T> PubNubClient<T>
@@ -184,16 +184,16 @@ where
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubConfig {
     /// Subscribe key
-    pub subscribe_key: String,
+    pub(crate) subscribe_key: String,
 
     /// User ID
-    pub user_id: String,
+    pub(crate) user_id: String,
 
     /// Publish key
-    pub publish_key: Option<String>,
+    pub(crate) publish_key: Option<String>,
 
     /// Secret key
-    pub secret_key: Option<String>,
+    pub(crate) secret_key: Option<String>,
 }
 
 /// PubNub builder for [`PubNubClient`]
