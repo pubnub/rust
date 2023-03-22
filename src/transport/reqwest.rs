@@ -21,6 +21,7 @@ use crate::{
     PubNubClientBuilder,
 };
 use log::info;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::HashMap;
 use urlencoding::encode;
 
@@ -58,10 +59,17 @@ impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
         let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);
         info!("{}", request_url);
-        let result = match request.method {
-            TransportMethod::Get => self.send_via_get_method(request, request_url).await,
-            TransportMethod::Post => self.send_via_post_method(request, request_url).await,
+        let headers = prepare_headers(&request.headers)?;
+        let builder = match request.method {
+            TransportMethod::Get => self.prepare_get_method(request, request_url),
+            TransportMethod::Post => self.prepare_post_method(request, request_url),
         }?;
+
+        let result = builder
+            .headers(headers)
+            .send()
+            .await
+            .map_err(|e| TransportError(e.to_string()))?;
 
         Ok(TransportResponse {
             status: result.status().as_u16(),
@@ -115,30 +123,34 @@ impl TransportReqwest {
         Self::default()
     }
 
-    async fn send_via_get_method(
+    fn prepare_get_method(
         &self,
         _request: TransportRequest,
         url: String,
-    ) -> Result<reqwest::Response, PubNubError> {
-        self.reqwest_client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| TransportError(e.to_string()))
+    ) -> Result<reqwest::RequestBuilder, PubNubError> {
+        Ok(self.reqwest_client.get(url))
     }
 
-    async fn send_via_post_method(
+    fn prepare_post_method(
         &self,
         request: TransportRequest,
         url: String,
-    ) -> Result<reqwest::Response, PubNubError> {
+    ) -> Result<reqwest::RequestBuilder, PubNubError> {
         request
             .body
             .ok_or(TransportError("Body should not be empty for POST".into()))
-            .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes).send())?
-            .await
-            .map_err(|e| TransportError(e.to_string()))
+            .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
     }
+}
+
+fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMap, PubNubError> {
+    let mut result = HeaderMap::new();
+    for (k, v) in request_headers.iter() {
+        let value = HeaderValue::try_from(v).map_err(|e| TransportError(e.to_string()))?;
+        let name = HeaderName::try_from(k).map_err(|e| TransportError(e.to_string()))?;
+        result.insert(name, value);
+    }
+    Ok(result)
 }
 
 // TODO: create test for merging query params
@@ -192,7 +204,7 @@ impl PubNubClientBuilder<TransportReqwest> {
 mod should {
     use super::*;
     use test_case::test_case;
-    use wiremock::matchers::{body_string, method, path as path_macher};
+    use wiremock::matchers::{body_string, header, method, path as path_macher};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[test_case("/path/%22Hello%22", "/path/\"Hello\"" ; "sending string")]
@@ -255,6 +267,39 @@ mod should {
             query_parameters: [("uuid".into(), "Phoenix".into())].into(),
             method: TransportMethod::Post,
             body: Some(message.chars().map(|c| c as u8).collect()),
+            ..Default::default()
+        };
+
+        let response = transport.send(request).await.unwrap();
+
+        assert_eq!(response.status, 200);
+    }
+
+    #[tokio::test]
+    async fn send_headers() {
+        let path = "/publish/sub_key/pub_key/0/chat/0";
+        let expected_key = "k";
+        let expected_val = "v";
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_macher(path))
+            .and(header(expected_key, expected_val))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string("[1,\"Sent\",\"16787176144828000\"]"),
+            )
+            .mount(&server)
+            .await;
+
+        let transport = TransportReqwest {
+            reqwest_client: reqwest::Client::default(),
+            hostname: server.uri(),
+        };
+
+        let request = TransportRequest {
+            path: path.into(),
+            method: TransportMethod::Get,
+            headers: HashMap::from([(expected_key.into(), expected_val.into())]),
             ..Default::default()
         };
 
