@@ -25,6 +25,9 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// and UUID to identify the client.
 ///
 /// [selected]: ../index.html#features
+/// [`Transport`]: ../core/trait.Transport.html
+/// [`Keyset`]: ../core/struct.Keyset.html
+/// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
 ///
 /// # Examples
 /// ```
