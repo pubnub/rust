@@ -148,24 +148,29 @@ async fn i_publish_message_to_channel_with_meta(
     param: String,
     param_value: String,
 ) {
-    if param.eq("meta") {
-        let meta_map: HashMap<String, String> = serde_json::from_str(param_value.as_str()).unwrap();
-        world.last_result = world
-            .get_pub_nub()
-            .publish_message(message)
-            .channel(channel)
-            .meta(meta_map)
-            .execute()
-            .await;
-    } else if param.eq("store") {
-        let store: bool = param_value != "0";
-        world.last_result = world
-            .get_pub_nub()
-            .publish_message(message)
-            .channel(channel)
-            .store(store)
-            .execute()
-            .await;
+    match param.as_str() {
+        "meta" => {
+            let meta_map: HashMap<String, String> =
+                serde_json::from_str(param_value.as_str()).unwrap();
+            world.last_result = world
+                .get_pub_nub()
+                .publish_message(message)
+                .channel(channel)
+                .meta(meta_map)
+                .execute()
+                .await;
+        }
+        "store" => {
+            let store: bool = param_value != "0";
+            world.last_result = world
+                .get_pub_nub()
+                .publish_message(message)
+                .channel(channel)
+                .store(store)
+                .execute()
+                .await;
+        }
+        _ => { /* do nothing */ }
     }
 }
 
