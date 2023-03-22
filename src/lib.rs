@@ -91,7 +91,10 @@
 //!
 //! ## Documentation
 //!
-//! * [API reference for Rust](TODO)
+//! :warning: We are under the development! ** Links below not works ** :warning:
+//!
+//! * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
+//! * [Rust docs](https://docs.rs/pubnub/latest/pubnub/]
 //!
 //! ## Support
 //!
