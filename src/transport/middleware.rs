@@ -7,10 +7,9 @@ use uuid::Uuid;
 /// TODO: Add docs
 pub struct PubNubMiddleware<T>
 where
-    T: Transport,
+    T: Transport + Send + Sync,
 {
     pub transport: T,
-    pub include_request_id: bool,
     pub instance_id: Option<String>,
     pub user_id: String,
 }
@@ -21,10 +20,8 @@ where
     T: Transport + Sync + Send,
 {
     async fn send(&self, mut req: TransportRequest) -> Result<TransportResponse, PubNubError> {
-        if self.include_request_id {
-            req.query_parameters
-                .insert("requestid".into(), Uuid::new_v4().to_string());
-        }
+        req.query_parameters
+            .insert("requestid".into(), Uuid::new_v4().to_string());
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, VERSION));
         req.query_parameters
@@ -74,13 +71,12 @@ mod should {
 
         let middleware = PubNubMiddleware {
             transport: MockTransport::default(),
-            include_request_id: true,
             instance_id: Some(String::from("instance_id")),
             user_id: "user_id".to_string(),
         };
 
         let result = middleware.send(TransportRequest::default()).await;
 
-        assert!(dbg!(result).is_ok());
+        assert!(result.is_ok());
     }
 }

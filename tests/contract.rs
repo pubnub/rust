@@ -1,6 +1,7 @@
 use cucumber::{given, then, when, World};
 use pubnub::dx::publish::PublishResult;
 use pubnub::dx::PubNubClient;
+use pubnub::dx::pubnub_client::PubNubConfig;
 use pubnub::transport::middleware::PubNubMiddleware;
 use pubnub::transport::TransportReqwest;
 use pubnub::PubNubError;
@@ -38,9 +39,15 @@ impl PubNubWorld {
                 },
                 user_id: "user_id".to_string(),
                 instance_id: None,
-                include_request_id: true,
             },
             next_seqn: 1,
+            instance_id: Some("instance".to_owned()),
+            config: PubNubConfig {
+                    publish_key: Some(self.keyset.pubkey.to_owned()),
+                    subscribe_key: self.keyset.subkey.to_owned(),
+                    user_id: "some".to_owned(),
+                    secret_key: Some("some".to_owned()),
+                },
         }
     }
 }

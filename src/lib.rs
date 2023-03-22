@@ -36,11 +36,11 @@
 //! Add `pubnub` to your Rust project in the `Cargo.toml` file:
 //!
 //! ```toml
-//! // default features
+//! # default features
 //! [dependencies]
 //! pubnub = "0.0.0"
 //!
-//! // all features
+//! # all features
 //! [dependencies]
 //! pubnub = { version = "0.0.0", features = ["full"] }
 //! ```
@@ -49,8 +49,32 @@
 //!
 //! Try the following sample code to get up and running quicky!
 //!
-//! ```rust
-//! // TODO
+//! ```no_run
+//! use std::env;
+//! use pubnub::{Keyset, PubNubClientBuilder};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
+//!     let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
+//!
+//!     let mut client = PubNubClientBuilder::with_reqwest_transport()
+//!         .with_keyset(Keyset {
+//!             subscribe_key,
+//!             publish_key: Some(publish_key),
+//!             secret_key: None,
+//!         })
+//!         .with_user_id("user_id")
+//!         .build()?;
+//!
+//!     client
+//!         .publish_message("hello world!")
+//!         .channel("my_channel")
+//!         .execute()
+//!         .await?;
+//!
+//!     Ok(())
+//! }
 //! ```
 //!
 //! You can find more examples in our [examples](examples/) directory!
@@ -58,10 +82,12 @@
 //! ## Features
 //! The `pubnub` crate is split into multiple features, which can be enabled or disabled in your `Cargo.toml` file.
 //! Feature list:
-//! * `full` - enables all features
+//! * `full` - enables all not conflicting features
 //! * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
+//! * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 //! * `default` - default features that include:
 //!    * `serde`
+//!    * `reqwest`
 //!
 //! ## Documentation
 //!
@@ -84,6 +110,12 @@ pub use self::core::TransportResponse;
 pub use self::core::{PubNubError, Serialize};
 pub mod core;
 
+pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod dx;
+
 pub mod providers;
+
+#[cfg(feature = "reqwest")]
+pub use transport::reqwest;
+#[cfg(feature = "reqwest")]
 pub mod transport;

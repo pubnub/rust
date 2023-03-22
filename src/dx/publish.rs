@@ -6,6 +6,8 @@ use crate::{
 };
 use derive_builder::Builder;
 use std::collections::HashMap;
+use std::ops::Not;
+use urlencoding::encode;
 
 /// TODO: Add documentation
 pub type MessageType = String;
@@ -27,14 +29,17 @@ where
     M: Serialize,
 {
     /// TODO: Add documentation
-    pub fn channel(self, channel: String) -> PublishMessageViaChannelBuilder<'pub_nub, T, M> {
+    pub fn channel<S>(self, channel: S) -> PublishMessageViaChannelBuilder<'pub_nub, T, M>
+    where
+        S: Into<String>,
+    {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
             ..Default::default()
         }
         .message(self.message)
-        .channel(channel)
+        .channel(channel.into())
     }
 }
 
@@ -55,6 +60,7 @@ where
     /// TODO: Add documentation
     message: M,
     /// TODO: Add documentation
+    #[builder(setter(into))]
     channel: String,
     /// TODO: Add documentation
     #[builder(setter(strip_option), default = "None")]
@@ -83,6 +89,19 @@ fn bool_to_numeric(value: bool) -> String {
     if value { "1" } else { "0" }.to_string()
 }
 
+fn serialize_meta(meta: &HashMap<String, String>) -> String {
+    let mut result = String::new();
+    result.push('{');
+    meta.iter().for_each(|k| {
+        result.push_str(format!("\"{}\":\"{}\",", k.0.as_str(), k.1.as_str()).as_str());
+    });
+    if result.ends_with(',') {
+        result.remove(result.len() - 1);
+    }
+    result.push('}');
+    result
+}
+
 impl<'pub_nub, T, M> PublishMessageViaChannel<'pub_nub, T, M>
 where
     T: Transport,
@@ -97,9 +116,9 @@ where
         self.ttl
             .and_then(|t| query_params.insert("ttl".to_string(), t.to_string()));
 
-        if !self.replicate {
-            query_params.insert("norep".to_string(), true.to_string());
-        }
+        self.replicate
+            .not()
+            .then(|| query_params.insert("norep".to_string(), true.to_string()));
 
         if let Some(space_id) = &self.space_id {
             query_params.insert("space-id".to_string(), space_id.clone());
@@ -111,17 +130,29 @@ where
 
         query_params.insert("seqn".to_string(), self.seqn.to_string());
 
+        self.meta
+            .as_ref()
+            .map(serialize_meta)
+            .and_then(|meta| query_params.insert("meta".to_string(), meta));
+
         query_params
     }
 
+    // TODO: create test for path creation!
     fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
-        let pub_key = "demo";
-        let sub_key = "demo";
+
+        let pub_key = &self
+            .pub_nub_client
+            .config
+            .publish_key
+            .as_ref()
+            .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
+        let sub_key = &self.pub_nub_client.config.subscribe_key;
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("publish/{sub_key}/{pub_key}/0/{}/0", self.channel),
+                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
@@ -137,7 +168,10 @@ where
                 .map(|m_str| TransportRequest {
                     path: format!(
                         "publish/{}/{}/0/{}/0/{}",
-                        sub_key, pub_key, self.channel, m_str
+                        pub_key,
+                        sub_key,
+                        encode(&self.channel),
+                        m_str
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
@@ -160,18 +194,7 @@ where
 
         let client = instance.pub_nub_client;
         match instance.create_transport_request() {
-            Ok(request) => {
-                client
-                    .transport
-                    .send(request)
-                    .await
-                    .map(|response| match response.status {
-                        200 => Ok(PublishResult),
-                        other => Err(PubNubError::PublishError(format!(
-                            "Returned status {other}"
-                        ))),
-                    })?
-            }
+            Ok(request) => client.transport.send(request).await.map(|_| PublishResult),
             Err(error) => Err(error),
         }
     }
@@ -211,12 +234,18 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{core::TransportResponse, dx::PubNubClient};
+    use crate::{
+        core::TransportResponse,
+        dx::{pubnub_client::PubNubConfig, PubNubClient},
+        transport::middleware::PubNubMiddleware,
+        Keyset,
+    };
+    use test_case::test_case;
 
     #[derive(Default)]
     struct MockTransport;
 
-    fn client() -> PubNubClient<MockTransport> {
+    fn client() -> PubNubClient<PubNubMiddleware<MockTransport>> {
         #[async_trait::async_trait]
         impl Transport for MockTransport {
             async fn send(
@@ -227,10 +256,15 @@ mod should {
             }
         }
 
-        PubNubClient {
-            transport: MockTransport::default(),
-            next_seqn: 1,
-        }
+        PubNubClient::with_transport(MockTransport::default())
+            .with_keyset(Keyset {
+                publish_key: Some(""),
+                subscribe_key: "",
+                secret_key: None,
+            })
+            .with_user_id("")
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -248,19 +282,16 @@ mod should {
             }
         }
 
-        let mut client = PubNubClient {
-            transport: MockTransport::default(),
-            next_seqn: 1,
-        };
+        let mut client = client();
 
         let result = client
             .publish_message("First message")
-            .channel("Iguess".into())
+            .channel("Iguess")
             .replicate(true)
             .execute()
             .await;
 
-        assert!(dbg!(result).is_ok());
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
@@ -269,12 +300,13 @@ mod should {
 
         let result = client
             .publish_message("message")
-            .channel("chan".into())
+            .channel("chan")
             .replicate(false)
             .ttl(50)
             .store(true)
             .space_id("space_id".into())
             .message_type("message_type".into())
+            .meta(HashMap::from([("k".to_string(), "v".to_string())]))
             .build()
             .unwrap()
             .create_transport_request()
@@ -286,6 +318,7 @@ mod should {
                 ("store".into(), "1".into()),
                 ("space-id".into(), "space_id".into()),
                 ("type".into(), "message_type".into()),
+                ("meta".into(), "{\"k\":\"v\"}".into()),
                 ("ttl".into(), "50".into()),
                 ("seqn".into(), "1".into())
             ]),
@@ -303,6 +336,28 @@ mod should {
         ];
 
         assert_eq!(vec![1, 2], received_seqns);
+    }
+
+    #[tokio::test]
+    async fn return_err_if_publish_key_is_not_provided() {
+        let mut client = {
+            let default_client = client();
+
+            PubNubClient {
+                config: PubNubConfig {
+                    publish_key: None,
+                    ..default_client.config
+                },
+                ..default_client
+            }
+        };
+
+        assert!(client
+            .publish_message("meess")
+            .channel("chan")
+            .execute()
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -365,5 +420,16 @@ mod should {
             format!("\"{}\"", message),
             String::from_utf8(result.body.unwrap()).unwrap()
         );
+    }
+
+    #[test_case(HashMap::from([("k".to_string(), "v".to_string())]), "{\"k\":\"v\"}" ; "hash map with elements")]
+    #[test_case(HashMap::new(), "{}" ; "empty hash map")]
+    #[test_case(HashMap::from([("k".to_string(), "".to_string())]), "{\"k\":\"\"}" ; "empty value")]
+    #[test_case(HashMap::from([("".to_string(), "v".to_string())]), "{\"\":\"v\"}" ; "empty key")]
+    #[tokio::test]
+    async fn this_test_should_test_an_fn_itself(map: HashMap<String, String>, expected_json: &str) {
+        let result = serialize_meta(&map);
+
+        assert_eq!(expected_json, result);
     }
 }
