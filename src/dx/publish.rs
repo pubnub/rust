@@ -422,8 +422,8 @@ mod should {
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn verify_all_query_parameters() {
+    #[test]
+    fn verify_all_query_parameters() {
         let mut client = client();
 
         let result = client
@@ -454,8 +454,8 @@ mod should {
         );
     }
 
-    #[tokio::test]
-    async fn verify_seqn_is_incrementing() {
+    #[test]
+    fn verify_seqn_is_incrementing() {
         let mut client = client();
 
         let received_seqns = vec![
@@ -488,8 +488,8 @@ mod should {
             .is_err());
     }
 
-    #[tokio::test]
-    async fn test_send_string_when_get() {
+    #[test]
+    fn test_send_string_when_get() {
         let mut client = client();
         let channel = String::from("ch");
         let message = "this is message";
@@ -512,8 +512,8 @@ mod should {
         );
     }
 
-    #[tokio::test]
-    async fn test_send_map_when_get() {
+    #[test]
+    fn test_send_map_when_get() {
         let mut client = client();
         let channel = String::from("ch");
         let message = HashMap::from([("a", "b")]);
@@ -532,8 +532,8 @@ mod should {
         );
     }
 
-    #[tokio::test]
-    async fn test_quotes_not_escaped_when_post() {
+    #[test]
+    fn test_quotes_not_escaped_when_post() {
         let mut client = client();
         let channel = String::from("ch");
         let message = "this is message";
@@ -558,8 +558,7 @@ mod should {
     #[test_case(HashMap::new(), "{}" ; "empty hash map")]
     #[test_case(HashMap::from([("k".to_string(), "".to_string())]), "{\"k\":\"\"}" ; "empty value")]
     #[test_case(HashMap::from([("".to_string(), "v".to_string())]), "{\"\":\"v\"}" ; "empty key")]
-    #[tokio::test]
-    async fn this_test_should_test_an_fn_itself(map: HashMap<String, String>, expected_json: &str) {
+    fn this_test_should_test_an_fn_itself(map: HashMap<String, String>, expected_json: &str) {
         let result = serialize_meta(&map);
 
         assert_eq!(expected_json, result);
