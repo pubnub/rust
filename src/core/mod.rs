@@ -32,7 +32,3 @@ pub mod serialize;
 #[doc(inline)]
 pub use deserialize::Deserialize;
 pub mod deserialize;
-
-fn kekw() {
-    PubNubError::TransportError("This is default value".into()).kind();
-}
