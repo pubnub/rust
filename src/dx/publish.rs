@@ -315,8 +315,15 @@ where
 
         instance
             .create_transport_request()
-            .map(|request| async { client.transport.send(request).await.map(|_| PublishResult) })?
+            .map(|request| Self::send_request(&client.transport, request))?
             .await
+    }
+
+    async fn send_request(
+        transport: &T,
+        request: TransportRequest,
+    ) -> Result<PublishResult, PubNubError> {
+        transport.send(request).await.map(|_| PublishResult)
     }
 }
 
