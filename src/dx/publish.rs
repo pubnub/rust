@@ -312,10 +312,11 @@ where
             .map_err(|err| PubNubError::PublishError(err.to_string()))?;
 
         let client = instance.pub_nub_client;
-        match instance.create_transport_request() {
-            Ok(request) => client.transport.send(request).await.map(|_| PublishResult),
-            Err(error) => Err(error),
-        }
+
+        instance
+            .create_transport_request()
+            .map(|request| async { client.transport.send(request).await.map(|_| PublishResult) })?
+            .await
     }
 }
 
