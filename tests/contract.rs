@@ -1,9 +1,10 @@
 use cucumber::{given, then, when, World};
-use pubnub::dx::publish::PublishResult;
-use pubnub::dx::PubNubClient;
-use pubnub::transport::middleware::PubNubMiddleware;
-use pubnub::transport::TransportReqwest;
-use pubnub::{Keyset, PubNubClientBuilder, PubNubError};
+use pubnub::{
+    core::PubNubError,
+    dx::publish::PublishResult,
+    transport::{middleware::PubNubMiddleware, TransportReqwest},
+    Keyset, PubNubClient, PubNubClientBuilder,
+};
 use std::collections::HashMap;
 
 #[derive(Debug, World)]
