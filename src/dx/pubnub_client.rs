@@ -8,7 +8,7 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use crate::{core::Transport, transport::middleware::PubNubMiddleware, PubNubError};
+use crate::{core::PubNubError, core::Transport, transport::middleware::PubNubMiddleware};
 use derive_builder::Builder;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -16,7 +16,7 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 
 /// PubNub client
 ///
-/// Client for PubNub API with support for all [selected] PubNub features.
+/// Client for PubNub API with support for all [`selected`] PubNub features.
 /// It is generic over transport layer, which allows to use any transport
 /// that implements [`Transport`] trait.
 ///
@@ -24,14 +24,13 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// It is required to use [`Keyset`] to provide keys to the client
 /// and UUID to identify the client.
 ///
-/// [selected]: ../index.html#features
-///
 /// # Examples
 /// ```
 /// use pubnub::{PubNubClientBuilder, Keyset};
 ///
 /// // note that `with_reqwest_transport` requires `reqwest` feature
 /// // to be enabled (default)
+/// # fn main() -> Result<(), pubnub::core::PubNubError> {
 /// let client = PubNubClientBuilder::with_reqwest_transport()
 ///    .with_keyset(Keyset {
 ///         publish_key: Some("pub-c-abc123"),
@@ -39,22 +38,22 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 ///         secret_key: None,
 ///    })
 ///    .with_user_id("my-user-id")
-///    .build();
+///    .build()?;
+///
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// or using own [`Transport`] implementation
 ///
-/// [`Transport`]: ../core/trait.Transport.html
-///
 /// ```
 /// use pubnub::{PubNubClient, Keyset};
 ///
-/// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+/// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
 /// # struct MyTransport;
 /// # #[async_trait::async_trait]
 /// # impl Transport for MyTransport {
-/// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
-/// pubnub::PubNubError> {
+/// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
 /// #         unimplemented!()
 /// #     }
 /// # }
@@ -64,6 +63,7 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// #     }
 /// # }
 ///
+/// # fn main() -> Result<(), pubnub::core::PubNubError> {
 /// // note that MyTransport must implement `Transport` trait
 /// let transport = MyTransport::new();
 ///
@@ -74,12 +74,20 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 ///         secret_key: None,
 ///    })
 ///    .with_user_id("my-user-id")
-///    .build();
+///    .build()?;
+///
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// # See also
 /// [Keyset](struct.Keyset.html)
 /// [Transport](../core/trait.Transport.html)
+///
+/// [`selected`]: ../index.html#features
+/// [`Transport`]: ../core/trait.Transport.html
+/// [`Keyset`]: ../core/struct.Keyset.html
+/// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Builder)]
 #[builder(
     pattern = "owned",
@@ -112,17 +120,15 @@ where
 {
     /// Create a new builder for [`PubNubClient`]
     ///
-    /// [`PubNubClient`]: struct.PubNubClient.html
-    ///
     /// # Examples
     /// ```
     /// use pubnub::{PubNubClient, Keyset};
     ///
-    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
     /// # #[async_trait::async_trait]
     /// # impl Transport for MyTransport {
-    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, pubnub::PubNubError> {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
     /// # }
@@ -132,6 +138,7 @@ where
     /// #     }
     /// # }
     ///
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
     /// // note that MyTransport must implement `Transport` trait
     /// let transport = MyTransport::new();
     ///
@@ -142,8 +149,13 @@ where
     ///        secret_key: None,
     ///     })
     ///     .with_user_id("my-user-id")
-    ///     .build();
+    ///     .build()?;
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
+    ///
+    /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn with_transport(transport: T) -> PubNubClientBuilder<T> {
         PubNubClientBuilder {
             transport: Some(transport),
@@ -242,12 +254,11 @@ where
     /// ```
     /// use pubnub::PubNubClientBuilder;
     ///
-    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
     /// # #[async_trait::async_trait]
     /// # impl Transport for MyTransport {
-    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
-    /// pubnub::PubNubError> {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
     /// # }
@@ -272,12 +283,11 @@ where
     /// ```
     /// use pubnub::{PubNubClient, Keyset};
     ///
-    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse};
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
     /// # #[async_trait::async_trait]
     /// # impl Transport for MyTransport {
-    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse,
-    /// pubnub::PubNubError> {
+    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
     /// # }
@@ -307,9 +317,6 @@ where
     /// to set UUID for the client.
     /// See [`Keyset`] for more information.
     ///
-    /// [`PubNubClientUserIdBuilder`]: struct.PubNubClientBuilderKeyset.html
-    /// [`Keyset`]: struct.Keyset.html
-    ///
     /// # Examples
     /// ```
     /// use pubnub::{PubNubClientBuilder, Keyset};
@@ -323,6 +330,9 @@ where
     ///    secret_key: None,
     ///  });
     /// ```
+    ///
+    /// [`PubNubClientUserIdBuilder`]: struct.PubNubClientBuilderKeyset.html
+    /// [`Keyset`]: struct.Keyset.html
     pub fn with_keyset<S>(self, keyset: Keyset<S>) -> PubNubClientUserIdBuilder<T, S>
     where
         S: Into<String>,
@@ -338,9 +348,6 @@ where
 /// It is returned by [`PubNubClientBuilder::with_keyset`]
 /// and provides method to set UUID for the client.
 /// See [`PubNubClient`] for more information.
-///
-/// [`PubNubClient`]: struct.PubNubClient.html
-/// [`PubNubClientBuilder::with_keyset`]: struct.PubNubClientBuilder.html#method.with_keyset
 ///
 /// # Examples
 /// ```
@@ -359,6 +366,9 @@ where
 /// [Keyset](struct.Keyset.html)
 /// [PubNubClientBuilder](struct.PubNubClientBuilder.html)
 /// [PubNubClient](struct.PubNubClient.html)
+///
+/// [`PubNubClient`]: struct.PubNubClient.html
+/// [`PubNubClientBuilder::with_keyset`]: struct.PubNubClientBuilder.html#method.with_keyset
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubClientUserIdBuilder<T, S>
 where
@@ -435,7 +445,7 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{TransportRequest, TransportResponse};
+    use crate::core::{TransportRequest, TransportResponse};
     use std::any::type_name;
 
     #[test]

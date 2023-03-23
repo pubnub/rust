@@ -17,11 +17,11 @@ use std::{collections::HashMap, fmt::Display};
 /// [`TransportRequest`]: struct.TransportRequest.html
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub enum TransportMethod {
-    /// TODO: Add docs
+    /// The GET method.
     #[default]
     Get,
 
-    /// TODO: Add docs
+    /// The POST method.
     Post,
 }
 

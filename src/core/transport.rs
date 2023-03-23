@@ -14,11 +14,9 @@ use super::{transport_response::TransportResponse, PubNubError, TransportRequest
 /// You can implement this trait for your own types, or use one of the provided
 /// features to use a transport library.
 ///
-/// [`PubNub API`]: https://www.pubnub.com/docs
-///
 /// # Examples
 /// ```
-/// use pubnub::{Transport, TransportRequest, TransportResponse, PubNubError};
+/// use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
 ///
 /// struct MyTransport;
 ///
@@ -31,6 +29,8 @@ use super::{transport_response::TransportResponse, PubNubError, TransportRequest
 ///    }
 /// }
 /// ```
+///
+/// [`PubNub API`]: https://www.pubnub.com/docs
 #[async_trait::async_trait]
 pub trait Transport {
     /// Send a request to the [`PubNub API`].

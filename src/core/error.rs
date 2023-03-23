@@ -9,10 +9,9 @@
 /// This type is used to represent errors that can occur in the PubNub protocol.
 /// It is used as the error type for the [`Result`] type.
 ///
-/// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
 /// # Examples
 /// ```
-/// use pubnub::PubNubError;
+/// use pubnub::core::PubNubError;
 ///
 /// fn foo() -> Result<(), PubNubError> {
 ///   Ok(())
@@ -23,8 +22,9 @@
 ///   PubNubError::PublishError(_) => println!("Publish error"),
 ///   _ => println!("Other error"),
 /// });
-///
 /// ```
+///
+/// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
 #[derive(thiserror::Error, Debug)]
 pub enum PubNubError {
     /// this error is returned when the transport layer fails

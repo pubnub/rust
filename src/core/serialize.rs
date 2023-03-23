@@ -16,18 +16,16 @@ use super::PubNubError;
 /// You can implement this trait for your own types, or use the provided
 /// implementations for [`Into<Vec<u8>>`].
 ///
-/// [`serialize`]: #tymethod.serialize
-///
 /// # Examples
 /// ```no_run
-/// use pubnub::Serialize;
+/// use pubnub::core::{Serialize, PubNubError};
 ///
 /// struct Foo {
 ///   bar: String,
 /// }
 ///  
 /// impl Serialize for Foo {
-///   fn serialize(self) -> Result<Vec<u8>, pubnub::PubNubError> {
+///   fn serialize(self) -> Result<Vec<u8>, PubNubError> {
 ///     Ok(format!("{{\"bar\":\"{}\"}}", self.bar).into_bytes())
 ///   }
 /// }
@@ -35,25 +33,27 @@ use super::PubNubError;
 /// let bytes = Foo { bar: "baz".into() };
 /// assert_eq!(bytes.serialize().unwrap(), b"{\"bar\":\"baz\"}".to_vec());
 /// ```
+///
+/// [`serialize`]: #tymethod.serialize
 pub trait Serialize {
     /// Serialize the value
     ///
     /// # Errors
     /// Should return an [`PubNubError::SerializeError`] if the value cannot be serialized.
     ///
-    /// [`PubNubError::SerializeError`]: ../error/enum.PubNubError.html#variant.SerializeError
-    ///
     /// # Examples
     /// ```
-    /// use pubnub::Serialize;
+    /// use pubnub::core::{Serialize, PubNubError};
     ///
     /// struct Foo;
     ///
     /// impl Serialize for Foo {
-    ///    fn serialize(self) -> Result<Vec<u8>, pubnub::PubNubError> {
+    ///    fn serialize(self) -> Result<Vec<u8>, PubNubError> {
     ///         Ok(vec![1, 2, 3])
     ///    }
     /// }
-    ///```
+    /// ```
+    ///
+    /// [`PubNubError::SerializeError`]: ../error/enum.PubNubError.html#variant.SerializeError
     fn serialize(self) -> Result<Vec<u8>, PubNubError>;
 }
