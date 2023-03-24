@@ -8,6 +8,8 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
+use crate::core::PubNubError::ClientInitializationError;
+use crate::transport::middleware::SignatureKeySet;
 use crate::{core::PubNubError, core::Transport, transport::middleware::PubNubMiddleware};
 use derive_builder::Builder;
 
@@ -172,18 +174,21 @@ where
     /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn build(self) -> Result<PubNubClient<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
-            .map(|pre_build| PubNubClient {
-                transport: PubNubMiddleware {
-                    transport: pre_build.transport,
-                    // TODO: String -> Cow<'static, str>
-                    instance_id: pre_build.instance_id.clone(),
-                    user_id: pre_build.config.user_id.clone(),
-                },
-                instance_id: pre_build.instance_id,
-                next_seqn: pre_build.next_seqn,
-                config: pre_build.config,
+            .map_err(|err| ClientInitializationError(err.to_string()))
+            .and_then(|pre_build| {
+                Ok(PubNubClient {
+                    transport: PubNubMiddleware {
+                        transport: pre_build.transport,
+                        // TODO: String -> Cow<'static, str>
+                        instance_id: pre_build.instance_id.clone(),
+                        user_id: pre_build.config.user_id.clone(),
+                        signature_keys: pre_build.config.clone().signature_key_set()?,
+                    },
+                    instance_id: pre_build.instance_id,
+                    next_seqn: pre_build.next_seqn,
+                    config: pre_build.config,
+                })
             })
-            .map_err(|err| PubNubError::ClientInitializationError(err.to_string()))
     }
 }
 
@@ -206,6 +211,23 @@ pub struct PubNubConfig {
 
     /// Secret key
     pub(crate) secret_key: Option<String>,
+}
+
+impl PubNubConfig {
+    fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
+        if let Some(secret_key) = self.secret_key {
+            let publish_key = self.publish_key.ok_or(ClientInitializationError(
+                "Publish key is required for signing".to_string(),
+            ))?;
+            Ok(Some(SignatureKeySet {
+                secret_key,
+                publish_key,
+                subscribe_key: self.subscribe_key,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 /// PubNub builder for [`PubNubClient`]
@@ -481,5 +503,17 @@ mod should {
             type_of(client.transport),
             type_name::<PubNubMiddleware<MockTransport>>()
         );
+    }
+
+    #[test]
+    fn publish_key_is_required_if_secret_is_set() {
+        let config = PubNubConfig {
+            publish_key: None,
+            subscribe_key: "sub_key".into(),
+            secret_key: Some("sec_key".into()),
+            user_id: "".into(),
+        };
+
+        assert!(config.signature_key_set().is_err());
     }
 }
