@@ -21,7 +21,7 @@ use crate::{
     PubNubClientBuilder,
 };
 use log::info;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::HeaderMap;
 use std::collections::HashMap;
 use urlencoding::encode;
 
