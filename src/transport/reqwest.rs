@@ -144,13 +144,7 @@ impl TransportReqwest {
 }
 
 fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMap, PubNubError> {
-    let mut result = HeaderMap::new();
-    for (k, v) in request_headers.iter() {
-        let value = HeaderValue::try_from(v).map_err(|e| TransportError(e.to_string()))?;
-        let name = HeaderName::try_from(k).map_err(|e| TransportError(e.to_string()))?;
-        result.insert(name, value);
-    }
-    Ok(result)
+    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::TransportError(err.to_string()))
 }
 
 // TODO: create test for merging query params
