@@ -30,5 +30,5 @@ pub use serialize::Serialize;
 pub mod serialize;
 
 #[doc(inline)]
-pub use deserialize::Deserialize;
-pub mod deserialize;
+pub use deserializer::Deserializer;
+pub mod deserializer;
