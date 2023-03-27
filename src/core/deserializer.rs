@@ -29,8 +29,8 @@ use super::PubNubError;
 ///
 /// struct MyDeserializer;
 ///
-/// impl Deserializer<PublishResult> for MyDeserializer {
-///    fn deserialize(&self, bytes: &[u8]) -> Result<PublishResult, PubNubError> {
+/// impl<'de> Deserializer<'de, PublishResult> for MyDeserializer {
+///    fn deserialize(&self, bytes: &'de [u8]) -> Result<PublishResult, PubNubError> {
 ///         // ...
 ///         # unimplemented!()
 ///    }
@@ -39,7 +39,7 @@ use super::PubNubError;
 ///
 /// [`dx`]: ../dx/index.html
 /// [`PublishResponse`]: ../publish/struct.PublishResponse.html
-pub trait Deserializer<T> {
+pub trait Deserializer<'de, T> {
     /// Deserialize a `&[u8]` into a `Result<T, PubNubError>`.
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, PubNubError>;
+    fn deserialize(&self, bytes: &'de [u8]) -> Result<T, PubNubError>;
 }

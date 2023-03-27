@@ -1,0 +1,57 @@
+//! Serde implementation for PubNub [`Deserializer`] trait.
+//!
+//! This module provides a `serde` deserializer for the Pubnub protocol.
+//!
+//! # Examples
+//! ```
+//! use pubnub::core::Serialize as _;
+//! use serde::{Serialize, Deserialize};
+//!
+//! #[derive(Serialize, Deserialize, Debug, PartialEq)]
+//! struct Foo {
+//!    bar: String,
+//! }
+//!
+//! let foo = Foo { bar: "baz".to_string() };
+//! assert_eq!(foo.serialize().unwrap(), b"{\"bar\":\"baz\"}".to_vec());
+//! ```
+//!
+//! [`Serialize`]: ../trait.Serialize.html
+
+use crate::core::{Deserializer, PubNubError};
+
+pub struct DeserializerSerde;
+
+impl<'de, T> Deserializer<'de, T> for DeserializerSerde
+where
+    T: serde::Deserialize<'de>,
+{
+    fn deserialize(&self, bytes: &'de [u8]) -> Result<T, crate::core::PubNubError> {
+        serde_json::from_slice(bytes).map_err(|e| PubNubError::SerializationError(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod should {
+    use super::*;
+    use serde::Deserialize;
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct Foo {
+        bar: String,
+    }
+
+    #[test]
+    fn deserialize() {
+        let sut = DeserializerSerde;
+
+        let result: Foo = sut.deserialize(b"{\"bar\":\"baz\"}").unwrap();
+
+        assert_eq!(
+            result,
+            Foo {
+                bar: "baz".to_string()
+            }
+        );
+    }
+}
