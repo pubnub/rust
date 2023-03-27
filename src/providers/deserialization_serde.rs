@@ -20,6 +20,15 @@
 
 use crate::core::{Deserializer, PubNubError};
 
+/// Serde implementation for PubNub [`Deserializer`] trait.
+///
+/// This struct implements the [`Deserializer`] trait for the [`serde`] crate.
+/// It is used by the [`dx`] modules to deserialize the data returned by the
+/// PubNub API.
+///
+/// [`Deserializer`]: ../trait.Deserializer.html
+/// [`serde`]: https://crates.io/crates/serde
+/// [`dx`]: ../dx/index.html
 pub struct DeserializerSerde;
 
 impl<'de, T> Deserializer<'de, T> for DeserializerSerde
