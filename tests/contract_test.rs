@@ -51,6 +51,7 @@ fn set_keyset(world: &mut PubNubWorld) {
     world.keyset.subscribe_key = "demo".to_string();
 }
 
+#[cfg(feature="contract_test")]
 async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!("http://localhost:8090/init?__contract__script__={}", script);
     let client = reqwest::Client::new();
