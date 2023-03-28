@@ -107,6 +107,59 @@ where
     }
 }
 
+/// The [`PublishMessageDeserializer`] is used to publish a message to a channel.
+///
+/// This struct is used to publish a message to a channel. It is used by the [`publish_message`] method of the [`PubNubClient`].
+/// It adds the deserializer to the [`PublishMessageBuilder`].
+///
+/// The [`publish_message`] method is used to publish a message to a channel.
+///
+/// See more information in the [`PublishMessageBuilder`] struct and the [`Deserializer`] trait.
+///
+/// # Examples
+/// ```rust
+/// # use pubnub::{PubNubClientBuilder, Keyset};
+/// use pubnub::{
+///     dx::publish::PublishResult,
+///     core::{Deserializer, PubNubError}
+/// };
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///
+/// struct MyDeserializer;
+///
+/// impl<'de> Deserializer<'de, PublishResult> for MyDeserializer {
+///    fn deserialize(&self, response: &'de [u8]) -> Result<PublishResult, PubNubError> {
+///    // ...
+///    # Ok(PublishResult)
+/// }
+///
+///
+/// let mut pubnub = // PubNubClient
+/// # PubNubClientBuilder::with_reqwest_transport()
+/// #     .with_keyset(Keyset{
+/// #         subscribe_key: "demo",
+/// #         publish_key: Some("demo"),
+/// #         secret_key: None,
+/// #     })
+/// #     .with_user_id("user_id")
+/// #     .build()?;
+///
+/// pubnub.publish_message("hello world!")
+///    .channel("my_channel")
+///    .deserialize_with(MyDeserializer)
+///    .execute()
+///    .await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [`PublishMessageDeserializer`]: crate::dx::publish::PublishMessageDeserializer
+/// [`publish_message`]: crate::dx::PubNubClient::publish_message`
+/// [`PubNubClient`]: crate::dx::PubNubClient
+/// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder
+/// [`Deserializer`]: crate::core::Deserializer
+#[cfg(not(feature = "serde"))]
 pub struct PublishMessageDeserializerBuilder<'pub_nub, T, M>
 where
     T: Transport,
@@ -118,11 +171,19 @@ where
     channel: String,
 }
 
+#[cfg(not(feature = "serde"))]
 impl<'pub_nub, T, M> PublishMessageDeserializerBuilder<'pub_nub, T, M>
 where
     T: Transport,
     M: Serialize,
 {
+    /// The [`deserialize_with`] method is used to set the deserializer to use to deserialize the response.
+    /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
+    /// the [`PublishResult`] type.
+    ///
+    /// [`deserialize_with`]: crate::dx::publish::PublishMessageDeserializerBuilder::deserialize_with
+    /// [`Deserializer`]: crate::core::Deserializer
+    /// [`PublishResult`]: crate::core::publish::PublishResult
     pub fn deserialize_with<D>(
         self,
         deserializer: D,
