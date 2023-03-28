@@ -478,7 +478,7 @@ where
 /// Result of a publish request.
 /// This type is a placeholder for future functionality.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct PublishResult;
 
 impl<T> PubNubClient<T>
@@ -713,17 +713,8 @@ mod should {
         assert_eq!(expected_json, result);
     }
 
-    #[cfg(not(feature = "serde"))]
-    #[test]
-    fn deserialize_response() {
-        struct CustomDeserializer;
-
-        impl<'de> Deserializer<'de, PublishResult> for CustomDeserializer {
-            fn deserialize(&self, response: &'de [u8]) -> Result<PublishResult, PubNubError> {
-                Ok(PublishResult)
-            }
-        }
-
+    #[tokio::test]
+    async fn deserialize_response() {
         let mut client = client();
 
         let channel = String::from("ch");
@@ -732,7 +723,10 @@ mod should {
         let result = client
             .publish_message(message)
             .channel(channel.clone())
-            .deserialize_with(CustomDeserializer)
-            .execute();
+            .execute()
+            .await
+            .unwrap();
+
+        assert_eq!(result, PublishResult);
     }
 }
