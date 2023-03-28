@@ -250,6 +250,9 @@ where
     #[builder(setter(custom))]
     seqn: u16,
 
+    /// Deserializer to use to deserialize the response.
+    /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
+    /// the [`PublishResult`] type.
     #[builder(setter(name = "deserialize_with"))]
     deserializer: D,
 
