@@ -83,7 +83,7 @@ where
     where
         S: Into<String>,
     {
-        PublishMessageViaChannelBuilder {
+        PublishMessageViaChannelBuilder::<T, M, SerdeDeserializer> {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
             ..Default::default()
@@ -250,10 +250,7 @@ where
     #[builder(setter(custom))]
     seqn: u16,
 
-    /// Deserializer to use to deserialize the response.
-    /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
-    /// the [`PublishResult`] type.
-    #[builder(setter(name = "deserialize_with"))]
+    #[builder(setter(custom))]
     deserializer: D,
 
     /// Message to publish
@@ -400,6 +397,32 @@ where
     M: Serialize,
     D: for<'de> Deserializer<'de, PublishResult>,
 {
+    /// Deserializer to use to deserialize the response.
+    /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
+    /// the [`PublishResult`] type.
+    pub fn deserialize_with<D2>(
+        self,
+        deserializer: D2,
+    ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, D2>
+    where
+        D2: for<'de> Deserializer<'de, PublishResult>,
+    {
+        PublishMessageViaChannelBuilder {
+            pub_nub_client: self.pub_nub_client,
+            channel: self.channel,
+            message: self.message,
+            seqn: self.seqn,
+            store: self.store,
+            replicate: self.replicate,
+            ttl: self.ttl,
+            use_post: self.use_post,
+            meta: self.meta,
+            space_id: self.space_id,
+            message_type: self.message_type,
+            deserializer: Some(deserializer),
+        }
+    }
+
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
     /// The future will resolve to a [`PublishResult`] or [`PubNubError`].
@@ -688,5 +711,28 @@ mod should {
         let result = serialize_meta(&map);
 
         assert_eq!(expected_json, result);
+    }
+
+    #[cfg(not(feature = "serde"))]
+    #[test]
+    fn deserialize_response() {
+        struct CustomDeserializer;
+
+        impl<'de> Deserializer<'de, PublishResult> for CustomDeserializer {
+            fn deserialize(&self, response: &'de [u8]) -> Result<PublishResult, PubNubError> {
+                Ok(PublishResult)
+            }
+        }
+
+        let mut client = client();
+
+        let channel = String::from("ch");
+        let message = "this is message";
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .deserialize_with(CustomDeserializer)
+            .execute();
     }
 }
