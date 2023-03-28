@@ -14,12 +14,15 @@
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
-    core::{Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest},
+    core::{
+        Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
+        TransportResponse,
+    },
     dx::PubNubClient,
 };
 use derive_builder::Builder;
-use std::collections::HashMap;
 use std::ops::Not;
+use std::{collections::HashMap, rc::Rc};
 use urlencoding::encode;
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
@@ -128,7 +131,7 @@ where
 ///
 /// struct MyDeserializer;
 ///
-/// impl<'de> Deserializer<'de, PublishResult> for MyDeserializer {
+/// impl<'de> Deserializer<'de, PublishResultBody> for MyDeserializer {
 ///    fn deserialize(&self, response: &'de [u8]) -> Result<PublishResult, PubNubError> {
 ///    // ...
 ///    # Ok(PublishResult)
@@ -189,12 +192,12 @@ where
         deserializer: D,
     ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
     where
-        for<'de> D: Deserializer<'de, PublishResult>,
+        for<'de> D: Deserializer<'de, PublishResultBody>,
     {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
-            deserializer: Some(deserializer),
+            deserializer: Some(Rc::new(deserializer)),
             ..Default::default()
         }
         .message(self.message)
@@ -242,7 +245,7 @@ pub struct PublishMessageViaChannel<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResult>,
+    D: for<'de> Deserializer<'de, PublishResultBody>,
 {
     #[builder(setter(custom))]
     pub_nub_client: &'pub_nub PubNubClient<T>,
@@ -250,8 +253,9 @@ where
     #[builder(setter(custom))]
     seqn: u16,
 
+    // TODO: Moved to heap to avoid partial move, but this is not ideal. ref[1]
     #[builder(setter(custom))]
-    deserializer: D,
+    deserializer: Rc<D>,
 
     /// Message to publish
     message: M,
@@ -315,7 +319,7 @@ impl<'pub_nub, T, M, D> PublishMessageViaChannel<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResult>,
+    D: for<'de> Deserializer<'de, PublishResultBody>,
 {
     fn prepare_publish_query_params(&self) -> HashMap<String, String> {
         let mut query_params: HashMap<String, String> = HashMap::new();
@@ -395,7 +399,7 @@ impl<'pub_nub, T, M, D> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResult>,
+    D: for<'de> Deserializer<'de, PublishResultBody>,
 {
     /// Deserializer to use to deserialize the response.
     /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
@@ -405,7 +409,7 @@ where
         deserializer: D2,
     ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, D2>
     where
-        D2: for<'de> Deserializer<'de, PublishResult>,
+        D2: for<'de> Deserializer<'de, PublishResultBody>,
     {
         PublishMessageViaChannelBuilder {
             pub_nub_client: self.pub_nub_client,
@@ -419,7 +423,7 @@ where
             meta: self.meta,
             space_id: self.space_id,
             message_type: self.message_type,
-            deserializer: Some(deserializer),
+            deserializer: Some(Rc::new(deserializer)),
         }
     }
 
@@ -461,25 +465,39 @@ where
 
         let client = instance.pub_nub_client;
 
+        // TODO: [1]
+        let deserializer = instance.deserializer.clone();
+
         instance
             .create_transport_request()
             .map(|request| Self::send_request(&client.transport, request))?
             .await
+            .map(|response| Self::response_to_result(&deserializer, response))?
     }
 
     async fn send_request(
         transport: &T,
         request: TransportRequest,
+    ) -> Result<TransportResponse, PubNubError> {
+        transport.send(request).await
+    }
+
+    fn response_to_result(
+        deserializer: &D,
+        response: TransportResponse,
     ) -> Result<PublishResult, PubNubError> {
-        transport.send(request).await.map(|_| PublishResult)
+        Ok(PublishResult)
     }
 }
 
 /// Result of a publish request.
 /// This type is a placeholder for future functionality.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct PublishResult;
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct PublishResultBody;
 
 impl<T> PubNubClient<T>
 where
