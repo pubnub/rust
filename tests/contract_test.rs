@@ -51,7 +51,7 @@ fn set_keyset(world: &mut PubNubWorld) {
     world.keyset.subscribe_key = "demo".to_string();
 }
 
-#[cfg(feature="contract_test")]
+#[cfg(feature = "contract_test")]
 async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!("http://localhost:8090/init?__contract__script__={}", script);
     let client = reqwest::Client::new();
@@ -183,7 +183,7 @@ async fn i_publish_number_as_message_to_channel(
 }
 
 #[tokio::test]
-#[cfg(feature="contract_test")]
+#[cfg(feature = "contract_test")]
 async fn contract() {
     env_logger::builder().try_init().unwrap();
     let filtered_tags = vec!["na=rust".to_string(), "beta".to_string()];
