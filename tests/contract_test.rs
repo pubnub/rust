@@ -181,9 +181,11 @@ async fn i_publish_number_as_message_to_channel(
         .await;
 }
 
-#[tokio::main]
-async fn main() {
+#[tokio::test]
+#[cfg(feature="contract_test")]
+async fn contract() {
     env_logger::builder().try_init().unwrap();
+    let filtered_tags = vec!["na=rust".to_string(), "beta".to_string()];
     PubNubWorld::cucumber()
         .before(|_feature, _rule, scenario, _world| {
             futures::FutureExt::boxed(async move {
@@ -201,6 +203,9 @@ async fn main() {
                 }
             })
         })
-        .run_and_exit("tests/features/publish")
+        .filter_run("tests/features/publish", move |feature, _, sc| {
+            return feature.tags.iter().all(|t| !filtered_tags.contains(t))
+                && sc.tags.iter().all(|t| !filtered_tags.contains(t));
+        })
         .await;
 }
