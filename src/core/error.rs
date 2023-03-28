@@ -39,6 +39,10 @@ pub enum PubNubError {
     #[error("Serialization error: {0}")]
     SerializationError(String),
 
+    /// this error is returned when the serialization of the response fails
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
+
     /// this error is returned when one of the needed keys is missing
     #[error("No key provided error: {0}")]
     NoKeyError(String),

@@ -41,5 +41,12 @@ use super::PubNubError;
 /// [`PublishResponse`]: ../publish/struct.PublishResponse.html
 pub trait Deserializer<'de, T> {
     /// Deserialize a `&[u8]` into a `Result<T, PubNubError>`.
+    ///
+    /// # Errors
+    ///
+    /// This method should return [`PubNubError::DeserializationError`] if the
+    /// deserialization fails.
+    ///
+    /// [`PubNubError::DeserializationError`]: ../enum.PubNubError.html#variant.DeserializationError
     fn deserialize(&self, bytes: &'de [u8]) -> Result<T, PubNubError>;
 }

@@ -1,3 +1,4 @@
+//! TODO: split into submodules
 //! Publish module.
 //!
 //! Publish message to a channel.
@@ -10,8 +11,10 @@
 //! [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder]
 //! [`PubNub`]:https://www.pubnub.com/
 
+#[cfg(feature = "serde")]
+use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
-    core::{PubNubError, Serialize, Transport, TransportMethod, TransportRequest},
+    core::{Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest},
     dx::PubNubClient,
 };
 use derive_builder::Builder;
@@ -72,7 +75,11 @@ where
     /// The [`channel`] method is used to set the channel to publish the message to.
     ///
     /// [`channel`]: crate::dx::publish::PublishMessageBuilder::channel
-    pub fn channel<S>(self, channel: S) -> PublishMessageViaChannelBuilder<'pub_nub, T, M>
+    #[cfg(feature = "serde")]
+    pub fn channel<S>(
+        self,
+        channel: S,
+    ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, SerdeDeserializer>
     where
         S: Into<String>,
     {
@@ -83,6 +90,54 @@ where
         }
         .message(self.message)
         .channel(channel.into())
+        .deserialize_with(SerdeDeserializer)
+    }
+
+    #[cfg(not(feature = "serde"))]
+    pub fn channel<S>(self, channel: S) -> PublishMessageDeserializerBuilder<'pub_nub, T, M>
+    where
+        S: Into<String>,
+    {
+        PublishMessageDeserializerBuilder {
+            pub_nub_client: self.pub_nub_client,
+            message: self.message,
+            seqn: self.seqn,
+            channel: channel.into(),
+        }
+    }
+}
+
+pub struct PublishMessageDeserializerBuilder<'pub_nub, T, M>
+where
+    T: Transport,
+    M: Serialize,
+{
+    pub_nub_client: &'pub_nub PubNubClient<T>,
+    message: M,
+    seqn: u16,
+    channel: String,
+}
+
+impl<'pub_nub, T, M> PublishMessageDeserializerBuilder<'pub_nub, T, M>
+where
+    T: Transport,
+    M: Serialize,
+{
+    pub fn deserialize_with<D>(
+        self,
+        deserializer: D,
+    ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
+    where
+        for<'de> D: Deserializer<'de, PublishResult>,
+    {
+        PublishMessageViaChannelBuilder {
+            pub_nub_client: Some(self.pub_nub_client),
+            seqn: Some(self.seqn),
+            deserializer: Some(deserializer),
+            ..Default::default()
+        }
+        .message(self.message)
+        .channel(self.channel)
     }
 }
 
@@ -122,16 +177,20 @@ where
 /// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Builder)]
 #[builder(pattern = "owned", build_fn(private))]
-pub struct PublishMessageViaChannel<'pub_nub, T, M>
+pub struct PublishMessageViaChannel<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
+    D: for<'de> Deserializer<'de, PublishResult>,
 {
     #[builder(setter(custom))]
     pub_nub_client: &'pub_nub PubNubClient<T>,
 
     #[builder(setter(custom))]
     seqn: u16,
+
+    #[builder(setter(name = "deserialize_with"))]
+    deserializer: D,
 
     /// Message to publish
     message: M,
@@ -191,10 +250,11 @@ fn serialize_meta(meta: &HashMap<String, String>) -> String {
     result
 }
 
-impl<'pub_nub, T, M> PublishMessageViaChannel<'pub_nub, T, M>
+impl<'pub_nub, T, M, D> PublishMessageViaChannel<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
+    D: for<'de> Deserializer<'de, PublishResult>,
 {
     fn prepare_publish_query_params(&self) -> HashMap<String, String> {
         let mut query_params: HashMap<String, String> = HashMap::new();
@@ -270,10 +330,11 @@ where
     }
 }
 
-impl<'pub_nub, T, M> PublishMessageViaChannelBuilder<'pub_nub, T, M>
+impl<'pub_nub, T, M, D> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
+    D: for<'de> Deserializer<'de, PublishResult>,
 {
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
@@ -329,6 +390,7 @@ where
 
 /// Result of a publish request.
 /// This type is a placeholder for future functionality.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug)]
 pub struct PublishResult;
 

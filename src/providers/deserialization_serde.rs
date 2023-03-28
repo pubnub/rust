@@ -29,14 +29,14 @@ use crate::core::{Deserializer, PubNubError};
 /// [`Deserializer`]: ../trait.Deserializer.html
 /// [`serde`]: https://crates.io/crates/serde
 /// [`dx`]: ../dx/index.html
-pub struct DeserializerSerde;
+pub struct SerdeDeserializer;
 
-impl<'de, T> Deserializer<'de, T> for DeserializerSerde
+impl<'de, T> Deserializer<'de, T> for SerdeDeserializer
 where
     T: serde::Deserialize<'de>,
 {
     fn deserialize(&self, bytes: &'de [u8]) -> Result<T, crate::core::PubNubError> {
-        serde_json::from_slice(bytes).map_err(|e| PubNubError::SerializationError(e.to_string()))
+        serde_json::from_slice(bytes).map_err(|e| PubNubError::DeserializationError(e.to_string()))
     }
 }
 
@@ -52,7 +52,7 @@ mod should {
 
     #[test]
     fn deserialize() {
-        let sut = DeserializerSerde;
+        let sut = SerdeDeserializer;
 
         let result: Foo = sut.deserialize(b"{\"bar\":\"baz\"}").unwrap();
 
