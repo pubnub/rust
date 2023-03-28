@@ -51,7 +51,6 @@ fn set_keyset(world: &mut PubNubWorld) {
     world.keyset.subscribe_key = "demo".to_string();
 }
 
-#[cfg(feature = "contract_test")]
 async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!("http://localhost:8090/init?__contract__script__={}", script);
     let client = reqwest::Client::new();
@@ -182,11 +181,9 @@ async fn i_publish_number_as_message_to_channel(
         .await;
 }
 
-#[tokio::test]
-#[cfg(feature = "contract_test")]
-async fn contract() {
+#[tokio::main]
+async fn main() {
     env_logger::builder().try_init().unwrap();
-    let filtered_tags = vec!["na=rust".to_string(), "beta".to_string()];
     PubNubWorld::cucumber()
         .before(|_feature, _rule, scenario, _world| {
             futures::FutureExt::boxed(async move {
@@ -204,9 +201,6 @@ async fn contract() {
                 }
             })
         })
-        .filter_run("tests/features/publish", move |feature, _, sc| {
-            return feature.tags.iter().all(|t| !filtered_tags.contains(t))
-                && sc.tags.iter().all(|t| !filtered_tags.contains(t));
-        })
+        .run_and_exit("tests/features")
         .await;
 }

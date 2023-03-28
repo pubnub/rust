@@ -37,6 +37,11 @@ futures = "0.3"
 reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
 
+[[test]]
+name = "contract_test"
+harness = false
+required-features = ["contract_test"]
+
 [features]
 full = ["serde", "reqwest"]
 default = ["serde", "reqwest"]
