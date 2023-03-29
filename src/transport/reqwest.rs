@@ -73,17 +73,12 @@ impl Transport for TransportReqwest {
 
         Ok(TransportResponse {
             status: result.status().as_u16(),
-            body: if result.content_length().is_some() {
-                Some(
-                    result
-                        .bytes()
-                        .await
-                        .map(|b| b.to_vec())
-                        .map_err(|e| TransportError(e.to_string()))?,
-                )
-            } else {
-                None
-            },
+            body: result
+                .bytes()
+                .await
+                .map(|b| b.to_vec())
+                .map(|b| (b.len() != 0).then(|| b))
+                .map_err(|e| TransportError(e.to_string()))?,
             ..Default::default()
         })
     }
