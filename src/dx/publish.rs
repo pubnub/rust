@@ -123,7 +123,7 @@ where
 /// ```rust
 /// # use pubnub::{PubNubClientBuilder, Keyset};
 /// use pubnub::{
-///     dx::publish::PublishResult,
+///     dx::publish::PublishResponse,
 ///     core::{Deserializer, PubNubError}
 /// };
 /// # #[tokio::main]
@@ -131,10 +131,10 @@ where
 ///
 /// struct MyDeserializer;
 ///
-/// impl<'de> Deserializer<'de, PublishResultBody> for MyDeserializer {
-///    fn deserialize(&self, response: &'de [u8]) -> Result<PublishResult, PubNubError> {
+/// impl<'de> Deserializer<'de, PublishResponseBody> for MyDeserializer {
+///    fn deserialize(&self, response: &'de [u8]) -> Result<PublishResponse, PubNubError> {
 ///    // ...
-///    # Ok(PublishResult)
+///    # Ok(PublishResponse)
 /// }
 ///
 ///
@@ -182,17 +182,17 @@ where
 {
     /// The [`deserialize_with`] method is used to set the deserializer to use to deserialize the response.
     /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
-    /// the [`PublishResult`] type.
+    /// the [`PublishResponse`] type.
     ///
     /// [`deserialize_with`]: crate::dx::publish::PublishMessageDeserializerBuilder::deserialize_with
     /// [`Deserializer`]: crate::core::Deserializer
-    /// [`PublishResult`]: crate::core::publish::PublishResult
+    /// [`PublishResponse`]: crate::core::publish::PublishResponse
     pub fn deserialize_with<D>(
         self,
         deserializer: D,
     ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
     where
-        for<'de> D: Deserializer<'de, PublishResultBody>,
+        for<'de> D: Deserializer<'de, PublishResponseBody>,
     {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
@@ -245,7 +245,7 @@ pub struct PublishMessageViaChannel<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResultBody>,
+    D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     #[builder(setter(custom))]
     pub_nub_client: &'pub_nub PubNubClient<T>,
@@ -319,7 +319,7 @@ impl<'pub_nub, T, M, D> PublishMessageViaChannel<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResultBody>,
+    D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     fn prepare_publish_query_params(&self) -> HashMap<String, String> {
         let mut query_params: HashMap<String, String> = HashMap::new();
@@ -399,17 +399,17 @@ impl<'pub_nub, T, M, D> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResultBody>,
+    D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     /// Deserializer to use to deserialize the response.
     /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
-    /// the [`PublishResult`] type.
+    /// the [`PublishResponse`] type.
     pub fn deserialize_with<D2>(
         self,
         deserializer: D2,
     ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, D2>
     where
-        D2: for<'de> Deserializer<'de, PublishResultBody>,
+        D2: for<'de> Deserializer<'de, PublishResponseBody>,
     {
         PublishMessageViaChannelBuilder {
             pub_nub_client: self.pub_nub_client,
@@ -429,7 +429,7 @@ where
 
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
-    /// The future will resolve to a [`PublishResult`] or [`PubNubError`].
+    /// The future will resolve to a [`PublishResponse`] or [`PubNubError`].
     ///
     /// # Example
     /// ```no_run
@@ -456,7 +456,7 @@ where
     /// # }
     /// ```
     ///
-    /// [`PublishResult`]: struct.PublishResult.html
+    /// [`PublishResponse`]: struct.PublishResponse.html
     /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
         let instance = self
@@ -482,22 +482,72 @@ where
         transport.send(request).await
     }
 
+    // TODO: Maybe it will be possible to extract this into a middleware.
+    //       Currently, it's not necessary, but it might be very useful
+    //       to not have to do it manually in each dx module.
     fn response_to_result(
         deserializer: &D,
         response: TransportResponse,
     ) -> Result<PublishResult, PubNubError> {
-        Ok(PublishResult)
+        response
+            .body
+            .map(|body| deserializer.deserialize(&body))
+            .transpose()
+            .and_then(|body| {
+                body.ok_or_else(|| {
+                    PubNubError::PublishError(format!(
+                        "No body in the response! Status code: {}",
+                        response.status
+                    ))
+                })
+                .map(|body| match body {
+                    PublishResponseBody::PublishResponse(error_indicator, message, timetoken) => {
+                        if error_indicator == 1 {
+                            Ok(PublishResult { timetoken })
+                        } else {
+                            Err(PubNubError::PublishError(message))
+                        }
+                    }
+                    PublishResponseBody::OtherResponse(body) => Err(PubNubError::PublishError(
+                        format!("Status code: {}, body: {:?}", response.status, body),
+                    )),
+                })
+            })?
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PublishResult {
+    pub timetoken: String,
 }
 
 /// Result of a publish request.
 /// This type is a placeholder for future functionality.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct PublishResult;
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PublishResponse {
+    status_code: u16,
+    body: Option<PublishResponseBody>,
+}
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct PublishResultBody;
+#[cfg_attr(feature = "serde", serde(untagged))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum PublishResponseBody {
+    PublishResponse(i32, String, String),
+    OtherResponse(OtherResponse),
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct OtherResponse {
+    pub status: u16,
+
+    pub error: bool,
+
+    pub service: String,
+
+    pub message: String,
+}
 
 impl<T> PubNubClient<T>
 where
@@ -533,7 +583,7 @@ mod should {
         core::TransportResponse,
         dx::{pubnub_client::PubNubConfig, PubNubClient},
         transport::middleware::PubNubMiddleware,
-        Keyset,
+        Keyset, PubNubClientBuilder,
     };
     use test_case::test_case;
 
@@ -547,7 +597,11 @@ mod should {
                 &self,
                 _request: TransportRequest,
             ) -> Result<TransportResponse, PubNubError> {
-                Ok(TransportResponse::default())
+                Ok(TransportResponse {
+                    status: 200,
+                    body: Some(b"[1, \"Sent\", \"1234567890\"]".to_vec()),
+                    ..Default::default()
+                })
             }
         }
 
@@ -745,6 +799,53 @@ mod should {
             .await
             .unwrap();
 
-        assert_eq!(result, PublishResult);
+        assert_eq!(
+            result,
+            PublishResult {
+                timetoken: "1234567890".into()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn deserialize_response_with_error() {
+        #[derive(Default)]
+        struct MockTransport;
+
+        #[async_trait::async_trait]
+        impl Transport for MockTransport {
+            async fn send(
+                &self,
+                _request: TransportRequest,
+            ) -> Result<TransportResponse, PubNubError> {
+                Ok(TransportResponse {
+                    status: 400,
+                    body: Some("{\"error\":true,\"message\":\"error message\"}".into()),
+                    ..Default::default()
+                })
+            }
+        }
+
+        let mut client = PubNubClientBuilder::<MockTransport>::new()
+            .with_transport(MockTransport::default())
+            .with_keyset(Keyset {
+                publish_key: Some(""),
+                subscribe_key: "",
+                secret_key: None,
+            })
+            .with_user_id("user_id")
+            .build()
+            .unwrap();
+
+        let channel = String::from("ch");
+        let message = "this is message";
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .execute()
+            .await;
+
+        assert!(result.is_err());
     }
 }
