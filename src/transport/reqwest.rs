@@ -77,7 +77,7 @@ impl Transport for TransportReqwest {
                 .bytes()
                 .await
                 .map(|b| b.to_vec())
-                .map(|b| (b.len() != 0).then(|| b))
+                .map(|b| (!b.is_empty()).then_some(b))
                 .map_err(|e| TransportError(e.to_string()))?,
             ..Default::default()
         })
