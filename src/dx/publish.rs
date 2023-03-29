@@ -501,19 +501,24 @@ where
                         response.status
                     ))
                 })
-                .map(|body| match body {
-                    PublishResponseBody::PublishResponse(error_indicator, message, timetoken) => {
-                        if error_indicator == 1 {
-                            Ok(PublishResult { timetoken })
-                        } else {
-                            Err(PubNubError::PublishError(message))
-                        }
-                    }
-                    PublishResponseBody::OtherResponse(body) => Err(PubNubError::PublishError(
-                        format!("Status code: {}, body: {:?}", response.status, body),
-                    )),
-                })
+                .map(body_to_result)
             })?
+    }
+}
+
+fn body_to_result(body: PublishResponseBody) -> Result<PublishResult, PubNubError> {
+    match body {
+        PublishResponseBody::PublishResponse(error_indicator, message, timetoken) => {
+            if error_indicator == 1 {
+                Ok(PublishResult { timetoken })
+            } else {
+                Err(PubNubError::PublishError(message))
+            }
+        }
+        PublishResponseBody::OtherResponse(body) => Err(PubNubError::PublishError(format!(
+            "Status code: {}, body: {:?}",
+            body.status, body
+        ))),
     }
 }
 

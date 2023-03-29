@@ -11,7 +11,9 @@ struct Message {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
-    let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
+    //let publish_key = "chuj".into();
+    //let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
+    let subscribe_key = "chuj".into();
 
     let mut client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
@@ -23,11 +25,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     // publish simple string
-    client
+    let a = client
         .publish_message("hello world!")
         .channel("my_channel")
         .execute()
         .await?;
+
+    println!("{:?}", a);
 
     // publish a struct
     client
