@@ -520,6 +520,7 @@ where
 /// TODO: docs
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PublishResult {
+    /// TODO: docs
     pub timetoken: String,
 }
 
