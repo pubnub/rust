@@ -11,9 +11,9 @@
 //! [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder]
 //! [`PubNub`]:https://www.pubnub.com/
 
+use crate::core::headers::{APPLICATION_JSON, CONTENT_TYPE};
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
-use crate::core::headers::{APPLICATION_JSON, CONTENT_TYPE};
 use crate::{
     core::{
         Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
@@ -517,36 +517,37 @@ where
     }
 }
 
+/// TODO: docs
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PublishResult {
     pub timetoken: String,
 }
 
-/// Result of a publish request.
-/// This type is a placeholder for future functionality.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PublishResponse {
-    status_code: u16,
-    body: Option<PublishResponseBody>,
-}
-
+/// TODO: docs
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PublishResponseBody {
+    /// TODO: docs
     PublishResponse(i32, String, String),
+    /// TODO: docs
     OtherResponse(OtherResponse),
 }
 
+/// TODO: docs
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OtherResponse {
+    /// TODO: docs
     pub status: u16,
 
+    /// TODO: docs
     pub error: bool,
 
+    /// TODO: docs
     pub service: String,
 
+    /// TODO: docs
     pub message: String,
 }
 
