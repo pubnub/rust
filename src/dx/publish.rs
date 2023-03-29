@@ -13,6 +13,7 @@
 
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
+use crate::core::headers::{APPLICATION_JSON, CONTENT_TYPE};
 use crate::{
     core::{
         Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
@@ -370,7 +371,7 @@ where
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
-                ..Default::default()
+                headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             })
         } else {
             self.message

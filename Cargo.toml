@@ -38,14 +38,16 @@ reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
 
 [[test]]
-name = "contract" 
+name = "contract_test"
 harness = false
+required-features = ["contract_test"]
 
 [features]
 full = ["serde", "reqwest"]
 default = ["serde", "reqwest"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
+contract_test = []
 
 [[example]]
 name = "publish"

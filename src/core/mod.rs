@@ -27,6 +27,7 @@ pub mod transport_response;
 
 #[doc(inline)]
 pub use serialize::Serialize;
+pub mod headers;
 pub mod serialize;
 
 #[doc(inline)]
