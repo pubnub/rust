@@ -54,30 +54,23 @@ impl SignatureKeySet {
     }
 
     fn prepare_signature_v1_input(&self, req: &TransportRequest) -> String {
-        let mut signature_input = String::new();
-        signature_input.push_str(self.subscribe_key.as_str());
-        signature_input.push('\n');
-        signature_input.push_str(self.publish_key.as_str());
-        signature_input.push('\n');
-        signature_input.push_str(req.path.as_str());
-        signature_input.push('\n');
-        signature_input
-            .push_str(SignatureKeySet::handle_query_params(&req.query_parameters).as_str());
-        signature_input
+        format!(
+            "{}\n{}\n{}\n{}",
+            self.subscribe_key,
+            self.publish_key,
+            req.path,
+            SignatureKeySet::handle_query_params(&req.query_parameters)
+        )
     }
 
     fn prepare_signature_v2_input_without_body(&self, req: &TransportRequest) -> String {
-        let mut signature_input = String::new();
-        signature_input.push_str(req.method.to_string().to_ascii_uppercase().as_str());
-        signature_input.push('\n');
-        signature_input.push_str(self.publish_key.as_str());
-        signature_input.push('\n');
-        signature_input.push_str(req.path.as_str());
-        signature_input.push('\n');
-        signature_input
-            .push_str(SignatureKeySet::handle_query_params(&req.query_parameters).as_str());
-        signature_input.push('\n');
-        signature_input
+        format!(
+            "{}\n{}\n{}\n{}\n",
+            req.method.to_string().to_ascii_uppercase(),
+            self.publish_key,
+            req.path,
+            SignatureKeySet::handle_query_params(&req.query_parameters)
+        )
     }
 
     fn calculate_signature(&self, req: &TransportRequest) -> String {
