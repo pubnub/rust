@@ -29,3 +29,7 @@ pub mod transport_response;
 pub use serialize::Serialize;
 pub mod headers;
 pub mod serialize;
+
+#[doc(inline)]
+pub use deserializer::Deserializer;
+pub mod deserializer;
