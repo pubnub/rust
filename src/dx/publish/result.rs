@@ -1,5 +1,6 @@
-//! This module contains the `PublishResult` type.
+//! Publish result module.
 //!
+//! This module contains the `PublishResult` type.
 //! The `PublishResult` type is used to represent the result of a publish operation.
 
 /// The result of a publish operation.
