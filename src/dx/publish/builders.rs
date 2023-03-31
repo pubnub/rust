@@ -10,7 +10,7 @@ use crate::{
     dx::PubNubClient,
 };
 use derive_builder::Builder;
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///
@@ -178,7 +178,7 @@ where
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
-            deserializer: Some(Rc::new(deserializer)),
+            deserializer: Some(Arc::new(deserializer)),
             ..Default::default()
         }
         .message(self.message)
@@ -236,7 +236,7 @@ where
 
     // TODO: Moved to heap to avoid partial move, but this is not ideal. ref: mod.rs[1]
     #[builder(setter(custom))]
-    pub(super) deserializer: Rc<D>,
+    pub(super) deserializer: Arc<D>,
 
     /// Message to publish
     pub(super) message: M,
@@ -304,7 +304,7 @@ where
             meta: self.meta,
             space_id: self.space_id,
             message_type: self.message_type,
-            deserializer: Some(Rc::new(deserializer)),
+            deserializer: Some(Arc::new(deserializer)),
         }
     }
 }
