@@ -8,6 +8,9 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
+use std::ops::{Deref, DerefMut};
+use std::sync::{Arc, Mutex, RwLock};
+
 use crate::core::PubNubError::ClientInitializationError;
 use crate::transport::middleware::SignatureKeySet;
 use crate::{core::PubNubError, core::Transport, transport::middleware::PubNubMiddleware};
@@ -90,14 +93,25 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// [`Transport`]: ../core/trait.Transport.html
 /// [`Keyset`]: ../core/struct.Keyset.html
 /// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Builder)]
+#[derive(Debug)]
+pub struct PubNubClient<T>
+where
+    T: Transport,
+{
+    // TODO: how about Rc and blocking calls?
+    //       or should we be always async library?
+    pub(crate) inner: Arc<PubNubClientRef<T>>,
+}
+
+/// TODO: doc
+#[derive(Debug, Builder)]
 #[builder(
     pattern = "owned",
     name = "PubNubClientConfigBuilder",
     build_fn(private, name = "build_internal"),
     setter(prefix = "with")
 )]
-pub struct PubNubClient<T>
+pub struct PubNubClientRef<T>
 where
     T: Transport,
 {
@@ -109,8 +123,8 @@ where
     pub(crate) instance_id: Option<String>,
 
     /// Sequence number for the publish requests
-    #[builder(default = "1")]
-    pub(crate) next_seqn: u16,
+    #[builder(default = "Mutex::new(1)")]
+    pub(crate) next_seqn: Mutex<u16>,
 
     /// Configuration
     pub(crate) config: PubNubConfig,
@@ -165,9 +179,31 @@ where
     }
 }
 
+impl<T> Deref for PubNubClient<T>
+where
+    T: Transport,
+{
+    type Target = PubNubClientRef<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> Clone for PubNubClient<T>
+where
+    T: Transport,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
 impl<T> PubNubClientConfigBuilder<T>
 where
-    T: Transport + Send + Sync,
+    T: Transport,
 {
     /// Build a [`PubNubClient`] from the builder
     ///
@@ -176,7 +212,7 @@ where
         self.build_internal()
             .map_err(|err| ClientInitializationError(err.to_string()))
             .and_then(|pre_build| {
-                Ok(PubNubClient {
+                Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
                         transport: pre_build.transport,
                         // TODO: String -> Cow<'static, str>
@@ -188,6 +224,9 @@ where
                     next_seqn: pre_build.next_seqn,
                     config: pre_build.config,
                 })
+            })
+            .map(|client| PubNubClient {
+                inner: Arc::new(client),
             })
     }
 }
@@ -485,7 +524,7 @@ mod should {
             }
         }
 
-        fn type_of<T>(_: T) -> &'static str {
+        fn type_of<T>(_: &T) -> &'static str {
             type_name::<T>()
         }
 
@@ -500,7 +539,7 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            type_of(client.transport),
+            type_of(&client.transport),
             type_name::<PubNubMiddleware<MockTransport>>()
         );
     }
