@@ -29,6 +29,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .execute()
         .await?;
 
+    // publish with other async task
+    let cloned = client.clone();
+    let handle = tokio::spawn(async move {
+        cloned
+            .publish_message("hello async world!")
+            .channel("my_channel")
+            .execute()
+            .await
+    });
+
     // publish a struct
     client
         .publish_message(Message {
@@ -49,5 +59,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .execute()
         .await?;
 
+    handle.await??;
     Ok(())
 }
