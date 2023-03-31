@@ -8,7 +8,7 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use std::ops::{Deref};
+use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use crate::core::PubNubError::ClientInitializationError;
