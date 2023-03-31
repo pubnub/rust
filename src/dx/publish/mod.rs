@@ -18,17 +18,17 @@ pub mod result;
 pub use builders::PublishMessageBuilder;
 pub mod builders;
 
-use crate::core::headers::{APPLICATION_JSON, CONTENT_TYPE};
 use crate::{
     core::{
+        headers::{APPLICATION_JSON, CONTENT_TYPE},
         Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
         TransportResponse,
     },
     dx::PubNubClient,
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
-use std::collections::HashMap;
-use std::ops::Not;
+use result::body_to_result;
+use std::{collections::HashMap, ops::Not};
 use urlencoding::encode;
 
 impl<T> PubNubClient<T>
@@ -256,25 +256,6 @@ fn bool_to_numeric(value: bool) -> String {
     if value { "1" } else { "0" }.to_string()
 }
 
-fn body_to_result(body: PublishResponseBody, status: u16) -> Result<PublishResult, PubNubError> {
-    match body {
-        PublishResponseBody::PublishResponse(error_indicator, message, timetoken) => {
-            if error_indicator == 1 {
-                Ok(PublishResult { timetoken })
-            } else {
-                Err(PubNubError::PublishError(format!(
-                    "Status code: {}, body: {:?}",
-                    status, message
-                )))
-            }
-        }
-        PublishResponseBody::OtherResponse(body) => Err(PubNubError::PublishError(format!(
-            "Status code: {}, body: {:?}",
-            status, body
-        ))),
-    }
-}
-
 fn serialize_meta(meta: &HashMap<String, String>) -> String {
     let mut result = String::new();
     result.push('{');
@@ -498,29 +479,7 @@ mod should {
     }
 
     #[tokio::test]
-    async fn deserialize_response() {
-        let mut client = client();
-
-        let channel = String::from("ch");
-        let message = "this is message";
-
-        let result = client
-            .publish_message(message)
-            .channel(channel.clone())
-            .execute()
-            .await
-            .unwrap();
-
-        assert_eq!(
-            result,
-            PublishResult {
-                timetoken: "1234567890".into()
-            }
-        );
-    }
-
-    #[tokio::test]
-    async fn deserialize_response_with_error() {
+    async fn return_error_for_error_response() {
         #[derive(Default)]
         struct MockTransport;
 
