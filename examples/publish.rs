@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
     let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
 
-    let mut client = PubNubClientBuilder::with_reqwest_transport()
+    let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
             subscribe_key,
             publish_key: Some(publish_key),

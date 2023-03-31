@@ -334,7 +334,7 @@ mod should {
             }
         }
 
-        let mut client = client();
+        let client = client();
 
         let result = client
             .publish_message("First message")
@@ -348,7 +348,7 @@ mod should {
 
     #[test]
     fn verify_all_query_parameters() {
-        let mut client = client();
+        let client = client();
 
         let result = client
             .publish_message("message")
@@ -380,7 +380,7 @@ mod should {
 
     #[test]
     fn verify_seqn_is_incrementing() {
-        let mut client = client();
+        let client = client();
 
         let received_seqns = vec![
             client.publish_message("meess").seqn,
@@ -418,7 +418,7 @@ mod should {
 
     #[test]
     fn test_send_string_when_get() {
-        let mut client = client();
+        let client = client();
         let channel = String::from("ch");
         let message = "this is message";
 
@@ -442,7 +442,7 @@ mod should {
 
     #[test]
     fn test_send_map_when_get() {
-        let mut client = client();
+        let client = client();
         let channel = String::from("ch");
         let message = HashMap::from([("a", "b")]);
 
@@ -462,7 +462,7 @@ mod should {
 
     #[test]
     fn test_quotes_not_escaped_when_post() {
-        let mut client = client();
+        let client = client();
         let channel = String::from("ch");
         let message = "this is message";
 
@@ -511,7 +511,7 @@ mod should {
             }
         }
 
-        let mut client = PubNubClientBuilder::<MockTransport>::new()
+        let client = PubNubClientBuilder::<MockTransport>::new()
             .with_transport(MockTransport::default())
             .with_keyset(Keyset {
                 publish_key: Some(""),
