@@ -1,4 +1,3 @@
-//! TODO: split into submodules
 //! Publish module.
 //!
 //! Publish message to a channel.
@@ -32,100 +31,60 @@ use std::collections::HashMap;
 use std::ops::Not;
 use urlencoding::encode;
 
-fn bool_to_numeric(value: bool) -> String {
-    if value { "1" } else { "0" }.to_string()
-}
-
-fn serialize_meta(meta: &HashMap<String, String>) -> String {
-    let mut result = String::new();
-    result.push('{');
-    meta.iter().for_each(|k| {
-        result.push_str(format!("\"{}\":\"{}\",", k.0.as_str(), k.1.as_str()).as_str());
-    });
-    if result.ends_with(',') {
-        result.remove(result.len() - 1);
-    }
-    result.push('}');
-    result
-}
-
-impl<'pub_nub, T, M, D> PublishMessageViaChannel<'pub_nub, T, M, D>
+impl<T> PubNubClient<T>
 where
     T: Transport,
-    M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
-    fn prepare_publish_query_params(&self) -> HashMap<String, String> {
-        let mut query_params: HashMap<String, String> = HashMap::new();
-
-        self.store
-            .and_then(|s| query_params.insert("store".to_string(), bool_to_numeric(s)));
-
-        self.ttl
-            .and_then(|t| query_params.insert("ttl".to_string(), t.to_string()));
-
-        self.replicate
-            .not()
-            .then(|| query_params.insert("norep".to_string(), true.to_string()));
-
-        if let Some(space_id) = &self.space_id {
-            query_params.insert("space-id".to_string(), space_id.clone());
+    /// Create a new publish message builder.
+    /// This method is used to publish a message to a channel.
+    ///
+    /// Instance of [`PublishMessageBuilder`] is returned.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use pubnub::{PubNubClientBuilder, Keyset};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut pubnub = // PubNubClient
+    /// # PubNubClientBuilder::with_reqwest_transport()
+    /// #     .with_keyset(Keyset{
+    /// #         subscribe_key: "demo",
+    /// #         publish_key: Some("demo"),
+    /// #         secret_key: None,
+    /// #      })
+    /// #     .with_user_id("uuid")
+    /// #     .build()?;
+    ///
+    /// pubnub.publish_message("Hello, world!")
+    ///    .channel("my_channel")
+    ///    .execute()
+    ///    .await?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
+    pub fn publish_message<M>(&mut self, message: M) -> PublishMessageBuilder<T, M>
+    where
+        M: Serialize,
+    {
+        let seqn = self.seqn();
+        PublishMessageBuilder {
+            message,
+            pub_nub_client: self,
+            seqn,
         }
-
-        if let Some(message_type) = &self.message_type {
-            query_params.insert("type".to_string(), message_type.clone());
-        }
-
-        query_params.insert("seqn".to_string(), self.seqn.to_string());
-
-        self.meta
-            .as_ref()
-            .map(serialize_meta)
-            .and_then(|meta| query_params.insert("meta".to_string(), meta));
-
-        query_params
     }
 
-    // TODO: create test for path creation!
-    fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
-        let query_params = self.prepare_publish_query_params();
-
-        let pub_key = &self
-            .pub_nub_client
-            .config
-            .publish_key
-            .as_ref()
-            .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
-        let sub_key = &self.pub_nub_client.config.subscribe_key;
-
-        if self.use_post {
-            self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
-                method: TransportMethod::Post,
-                query_parameters: query_params,
-                body: Some(m_vec),
-                headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
-            })
-        } else {
-            self.message
-                .serialize()
-                .and_then(|m_vec| {
-                    String::from_utf8(m_vec)
-                        .map_err(|e| PubNubError::SerializationError(e.to_string()))
-                })
-                .map(|m_str| TransportRequest {
-                    path: format!(
-                        "publish/{}/{}/0/{}/0/{}",
-                        pub_key,
-                        sub_key,
-                        encode(&self.channel),
-                        encode(&m_str)
-                    ),
-                    method: TransportMethod::Get,
-                    query_parameters: query_params,
-                    ..Default::default()
-                })
+    fn seqn(&mut self) -> u16 {
+        let ret = self.next_seqn;
+        if self.next_seqn == u16::MAX {
+            self.next_seqn = 0;
         }
+        self.next_seqn += 1;
+        ret
     }
 }
 
@@ -213,6 +172,90 @@ where
     }
 }
 
+impl<'pub_nub, T, M, D> PublishMessageViaChannel<'pub_nub, T, M, D>
+where
+    T: Transport,
+    M: Serialize,
+    D: for<'de> Deserializer<'de, PublishResponseBody>,
+{
+    fn prepare_publish_query_params(&self) -> HashMap<String, String> {
+        let mut query_params: HashMap<String, String> = HashMap::new();
+
+        self.store
+            .and_then(|s| query_params.insert("store".to_string(), bool_to_numeric(s)));
+
+        self.ttl
+            .and_then(|t| query_params.insert("ttl".to_string(), t.to_string()));
+
+        self.replicate
+            .not()
+            .then(|| query_params.insert("norep".to_string(), true.to_string()));
+
+        if let Some(space_id) = &self.space_id {
+            query_params.insert("space-id".to_string(), space_id.clone());
+        }
+
+        if let Some(message_type) = &self.message_type {
+            query_params.insert("type".to_string(), message_type.clone());
+        }
+
+        query_params.insert("seqn".to_string(), self.seqn.to_string());
+
+        self.meta
+            .as_ref()
+            .map(serialize_meta)
+            .and_then(|meta| query_params.insert("meta".to_string(), meta));
+
+        query_params
+    }
+
+    // TODO: create test for path creation!
+    fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
+        let query_params = self.prepare_publish_query_params();
+
+        let pub_key = &self
+            .pub_nub_client
+            .config
+            .publish_key
+            .as_ref()
+            .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
+        let sub_key = &self.pub_nub_client.config.subscribe_key;
+
+        if self.use_post {
+            self.message.serialize().map(|m_vec| TransportRequest {
+                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
+                method: TransportMethod::Post,
+                query_parameters: query_params,
+                body: Some(m_vec),
+                headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
+            })
+        } else {
+            self.message
+                .serialize()
+                .and_then(|m_vec| {
+                    String::from_utf8(m_vec)
+                        .map_err(|e| PubNubError::SerializationError(e.to_string()))
+                })
+                .map(|m_str| TransportRequest {
+                    path: format!(
+                        "publish/{}/{}/0/{}/0/{}",
+                        pub_key,
+                        sub_key,
+                        encode(&self.channel),
+                        encode(&m_str)
+                    ),
+                    method: TransportMethod::Get,
+                    query_parameters: query_params,
+                    ..Default::default()
+                })
+        }
+    }
+}
+
+fn bool_to_numeric(value: bool) -> String {
+    if value { "1" } else { "0" }.to_string()
+}
+
 fn body_to_result(body: PublishResponseBody, status: u16) -> Result<PublishResult, PubNubError> {
     match body {
         PublishResponseBody::PublishResponse(error_indicator, message, timetoken) => {
@@ -231,31 +274,18 @@ fn body_to_result(body: PublishResponseBody, status: u16) -> Result<PublishResul
         ))),
     }
 }
-impl<T> PubNubClient<T>
-where
-    T: Transport,
-{
-    fn seqn(&mut self) -> u16 {
-        let ret = self.next_seqn;
-        if self.next_seqn == u16::MAX {
-            self.next_seqn = 0;
-        }
-        self.next_seqn += 1;
-        ret
-    }
 
-    /// Create a new publish message builder.
-    pub fn publish_message<M>(&mut self, message: M) -> PublishMessageBuilder<T, M>
-    where
-        M: Serialize,
-    {
-        let seqn = self.seqn();
-        PublishMessageBuilder {
-            message,
-            pub_nub_client: self,
-            seqn,
-        }
+fn serialize_meta(meta: &HashMap<String, String>) -> String {
+    let mut result = String::new();
+    result.push('{');
+    meta.iter().for_each(|k| {
+        result.push_str(format!("\"{}\":\"{}\",", k.0.as_str(), k.1.as_str()).as_str());
+    });
+    if result.ends_with(',') {
+        result.remove(result.len() - 1);
     }
+    result.push('}');
+    result
 }
 
 #[cfg(test)]
