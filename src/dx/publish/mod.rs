@@ -173,7 +173,7 @@ where
 
         let client = instance.pub_nub_client;
 
-        // TODO: [1]
+        // TODO: ref: builders.rs[1]
         let deserializer = instance.deserializer.clone();
 
         instance

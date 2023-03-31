@@ -240,7 +240,7 @@ where
     #[builder(setter(custom))]
     pub(super) seqn: u16,
 
-    // TODO: Moved to heap to avoid partial move, but this is not ideal. ref[1]
+    // TODO: Moved to heap to avoid partial move, but this is not ideal. ref: mod.rs[1]
     #[builder(setter(custom))]
     pub(super) deserializer: Rc<D>,
 
