@@ -138,13 +138,11 @@ where
         // TODO: ref: builders.rs[1]
         let deserializer = instance.deserializer.clone();
 
-        let result = instance
+        instance
             .create_transport_request()
-            .map(|request| Self::send_request(&client.transport, request))?
+            .map(|request| async move { Self::send_request(&client.transport, request).await })?
             .await
-            .map(|response| Self::response_to_result(&deserializer, response))?;
-
-        result
+            .map(|response| Self::response_to_result(&deserializer, response))?
     }
 
     async fn send_request(
