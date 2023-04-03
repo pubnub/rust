@@ -15,7 +15,7 @@ async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error
 async fn main() {
     env_logger::builder().try_init().unwrap();
     PubNubWorld::cucumber()
-        .max_concurrent_scenarios(1)
+        .max_concurrent_scenarios(1) // sequential execution because tomato waits for a specific request at a time for which a script is initialised.
         .before(|_feature, _rule, scenario, _world| {
             futures::FutureExt::boxed(async move {
                 if scenario.tags.iter().any(|t| t.starts_with("contract=")) {
