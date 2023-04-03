@@ -85,6 +85,11 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// # }
 /// ```
 ///
+/// # Synchronization
+///
+/// Client is thread-safe and can be shared between threads. You don't need to
+/// wrap it in `Arc` or `Mutex` because it is already wrapped in `Arc`.
+///
 /// # See also
 /// [Keyset](struct.Keyset.html)
 /// [Transport](../core/trait.Transport.html)
