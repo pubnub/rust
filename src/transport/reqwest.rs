@@ -306,7 +306,7 @@ mod should {
             body: None,
             ..Default::default()
         };
-        reqwest::Client::default();
+
         assert!(transport.send(request).await.is_err());
     }
 }
