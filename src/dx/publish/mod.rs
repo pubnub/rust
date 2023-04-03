@@ -79,7 +79,10 @@ where
     }
 
     fn seqn(&self) -> u16 {
-        let mut locked_value = self.next_seqn.lock().expect("seqn locked_value poisoned");
+        let mut locked_value = self
+            .next_seqn
+            .lock()
+            .expect("dx::publish seqn lock poisoned!");
         let ret = *locked_value;
 
         if *locked_value == u16::MAX {
