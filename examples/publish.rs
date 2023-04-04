@@ -56,6 +56,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .store(true)
         .meta([("meta1".into(), "meta2".into())].into())
         .replicate(true)
+        .use_post(true)
+        .ttl(10)
+        .space_id("my_space")
+        .message_type("my_type")
         .execute()
         .await?;
 
