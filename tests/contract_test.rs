@@ -15,7 +15,7 @@ async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error
 #[tokio::main]
 async fn main() {
     env_logger::builder().try_init().unwrap();
-    let file: File = File::create("tests/report.xml").unwrap();
+    let file: File = File::create("tests/reports/report-required.xml").unwrap();
     PubNubWorld::cucumber()
         .max_concurrent_scenarios(1) // sequential execution because tomato waits for a specific request at a time for which a script is initialised.
         .before(|_feature, _rule, scenario, _world| {

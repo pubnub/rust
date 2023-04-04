@@ -51,7 +51,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: acceptance-test-reports
-          path: tests/report.xml
+          path: tests/reports/*.xml
           retention-days: 7
   all-tests:
     name: Tests
