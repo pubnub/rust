@@ -14,7 +14,7 @@ pub struct PublishResult {
 }
 
 /// The response body of a publish operation.
-/// It can be either a tuple with data from Publish service
+/// It can be either a tuple with data from the Publish service
 /// or an [`OtherResponse`] from other services.
 ///
 /// It used for deserialization of publish response. This type is intermediate
