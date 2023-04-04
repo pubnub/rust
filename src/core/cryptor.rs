@@ -2,6 +2,8 @@
 //!
 //! This module contains the [`Cryptor`] trait which is used to implement
 //! encryption and decryption of published data.
+//! When you use this trait to make your own crypto, make sure that other SDKs
+//! use the same encryption and decryption algorithms.
 
 use crate::core::error::PubNubError;
 
@@ -24,13 +26,19 @@ use crate::core::error::PubNubError;
 /// struct MyCryptor;
 ///
 /// impl Cryptor for MyCryptor {
-///     fn encrypt<'en, T: Into<&'en [u8]>>(&self, source: T) -> Result<Vec<u8>, PubNubError> {
+///     fn encrypt<'en, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
+///     where
+///         T: Into<&'en [u8]>
+///     {
 ///         // Encrypt provided data here
 ///
 ///         Ok(vec![])
 ///     }
 ///
-///     fn decrypt<'de, T: Into<&'de [u8]>>(&self, source: T) -> Result<Vec<u8>, PubNubError> {
+///     fn decrypt<'de, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
+///     where
+///         T: Into<&'de [u8]>
+///     {
 ///         // Decrypt provided data here
 ///
 ///         Ok(vec![])
@@ -46,12 +54,16 @@ pub trait Cryptor {
     /// # Errors
     /// Should return an [`PubNubError::EncryptionError`] if provided data can't
     /// be encrypted or underlying cryptor misconfigured.
-    fn encrypt<'en, T: Into<&'en [u8]>>(&self, source: T) -> Result<Vec<u8>, PubNubError>;
+    fn encrypt<'en, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
+    where
+        T: Into<&'en [u8]>;
 
     /// Decrypt provided data.
     ///
     /// # Errors
     /// Should return an [`PubNubError::DecryptionError`] if provided data can't
     /// be decrypted or underlying cryptor misconfigured.
-    fn decrypt<'de, T: Into<&'de [u8]>>(&self, source: T) -> Result<Vec<u8>, PubNubError>;
+    fn decrypt<'de, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
+    where
+        T: Into<&'de [u8]>;
 }

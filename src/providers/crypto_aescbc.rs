@@ -47,126 +47,6 @@ pub enum AesCbcIv {
     ///
     /// [`AesCbcCrypto.encrypt`]: /struct.AesCbcCrypto.html#method.encrypt
     Random,
-    /// Custom initialization vector.
-    ///
-    /// `Constant` user-provided vector which is used with each
-    /// [`AesCbcCrypto.encrypt`] and [`AesCbcCrypto.decrypt`] method call method
-    /// calls.
-    ///
-    /// # Examples
-    /// Create an initialization vector using a short array. The resulting
-    /// initialization vector will be aligned with the AES cipher block size
-    /// (16 bytes) by filling rest with zeroes.
-    /// ```rust
-    /// # use pubnub::providers::crypto_aescbc::AesCbcIv;
-    /// let iv = AesCbcIv::Custom(Vec::from("nonce"));
-    /// ```
-    ///
-    /// [`AesCbcCrypto.encrypt`]: /struct.AesCbcCrypto.html#method.encrypt
-    /// [`AesCbcCrypto.decrypt`]: /struct.AesCbcCrypto.html#method.decrypt
-    Custom(Vec<u8>),
-}
-
-impl From<[u8; 16]> for AesCbcIv {
-    /// Construct [`AesCbcIv::Custom`] from `[u8; 16]`.
-    ///
-    /// # Examples
-    /// ```rust
-    /// # use pubnub::providers::crypto_aescbc::AesCbcIv;
-    ///  let iv: AesCbcIv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5].into();
-    /// # assert!(matches!(iv, AesCbcIv::Custom(_)));
-    /// ```
-    fn from(value: [u8; 16]) -> Self {
-        Vec::from(value).into()
-    }
-}
-
-impl From<&Vec<u8>> for AesCbcIv {
-    /// Construct [`AesCbcIv::Custom`] from `&Vec<u8>`.
-    ///
-    /// It is **required** that the specified initialization vector be at
-    /// maximum 16 bytes long. If you give us a value that is longer than 16
-    /// bytes, it will be clipped or filled with zeros if it is shorter.
-    fn from(value: &Vec<u8>) -> Self {
-        Vec::from(value.as_slice()).into()
-    }
-}
-
-impl From<Vec<u8>> for AesCbcIv {
-    /// Construct [`AesCbcIv::Custom`] from `Vec<u8>`.
-    ///
-    /// # Examples
-    /// Create an initialization vector using a short `Vec`. The resulting
-    /// initialization vector will be aligned with the AES cipher block size
-    /// (16 bytes) by filling rest with zeroes.
-    /// ```rust
-    /// # use pubnub::providers::crypto_aescbc::AesCbcIv;
-    ///  let iv: AesCbcIv = Vec::from([0, 1, 2, 3, 4, 5]).into();
-    /// # assert!(matches!(iv, AesCbcIv::Custom(_)));
-    /// # assert_eq!(match &iv { AesCbcIv::Custom(vec) => vec.len(), _ => 0 }, 16);
-    /// ```
-    ///
-    /// It is **required** that the specified initialization vector be at
-    /// maximum 16 bytes long. If you give us a value that is longer than 16
-    /// bytes, it will be clipped or filled with zeros if it is shorter.
-    fn from(value: Vec<u8>) -> Self {
-        if value.len() == AES_BLOCK_SIZE {
-            return Self::Custom(value);
-        } else if value.is_empty() {
-            return Self::Custom(vec![]);
-        }
-
-        let length = value.len().min(AES_BLOCK_SIZE);
-        let mut vec = [0u8; AES_BLOCK_SIZE];
-        vec[0..length].copy_from_slice(&value[0..length]);
-        Self::Custom(Vec::from(vec))
-    }
-}
-
-impl From<&str> for AesCbcIv {
-    /// Construct [`AesCbcIv::Custom`] from `&str`.
-    ///
-    /// # Examples
-    /// Create an initialization vector using a too long string slice. The
-    /// resulting initialization vector will be aligned with the AES cipher
-    /// block size (16 bytes) by clipping extra bytes.
-    /// ```rust
-    /// # use pubnub::providers::crypto_aescbc::AesCbcIv;
-    ///  let iv: AesCbcIv = "01234567890123456789".into();
-    /// # assert!(matches!(iv, AesCbcIv::Custom(_)));
-    /// # assert_eq!(match &iv { AesCbcIv::Custom(vec) => vec.len(), _ => 0 }, 16);
-    /// ```
-    ///
-    /// It is **required** that the specified initialization vector be at
-    /// maximum 16 bytes long. If you give us a value that is longer than 16
-    /// bytes, it will be clipped or filled with zeros if it is shorter.
-    fn from(value: &str) -> Self {
-        value.as_bytes().to_vec().into()
-    }
-}
-
-impl From<String> for AesCbcIv {
-    /// Construct [`AesCbcIv::Custom`] from `String`.
-    ///
-    /// # Examples
-    /// Create an initialization vector using a short `String`. The resulting
-    /// initialization vector will be aligned with the AES cipher block size
-    /// (16 bytes) by filling rest with zeroes.
-    /// ```rust
-    /// # use pubnub::providers::crypto_aescbc::AesCbcIv;
-    ///  let iv: AesCbcIv = String::from("test-iv").into();
-    /// # assert!(matches!(iv, AesCbcIv::Custom(_)));
-    /// # assert_eq!(match &iv { AesCbcIv::Custom(vec) => vec.len(), _ => 0 }, 16);
-    /// ```
-    ///
-    /// It is **required** that the specified initialization vector be at
-    /// maximum 16 bytes long. If you give us a value that is longer than 16
-    /// bytes, it will be clipped or filled with zeros if it is shorter.
-    ///
-    /// [`AesCbcIv::Custom`]: ./enum.AesCbcIv.html#variant.Custom
-    fn from(value: String) -> Self {
-        value.as_str().into()
-    }
 }
 
 /// A crypto that uses the AES encryption algorithm with CBC mode.
@@ -202,22 +82,12 @@ impl AesCbcCrypto {
     /// # Errors
     /// Should return an [`PubNubError::CryptoInitializationError`] if cipher
     /// key or initialization vectors are empty.
-    pub fn new<C, I>(cipher_key: C, iv: I) -> Result<Self, PubNubError>
+    pub fn new<C>(cipher_key: C, iv: AesCbcIv) -> Result<Self, PubNubError>
     where
         C: Into<Vec<u8>>,
-        I: Into<AesCbcIv>,
     {
+        let iv_constant = matches!(iv, AesCbcIv::Constant);
         let cipher_key: Vec<u8> = cipher_key.into();
-        let vector: AesCbcIv = iv.into();
-        let iv_constant = matches!(vector, AesCbcIv::Constant);
-
-        if let AesCbcIv::Custom(custom_iv) = &vector {
-            if custom_iv.is_empty() {
-                return Err(PubNubError::CryptoInitializationError(
-                    "Initialization vector is empty".into(),
-                ));
-            }
-        }
 
         if cipher_key.is_empty() {
             return Err(PubNubError::CryptoInitializationError(
@@ -227,9 +97,8 @@ impl AesCbcCrypto {
 
         Ok(AesCbcCrypto {
             cipher_key: AesCbcCrypto::sha256_hex(cipher_key),
-            iv: match vector {
+            iv: match iv {
                 AesCbcIv::Constant => Some(b"0123456789012345".to_vec()),
-                AesCbcIv::Custom(custom) => Some(custom),
                 AesCbcIv::Random => None,
             },
             iv_constant,
@@ -334,7 +203,10 @@ impl Cryptor for AesCbcCrypto {
     /// # Errors
     /// Should return an [`PubNubError::EncryptionError`] if provided data can't
     /// be encrypted or underlying cryptor misconfigured.
-    fn encrypt<'en, T: Into<&'en [u8]>>(&self, source: T) -> Result<Vec<u8>, PubNubError> {
+    fn encrypt<'en, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
+    where
+        T: Into<&'en [u8]>,
+    {
         let iv = self.encryption_iv();
         let data = source.into();
         let mut buffer = vec![0u8; self.estimated_buffer_size(data, true)];
@@ -387,7 +259,10 @@ impl Cryptor for AesCbcCrypto {
     /// # Errors
     /// Should return an [`PubNubError::DecryptionError`] if provided data can't
     /// be decrypted or underlying cryptor misconfigured.
-    fn decrypt<'de, T: Into<&'de [u8]>>(&self, source: T) -> Result<Vec<u8>, PubNubError> {
+    fn decrypt<'de, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
+    where
+        T: Into<&'de [u8]>,
+    {
         let data = source.into();
         let iv = self.decryption_iv(data);
         let mut buffer = vec![0u8; self.estimated_buffer_size(data, false)];
@@ -412,53 +287,6 @@ mod it_should {
     use base64::{engine::general_purpose, Engine as _};
 
     #[test]
-    fn create_custom_iv_from_array() {
-        let iv_slice = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-        let iv: AesCbcIv = iv_slice.into();
-        assert!(matches!(iv, AesCbcIv::Custom(_)));
-        if let AesCbcIv::Custom(vec) = iv {
-            assert_eq!(vec, iv_slice.to_vec())
-        };
-    }
-
-    #[test]
-    fn create_custom_iv_from_vector() {
-        let iv_vec = &vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-        let iv: AesCbcIv = iv_vec.into();
-        assert!(matches!(iv, AesCbcIv::Custom(_)));
-        if let AesCbcIv::Custom(vec) = iv {
-            assert_eq!(&vec, iv_vec);
-        };
-    }
-
-    #[test]
-    fn create_custom_iv_from_string_slice() {
-        let iv_slice = "012345678901234567890";
-        let iv: AesCbcIv = iv_slice.into();
-        assert!(matches!(iv, AesCbcIv::Custom(_)));
-        if let AesCbcIv::Custom(vec) = iv {
-            assert_eq!(vec.len(), AES_BLOCK_SIZE);
-            assert_eq!(vec, iv_slice[0..AES_BLOCK_SIZE].as_bytes().to_vec());
-        };
-    }
-
-    #[test]
-    fn create_custom_iv_from_string() {
-        let iv_vec = "01234567890".to_string();
-        let iv: AesCbcIv = iv_vec.clone().into();
-        assert!(matches!(iv, AesCbcIv::Custom(_)));
-        if let AesCbcIv::Custom(vec) = iv {
-            assert_eq!(vec.len(), AES_BLOCK_SIZE);
-            assert_eq!(&vec[0.."01234567890".len()], iv_vec.as_bytes());
-            // When to short vector provided, rest of it filled with zeroes.
-            assert_eq!(
-                &vec[iv_vec.len()..AES_BLOCK_SIZE],
-                &[0u8; AES_BLOCK_SIZE - "01234567890".len()]
-            );
-        };
-    }
-
-    #[test]
     fn create_cryptor_with_hardcoded_iv() {
         let cryptor =
             AesCbcCrypto::new("enigma", AesCbcIv::Constant).expect("Cryptor should be created");
@@ -479,30 +307,8 @@ mod it_should {
     }
 
     #[test]
-    fn create_cryptor_with_custom_iv() {
-        let cryptor = AesCbcCrypto::new("enigma", AesCbcIv::Custom("nonce".into()))
-            .expect("Cryptor should be created");
-        let iv = cryptor
-            .iv
-            .clone()
-            .expect("Initialization vector should be created");
-        assert_eq!(iv, "nonce".as_bytes().to_vec());
-        assert_eq!(cryptor.encryption_iv(), cryptor.encryption_iv());
-    }
-
-    #[test]
-    fn create_cryptor_with_custom_iv_from_string() {
-        let cryptor = AesCbcCrypto::new("enigma", "nonce").expect("Cryptor should be created");
-        cryptor
-            .iv
-            .clone()
-            .expect("Initialization vector should be created");
-        assert_eq!(cryptor.encryption_iv(), cryptor.encryption_iv());
-    }
-
-    #[test]
     fn not_create_cryptor_with_empty_cipher_key() {
-        let cryptor = AesCbcCrypto::new("", "nonce");
+        let cryptor = AesCbcCrypto::new("", AesCbcIv::Random);
         assert!(cryptor.is_err());
     }
 
@@ -529,7 +335,6 @@ mod it_should {
 
     #[test]
     fn encrypt_data_with_random_iv() {
-        // "aM5AVD8eO0B5qbu+IY8TGBpbMi7tPs+iwNqa9HUYVOpGarTb/jNtj/jC7+5VVYNV"
         let cryptor =
             AesCbcCrypto::new("enigma", AesCbcIv::Random).expect("Cryptor should be created");
         let encrypted1 = cryptor
@@ -540,21 +345,6 @@ mod it_should {
             .expect("Data should be encrypted");
         assert_ne!(encrypted1, encrypted2);
         assert_ne!(encrypted1[0..AES_BLOCK_SIZE], encrypted2[0..AES_BLOCK_SIZE]);
-        // Encrypted 1: fRm/rMArHgQuIuhuJMbXV8JLOUqf5sP72lGC4EaW98nNhmJltQcmCol9XXWgeDJC
-        // Encrypted 2: gk6glnaeb+8zeEvZR1q3sHyQV7xTo1pNf4cc4uJF+a2bK1fMY816Hc9I6j+gYR+5
-    }
-
-    #[test]
-    fn encrypt_data_with_custom_iv() {
-        let cryptor = AesCbcCrypto::new("enigma", "test-iv").expect("Cryptor should be created");
-        let encrypted1 = cryptor
-            .encrypt("\"Hello there 🙃\"".as_bytes())
-            .expect("Data should be encrypted");
-        let encrypted2 = cryptor
-            .encrypt("\"Hello there 🙃\"".as_bytes())
-            .expect("Data should be encrypted");
-        assert_eq!(encrypted1, encrypted2);
-        assert_eq!("test-iv".as_bytes(), &encrypted1[0.."test-iv".len()]);
     }
 
     #[test]
