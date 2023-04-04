@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
     let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
 
-    let mut client = PubNubClientBuilder::with_reqwest_transport()
+    let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
             subscribe_key,
             publish_key: Some(publish_key),
@@ -28,6 +28,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .channel("my_channel")
         .execute()
         .await?;
+
+    // publish with other async task
+    let cloned = client.clone();
+    let handle = tokio::spawn(async move {
+        cloned
+            .publish_message("hello async world!")
+            .channel("my_channel")
+            .execute()
+            .await
+    });
 
     // publish a struct
     client
@@ -48,6 +58,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .replicate(true)
         .execute()
         .await?;
+
+    // unwrap the spawned task and result of the publish
+    handle.await??;
 
     Ok(())
 }

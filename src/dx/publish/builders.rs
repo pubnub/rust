@@ -10,7 +10,7 @@ use crate::{
     dx::PubNubClient,
 };
 use derive_builder::Builder;
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///
@@ -47,17 +47,17 @@ use std::{collections::HashMap, rc::Rc};
 /// [`publish_message`]: crate::dx::PubNubClient::publish_message`
 /// [`PubNubClient`]: crate::dx::PubNubClient
 /// [`PubNub`]:https://www.pubnub.com/
-pub struct PublishMessageBuilder<'pub_nub, T, M>
+pub struct PublishMessageBuilder<T, M>
 where
     T: Transport,
     M: Serialize,
 {
-    pub(super) pub_nub_client: &'pub_nub PubNubClient<T>,
+    pub(super) pub_nub_client: PubNubClient<T>,
     pub(super) message: M,
     pub(super) seqn: u16,
 }
 
-impl<'pub_nub, T, M> PublishMessageBuilder<'pub_nub, T, M>
+impl<T, M> PublishMessageBuilder<T, M>
 where
     T: Transport,
     M: Serialize,
@@ -66,10 +66,7 @@ where
     ///
     /// [`channel`]: crate::dx::publish::PublishMessageBuilder::channel
     #[cfg(feature = "serde")]
-    pub fn channel<S>(
-        self,
-        channel: S,
-    ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, SerdeDeserializer>
+    pub fn channel<S>(self, channel: S) -> PublishMessageViaChannelBuilder<T, M, SerdeDeserializer>
     where
         S: Into<String>,
     {
@@ -84,7 +81,7 @@ where
     }
 
     #[cfg(not(feature = "serde"))]
-    pub fn channel<S>(self, channel: S) -> PublishMessageDeserializerBuilder<'pub_nub, T, M>
+    pub fn channel<S>(self, channel: S) -> PublishMessageDeserializerBuilder<T, M>
     where
         S: Into<String>,
     {
@@ -150,19 +147,19 @@ where
 /// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder
 /// [`Deserializer`]: crate::core::Deserializer
 #[cfg(not(feature = "serde"))]
-pub struct PublishMessageDeserializerBuilder<'pub_nub, T, M>
+pub struct PublishMessageDeserializerBuilder<T, M>
 where
     T: Transport,
     M: Serialize,
 {
-    pub_nub_client: &'pub_nub PubNubClient<T>,
+    pub_nub_client: PubNubClient<T>,
     message: M,
     seqn: u16,
     channel: String,
 }
 
 #[cfg(not(feature = "serde"))]
-impl<'pub_nub, T, M> PublishMessageDeserializerBuilder<'pub_nub, T, M>
+impl<T, M> PublishMessageDeserializerBuilder<T, M>
 where
     T: Transport,
     M: Serialize,
@@ -174,17 +171,14 @@ where
     /// [`deserialize_with`]: crate::dx::publish::PublishMessageDeserializerBuilder::deserialize_with
     /// [`Deserializer`]: crate::core::Deserializer
     /// [`PublishResponse`]: crate::core::publish::PublishResponse
-    pub fn deserialize_with<D>(
-        self,
-        deserializer: D,
-    ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
+    pub fn deserialize_with<D>(self, deserializer: D) -> PublishMessageViaChannelBuilder<T, M, D>
     where
         for<'de> D: Deserializer<'de, PublishResponseBody>,
     {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
-            deserializer: Some(Rc::new(deserializer)),
+            deserializer: Some(Arc::new(deserializer)),
             ..Default::default()
         }
         .message(self.message)
@@ -228,21 +222,21 @@ where
 /// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Builder)]
 #[builder(pattern = "owned", build_fn(vis = "pub(super)"))]
-pub struct PublishMessageViaChannel<'pub_nub, T, M, D>
+pub struct PublishMessageViaChannel<T, M, D>
 where
     T: Transport,
     M: Serialize,
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     #[builder(setter(custom))]
-    pub(super) pub_nub_client: &'pub_nub PubNubClient<T>,
+    pub(super) pub_nub_client: PubNubClient<T>,
 
     #[builder(setter(custom))]
     pub(super) seqn: u16,
 
     // TODO: Moved to heap to avoid partial move, but this is not ideal. ref: mod.rs[1]
     #[builder(setter(custom))]
-    pub(super) deserializer: Rc<D>,
+    pub(super) deserializer: Arc<D>,
 
     /// Message to publish
     pub(super) message: M,
@@ -285,7 +279,7 @@ where
     pub(super) message_type: Option<String>,
 }
 
-impl<'pub_nub, T, M, D> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
+impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     T: Transport,
     M: Serialize,
@@ -294,10 +288,7 @@ where
     /// Deserializer to use to deserialize the response.
     /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
     /// the [`PublishResponse`] type.
-    pub fn deserialize_with<D2>(
-        self,
-        deserializer: D2,
-    ) -> PublishMessageViaChannelBuilder<'pub_nub, T, M, D2>
+    pub fn deserialize_with<D2>(self, deserializer: D2) -> PublishMessageViaChannelBuilder<T, M, D2>
     where
         D2: for<'de> Deserializer<'de, PublishResponseBody>,
     {
@@ -313,7 +304,7 @@ where
             meta: self.meta,
             space_id: self.space_id,
             message_type: self.message_type,
-            deserializer: Some(Rc::new(deserializer)),
+            deserializer: Some(Arc::new(deserializer)),
         }
     }
 }

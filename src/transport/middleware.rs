@@ -27,9 +27,10 @@ use uuid::Uuid;
 /// If you are using the [`PubNubClient`] you don't need to use this middleware.
 ///
 /// [`PubNubClient`]: crate::dx::PubNubClient
+#[derive(Debug)]
 pub struct PubNubMiddleware<T>
 where
-    T: Transport + Send + Sync,
+    T: Transport,
 {
     pub(crate) transport: T,
     pub(crate) instance_id: Option<String>,
@@ -37,6 +38,7 @@ where
     pub(crate) signature_keys: Option<SignatureKeySet>,
 }
 
+#[derive(Debug)]
 pub(crate) struct SignatureKeySet {
     pub(crate) secret_key: String,
     pub(crate) publish_key: String,
@@ -97,7 +99,7 @@ impl SignatureKeySet {
 #[async_trait::async_trait]
 impl<T> Transport for PubNubMiddleware<T>
 where
-    T: Transport + Sync + Send,
+    T: Transport,
 {
     async fn send(&self, mut req: TransportRequest) -> Result<TransportResponse, PubNubError> {
         req.query_parameters

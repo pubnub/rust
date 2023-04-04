@@ -66,29 +66,35 @@ where
     /// ```
     ///
     /// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
-    pub fn publish_message<M>(&mut self, message: M) -> PublishMessageBuilder<T, M>
+    pub fn publish_message<M>(&self, message: M) -> PublishMessageBuilder<T, M>
     where
         M: Serialize,
     {
         let seqn = self.seqn();
         PublishMessageBuilder {
             message,
-            pub_nub_client: self,
+            pub_nub_client: self.clone(),
             seqn,
         }
     }
 
-    fn seqn(&mut self) -> u16 {
-        let ret = self.next_seqn;
-        if self.next_seqn == u16::MAX {
-            self.next_seqn = 0;
+    fn seqn(&self) -> u16 {
+        let mut locked_value = self
+            .next_seqn
+            .lock()
+            .expect("dx::publish seqn lock poisoned!");
+        let ret = *locked_value;
+
+        if *locked_value == u16::MAX {
+            *locked_value = 0;
         }
-        self.next_seqn += 1;
+        *locked_value += 1;
+
         ret
     }
 }
 
-impl<'pub_nub, T, M, D> PublishMessageViaChannelBuilder<'pub_nub, T, M, D>
+impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     T: Transport,
     M: Serialize,
@@ -130,14 +136,14 @@ where
             .build()
             .map_err(|err| PubNubError::PublishError(err.to_string()))?;
 
-        let client = instance.pub_nub_client;
+        let client: PubNubClient<_> = instance.pub_nub_client.clone();
 
         // TODO: ref: builders.rs[1]
         let deserializer = instance.deserializer.clone();
 
         instance
             .create_transport_request()
-            .map(|request| Self::send_request(&client.transport, request))?
+            .map(|request| async move { Self::send_request(&client.transport, request).await })?
             .await
             .map(|response| Self::response_to_result(&deserializer, response))?
     }
@@ -172,7 +178,7 @@ where
     }
 }
 
-impl<'pub_nub, T, M, D> PublishMessageViaChannel<'pub_nub, T, M, D>
+impl<T, M, D> PublishMessageViaChannel<T, M, D>
 where
     T: Transport,
     M: Serialize,
@@ -271,16 +277,21 @@ fn serialize_meta(meta: &HashMap<String, String>) -> String {
 
 #[cfg(test)]
 mod should {
+    use std::sync::Arc;
+
     use super::*;
     use crate::{
         core::TransportResponse,
-        dx::{pubnub_client::PubNubConfig, PubNubClient},
+        dx::{
+            pubnub_client::{PubNubClientRef, PubNubConfig},
+            PubNubClient,
+        },
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };
     use test_case::test_case;
 
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     struct MockTransport;
 
     fn client() -> PubNubClient<PubNubMiddleware<MockTransport>> {
@@ -311,7 +322,7 @@ mod should {
 
     #[tokio::test]
     async fn publish_message() {
-        #[derive(Default)]
+        #[derive(Default, Clone)]
         struct MockTransport;
 
         #[async_trait::async_trait]
@@ -324,7 +335,7 @@ mod should {
             }
         }
 
-        let mut client = client();
+        let client = client();
 
         let result = client
             .publish_message("First message")
@@ -338,7 +349,7 @@ mod should {
 
     #[test]
     fn verify_all_query_parameters() {
-        let mut client = client();
+        let client = client();
 
         let result = client
             .publish_message("message")
@@ -370,7 +381,7 @@ mod should {
 
     #[test]
     fn verify_seqn_is_incrementing() {
-        let mut client = client();
+        let client = client();
 
         let received_seqns = vec![
             client.publish_message("meess").seqn,
@@ -382,15 +393,19 @@ mod should {
 
     #[tokio::test]
     async fn return_err_if_publish_key_is_not_provided() {
-        let mut client = {
+        let client = {
             let default_client = client();
 
+            let ref_client = Arc::try_unwrap(default_client.inner).unwrap();
+
             PubNubClient {
-                config: PubNubConfig {
-                    publish_key: None,
-                    ..default_client.config
-                },
-                ..default_client
+                inner: Arc::new(PubNubClientRef {
+                    config: PubNubConfig {
+                        publish_key: None,
+                        ..ref_client.config
+                    },
+                    ..ref_client
+                }),
             }
         };
 
@@ -404,7 +419,7 @@ mod should {
 
     #[test]
     fn test_send_string_when_get() {
-        let mut client = client();
+        let client = client();
         let channel = String::from("ch");
         let message = "this is message";
 
@@ -428,7 +443,7 @@ mod should {
 
     #[test]
     fn test_send_map_when_get() {
-        let mut client = client();
+        let client = client();
         let channel = String::from("ch");
         let message = HashMap::from([("a", "b")]);
 
@@ -448,7 +463,7 @@ mod should {
 
     #[test]
     fn test_quotes_not_escaped_when_post() {
-        let mut client = client();
+        let client = client();
         let channel = String::from("ch");
         let message = "this is message";
 
@@ -497,7 +512,7 @@ mod should {
             }
         }
 
-        let mut client = PubNubClientBuilder::<MockTransport>::new()
+        let client = PubNubClientBuilder::<MockTransport>::new()
             .with_transport(MockTransport::default())
             .with_keyset(Keyset {
                 publish_key: Some(""),

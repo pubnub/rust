@@ -32,7 +32,7 @@ use super::{transport_response::TransportResponse, PubNubError, TransportRequest
 ///
 /// [`PubNub API`]: https://www.pubnub.com/docs
 #[async_trait::async_trait]
-pub trait Transport {
+pub trait Transport: Send + Sync {
     /// Send a request to the [`PubNub API`].
     ///
     /// # Errors
