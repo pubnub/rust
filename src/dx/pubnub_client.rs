@@ -377,8 +377,8 @@ where
     /// Set the keyset for the client
     ///
     /// It returns [`PubNubClientUserIdBuilder`] builder that you can use
-    /// to set the User ID for the client. 
-    /// 
+    /// to set the User ID for the client.
+    ///
     /// See [`Keyset`] for more information.
     ///
     /// # Examples
@@ -411,7 +411,7 @@ where
 /// PubNub builder for [`PubNubClient`] used to set the User ID
 /// It is returned by [`PubNubClientBuilder::with_keyset`]
 /// and provides method to set the User ID for the client.
-/// 
+///
 /// See [`PubNubClient`] for more information.
 ///
 /// # Examples

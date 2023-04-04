@@ -97,7 +97,7 @@ where
 /// The [`PublishMessageDeserializer`] adds the deserializer to the [`PublishMessageBuilder`].
 ///
 /// This struct is used to publish a message to a channel. It is used by the [`publish_message`] method of the [`PubNubClient`].
-/// 
+///
 /// The [`publish_message`] method is used to publish a message to a channel.
 ///
 /// See more information in the [`PublishMessageBuilder`] struct and the [`Deserializer`] trait.
@@ -185,7 +185,7 @@ where
     }
 }
 
-/// The [`PublishMessageViaChannelBuilder`] is is next step in the publish process. 
+/// The [`PublishMessageViaChannelBuilder`] is is next step in the publish process.
 /// The [`PublishMessageViaChannelBuilder`] is used to build the request to be sent to the [`PubNub`] network.
 /// This struct is used to publish a message to a channel. It is used by the [`publish_message`] method of the [`PubNubClient`].
 ///
