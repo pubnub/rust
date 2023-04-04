@@ -409,7 +409,6 @@ impl Cryptor for AesCbcCrypto {
 #[cfg(test)]
 mod it_should {
     use super::*;
-    use aes::cipher::typenum::assert_type_eq;
     use base64::{engine::general_purpose, Engine as _};
 
     #[test]
@@ -523,7 +522,7 @@ mod it_should {
             &encrypted1[0..AES_BLOCK_SIZE]
         );
         assert_eq!(
-            general_purpose::STANDARD.encode(encrypted2.clone()),
+            general_purpose::STANDARD.encode(encrypted2),
             "4K7StI9dRz7utFsDHvuy082CQupbJvdwzrRja47qAV4="
         );
     }
