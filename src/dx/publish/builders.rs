@@ -169,7 +169,7 @@ where
     ///
     /// [`deserialize_with`]: crate::dx::publish::PublishMessageDeserializerBuilder::deserialize_with
     /// [`Deserializer`]: crate::core::Deserializer
-    /// [`PublishResponse`]: crate::core::publish::PublishResponse
+    /// [`PublishResponseBody`]: crate::core::publish::PublishResponseBody
     pub fn deserialize_with<D>(self, deserializer: D) -> PublishMessageViaChannelBuilder<T, M, D>
     where
         for<'de> D: Deserializer<'de, PublishResponseBody>,
@@ -214,7 +214,7 @@ where
 /// # }
 /// ```
 ///
-/// [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder
+/// [`PublishMessageViaChannelBuilder`]: struct.PublishMessageViaChannelBuilder
 /// [`publish_message`]: crate::dx::PubNubClient::publish_message
 /// [`PubNub`]:https://www.pubnub.com/
 /// [`PubNubClient`]: crate::dx::PubNubClient
@@ -284,8 +284,10 @@ where
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     /// Deserializer to deserialize the response with.
-    /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
-    /// the [`PublishResponse`] type.
+    /// Note that the deserializer must implement the [`Deserializer`] trait for
+    /// the [`PublishResponseBody`] type.
+    /// [`Deserializer`]: crate::core::Deserializer
+    /// [`PublishResponseBody`]: crate::core::publish::PublishResponseBody
     pub fn deserialize_with<D2>(self, deserializer: D2) -> PublishMessageViaChannelBuilder<T, M, D2>
     where
         D2: for<'de> Deserializer<'de, PublishResponseBody>,
