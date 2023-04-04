@@ -274,7 +274,7 @@ where
 
     /// Message type to publish.
     #[builder(setter(strip_option, into), default = "None")]
-    pub(super) message_type: Option<String>,
+    pub(super) r#type: Option<String>,
 }
 
 impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
@@ -301,7 +301,7 @@ where
             use_post: self.use_post,
             meta: self.meta,
             space_id: self.space_id,
-            message_type: self.message_type,
+            r#type: self.r#type,
             deserializer: Some(Arc::new(deserializer)),
         }
     }
