@@ -148,12 +148,11 @@ impl AesCbcCrypto {
     ///
     /// Initialization vector which is suitable for current [`AesCbcCrypto`]
     /// configuration.
-    /// For [`AesCbcIv::Random`] and [`AesCbcIv::Custom`] variants
-    /// initialization vector should be retrieved from received data.
+    /// For [`AesCbcIv::Random`] variant initialization vector should be
+    /// retrieved from received data.
     ///
     /// [`AesCbcCrypto`]: ./struct.AesCbcCrypto.html
     /// [`AesCbcIv::Random`]: ./enum.AesCbcIv.html#variant.Random
-    /// [`AesCbcIv::Custom`]: ./enum.AesCbcIv.html#variant.Custom
     fn decryption_iv(&self, source: &[u8]) -> Vec<u8> {
         match &self.iv {
             Some(iv) => iv.as_slice().to_vec(),
