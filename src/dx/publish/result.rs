@@ -14,12 +14,12 @@ pub struct PublishResult {
 }
 
 /// The response body of a publish operation.
-/// It can be either a [`PublishResponse`] or an [`OtherResponse`].
+/// It can be either a tuple with data from Publish service
+/// or an [`OtherResponse`] from other services.
 ///
 /// It used for deserialization of publish response. This type is intermediate
 /// type between the raw response body and the [`PublishResult`] type.
 ///
-/// [`PublishResponse`]: struct.PublishResponse.html
 /// [`OtherResponse`]: struct.OtherResponse.html
 /// [`PublishResult`]: struct.PublishResult.html
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
