@@ -2,8 +2,6 @@
 //!
 //! This module contains the [`Cryptor`] trait which is used to implement
 //! encryption and decryption of published data.
-//! When you use this trait to make your own crypto, make sure that other SDKs
-//! use the same encryption and decryption algorithms.
 
 use crate::core::error::PubNubError;
 
@@ -18,6 +16,8 @@ use crate::core::error::PubNubError;
 ///
 /// You can implement this trait for your own types, or use one of the provided
 /// features to use a crypto library.
+/// When you use this trait to make your own crypto, make sure that other SDKs
+/// use the same encryption and decryption algorithms.
 ///
 /// # Examples
 /// ```
