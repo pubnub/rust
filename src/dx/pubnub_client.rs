@@ -109,7 +109,14 @@ where
     pub(crate) inner: Arc<PubNubClientRef<T>>,
 }
 
-/// TODO: doc
+/// Client reference
+///
+/// This contains the actual client state.
+/// It is wrapped in `Arc` by [`PubNubClient`] and uses interior mutability for its internal state.
+/// It is not intended to be used directly.
+/// Use [`PubNubClient`] instead.
+///
+/// [`PubNubClient`]: ./struct.PubNubClient.html
 #[derive(Debug, Builder)]
 #[builder(
     pattern = "owned",
