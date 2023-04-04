@@ -1,8 +1,8 @@
 //! PubNub client module
 //!
 //! This module contains the [`PubNubClient`] struct.
-//! It is used to send requests to the [`PubNub API`].
-//! It is intended to be used by the [`pubnub`] crate.
+//! It's used to send requests to [`PubNub API`].
+//! It's intended to be used by the [`pubnub`] crate.
 //!
 //! [`PubNubClient`]: ./struct.PubNubClient.html]
 //! [`PubNub API`]: https://www.pubnub.com/docs
@@ -22,12 +22,11 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// PubNub client
 ///
 /// Client for PubNub API with support for all [`selected`] PubNub features.
-/// It is generic over transport layer, which allows to use any transport
-/// that implements [`Transport`] trait.
+/// The client is transport-layer-agnostic, so you can use any transport layer
+/// that implements the [`Transport`] trait.
 ///
-/// Client can be created using [`PubNubClient::builder`] method.
-/// It is required to use [`Keyset`] to provide keys to the client
-/// and UUID to identify the client.
+/// You can create clients using the [`PubNubClient::builder`] method.
+/// You must provide a valid [`Keyset`] with pub/sub keys and a string User ID to identify the client.
 ///
 /// # Examples
 /// ```
@@ -49,7 +48,7 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// # }
 /// ```
 ///
-/// or using own [`Transport`] implementation
+/// Using your own [`Transport`] implementation:
 ///
 /// ```
 /// use pubnub::{PubNubClient, Keyset};
@@ -69,7 +68,7 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// # }
 ///
 /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-/// // note that MyTransport must implement `Transport` trait
+/// // note that MyTransport must implement the `Transport` trait
 /// let transport = MyTransport::new();
 ///
 /// let client = PubNubClient::with_transport(MyTransport)
@@ -161,7 +160,7 @@ where
     /// # }
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// // note that MyTransport must implement `Transport` trait
+    /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
     /// let builder = PubNubClient::with_transport(transport)
@@ -240,7 +239,7 @@ where
 /// PubNub configuration
 ///
 /// Configuration for [`PubNubClient`].
-/// This struct exists to separate configuration from the client.
+/// This struct separates the configuration from the actual client.
 ///
 /// [`PubNubClient`]: struct.PubNubClient.html
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -262,7 +261,7 @@ impl PubNubConfig {
     fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
         if let Some(secret_key) = self.secret_key {
             let publish_key = self.publish_key.ok_or(ClientInitializationError(
-                "Publish key is required for signing".to_string(),
+                "You must also provide the publish key if you use the secret key.".to_string(),
             ))?;
             Ok(Some(SignatureKeySet {
                 secret_key,
@@ -278,18 +277,15 @@ impl PubNubConfig {
 /// PubNub builder for [`PubNubClient`]
 ///
 /// Builder for [`PubNubClient`] that is a first step to create a client.
-/// It is generic over transport layer, which allows to use any transport
+/// The client is transport-layer-agnostic, so you can use any transport layer
+/// that implements the [`Transport`] trait.
 ///
-/// It is possible to use [`Default`] implementation to create a builder
-/// with default transport. (Note that `default` method is implemented only
-/// when the `reqwest` feature is enabled)
+/// You can use the [`Default`] implementation to create a builder
+/// with the default transport layer. The `default` method is implemented only
+/// when the `reqwest` feature is enabled.
 ///
-/// It provides methods to set transport and return next step builder
-/// with rest of the parameters.
-///
-/// This design forces developers to configure PubNub Client
-/// with all required parameters. It makes the configuration
-/// more explicit and less error prone.
+/// The builder provides methods to set the transport layer and returns the next step
+/// of the builder with the remaining parameters.
 ///
 /// See [`PubNubClient`] for more information.
 ///
@@ -315,7 +311,7 @@ impl<T> PubNubClientBuilder<T>
 where
     T: Transport,
 {
-    /// Create a new builder with without transport
+    /// Create a new builder without transport
     ///
     /// # Examples
     /// ```
@@ -335,7 +331,7 @@ where
     /// #     }
     /// # }
     ///
-    /// // note that MyTransport must implement `Transport` trait
+    /// // note that MyTransport must implement the `Transport` trait
     /// let builder = PubNubClientBuilder::<MyTransport>::new();
     /// ```
     ///
@@ -344,7 +340,7 @@ where
         Self::default()
     }
 
-    /// Set transport for the client
+    /// Set the transport layer for the client
     ///
     /// # Examples
     /// ```
@@ -364,7 +360,7 @@ where
     /// #     }
     /// # }
     ///
-    /// // note that MyTransport must implement `Transport` trait
+    /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
     /// let client = PubNubClient::with_transport(transport);
@@ -378,10 +374,11 @@ where
         }
     }
 
-    /// Set keyset for the client
+    /// Set the keyset for the client
     ///
-    /// It returns [`PubNubClientUserIdBuilder`] builder that can be used
-    /// to set UUID for the client.
+    /// It returns [`PubNubClientUserIdBuilder`] builder that you can use
+    /// to set the User ID for the client. 
+    /// 
     /// See [`Keyset`] for more information.
     ///
     /// # Examples
@@ -411,9 +408,10 @@ where
     }
 }
 
-/// PubNub builder for [`PubNubClient`] for setting UUID
+/// PubNub builder for [`PubNubClient`] used to set the User ID
 /// It is returned by [`PubNubClientBuilder::with_keyset`]
-/// and provides method to set UUID for the client.
+/// and provides method to set the User ID for the client.
+/// 
 /// See [`PubNubClient`] for more information.
 ///
 /// # Examples
@@ -452,9 +450,9 @@ where
     S: Into<String>,
 {
     /// Set UUID for the client
-    /// It returns [`PubNubClientConfigBuilder`] that can be used
-    /// to set configuration for the client. It assumes that
-    /// every required parameters are set.
+    /// It returns [`PubNubClientConfigBuilder`] that you can use
+    /// to set the configuration for the client. This is a part
+    /// the PubNubClientConfigBuilder.
     ///
     /// [`PubNubClientConfigBuilder`]: struct.PubNubClientConfigBuilder.html
     /// [`PubNubClient`]: struct.PubNubClient.html
@@ -478,7 +476,7 @@ where
     }
 }
 
-/// Keyset for PubNub client
+/// Keyset for the PubNub client
 ///
 /// # Examples
 /// ```
@@ -491,9 +489,6 @@ where
 /// };
 /// ```
 ///
-/// # See also
-/// [Keysets](https://www.pubnub.com/docs/platform/keys)
-/// [Keyset management](https://www.pubnub.com/docs/platform/keyset-management)
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Keyset<S>
 where

@@ -1,6 +1,6 @@
 //! Publish builders module.
 //!
-//! This module contains all the builders for the publish operation.
+//! This module contains all builders for the publish operation.
 
 use super::PublishResponseBody;
 #[cfg(feature = "serde")]
@@ -14,9 +14,9 @@ use std::{collections::HashMap, sync::Arc};
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///
-/// This struct is used to publish a message to a channel. It is used by the [`publish_message`] method of the [`PubNubClient`].
+/// This struct is used by the [`publish_message`] method of the [`PubNubClient`].
 /// The [`publish_message`] method is used to publish a message to a channel.
-/// The [`PublishMessageBuilder`] is used to build the request to be sent to the [`PubNub`] network.
+/// The [`PublishMessageBuilder`] is used to build the request that is sent to the [`PubNub`] network.
 ///
 /// # Examples
 /// ```rust
@@ -94,11 +94,10 @@ where
     }
 }
 
-/// The [`PublishMessageDeserializer`] is used to publish a message to a channel.
+/// The [`PublishMessageDeserializer`] adds the deserializer to the [`PublishMessageBuilder`].
 ///
 /// This struct is used to publish a message to a channel. It is used by the [`publish_message`] method of the [`PubNubClient`].
-/// It adds the deserializer to the [`PublishMessageBuilder`].
-///
+/// 
 /// The [`publish_message`] method is used to publish a message to a channel.
 ///
 /// See more information in the [`PublishMessageBuilder`] struct and the [`Deserializer`] trait.
@@ -164,7 +163,7 @@ where
     T: Transport,
     M: Serialize,
 {
-    /// The [`deserialize_with`] method is used to set the deserializer to use to deserialize the response.
+    /// The [`deserialize_with`] method is used to set the deserializer to deserialize the response with.
     /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
     /// the [`PublishResponse`] type.
     ///
@@ -186,10 +185,9 @@ where
     }
 }
 
-/// The [`PublishMessageViaChannelBuilder`] is used to publish a message to a channel.
+/// The [`PublishMessageViaChannelBuilder`] is is next step in the publish process. 
+/// The [`PublishMessageViaChannelBuilder`] is used to build the request to be sent to the [`PubNub`] network.
 /// This struct is used to publish a message to a channel. It is used by the [`publish_message`] method of the [`PubNubClient`].
-///
-/// This is next step in the publish process. The [`PublishMessageViaChannelBuilder`] is used to build the request to be sent to the [`PubNub`] network.
 ///
 /// # Examples
 /// ```rust
@@ -245,11 +243,11 @@ where
     #[builder(setter(into))]
     pub(super) channel: String,
 
-    /// Switch that decide if the message should be stored in history
+    /// Switch that decides if the message should be stored in history
     #[builder(setter(strip_option), default = "None")]
     pub(super) store: Option<bool>,
 
-    /// Switch that decide if the transaction should be replicated
+    /// Switch that decides if the transaction should be replicated
     /// following the PubNub replication rules.
     ///
     /// See more at [`PubNub replication rules`]
@@ -258,7 +256,7 @@ where
     #[builder(default = "true")]
     pub(super) replicate: bool,
 
-    /// Set a per-message TTL time to live in storage.
+    /// Set a per-message TTL time to live in Message Persistence.
     #[builder(setter(strip_option), default = "None")]
     pub(super) ttl: Option<u32>,
 
@@ -285,7 +283,7 @@ where
     M: Serialize,
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
-    /// Deserializer to use to deserialize the response.
+    /// Deserializer to deserialize the response with.
     /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
     /// the [`PublishResponse`] type.
     pub fn deserialize_with<D2>(self, deserializer: D2) -> PublishMessageViaChannelBuilder<T, M, D2>
