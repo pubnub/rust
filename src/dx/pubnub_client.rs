@@ -111,10 +111,10 @@ where
 
 /// Client reference
 ///
-/// This contains the actual client state.
-/// It is wrapped in `Arc` by [`PubNubClient`] and uses interior mutability for its internal state.
-/// It is not intended to be used directly.
-/// Use [`PubNubClient`] instead.
+/// This struct contains the actual client state.
+/// It's wrapped in `Arc` by [`PubNubClient`] and uses interior mutability for its internal state.
+///
+/// Not intended to be used directly. Use [`PubNubClient`] instead.
 ///
 /// [`PubNubClient`]: ./struct.PubNubClient.html
 #[derive(Debug, Builder)]
