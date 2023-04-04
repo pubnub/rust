@@ -52,6 +52,7 @@ jobs:
         with:
           name: acceptance-test-reports
           path: tests/report.xml
+          retention-days: 7
   all-tests:
     name: Tests
     runs-on: ubuntu-latest
