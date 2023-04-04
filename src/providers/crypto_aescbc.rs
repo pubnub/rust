@@ -105,26 +105,28 @@ impl AesCbcCrypto {
         })
     }
 
-    /// Calculate size of buffer for processed data.
+    /// Calculate size of buffer for encrypted data.
     ///
-    /// Buffers may require different sizes of allocated memory depending on
-    /// operation and initialization vector type.
-    fn estimated_buffer_size(&self, source: &[u8], encryption: bool) -> usize {
-        let mut size = source.len();
-
-        // More space required for encryption to align with AES cipher block
-        // size.
-        if encryption {
-            size += (AES_BLOCK_SIZE - size % AES_BLOCK_SIZE) + AES_BLOCK_SIZE;
+    /// Buffer may require different sizes of allocated memory depending from
+    /// type of used initialization vector.
+    fn estimated_enc_buffer_size(&self, source: &[u8]) -> usize {
+        // Adding padding which include additional AES cipher block size.
+        let padding = (AES_BLOCK_SIZE - source.len() % AES_BLOCK_SIZE) + AES_BLOCK_SIZE;
+        if !self.iv_constant {
             // Reserve more space to store random initialization vector.
-            if !self.iv_constant {
-                size += AES_BLOCK_SIZE;
-            }
-        } else if !self.iv_constant {
-            size -= AES_BLOCK_SIZE;
+            source.len() + padding + AES_BLOCK_SIZE
+        } else {
+            source.len() + padding
         }
+    }
 
-        size
+    /// Calculate size of buffer for decrypted data.
+    ///
+    /// Buffer may require different sizes of allocated memory depending from
+    /// type of used initialization vector.
+    fn estimated_dec_buffer_size(&self, source: &[u8]) -> usize {
+        // Subtract size of random initialization vector (if used).
+        source.len() - if !self.iv_constant { AES_BLOCK_SIZE } else { 0 }
     }
 
     /// Data encryption initialization vector.
@@ -208,7 +210,7 @@ impl Cryptor for AesCbcCrypto {
     {
         let iv = self.encryption_iv();
         let data = source.into();
-        let mut buffer = vec![0u8; self.estimated_buffer_size(data, true)];
+        let mut buffer = vec![0u8; self.estimated_enc_buffer_size(data)];
         let data_offset = if !self.iv_constant { AES_BLOCK_SIZE } else { 0 };
         let data_slice = &mut buffer[data_offset..];
 
@@ -264,7 +266,7 @@ impl Cryptor for AesCbcCrypto {
     {
         let data = source.into();
         let iv = self.decryption_iv(data);
-        let mut buffer = vec![0u8; self.estimated_buffer_size(data, false)];
+        let mut buffer = vec![0u8; self.estimated_dec_buffer_size(data)];
         let data_offset = if !self.iv_constant { AES_BLOCK_SIZE } else { 0 };
         let data_slice = &data[data_offset..];
 
