@@ -33,3 +33,7 @@ pub mod serialize;
 #[doc(inline)]
 pub use deserializer::Deserializer;
 pub mod deserializer;
+
+#[doc(inline)]
+pub use cryptor::Cryptor;
+pub mod cryptor;
