@@ -17,7 +17,7 @@ pub struct PublishResult {
 /// It can be either a tuple with data from the Publish service
 /// or an [`OtherResponse`] from other services.
 ///
-/// It used for deserialization of publish response. This type is intermediate
+/// It's used for deserialization of the publish response. This type is an intermediate
 /// type between the raw response body and the [`PublishResult`] type.
 ///
 /// [`OtherResponse`]: struct.OtherResponse.html
