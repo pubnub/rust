@@ -284,7 +284,7 @@ where
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     /// Deserializer to deserialize the response with.
-    /// It's important to note that the deserializer must implement the [`Deserializer`] trait for
+    /// Note that the deserializer must implement the [`Deserializer`] trait for
     /// the [`PublishResponseBody`] type.
     /// [`Deserializer`]: crate::core::Deserializer
     /// [`PublishResponseBody`]: crate::core::publish::PublishResponseBody
