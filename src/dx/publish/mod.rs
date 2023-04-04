@@ -201,8 +201,8 @@ where
             query_params.insert("space-id".to_string(), space_id.clone());
         }
 
-        if let Some(message_type) = &self.message_type {
-            query_params.insert("type".to_string(), message_type.clone());
+        if let Some(r#type) = &self.r#type {
+            query_params.insert("type".to_string(), r#type.clone());
         }
 
         query_params.insert("seqn".to_string(), self.seqn.to_string());
@@ -358,7 +358,7 @@ mod should {
             .ttl(50)
             .store(true)
             .space_id("space_id")
-            .message_type("message_type")
+            .r#type("message_type")
             .meta(HashMap::from([("k".to_string(), "v".to_string())]))
             .build()
             .unwrap()

@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .use_post(true)
         .ttl(10)
         .space_id("my_space")
-        .message_type("my_type")
+        .r#type("my_type")
         .execute()
         .await?;
 
