@@ -50,4 +50,16 @@ pub enum PubNubError {
     /// this error is returned when the initialization of client fails
     #[error("Client initialization error: {0}")]
     ClientInitializationError(String),
+
+    /// this error is returned when the initialization of the cryptor fails
+    #[error("Cryptor initialization error: {0}")]
+    CryptoInitializationError(String),
+
+    /// this error is returned when the cryptor is unable to decrypt data
+    #[error("Data encryption error: {0}")]
+    EncryptionError(String),
+
+    /// this error is returned when the crypror is unable to decrypt data
+    #[error("Data decryption error: {0}")]
+    DecryptionError(String),
 }

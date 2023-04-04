@@ -11,3 +11,6 @@ pub mod serialization_serde;
 
 #[cfg(feature = "serde")]
 pub mod deserialization_serde;
+
+#[cfg(feature = "aescbc")]
+pub mod crypto_aescbc;
