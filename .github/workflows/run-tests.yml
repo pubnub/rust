@@ -47,6 +47,12 @@ jobs:
       - name: Run acceptance tests
         run: |
           cargo test --features contract_test --test contract_test -- -t "not @na=rust and @featureSet=publish"
+      - name: Expose acceptance tests reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-test-reports
+          path: tests/reports/*.xml
+          retention-days: 7
   all-tests:
     name: Tests
     runs-on: ubuntu-latest
