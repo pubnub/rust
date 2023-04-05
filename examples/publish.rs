@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         client
             .publish_message("hello async world!")
             .channel("my_channel")
-            .execute()
+            .execute(),
     );
 
     // publish a struct
