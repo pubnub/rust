@@ -169,7 +169,7 @@ pub mod blocking {
     ///         secret_key: None,
     ///    })
     ///    .with_user_id("my-user-id")
-    ///    .build()?;
+    ///    .build_blocking()?;
     ///
     /// # Ok(())
     /// # }
@@ -178,13 +178,12 @@ pub mod blocking {
     /// Using your own [`Transport`] implementation:
     ///
     /// ```
-    /// use pubnub::{PubNubClient, Keyset};
+    /// use pubnub::{blocking::PubNubClient, Keyset};
     ///
-    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
+    /// # use pubnub::core::{blocking::Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
-    /// # #[async_trait::async_trait]
     /// # impl Transport for MyTransport {
-    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
+    /// #     fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
     /// # }
@@ -205,7 +204,7 @@ pub mod blocking {
     ///         secret_key: None,
     ///    })
     ///    .with_user_id("my-user-id")
-    ///    .build()?;
+    ///    .build_blocking()?;
     ///
     /// # Ok(())
     /// # }
@@ -263,7 +262,7 @@ pub mod blocking {
         ///
         /// # Examples
         /// ```
-        /// use pubnub::{PubNubClient, Keyset};
+        /// use pubnub::{blocking::PubNubClient, Keyset};
         ///
         /// # use pubnub::core::{blocking::Transport, TransportRequest, TransportResponse, PubNubError};
         /// # struct MyTransport;
@@ -282,7 +281,7 @@ pub mod blocking {
         /// // note that MyTransport must implement the `Transport` trait
         /// let transport = MyTransport::new();
         ///
-        /// let builder = PubNubClient::with_blocking_transport(transport)
+        /// let builder = PubNubClient::with_transport(transport)
         ///     .with_keyset(Keyset {
         ///        publish_key: Some("pub-c-abc123"),
         ///        subscribe_key: "sub-c-abc123",
@@ -352,7 +351,8 @@ where
     /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
-    /// # }
+    /// #  }
+    /// #
     /// # impl MyTransport {
     /// #     fn new() -> Self {
     /// #         Self
@@ -514,10 +514,7 @@ impl<T> Default for PubNubClientBuilder<T> {
     }
 }
 
-impl<T> PubNubClientBuilder<T>
-where
-    T: Transport,
-{
+impl<T> PubNubClientBuilder<T> {
     /// Create a new builder without transport
     ///
     /// # Examples
@@ -551,7 +548,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use pubnub::{PubNubClient, Keyset};
+    /// use pubnub::{PubNubClientBuilder, Keyset};
     ///
     /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
@@ -567,10 +564,21 @@ where
     /// #     }
     /// # }
     ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClient::with_transport(transport);
+    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    ///                     .with_transport(transport)
+    ///                     .with_keyset(Keyset {
+    ///                         publish_key: Some("pub-c-abc123"),
+    ///                         subscribe_key: "sub-c-abc123",
+    ///                         secret_key: None,
+    ///                     })
+    ///                     .with_user_id("my-user-id")
+    ///                     .build()?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn with_transport<U>(self, transport: U) -> PubNubClientBuilder<U>
     where
@@ -585,7 +593,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use pubnub::{PubNubClient, Keyset};
+    /// use pubnub::{PubNubClientBuilder, Keyset};
     ///
     /// # use pubnub::core::{blocking::Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
@@ -600,10 +608,21 @@ where
     /// #     }
     /// # }
     ///
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClient::with_blocking_transport(transport);
+    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    ///                     .with_blocking_transport(transport)
+    ///                     .with_keyset(Keyset {
+    ///                         publish_key: Some("pub-c-abc123"),
+    ///                         subscribe_key: "sub-c-abc123",
+    ///                         secret_key: None,
+    ///                     })
+    ///                     .with_user_id("my-user-id")
+    ///                     .build_blocking()?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn with_blocking_transport<U>(self, transport: U) -> PubNubClientBuilder<U>
     where
