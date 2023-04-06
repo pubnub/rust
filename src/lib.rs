@@ -57,7 +57,7 @@
 //!     let publish_key = "my_publish_key";
 //!     let subscribe_key = "my_subscribe_key";
 //!
-//!     let mut client = PubNubClientBuilder::with_reqwest_transport()
+//!     let client = PubNubClientBuilder::with_reqwest_transport()
 //!         .with_keyset(Keyset {
 //!             subscribe_key,
 //!             publish_key: Some(publish_key),
