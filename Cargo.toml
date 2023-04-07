@@ -38,7 +38,7 @@ rand = { version = "0.8.5", optional = true }
 
 [dev-dependencies]
 async-trait = "0.1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"]}
+tokio = { version = "1", features = ["rt", "macros"]}
 wiremock = "0.5"
 env_logger = "0.10"
 cucumber = { version = "0.19", features = ["output-junit"] }
@@ -53,10 +53,11 @@ required-features = ["contract_test"]
 
 [features]
 full = ["serde", "reqwest"]
-default = ["serde", "reqwest", "aescbc"]
+default = ["serde", "reqwest", "aescbc", "blocking"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
+blocking = ["reqwest?/blocking"]
 contract_test = []
 
 [[example]]
