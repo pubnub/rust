@@ -23,11 +23,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     // publish simple string
-    client
+    let result = client
         .publish_message("hello world!")
         .channel("my_channel")
         .execute()
         .await?;
+
+    println!("publish result: {:?}", result);
 
     // publish with other async task
     let cloned = client.clone();
@@ -40,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // publish a struct
-    client
+    let result = client
         .publish_message(Message {
             content: "hello world!".into(),
             author: "me".into(),
@@ -49,8 +51,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .execute()
         .await?;
 
+    println!("publish struct result: {:?}", result);
+
     // publish with whole config options
-    client
+    let result = client
         .publish_message("hello with params!")
         .channel("my_channel")
         .store(true)
@@ -63,8 +67,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .execute()
         .await?;
 
+    println!("publish with config result: {:?}", result);
+
     // unwrap the spawned task and result of the publish
-    handle.await??;
+    let result = handle.await?;
+    println!("publish async result: {:?}", result);
 
     Ok(())
 }
