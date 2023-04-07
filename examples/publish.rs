@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("publish with config result: {:?}", result);
 
     // unwrap the spawned task and result of the publish
-    let result = handle.await?;
+    let result = handle.await??;
     println!("publish async result: {:?}", result);
 
     Ok(())
