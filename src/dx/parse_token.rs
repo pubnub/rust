@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 
 /// The [`parse_token`] function decodes an existing token and returns the struct containing permissions embedded in that token.
-/// The client can use this method for debugging to check the permissions to the resources.
+/// The client can use this method for debugging to check the permissions to the resources
 pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
     let token_bytes = general_purpose::URL_SAFE_NO_PAD
         .decode(token.as_bytes())
@@ -92,12 +92,14 @@ pub enum MetaValue {
     Integer(i64),
     Float(f64),
     Bool(bool),
+    /// It's always [`None`]
+    Null(Option<String>),
 }
 
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::dx::parse_token::MetaValue::{Integer, String};
+    use crate::dx::parse_token::MetaValue::{Float, Integer, Null, String};
 
     impl PartialEq for MetaValue {
         fn eq(&self, other: &Self) -> bool {
@@ -108,6 +110,7 @@ mod should {
                 (Integer(v1), Integer(v2)) => v1 == v2,
                 (Float(v1), Float(v2)) => (v1 - v2).abs() < 0.001,
                 (Bool(v1), Bool(v2)) => v1 == v2,
+                (Null(v1), Null(v2)) => v1 == v2,
                 _ => false,
             }
         }
@@ -117,28 +120,29 @@ mod should {
 
     #[test]
     fn test_parse_token() {
-        let base64_token = "qEF2AkF0GmFLd-NDdHRsGQWgQ3Jlc6VEY2hhbqFjY2gxGP9DZ3JwoWNjZzEY_0N1c3KgQ3NwY6BEdXVpZKFldXVpZDEY_0NwYXSlRGNoYW6gQ2dycKBDdXNyoENzcGOgRHV1aWShYl4kAURtZXRho2VzY29yZRhkZWNvbG9yY3JlZGZhdXRob3JlcGFuZHVEdXVpZGtteWF1dGh1dWlkMUNzaWdYIP2vlxHik0EPZwtgYxAW3-LsBaX_WgWdYvtAXpYbKll3";
+        let base64_token = "qEF2AkF0GmQ1YSpDdHRsGQU5Q3Jlc6VEY2hhbqFvY2hhbm5lbFJlc291cmNlGP9DZ3JwoWxjaGFubmVsR3JvdXABQ3NwY6BDdXNyoER1dWlkoENwYXSlRGNoYW6haWNoYW5uZWwuKgJDZ3JwoW5jaGFubmVsR3JvdXAuKgRDc3BjoEN1c3KgRHV1aWShZnV1aWQuKhhoRG1ldGGkZG1ldGFkZGF0YWdpbnRlZ2VyGQU5ZW90aGVy9mVmbG9hdPtAKr1wo9cKPUR1dWlkZHV1aWRDc2lnWCAbOhXPSWx05l4c3Iuf-SWVOVpLM6xyto3lVPdMKdhJ2A";
         let token = parse_token(base64_token).unwrap();
         assert_eq!(
             Token::V2(TokenV2 {
                 version: 2,
-                ttl: 1440,
-                timestamp: 1632335843,
+                ttl: 1337,
+                timestamp: 1681219882,
                 patterns: TokenResources {
-                    users: [("^$".into(), 1.into())].into(),
-                    groups: [].into(),
-                    channels: [].into(),
+                    channels: [("channel.*".into(), 2.into())].into(),
+                    groups: [("channelGroup.*".into(), 4.into())].into(),
+                    users: [("uuid.*".into(), 104.into())].into(),
                 },
                 resources: TokenResources {
-                    users: [("uuid1".into(), 255.into())].into(),
-                    groups: [("cg1".into(), 255.into())].into(),
-                    channels: [("ch1".into(), 255.into())].into(),
+                    users: [].into(),
+                    groups: [("channelGroup".into(), 1.into())].into(),
+                    channels: [("channelResource".into(), 255.into())].into(),
                 },
-                authorized_user_id: Some("myauthuuid1".into()),
+                authorized_user_id: Some("uuid".into()),
                 meta: HashMap::from([
-                    ("color".into(), String("red".into())),
-                    ("score".into(), Integer(100)),
-                    ("author".into(), String("pandu".into()))
+                    ("meta".into(), String("data".into())),
+                    ("other".into(), Null(None)),
+                    ("integer".into(), Integer(1337)),
+                    ("float".into(), Float(13.37))
                 ])
             }),
             token
