@@ -55,5 +55,5 @@ pub trait Serialize {
     /// ```
     ///
     /// [`PubNubError::SerializeError`]: ../error/enum.PubNubError.html#variant.SerializeError
-    fn serialize(self) -> Result<Vec<u8>, PubNubError>;
+    fn serialize(self) -> Result<Vec<u8>, PubNubError<'static>>;
 }

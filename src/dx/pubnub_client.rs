@@ -99,13 +99,13 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// [`Keyset`]: ../core/struct.Keyset.html
 /// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
 #[derive(Debug)]
-pub struct PubNubClient<T>
+pub struct PubNubClient<'a, T>
 where
     T: Transport,
 {
     // TODO: how about Rc and blocking calls?
     //       or should we be always async library?
-    pub(crate) inner: Arc<PubNubClientRef<T>>,
+    pub(crate) inner: Arc<PubNubClientRef<'a, T>>,
 }
 
 /// Client reference
@@ -123,7 +123,7 @@ where
     build_fn(private, name = "build_internal"),
     setter(prefix = "with")
 )]
-pub struct PubNubClientRef<T>
+pub struct PubNubClientRef<'a, T>
 where
     T: Transport,
 {
@@ -139,10 +139,10 @@ where
     pub(crate) next_seqn: Mutex<u16>,
 
     /// Configuration
-    pub(crate) config: PubNubConfig,
+    pub(crate) config: PubNubConfig<'a>,
 }
 
-impl<T> PubNubClient<T>
+impl<T> PubNubClient<'_, T>
 where
     T: Transport,
 {
@@ -191,7 +191,7 @@ where
     }
 }
 
-impl<T> Deref for PubNubClient<T>
+impl<T> Deref for PubNubClient<'_, T>
 where
     T: Transport,
 {
@@ -202,7 +202,7 @@ where
     }
 }
 
-impl<T> Clone for PubNubClient<T>
+impl<T> Clone for PubNubClient<'_, T>
 where
     T: Transport,
 {
@@ -213,16 +213,16 @@ where
     }
 }
 
-impl<T> PubNubClientConfigBuilder<T>
+impl<T> PubNubClientConfigBuilder<'static, T>
 where
     T: Transport,
 {
     /// Build a [`PubNubClient`] from the builder
     ///
     /// [`PubNubClient`]: struct.PubNubClient.html
-    pub fn build(self) -> Result<PubNubClient<PubNubMiddleware<T>>, PubNubError> {
+    pub fn build(self) -> Result<PubNubClient<'static, PubNubMiddleware<T>>, PubNubError<'static>> {
         self.build_internal()
-            .map_err(|err| ClientInitializationError(err.to_string()))
+            .map_err(|err| ClientInitializationError(&err.to_string()))
             .and_then(|pre_build| {
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
@@ -250,7 +250,7 @@ where
 ///
 /// [`PubNubClient`]: struct.PubNubClient.html
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PubNubConfig {
+pub struct PubNubConfig<'a> {
     /// Subscribe key
     pub(crate) subscribe_key: String,
 
@@ -258,22 +258,22 @@ pub struct PubNubConfig {
     pub(crate) user_id: String,
 
     /// Publish key
-    pub(crate) publish_key: Option<String>,
+    pub(crate) publish_key: Option<&'a str>,
 
     /// Secret key
-    pub(crate) secret_key: Option<String>,
+    pub(crate) secret_key: Option<&'a str>,
 }
 
-impl PubNubConfig {
-    fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
+impl<'a> PubNubConfig <'a>{
+    fn signature_key_set(self) -> Result<Option<SignatureKeySet<'a>>, PubNubError<'a>> {
         if let Some(secret_key) = self.secret_key {
             let publish_key = self.publish_key.ok_or(ClientInitializationError(
-                "You must also provide the publish key if you use the secret key.".to_string(),
+                "You must also provide the publish key if you use the secret key.",
             ))?;
             Ok(Some(SignatureKeySet {
                 secret_key,
                 publish_key,
-                subscribe_key: self.subscribe_key,
+                subscribe_key: &self.subscribe_key,
             }))
         } else {
             Ok(None)
@@ -300,7 +300,7 @@ impl PubNubConfig {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubClientBuilder<T>
 where
-    T: Transport,
+    T: Transport<>,
 {
     pub(crate) transport: Option<T>,
 }

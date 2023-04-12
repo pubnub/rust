@@ -94,7 +94,7 @@ where
     }
 }
 
-impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
+impl<T, M, D> PublishMessageViaChannelBuilder<'_, T, M, D>
 where
     T: Transport,
     M: Serialize,
@@ -131,10 +131,10 @@ where
     ///
     /// [`PublishResponse`]: struct.PublishResponse.html
     /// [`PubNubError`]: enum.PubNubError.html
-    pub async fn execute(self) -> Result<PublishResult, PubNubError> {
+    pub async fn execute<'a>(self) -> Result<PublishResult, PubNubError<'a>> {
         let instance = self
             .build()
-            .map_err(|err| PubNubError::PublishError(err.to_string()))?;
+            .map_err(|err| PubNubError::PublishError(&err.to_string()))?;
 
         let client: PubNubClient<_> = instance.pub_nub_client.clone();
 
@@ -145,30 +145,30 @@ where
             .create_transport_request()
             .map(|request| async move { Self::send_request(&client.transport, request).await })?
             .await
-            .map(|response| Self::response_to_result(&deserializer, response))?
+            .map( |response|  Self::response_to_result(&deserializer, response))?
     }
 
-    async fn send_request(
-        transport: &T,
+    async fn send_request<'a>(
+        transport: &'a T,
         request: TransportRequest,
-    ) -> Result<TransportResponse, PubNubError> {
+    ) -> Result<TransportResponse, PubNubError<'a>> {
         transport.send(request).await
     }
 
     // TODO: Maybe it will be possible to extract this into a middleware.
     //       Currently, it's not necessary, but it might be very useful
     //       to not have to do it manually in each dx module.
-    fn response_to_result(
-        deserializer: &D,
-        response: TransportResponse,
-    ) -> Result<PublishResult, PubNubError> {
+    fn response_to_result<'a>(
+        deserializer: &'a D,
+        response: &'a TransportResponse,
+    ) -> Result<PublishResult, PubNubError<'a>> {
         response
             .body
             .map(|body| deserializer.deserialize(&body))
             .transpose()
             .and_then(|body| {
                 body.ok_or_else(|| {
-                    PubNubError::PublishError(format!(
+                    PubNubError::PublishError(&format!(
                         "No body in the response! Status code: {}",
                         response.status
                     ))
@@ -178,7 +178,7 @@ where
     }
 }
 
-impl<T, M, D> PublishMessageViaChannel<T, M, D>
+impl<T, M, D> PublishMessageViaChannel<'_, T, M, D>
 where
     T: Transport,
     M: Serialize,
@@ -216,7 +216,7 @@ where
     }
 
     // TODO: create test for path creation!
-    fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
+    fn create_transport_request(self) -> Result<TransportRequest, PubNubError<'static>> {
         let query_params = self.prepare_publish_query_params();
 
         let pub_key = &self
@@ -224,7 +224,7 @@ where
             .config
             .publish_key
             .as_ref()
-            .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
+            .ok_or_else(|| PubNubError::PublishError("Publish key is not set"))?;
         let sub_key = &self.pub_nub_client.config.subscribe_key;
 
         if self.use_post {
@@ -240,7 +240,7 @@ where
                 .serialize()
                 .and_then(|m_vec| {
                     String::from_utf8(m_vec)
-                        .map_err(|e| PubNubError::SerializationError(e.to_string()))
+                        .map_err(|e| PubNubError::SerializationError(&e.to_string()))
                 })
                 .map(|m_str| TransportRequest {
                     path: format!(
@@ -294,7 +294,7 @@ mod should {
     #[derive(Default, Debug)]
     struct MockTransport;
 
-    fn client() -> PubNubClient<PubNubMiddleware<MockTransport>> {
+    fn client() -> PubNubClient<'static, PubNubMiddleware<'static, MockTransport>> {
         #[async_trait::async_trait]
         impl Transport for MockTransport {
             async fn send(

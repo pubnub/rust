@@ -28,24 +28,24 @@ use uuid::Uuid;
 ///
 /// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Debug)]
-pub struct PubNubMiddleware<T>
+pub struct PubNubMiddleware<'a, T>
 where
     T: Transport,
 {
     pub(crate) transport: T,
     pub(crate) instance_id: Option<String>,
     pub(crate) user_id: String,
-    pub(crate) signature_keys: Option<SignatureKeySet>,
+    pub(crate) signature_keys: Option<SignatureKeySet<'a>>,
 }
 
 #[derive(Debug)]
-pub(crate) struct SignatureKeySet {
-    pub(crate) secret_key: String,
-    pub(crate) publish_key: String,
-    pub(crate) subscribe_key: String,
+pub(crate) struct SignatureKeySet<'a> {
+    pub(crate) secret_key: &'a str,
+    pub(crate) publish_key: &'a str,
+    pub(crate) subscribe_key: &'a str,
 }
 
-impl SignatureKeySet {
+impl<'a> SignatureKeySet<'a> {
     fn handle_query_params(query_parameters: &HashMap<String, String>) -> String {
         let mut query_params_str = query_parameters
             .iter()
@@ -97,7 +97,7 @@ impl SignatureKeySet {
 }
 
 #[async_trait::async_trait]
-impl<T> Transport for PubNubMiddleware<T>
+impl<T> Transport for PubNubMiddleware<'_, T>
 where
     T: Transport,
 {
@@ -119,7 +119,7 @@ where
                 "timestamp".into(),
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .map_err(|e| PubNubError::TransportError(e.to_string()))?
+                    .map_err(|e| PubNubError::TransportError(&e.to_string()))?
                     .as_secs()
                     .to_string(),
             );

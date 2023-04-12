@@ -47,17 +47,17 @@ use std::{collections::HashMap, sync::Arc};
 /// [`publish_message`]: crate::dx::PubNubClient::publish_message`
 /// [`PubNubClient`]: crate::dx::PubNubClient
 /// [`PubNub`]:https://www.pubnub.com/
-pub struct PublishMessageBuilder<T, M>
+pub struct PublishMessageBuilder<'a, T, M>
 where
     T: Transport,
     M: Serialize,
 {
-    pub(super) pub_nub_client: PubNubClient<T>,
+    pub(super) pub_nub_client: PubNubClient<'a, T>,
     pub(super) message: M,
     pub(super) seqn: u16,
 }
 
-impl<T, M> PublishMessageBuilder<T, M>
+impl<T, M> PublishMessageBuilder<'_, T, M>
 where
     T: Transport,
     M: Serialize,
@@ -66,7 +66,7 @@ where
     ///
     /// [`channel`]: crate::dx::publish::PublishMessageBuilder::channel
     #[cfg(feature = "serde")]
-    pub fn channel<S>(self, channel: S) -> PublishMessageViaChannelBuilder<T, M, SerdeDeserializer>
+    pub fn channel<S>(self, channel: S) -> PublishMessageViaChannelBuilder<'static, T, M, SerdeDeserializer>
     where
         S: Into<String>,
     {
@@ -220,14 +220,14 @@ where
 /// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Builder)]
 #[builder(pattern = "owned", build_fn(vis = "pub(super)"))]
-pub struct PublishMessageViaChannel<T, M, D>
+pub struct PublishMessageViaChannel<'a, T, M, D>
 where
     T: Transport,
     M: Serialize,
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     #[builder(setter(custom))]
-    pub(super) pub_nub_client: PubNubClient<T>,
+    pub(super) pub_nub_client: PubNubClient<'a, T>,
 
     #[builder(setter(custom))]
     pub(super) seqn: u16,
@@ -277,7 +277,7 @@ where
     pub(super) r#type: Option<String>,
 }
 
-impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
+impl<T, M, D> PublishMessageViaChannelBuilder<'_, T, M, D>
 where
     T: Transport,
     M: Serialize,
@@ -288,7 +288,7 @@ where
     /// the [`PublishResponseBody`] type.
     /// [`Deserializer`]: crate::core::Deserializer
     /// [`PublishResponseBody`]: crate::core::publish::PublishResponseBody
-    pub fn deserialize_with<D2>(self, deserializer: D2) -> PublishMessageViaChannelBuilder<T, M, D2>
+    pub fn deserialize_with<D2>(self, deserializer: D2) -> PublishMessageViaChannelBuilder<'static, T, M, D2>
     where
         D2: for<'de> Deserializer<'de, PublishResponseBody>,
     {

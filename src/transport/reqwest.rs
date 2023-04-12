@@ -34,7 +34,7 @@ use urlencoding::encode;
 /// [`pubnub`]: ../index.html
 /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 #[derive(Clone, Debug)]
-pub struct TransportReqwest {
+pub struct TransportReqwest <'a> {
     reqwest_client: reqwest::Client,
 
     /// The hostname to use for requests.
@@ -51,11 +51,11 @@ pub struct TransportReqwest {
     ///    transport
     /// };
     /// ```
-    pub hostname: String,
+    pub hostname: &'a str,
 }
 
 #[async_trait::async_trait]
-impl Transport for TransportReqwest {
+impl<'a> Transport for TransportReqwest<'a> {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
         let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);
         info!("{}", request_url);
@@ -69,7 +69,7 @@ impl Transport for TransportReqwest {
             .headers(headers)
             .send()
             .await
-            .map_err(|e| TransportError(e.to_string()))?;
+            .map_err(|e| TransportError(&e.to_string()))?;
 
         Ok(TransportResponse {
             status: result.status().as_u16(),
@@ -78,13 +78,13 @@ impl Transport for TransportReqwest {
                 .await
                 .map(|b| b.to_vec())
                 .map(|b| (!b.is_empty()).then_some(b))
-                .map_err(|e| TransportError(e.to_string()))?,
+                .map_err(|e| TransportError(&e.to_string()))?,
             ..Default::default()
         })
     }
 }
 
-impl Default for TransportReqwest {
+impl<'a> Default for TransportReqwest<'a> {
     fn default() -> Self {
         Self {
             reqwest_client: reqwest::Client::default(),
@@ -93,7 +93,7 @@ impl Default for TransportReqwest {
     }
 }
 
-impl TransportReqwest {
+impl<'a> TransportReqwest<'a> {
     /// Create a new [`TransportReqwest`] instance.
     /// It is used as the transport type for the [`PubNubClient`].
     /// It is intended to be used by the [`pubnub`] crate.
@@ -133,13 +133,13 @@ impl TransportReqwest {
     ) -> Result<reqwest::RequestBuilder, PubNubError> {
         request
             .body
-            .ok_or(TransportError("Body should not be empty for POST".into()))
+            .ok_or(TransportError("Body should not be empty for POST"))
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
     }
 }
 
 fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMap, PubNubError> {
-    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::TransportError(err.to_string()))
+    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::TransportError(&err.to_string()))
 }
 
 // TODO: create test for merging query params
@@ -157,7 +157,7 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
     qp
 }
 
-impl PubNubClientBuilder<TransportReqwest> {
+impl<'a> PubNubClientBuilder<TransportReqwest<'a>> {
     /// Creates a new [`PubNubClientBuilder`] with the default [`TransportReqwest`] transport.
     /// The default transport uses the [`reqwest`] crate to send requests to the [`PubNub API`].
     /// The default hostname is `https://ps.pndsn.com`.
@@ -182,7 +182,7 @@ impl PubNubClientBuilder<TransportReqwest> {
     /// [`reqwest`]: https://docs.rs/reqwest
     /// [`PubNub API`]: https://www.pubnub.com/docs
     /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
-    pub fn with_reqwest_transport() -> PubNubClientBuilder<TransportReqwest> {
+    pub fn with_reqwest_transport() -> PubNubClientBuilder<TransportReqwest<'a>> {
         PubNubClientBuilder {
             transport: Some(TransportReqwest::new()),
         }
@@ -215,7 +215,7 @@ mod should {
 
         let transport = TransportReqwest {
             reqwest_client: reqwest::Client::default(),
-            hostname: server.uri(),
+            hostname: &server.uri(),
         };
 
         let request = TransportRequest {
@@ -248,7 +248,7 @@ mod should {
 
         let transport = TransportReqwest {
             reqwest_client: reqwest::Client::default(),
-            hostname: server.uri(),
+            hostname: &server.uri(),
         };
 
         let request = TransportRequest {
@@ -282,7 +282,7 @@ mod should {
 
         let transport = TransportReqwest {
             reqwest_client: reqwest::Client::default(),
-            hostname: server.uri(),
+            hostname: &server.uri(),
         };
 
         let request = TransportRequest {

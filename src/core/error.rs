@@ -26,40 +26,40 @@
 ///
 /// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
 #[derive(thiserror::Error, Debug)]
-pub enum PubNubError {
+pub enum PubNubError<'a> {
     /// this error is returned when the transport layer fails
     #[error("Transport error: {0}")]
-    TransportError(String),
+    TransportError(&'a str),
 
     /// this error is returned when the publication of the request fails
     #[error("Publish error: {0}")]
-    PublishError(String),
+    PublishError(&'a str),
 
     /// this error is returned when the serialization of the response fails
     #[error("Serialization error: {0}")]
-    SerializationError(String),
+    SerializationError(&'a str),
 
     /// this error is returned when the serialization of the response fails
     #[error("Deserialization error: {0}")]
-    DeserializationError(String),
+    DeserializationError(&'a str),
 
     /// this error is returned when one of the needed keys is missing
     #[error("No key provided error: {0}")]
-    NoKeyError(String),
+    NoKeyError(&'a str),
 
     /// this error is returned when the initialization of client fails
     #[error("Client initialization error: {0}")]
-    ClientInitializationError(String),
+    ClientInitializationError(&'a str),
 
     /// this error is returned when the initialization of the cryptor fails
     #[error("Cryptor initialization error: {0}")]
-    CryptoInitializationError(String),
+    CryptoInitializationError(&'a str),
 
     /// this error is returned when the cryptor is unable to decrypt data
     #[error("Data encryption error: {0}")]
-    EncryptionError(String),
+    EncryptionError(&'a str),
 
     /// this error is returned when the crypror is unable to decrypt data
     #[error("Data decryption error: {0}")]
-    DecryptionError(String),
+    DecryptionError(&'a str),
 }

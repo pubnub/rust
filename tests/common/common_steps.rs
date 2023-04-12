@@ -21,7 +21,7 @@ impl Default for PubNubWorld {
                 publish_key: Some("demo".to_string()),
                 secret_key: Some("demo".to_string()),
             },
-            publish_result: Err(PubNubError::TransportError("This is default value".into())),
+            publish_result: Err(PubNubError::TransportError("This is default value")),
             is_succeed: false,
         }
     }
@@ -34,7 +34,7 @@ impl PubNubWorld {
     ) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
         let transport = {
             let mut transport = TransportReqwest::default();
-            transport.hostname = "http://localhost:8090/".into();
+            transport.hostname = "http://localhost:8090/";
             transport
         };
         PubNubClientBuilder::with_reqwest_transport()

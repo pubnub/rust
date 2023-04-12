@@ -21,9 +21,9 @@ impl<S> crate::core::Serialize for S
 where
     S: serde::Serialize,
 {
-    fn serialize(self) -> Result<Vec<u8>, crate::core::PubNubError> {
+    fn serialize(self) -> Result<Vec<u8>, crate::core::PubNubError<'static>> {
         serde_json::to_vec(&self)
-            .map_err(|e| crate::core::PubNubError::SerializationError(e.to_string()))
+            .map_err(|e| crate::core::PubNubError::SerializationError(&e.to_string()))
     }
 }
 
