@@ -22,13 +22,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     // publish simple string
-    client
+    let result = client
         .publish_message("hello world!")
         .channel("my_channel")
         .execute_blocking()?;
 
+    println!("result: {:?}", result);
+
     // publish a struct
-    client
+    let result = client
         .publish_message(Message {
             content: "hello world!".into(),
             author: "me".into(),
@@ -36,8 +38,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .channel("my_channel")
         .execute_blocking()?;
 
+    println!("result: {:?}", result);
+
     // publish with whole config options
-    client
+    let result = client
         .publish_message("hello with params!")
         .channel("my_channel")
         .store(true)
@@ -48,6 +52,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .space_id("my_space")
         .r#type("my_type")
         .execute_blocking()?;
+
+    println!("result: {:?}", result);
 
     Ok(())
 }
