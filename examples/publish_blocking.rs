@@ -29,6 +29,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("result: {:?}", result);
 
+    // spawn a blocking thread to publish a struct
+    let cloned = client.clone();
+    let handle = std::thread::spawn(move || {
+        cloned
+            .publish_message("Hello from thread!")
+            .channel("my_channel")
+            .execute_blocking()
+    });
+
     // publish a struct
     let result = client
         .publish_message(Message {
@@ -52,6 +61,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .space_id("my_space")
         .r#type("my_type")
         .execute_blocking()?;
+
+    println!("result: {:?}", result);
+
+    // wait for the thread to finish
+    let result = handle
+        .join()
+        .expect("The publishing thread has panicked!")?;
 
     println!("result: {:?}", result);
 
