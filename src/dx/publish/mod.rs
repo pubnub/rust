@@ -214,31 +214,6 @@ where
     }
 }
 
-// TODO: Maybe it will be possible to extract this into a middleware.
-//       Currently, it's not necessary, but it might be very useful
-//       to not have to do it manually in each dx module.
-fn response_to_result<D>(
-    deserializer: &D,
-    response: TransportResponse,
-) -> Result<PublishResult, PubNubError>
-where
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
-{
-    response
-        .body
-        .map(|body| deserializer.deserialize(&body))
-        .transpose()
-        .and_then(|body| {
-            body.ok_or_else(|| {
-                PubNubError::PublishError(format!(
-                    "No body in the response! Status code: {}",
-                    response.status
-                ))
-            })
-            .map(|body| body_to_result(body, response.status))
-        })?
-}
-
 impl<T, M, D> PublishMessageViaChannel<T, M, D>
 where
     M: Serialize,
@@ -333,6 +308,31 @@ fn serialize_meta(meta: &HashMap<String, String>) -> String {
     }
     result.push('}');
     result
+}
+
+// TODO: Maybe it will be possible to extract this into a middleware.
+//       Currently, it's not necessary, but it might be very useful
+//       to not have to do it manually in each dx module.
+fn response_to_result<D>(
+    deserializer: &D,
+    response: TransportResponse,
+) -> Result<PublishResult, PubNubError>
+where
+    D: for<'de> Deserializer<'de, PublishResponseBody>,
+{
+    response
+        .body
+        .map(|body| deserializer.deserialize(&body))
+        .transpose()
+        .and_then(|body| {
+            body.ok_or_else(|| {
+                PubNubError::PublishError(format!(
+                    "No body in the response! Status code: {}",
+                    response.status
+                ))
+            })
+            .map(|body| body_to_result(body, response.status))
+        })?
 }
 
 #[cfg(test)]
