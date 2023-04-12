@@ -132,7 +132,7 @@ where
 
     /// Instance ID
     #[builder(setter(strip_option), default = "None")]
-    pub(crate) instance_id: Option<String>,
+    pub(crate) instance_id: Option<&'a str>,
 
     /// Sequence number for the publish requests
     #[builder(default = "Mutex::new(1)")]
@@ -228,8 +228,8 @@ where
                     transport: PubNubMiddleware {
                         transport: pre_build.transport,
                         // TODO: String -> Cow<'static, str>
-                        instance_id: pre_build.instance_id.clone(),
-                        user_id: pre_build.config.user_id.clone(),
+                        instance_id: pre_build.instance_id.map(|x| &*x),
+                        user_id: pre_build.config.user_id,
                         signature_keys: pre_build.config.clone().signature_key_set()?,
                     },
                     instance_id: pre_build.instance_id,
@@ -252,10 +252,10 @@ where
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubConfig<'a> {
     /// Subscribe key
-    pub(crate) subscribe_key: String,
+    pub(crate) subscribe_key: &'a str,
 
     /// User ID
-    pub(crate) user_id: String,
+    pub(crate) user_id: &'a str,
 
     /// Publish key
     pub(crate) publish_key: Option<&'a str>,

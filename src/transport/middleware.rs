@@ -33,8 +33,8 @@ where
     T: Transport,
 {
     pub(crate) transport: T,
-    pub(crate) instance_id: Option<String>,
-    pub(crate) user_id: String,
+    pub(crate) instance_id: Option<&'a str>,
+    pub(crate) user_id: &'a str,
     pub(crate) signature_keys: Option<SignatureKeySet<'a>>,
 }
 
@@ -107,11 +107,11 @@ where
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, VERSION));
         req.query_parameters
-            .insert("uuid".into(), self.user_id.clone());
+            .insert("uuid".into(), self.user_id.to_string());
 
         if let Some(instance_id) = &self.instance_id {
             req.query_parameters
-                .insert("instanceid".into(), instance_id.clone());
+                .insert("instanceid".into(), instance_id.to_string());
         }
 
         if let Some(signature_key_set) = &self.signature_keys {
@@ -170,8 +170,8 @@ mod should {
 
         let middleware = PubNubMiddleware {
             transport: MockTransport::default(),
-            instance_id: Some(String::from("instance_id")),
-            user_id: "user_id".to_string(),
+            instance_id: Some(&String::from("instance_id")),
+            user_id: "user_id",
             signature_keys: None,
         };
 
