@@ -110,7 +110,7 @@
 #[doc(inline)]
 pub use dx::publish;
 #[doc(inline)]
-pub use dx::{blocking, Keyset, PubNubClient, PubNubClientBuilder};
+pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod dx;
 
 pub mod core;

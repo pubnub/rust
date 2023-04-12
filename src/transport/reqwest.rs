@@ -274,7 +274,7 @@ pub mod blocking {
         fn default() -> Self {
             Self {
                 reqwest_client: reqwest::blocking::Client::default(),
-                hostname: "https://ps.pndsn.com".into(),
+                hostname: "https://ps.pndsn.com/".into(),
             }
         }
     }
