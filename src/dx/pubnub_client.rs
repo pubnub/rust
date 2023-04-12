@@ -191,11 +191,11 @@ where
     }
 }
 
-impl<T> Deref for PubNubClient<'_, T>
+impl<'a, T> Deref for PubNubClient<'a, T>
 where
     T: Transport,
 {
-    type Target = PubNubClientRef<T>;
+    type Target = PubNubClientRef<'a, T>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -220,7 +220,7 @@ where
     /// Build a [`PubNubClient`] from the builder
     ///
     /// [`PubNubClient`]: struct.PubNubClient.html
-    pub fn build(self) -> Result<PubNubClient<'static, PubNubMiddleware<T>>, PubNubError<'static>> {
+    pub fn build(self) -> Result<PubNubClient<'static, PubNubMiddleware<'static, T>>, PubNubError<'static>> {
         self.build_internal()
             .map_err(|err| ClientInitializationError(&err.to_string()))
             .and_then(|pre_build| {
@@ -463,7 +463,7 @@ where
     ///
     /// [`PubNubClientConfigBuilder`]: struct.PubNubClientConfigBuilder.html
     /// [`PubNubClient`]: struct.PubNubClient.html
-    pub fn with_user_id<U>(self, user_id: U) -> PubNubClientConfigBuilder<T>
+    pub fn with_user_id<U>(self, user_id: U) -> PubNubClientConfigBuilder<'static, T>
     where
         U: Into<String>,
     {
@@ -476,7 +476,7 @@ where
                 publish_key,
                 subscribe_key: self.keyset.subscribe_key.into(),
                 secret_key,
-                user_id: user_id.into(),
+                user_id: user_id.into()
             }),
             ..Default::default()
         }

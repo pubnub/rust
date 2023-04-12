@@ -31,7 +31,7 @@ use result::body_to_result;
 use std::{collections::HashMap, ops::Not};
 use urlencoding::encode;
 
-impl<T> PubNubClient<T>
+impl<T> PubNubClient<'_, T>
 where
     T: Transport,
 {
