@@ -6,7 +6,7 @@ use super::PublishResponseBody;
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
-    core::{Deserializer, Serialize, Transport},
+    core::{Deserializer, Serialize},
     dx::PubNubClient,
 };
 use derive_builder::Builder;
