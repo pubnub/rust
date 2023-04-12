@@ -309,7 +309,7 @@ pub mod blocking {
             _request: TransportRequest,
             request_url: String,
         ) -> Result<reqwest::blocking::RequestBuilder, PubNubError> {
-            let builder = self.reqwest_client.get(&request_url);
+            let builder = self.reqwest_client.get(request_url);
             Ok(builder)
         }
 
@@ -318,7 +318,7 @@ pub mod blocking {
             request: TransportRequest,
             request_url: String,
         ) -> Result<reqwest::blocking::RequestBuilder, PubNubError> {
-            let builder = self.reqwest_client.post(&request_url);
+            let builder = self.reqwest_client.post(request_url);
             let builder = match request.body {
                 Some(body) => builder.body(body),
                 None => builder,
@@ -395,7 +395,7 @@ pub mod blocking {
                 };
 
                 let request = TransportRequest {
-                    path: path_to_send.into(),
+                    path: path_to_send,
                     query_parameters: [("uuid".into(), "Phoenix".into())].into(),
                     method: TransportMethod::Get,
                     body: None,
