@@ -92,8 +92,7 @@ pub enum MetaValue {
     Integer(i64),
     Float(f64),
     Bool(bool),
-    /// It's always [`None`]
-    Null(Option<String>),
+    Null,
 }
 
 #[cfg(test)]
@@ -110,7 +109,7 @@ mod should {
                 (Integer(v1), Integer(v2)) => v1 == v2,
                 (Float(v1), Float(v2)) => (v1 - v2).abs() < 0.001,
                 (Bool(v1), Bool(v2)) => v1 == v2,
-                (Null(v1), Null(v2)) => v1 == v2,
+                (Null, Null) => true,
                 _ => false,
             }
         }
@@ -140,7 +139,7 @@ mod should {
                 authorized_user_id: Some("uuid".into()),
                 meta: HashMap::from([
                     ("meta".into(), String("data".into())),
-                    ("other".into(), Null(None)),
+                    ("other".into(), Null),
                     ("integer".into(), Integer(1337)),
                     ("float".into(), Float(13.37))
                 ])
