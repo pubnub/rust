@@ -43,6 +43,11 @@ pub enum PubNubError {
     #[error("Deserialization error: {0}")]
     DeserializationError(String),
 
+    /// this error is returned when the deserialization of the token fails
+    #[cfg(feature = "parse_token")]
+    #[error("Token deserialization error: {0}")]
+    TokenDeserializationError(String),
+
     /// this error is returned when one of the needed keys is missing
     #[error("No key provided error: {0}")]
     NoKeyError(String),
