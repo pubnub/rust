@@ -53,7 +53,7 @@ required-features = ["contract_test"]
 
 [features]
 full = ["serde", "reqwest"]
-default = ["serde", "reqwest", "aescbc", "blocking"]
+default = ["serde", "reqwest", "aescbc"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
@@ -64,3 +64,6 @@ contract_test = []
 name = "publish"
 required-features = ["default"]
 
+[[example]]
+name = "publish_blocking"
+required-features = ["default", "blocking"]
