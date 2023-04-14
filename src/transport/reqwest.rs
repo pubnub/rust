@@ -119,6 +119,14 @@ impl TransportReqwest {
         Self::default()
     }
 
+    /// set the custom hostname for request
+    pub fn set_hostname<S>(&mut self, hostname: S)
+    where
+        S: Into<String>,
+    {
+        self.hostname = hostname.into();
+    }
+
     fn prepare_get_method(
         &self,
         _request: TransportRequest,
