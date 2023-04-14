@@ -107,7 +107,7 @@ impl TransportReqwest {
     /// use pubnub::transport::TransportReqwest;
     ///
     /// let transport = TransportReqwest::new();
-    /// 
+    ///
     /// ```
     ///
     /// [`TransportReqwest`]: ./struct.TransportReqwest.html
@@ -120,7 +120,7 @@ impl TransportReqwest {
     }
 
     /// Use this method to assign custom hostname
-    pub fn set_hostname(mut self, hostname: &str) {
+    pub fn set_hostname(&mut self, hostname: &str) {
         self.hostname = hostname.to_string();
     }
 

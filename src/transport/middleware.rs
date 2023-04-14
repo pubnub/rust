@@ -34,7 +34,7 @@ where
     T: Transport,
 {
     pub(crate) transport: T,
-    pub(crate) instance_id: Option<Arc<String>>,
+    pub(crate) instance_id: Arc<Option<String>>,
     pub(crate) user_id: Arc<String>,
     pub(crate) signature_keys: Option<SignatureKeySet>,
 }
@@ -108,11 +108,11 @@ where
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, VERSION));
         req.query_parameters
-            .insert("uuid".into(), self.user_id.to_string());
+            .insert("uuid".into(), self.user_id.as_ref().into());
 
-        if let Some(instance_id) = &self.instance_id {
+        if let Some(instance_id) = self.instance_id.as_deref() {
             req.query_parameters
-                .insert("instanceid".into(), instance_id.to_string());
+                .insert("instanceid".into(), instance_id.into());
         }
 
         if let Some(signature_key_set) = &self.signature_keys {
@@ -171,7 +171,7 @@ mod should {
 
         let middleware = PubNubMiddleware {
             transport: MockTransport::default(),
-            instance_id: Some(String::from("instance_id").into()),
+            instance_id: Arc::new(Some(String::from("instance_id"))),
             user_id: String::from("user_id").into(),
             signature_keys: None,
         };
