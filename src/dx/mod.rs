@@ -6,6 +6,7 @@
 //! [`pubnub`]: ../index.html
 //! [PubNub]: https://www.pubnub.com/
 
+pub mod access;
 pub mod publish;
 
 pub use pubnub_client::{Keyset, PubNubClient, PubNubClientBuilder};

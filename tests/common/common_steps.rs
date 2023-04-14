@@ -21,7 +21,7 @@ impl Default for PubNubWorld {
                 publish_key: Some("demo".to_string()),
                 secret_key: Some("demo".to_string()),
             },
-            publish_result: Err(PubNubError::TransportError("This is default value".into())),
+            publish_result: Err(PubNubError::Transport("This is default value".into())),
             is_succeed: false,
         }
     }

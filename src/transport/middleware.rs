@@ -119,7 +119,7 @@ where
                 "timestamp".into(),
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .map_err(|e| PubNubError::TransportError(e.to_string()))?
+                    .map_err(|e| PubNubError::Transport(e.to_string()))?
                     .as_secs()
                     .to_string(),
             );

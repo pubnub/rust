@@ -14,10 +14,7 @@
 //! [`reqwest` feature]: ../index.html#features
 
 use crate::{
-    core::{
-        error::{PubNubError, PubNubError::TransportError},
-        Transport, TransportMethod, TransportRequest, TransportResponse,
-    },
+    core::{error::PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
     PubNubClientBuilder,
 };
 use log::info;
@@ -47,7 +44,7 @@ pub struct TransportReqwest {
     ///
     /// let transport = {
     ///    let mut transport = TransportReqwest::default();
-    ///    transport.hostname = "https://wherever.you.want.com/".into();
+    ///    transport.hostname = "https://wherever.you.want.com".into();
     ///    transport
     /// };
     /// ```
@@ -69,7 +66,7 @@ impl Transport for TransportReqwest {
             .headers(headers)
             .send()
             .await
-            .map_err(|e| TransportError(e.to_string()))?;
+            .map_err(|e| PubNubError::Transport(e.to_string()))?;
 
         Ok(TransportResponse {
             status: result.status().as_u16(),
@@ -78,7 +75,7 @@ impl Transport for TransportReqwest {
                 .await
                 .map(|b| b.to_vec())
                 .map(|b| (!b.is_empty()).then_some(b))
-                .map_err(|e| TransportError(e.to_string()))?,
+                .map_err(|e| PubNubError::Transport(e.to_string()))?,
             ..Default::default()
         })
     }
@@ -88,7 +85,7 @@ impl Default for TransportReqwest {
     fn default() -> Self {
         Self {
             reqwest_client: reqwest::Client::default(),
-            hostname: "https://ps.pndsn.com/".into(),
+            hostname: "https://ps.pndsn.com".into(),
         }
     }
 }
@@ -133,13 +130,15 @@ impl TransportReqwest {
     ) -> Result<reqwest::RequestBuilder, PubNubError> {
         request
             .body
-            .ok_or(TransportError("Body should not be empty for POST".into()))
+            .ok_or(PubNubError::Transport(
+                "Body should not be empty for POST".into(),
+            ))
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
     }
 }
 
 fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMap, PubNubError> {
-    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::TransportError(err.to_string()))
+    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::Transport(err.to_string()))
 }
 
 // TODO: create test for merging query params

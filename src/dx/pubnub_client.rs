@@ -11,9 +11,10 @@
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
-use crate::core::PubNubError::ClientInitializationError;
-use crate::transport::middleware::SignatureKeySet;
-use crate::{core::PubNubError, core::Transport, transport::middleware::PubNubMiddleware};
+use crate::{
+    core::{PubNubError, Transport},
+    transport::middleware::{PubNubMiddleware, SignatureKeySet},
+};
 use derive_builder::Builder;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -222,7 +223,7 @@ where
     /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn build(self) -> Result<PubNubClient<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
-            .map_err(|err| ClientInitializationError(err.to_string()))
+            .map_err(|err| PubNubError::ClientInitialization(err.to_string()))
             .and_then(|pre_build| {
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
@@ -267,7 +268,7 @@ pub struct PubNubConfig {
 impl PubNubConfig {
     fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
         if let Some(secret_key) = self.secret_key {
-            let publish_key = self.publish_key.ok_or(ClientInitializationError(
+            let publish_key = self.publish_key.ok_or(PubNubError::ClientInitialization(
                 "You must also provide the publish key if you use the secret key.".to_string(),
             ))?;
             Ok(Some(SignatureKeySet {

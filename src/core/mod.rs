@@ -14,6 +14,10 @@ pub use error::PubNubError;
 pub mod error;
 
 #[doc(inline)]
+pub(crate) use error_response::APIErrorBody;
+pub(crate) mod error_response;
+
+#[doc(inline)]
 pub use transport::Transport;
 pub mod transport;
 
@@ -33,6 +37,10 @@ pub mod serialize;
 #[doc(inline)]
 pub use deserializer::Deserializer;
 pub mod deserializer;
+
+#[doc(inline)]
+pub use serializer::Serializer;
+pub mod serializer;
 
 #[doc(inline)]
 pub use cryptor::Cryptor;

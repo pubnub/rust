@@ -134,7 +134,7 @@ where
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
         let instance = self
             .build()
-            .map_err(|err| PubNubError::PublishError(err.to_string()))?;
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
 
         let client: PubNubClient<_> = instance.pub_nub_client.clone();
 
@@ -168,10 +168,10 @@ where
             .transpose()
             .and_then(|body| {
                 body.ok_or_else(|| {
-                    PubNubError::PublishError(format!(
-                        "No body in the response! Status code: {}",
-                        response.status
-                    ))
+                    PubNubError::general_api_error(
+                        format!("No body in the response! Status code: {}", response.status),
+                        Some(response.status),
+                    )
                 })
                 .map(|body| body_to_result(body, response.status))
             })?
@@ -224,12 +224,12 @@ where
             .config
             .publish_key
             .as_ref()
-            .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
+            .ok_or_else(|| PubNubError::general_api_error("Publish key is not set", None))?;
         let sub_key = &self.pub_nub_client.config.subscribe_key;
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
+                path: format!("/publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
@@ -239,12 +239,11 @@ where
             self.message
                 .serialize()
                 .and_then(|m_vec| {
-                    String::from_utf8(m_vec)
-                        .map_err(|e| PubNubError::SerializationError(e.to_string()))
+                    String::from_utf8(m_vec).map_err(|e| PubNubError::Serialization(e.to_string()))
                 })
                 .map(|m_str| TransportRequest {
                     path: format!(
-                        "publish/{}/{}/0/{}/0/{}",
+                        "/publish/{}/{}/0/{}/0/{}",
                         pub_key,
                         sub_key,
                         encode(&self.channel),
@@ -433,7 +432,7 @@ mod should {
 
         assert_eq!(
             format!(
-                "publish///0/{}/0/{}",
+                "/publish///0/{}/0/{}",
                 channel,
                 encode(&format!("\"{}\"", message))
             ),
@@ -456,7 +455,7 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
+            format!("/publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
             result.path
         );
     }
@@ -476,7 +475,7 @@ mod should {
             .create_transport_request()
             .unwrap();
 
-        assert_eq!(format!("publish///0/{}/0", channel), result.path);
+        assert_eq!(format!("/publish///0/{}/0", channel), result.path);
         assert_eq!(
             format!("\"{}\"", message),
             String::from_utf8(result.body.unwrap()).unwrap()
