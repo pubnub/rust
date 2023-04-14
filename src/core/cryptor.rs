@@ -4,6 +4,7 @@
 //! encryption and decryption of published data.
 
 use crate::core::error::PubNubError;
+use crate::lib::Vec;
 
 /// This trait is used to encrypt and decrypt messages sent to the
 /// [`PubNub API`].

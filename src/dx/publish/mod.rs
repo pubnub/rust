@@ -10,6 +10,7 @@
 //! [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder]
 //! [`PubNub`]:https://www.pubnub.com/
 
+use hashbrown::HashMap;
 #[doc(inline)]
 pub use result::{PublishResponseBody, PublishResult};
 pub mod result;
@@ -25,10 +26,16 @@ use crate::{
         TransportResponse,
     },
     dx::PubNubClient,
+    lib::{
+        a::{
+            format,
+            string::{String, ToString},
+        },
+        c::ops::Not,
+    },
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
 use result::body_to_result;
-use std::{collections::HashMap, ops::Not};
 use urlencoding::encode;
 
 impl<T> PubNubClient<T>
@@ -79,10 +86,7 @@ where
     }
 
     fn seqn(&self) -> u16 {
-        let mut locked_value = self
-            .next_seqn
-            .lock()
-            .expect("dx::publish seqn lock poisoned!");
+        let mut locked_value = self.next_seqn.lock();
         let ret = *locked_value;
 
         if *locked_value == u16::MAX {
@@ -289,6 +293,7 @@ mod should {
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };
+    use alloc::vec;
     use test_case::test_case;
 
     #[derive(Default, Debug)]

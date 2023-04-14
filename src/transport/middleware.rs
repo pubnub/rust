@@ -3,13 +3,23 @@
 //! This module contains the middleware that is used to add the required query parameters to the requests.
 //! The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and `requestid` query parameters to the requests.
 
-use crate::core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse};
-use crate::dx::pubnub_client::{SDK_ID, VERSION};
+use crate::{
+    core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
+    dx::pubnub_client::{SDK_ID, VERSION},
+    lib::{
+        a::{
+            boxed::Box,
+            format,
+            string::{String, ToString},
+        },
+        Vec,
+    },
+};
 use base64::{engine::general_purpose, Engine as _};
+use hashbrown::HashMap;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
-use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
+use time::OffsetDateTime;
 use urlencoding::encode;
 use uuid::Uuid;
 
@@ -117,11 +127,7 @@ where
         if let Some(signature_key_set) = &self.signature_keys {
             req.query_parameters.insert(
                 "timestamp".into(),
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map_err(|e| PubNubError::TransportError(e.to_string()))?
-                    .as_secs()
-                    .to_string(),
+                OffsetDateTime::now_utc().unix_timestamp().to_string(),
             );
             req.query_parameters.insert(
                 "signature".into(),
@@ -138,7 +144,6 @@ mod should {
     use super::*;
     use crate::core::TransportMethod::Get;
     use crate::core::TransportResponse;
-    use std::collections::HashMap;
 
     #[tokio::test]
     async fn publish_message() {

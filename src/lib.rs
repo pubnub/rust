@@ -1,4 +1,5 @@
 #![warn(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 //! # PubNub Rust SDK
 //!
@@ -112,7 +113,26 @@ pub use dx::publish;
 #[doc(inline)]
 pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod dx;
+extern crate alloc;
 
 pub mod core;
 pub mod providers;
 pub mod transport;
+
+mod lib {
+    pub(crate) mod c {
+        #[cfg(not(feature = "std"))]
+        pub(crate) use core::*;
+        #[cfg(feature = "std")]
+        pub(crate) use std::*;
+    }
+
+    #[cfg(not(feature = "std"))]
+    pub(crate) use ::alloc::vec::Vec;
+    #[cfg(feature = "std")]
+    pub(crate) use std::vec::Vec;
+
+    pub(crate) mod a {
+        pub(crate) use ::alloc::*;
+    }
+}

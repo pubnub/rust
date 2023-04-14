@@ -3,7 +3,10 @@
 //! This module contains the `PublishResult` type.
 //! The `PublishResult` type is used to represent the result of a publish operation.
 
-use crate::core::PubNubError;
+use crate::{
+    core::PubNubError,
+    lib::a::{format, string::String},
+};
 
 /// The result of a publish operation.
 /// It contains the timetoken of the published message.

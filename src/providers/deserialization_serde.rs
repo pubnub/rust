@@ -18,7 +18,10 @@
 //!
 //! [`Serialize`]: ../trait.Serialize.html
 
-use crate::core::{Deserializer, PubNubError};
+use crate::{
+    core::{Deserializer, PubNubError},
+    lib::a::string::ToString,
+};
 
 /// Serde implementation for PubNub [`Deserializer`] trait.
 ///
@@ -43,6 +46,7 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::lib::a::string::String;
     use serde::Deserialize;
 
     #[derive(Deserialize, Debug, PartialEq)]

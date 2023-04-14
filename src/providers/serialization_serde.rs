@@ -17,6 +17,9 @@
 //! ```
 //!
 //! [`Serialize`]: ../trait.Serialize.html
+
+use crate::lib::{a::string::ToString, Vec};
+
 impl<S> crate::core::Serialize for S
 where
     S: serde::Serialize,
@@ -30,6 +33,7 @@ where
 #[cfg(test)]
 mod should {
     use crate::core::Serialize;
+    use crate::lib::a::string::String;
 
     #[test]
     fn serialize_serde_values() {

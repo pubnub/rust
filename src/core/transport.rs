@@ -8,6 +8,7 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 
 use super::{transport_response::TransportResponse, PubNubError, TransportRequest};
+use crate::lib::a::boxed::Box;
 
 /// This trait is used to send requests to the [`PubNub API`].
 ///

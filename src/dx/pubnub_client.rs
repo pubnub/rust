@@ -8,13 +8,16 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use std::ops::Deref;
-use std::sync::{Arc, Mutex};
-
-use crate::core::PubNubError::ClientInitializationError;
 use crate::transport::middleware::SignatureKeySet;
-use crate::{core::PubNubError, core::Transport, transport::middleware::PubNubMiddleware};
+use crate::{
+    core::{PubNubError, PubNubError::ClientInitializationError, Transport},
+    lib::a::string::{String, ToString},
+    lib::a::sync::Arc,
+    lib::c::ops::Deref,
+    transport::middleware::PubNubMiddleware,
+};
 use derive_builder::Builder;
+use spin::Mutex;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(crate) const SDK_ID: &str = "PubNub-Rust";
@@ -121,7 +124,8 @@ where
     pattern = "owned",
     name = "PubNubClientConfigBuilder",
     build_fn(private, name = "build_internal"),
-    setter(prefix = "with")
+    setter(prefix = "with"),
+    no_std
 )]
 pub struct PubNubClientRef<T>
 where

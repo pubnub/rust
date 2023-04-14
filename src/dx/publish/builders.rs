@@ -8,9 +8,10 @@ use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
     core::{Deserializer, Serialize, Transport},
     dx::PubNubClient,
+    lib::a::{string::String, sync::Arc},
 };
 use derive_builder::Builder;
-use std::{collections::HashMap, sync::Arc};
+use hashbrown::HashMap;
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///
@@ -219,7 +220,7 @@ where
 /// [`PubNub`]:https://www.pubnub.com/
 /// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Builder)]
-#[builder(pattern = "owned", build_fn(vis = "pub(super)"))]
+#[builder(pattern = "owned", build_fn(vis = "pub(super)"), no_std)]
 pub struct PublishMessageViaChannel<T, M, D>
 where
     T: Transport,

@@ -18,11 +18,16 @@ use crate::{
         error::{PubNubError, PubNubError::TransportError},
         Transport, TransportMethod, TransportRequest, TransportResponse,
     },
+    lib::a::{
+        boxed::Box,
+        format,
+        string::{String, ToString},
+    },
     PubNubClientBuilder,
 };
+use hashbrown::HashMap;
 use log::info;
-use reqwest::header::HeaderMap;
-use std::collections::HashMap;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
 use urlencoding::encode;
 
 /// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
@@ -139,7 +144,16 @@ impl TransportReqwest {
 }
 
 fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMap, PubNubError> {
-    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::TransportError(err.to_string()))
+    request_headers
+        .iter()
+        .map(|(k, v)| -> Result<(HeaderName, HeaderValue), PubNubError> {
+            let name = TryFrom::try_from(k)
+                .map_err(|err: InvalidHeaderName| TransportError(err.to_string()))?;
+            let value: HeaderValue = TryFrom::try_from(v)
+                .map_err(|err: InvalidHeaderValue| TransportError(err.to_string()))?;
+            Ok((name, value))
+        })
+        .collect()
 }
 
 // TODO: create test for merging query params

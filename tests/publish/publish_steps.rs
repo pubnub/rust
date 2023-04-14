@@ -1,5 +1,5 @@
 use cucumber::{given, then, when};
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use crate::common::PubNubWorld;
 

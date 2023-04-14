@@ -8,6 +8,7 @@
 //! [`Serialize`]: trait.Serialize.html
 
 use super::PubNubError;
+use crate::lib::Vec;
 
 /// Serialize values
 ///
