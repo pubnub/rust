@@ -20,6 +20,8 @@ uuid = { version = "1.3", features = ["v4"] }
 urlencoding = "2.1.2"
 base64 = "0.21"
 hashbrown = "0.13"
+spin = "0.9"
+snafu = "0.7"
 
 # signature
 hmac = "0.12"
@@ -40,8 +42,6 @@ rand = { version = "0.8.5", optional = true }
 
 # parse_token
 ciborium = { git = "https://github.com/enarx/ciborium.git", rev = "dc9d27d", optional = true }
-spin = "0.9"
-snafu = "0.7"
 
 [dev-dependencies]
 async-trait = "0.1"
