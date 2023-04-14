@@ -131,8 +131,8 @@ where
     pub(crate) transport: T,
 
     /// Instance ID
-    #[builder(setter(strip_option), default = "None")]
-    pub(crate) instance_id: Option<String>,
+    #[builder(setter(strip_option))]
+    pub(crate) instance_id: Arc<Option<String>>,
 
     /// Sequence number for the publish requests
     #[builder(default = "Mutex::new(1)")]
@@ -227,7 +227,7 @@ where
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
                         transport: pre_build.transport,
-                        instance_id: Arc::new(pre_build.instance_id.clone()),
+                        instance_id: Arc::clone(&pre_build.instance_id),
                         user_id: Arc::new(pre_build.config.user_id.clone()),
                         signature_keys: pre_build.config.clone().signature_key_set()?,
                     },
