@@ -33,8 +33,8 @@ impl PubNubWorld {
         keyset: Keyset<String>,
     ) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
         let transport = {
-            let mut transport = TransportReqwest::default();
-            transport.hostname = "http://localhost:8090/".into();
+            let transport = TransportReqwest::default();
+            transport.set_hostname("http://localhost:8090/");
             transport
         };
         PubNubClientBuilder::with_reqwest_transport()

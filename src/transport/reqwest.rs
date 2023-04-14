@@ -107,6 +107,7 @@ impl TransportReqwest {
     /// use pubnub::transport::TransportReqwest;
     ///
     /// let transport = TransportReqwest::new();
+    /// 
     /// ```
     ///
     /// [`TransportReqwest`]: ./struct.TransportReqwest.html
@@ -116,6 +117,11 @@ impl TransportReqwest {
     /// [`reqwest`]: https://docs.rs/reqwest
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Use this method to assign custom hostname
+    pub fn set_hostname(mut self, hostname: &str) {
+        self.hostname = hostname.to_string();
     }
 
     fn prepare_get_method(

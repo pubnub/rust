@@ -227,9 +227,8 @@ where
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
                         transport: pre_build.transport,
-                        // TODO: String -> Cow<'static, str>
-                        instance_id: pre_build.instance_id.clone(),
-                        user_id: pre_build.config.user_id.clone(),
+                        instance_id: Arc::new(pre_build.instance_id.clone()),
+                        user_id: Arc::new(pre_build.config.user_id.clone()),
                         signature_keys: pre_build.config.clone().signature_key_set()?,
                     },
                     instance_id: pre_build.instance_id,

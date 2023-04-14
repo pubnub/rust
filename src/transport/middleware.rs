@@ -9,6 +9,7 @@ use base64::{engine::general_purpose, Engine as _};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use urlencoding::encode;
 use uuid::Uuid;
@@ -33,8 +34,8 @@ where
     T: Transport,
 {
     pub(crate) transport: T,
-    pub(crate) instance_id: Option<String>,
-    pub(crate) user_id: String,
+    pub(crate) instance_id: Option<Arc<String>>,
+    pub(crate) user_id: Arc<String>,
     pub(crate) signature_keys: Option<SignatureKeySet>,
 }
 
@@ -107,11 +108,11 @@ where
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, VERSION));
         req.query_parameters
-            .insert("uuid".into(), self.user_id.clone());
+            .insert("uuid".into(), self.user_id.to_string());
 
         if let Some(instance_id) = &self.instance_id {
             req.query_parameters
-                .insert("instanceid".into(), instance_id.clone());
+                .insert("instanceid".into(), instance_id.to_string());
         }
 
         if let Some(signature_key_set) = &self.signature_keys {
@@ -170,8 +171,8 @@ mod should {
 
         let middleware = PubNubMiddleware {
             transport: MockTransport::default(),
-            instance_id: Some(String::from("instance_id")),
-            user_id: "user_id".to_string(),
+            instance_id: Some(String::from("instance_id").into()),
+            user_id: String::from("user_id").into(),
             signature_keys: None,
         };
 
