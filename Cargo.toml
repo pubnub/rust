@@ -39,6 +39,8 @@ rand = { version = "0.8.5", optional = true }
 
 #parse_token
 ciborium = { git = "https://github.com/enarx/ciborium.git", rev = "dc9d27d", optional = true }
+spin = "0.9"
+snafu = "0.7"
 
 [dev-dependencies]
 async-trait = "0.1"
@@ -49,6 +51,7 @@ cucumber = { version = "0.19", features = ["output-junit"] }
 futures = "0.3"
 reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
+hashbrown = { version = "0.13", features = ["serde"] }
 
 [[test]]
 name = "contract_test"

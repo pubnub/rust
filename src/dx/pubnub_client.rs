@@ -226,7 +226,9 @@ where
     /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn build(self) -> Result<PubNubClient<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
-            .map_err(|err| ClientInitializationError(err.to_string()))
+            .map_err(|err| ClientInitializationError {
+                details: err.to_string(),
+            })
             .and_then(|pre_build| {
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
@@ -271,9 +273,10 @@ pub struct PubNubConfig {
 impl PubNubConfig {
     fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
         if let Some(secret_key) = self.secret_key {
-            let publish_key = self.publish_key.ok_or(ClientInitializationError(
-                "You must also provide the publish key if you use the secret key.".to_string(),
-            ))?;
+            let publish_key = self.publish_key.ok_or(ClientInitializationError {
+                details: "You must also provide the publish key if you use the secret key."
+                    .to_string(),
+            })?;
             Ok(Some(SignatureKeySet {
                 secret_key,
                 publish_key,

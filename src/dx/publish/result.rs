@@ -72,16 +72,14 @@ pub(super) fn body_to_result(
             if error_indicator == 1 {
                 Ok(PublishResult { timetoken })
             } else {
-                Err(PubNubError::PublishError(format!(
-                    "Status code: {}, body: {:?}",
-                    status, message
-                )))
+                Err(PubNubError::PublishError {
+                    details: format!("Status code: {}, body: {:?}", status, message),
+                })
             }
         }
-        PublishResponseBody::OtherResponse(body) => Err(PubNubError::PublishError(format!(
-            "Status code: {}, body: {:?}",
-            status, body
-        ))),
+        PublishResponseBody::OtherResponse(body) => Err(PubNubError::PublishError {
+            details: format!("Status code: {}, body: {:?}", status, body),
+        }),
     }
 }
 

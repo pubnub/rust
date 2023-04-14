@@ -74,7 +74,9 @@ impl Transport for TransportReqwest {
             .headers(headers)
             .send()
             .await
-            .map_err(|e| TransportError(e.to_string()))?;
+            .map_err(|e| TransportError {
+                details: e.to_string(),
+            })?;
 
         Ok(TransportResponse {
             status: result.status().as_u16(),
@@ -83,7 +85,9 @@ impl Transport for TransportReqwest {
                 .await
                 .map(|b| b.to_vec())
                 .map(|b| (!b.is_empty()).then_some(b))
-                .map_err(|e| TransportError(e.to_string()))?,
+                .map_err(|e| TransportError {
+                    details: e.to_string(),
+                })?,
             ..Default::default()
         })
     }
@@ -138,7 +142,9 @@ impl TransportReqwest {
     ) -> Result<reqwest::RequestBuilder, PubNubError> {
         request
             .body
-            .ok_or(TransportError("Body should not be empty for POST".into()))
+            .ok_or(TransportError {
+                details: "Body should not be empty for POST".into(),
+            })
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
     }
 }
@@ -147,10 +153,13 @@ fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMa
     request_headers
         .iter()
         .map(|(k, v)| -> Result<(HeaderName, HeaderValue), PubNubError> {
-            let name = TryFrom::try_from(k)
-                .map_err(|err: InvalidHeaderName| TransportError(err.to_string()))?;
-            let value: HeaderValue = TryFrom::try_from(v)
-                .map_err(|err: InvalidHeaderValue| TransportError(err.to_string()))?;
+            let name = TryFrom::try_from(k).map_err(|err: InvalidHeaderName| TransportError {
+                details: err.to_string(),
+            })?;
+            let value: HeaderValue =
+                TryFrom::try_from(v).map_err(|err: InvalidHeaderValue| TransportError {
+                    details: err.to_string(),
+                })?;
             Ok((name, value))
         })
         .collect()

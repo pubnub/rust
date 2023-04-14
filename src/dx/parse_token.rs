@@ -11,10 +11,13 @@ use std::ops::Deref;
 pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
     let token_bytes = general_purpose::URL_SAFE_NO_PAD
         .decode(token.as_bytes())
-        .map_err(|e| PubNubError::TokenDeserializationError(e.to_string()))?;
+        .map_err(|e| PubNubError::TokenDeserializationError {
+            details: e.to_string(),
+        })?;
 
-    from_reader(token_bytes.deref())
-        .map_err(|e| PubNubError::TokenDeserializationError(e.to_string()))
+    from_reader(token_bytes.deref()).map_err(|e| PubNubError::TokenDeserializationError {
+        details: e.to_string(),
+    })
 }
 
 #[derive(Debug, Clone, Deserialize)]

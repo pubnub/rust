@@ -9,7 +9,7 @@ struct Message {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn core::error::Error>> {
+async fn main() -> Result<(), Box<dyn snafu::Error>> {
     let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
     let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
 

@@ -39,7 +39,9 @@ where
     T: serde::Deserialize<'de>,
 {
     fn deserialize(&self, bytes: &'de [u8]) -> Result<T, crate::core::PubNubError> {
-        serde_json::from_slice(bytes).map_err(|e| PubNubError::DeserializationError(e.to_string()))
+        serde_json::from_slice(bytes).map_err(|e| PubNubError::DeserializationError {
+            details: e.to_string(),
+        })
     }
 }
 

@@ -94,9 +94,9 @@ impl AesCbcCrypto {
         let cipher_key: Vec<u8> = cipher_key.into();
 
         if cipher_key.is_empty() {
-            return Err(PubNubError::CryptoInitializationError(
-                "Cipher key is empty".into(),
-            ));
+            return Err(PubNubError::CryptoInitializationError {
+                details: "Cipher key is empty".into(),
+            });
         }
 
         Ok(AesCbcCrypto {
@@ -220,7 +220,9 @@ impl Cryptor for AesCbcCrypto {
 
         let result = Encryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
             .encrypt_padded_b2b_mut::<Pkcs7>(data, data_slice)
-            .map_err(|err| PubNubError::EncryptionError(err.to_string()))?;
+            .map_err(|err| PubNubError::EncryptionError {
+                details: err.to_string(),
+            })?;
         let encrypted_len = result.len() + data_offset;
 
         // Prepend random initialization vector to encrypted data if required.
@@ -276,7 +278,9 @@ impl Cryptor for AesCbcCrypto {
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
             .decrypt_padded_b2b_mut::<Pkcs7>(data_slice, buffer.as_mut())
-            .map_err(|err| PubNubError::DecryptionError(err.to_string()))?;
+            .map_err(|err| PubNubError::DecryptionError {
+                details: err.to_string(),
+            })?;
 
         // Adjust size of buffer to actual processed data length.
         let decrypted_len = result.len();

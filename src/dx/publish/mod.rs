@@ -136,9 +136,9 @@ where
     /// [`PublishResponse`]: struct.PublishResponse.html
     /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
-        let instance = self
-            .build()
-            .map_err(|err| PubNubError::PublishError(err.to_string()))?;
+        let instance = self.build().map_err(|err| PubNubError::PublishError {
+            details: err.to_string(),
+        })?;
 
         let client: PubNubClient<_> = instance.pub_nub_client.clone();
 
@@ -171,11 +171,8 @@ where
             .map(|body| deserializer.deserialize(&body))
             .transpose()
             .and_then(|body| {
-                body.ok_or_else(|| {
-                    PubNubError::PublishError(format!(
-                        "No body in the response! Status code: {}",
-                        response.status
-                    ))
+                body.ok_or_else(|| PubNubError::PublishError {
+                    details: format!("No body in the response! Status code: {}", response.status),
                 })
                 .map(|body| body_to_result(body, response.status))
             })?
@@ -228,7 +225,9 @@ where
             .config
             .publish_key
             .as_ref()
-            .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
+            .ok_or_else(|| PubNubError::PublishError {
+                details: "Publish key is not set".into(),
+            })?;
         let sub_key = &self.pub_nub_client.config.subscribe_key;
 
         if self.use_post {
@@ -243,8 +242,9 @@ where
             self.message
                 .serialize()
                 .and_then(|m_vec| {
-                    String::from_utf8(m_vec)
-                        .map_err(|e| PubNubError::SerializationError(e.to_string()))
+                    String::from_utf8(m_vec).map_err(|e| PubNubError::SerializationError {
+                        details: e.to_string(),
+                    })
                 })
                 .map(|m_str| TransportRequest {
                     path: format!(
