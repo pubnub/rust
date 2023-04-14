@@ -119,11 +119,6 @@ impl TransportReqwest {
         Self::default()
     }
 
-    /// Use this method to assign custom hostname
-    pub fn set_hostname(&mut self, hostname: &str) {
-        self.hostname = hostname.to_string();
-    }
-
     fn prepare_get_method(
         &self,
         _request: TransportRequest,

@@ -34,7 +34,7 @@ impl PubNubWorld {
     ) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
         let transport = {
             let mut transport = TransportReqwest::default();
-            transport.set_hostname("http://localhost:8090/");
+            transport.hostname = "http://localhost:8090/".into();
             transport
         };
         PubNubClientBuilder::with_reqwest_transport()
