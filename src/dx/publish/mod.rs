@@ -177,7 +177,6 @@ where
     }
 }
 
-// TODO: make it simpler - ref: builders.rs[1]
 #[cfg(feature = "blocking")]
 impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
