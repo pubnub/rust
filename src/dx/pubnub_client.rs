@@ -228,7 +228,7 @@ where
                     transport: PubNubMiddleware {
                         transport: pre_build.transport,
                         instance_id: Arc::clone(&pre_build.instance_id),
-                        user_id: Arc::new(pre_build.config.user_id.clone()),
+                        user_id: Arc::clone(&pre_build.config.user_id),
                         signature_keys: pre_build.config.clone().signature_key_set()?,
                     },
                     instance_id: pre_build.instance_id,
@@ -254,7 +254,7 @@ pub struct PubNubConfig {
     pub(crate) subscribe_key: String,
 
     /// User ID
-    pub(crate) user_id: String,
+    pub(crate) user_id: Arc<String>,
 
     /// Publish key
     pub(crate) publish_key: Option<String>,
@@ -475,7 +475,7 @@ where
                 publish_key,
                 subscribe_key: self.keyset.subscribe_key.into(),
                 secret_key,
-                user_id: user_id.into(),
+                user_id: Arc::new(user_id.into()),
             }),
             ..Default::default()
         }
@@ -557,7 +557,7 @@ mod should {
             publish_key: None,
             subscribe_key: "sub_key".into(),
             secret_key: Some("sec_key".into()),
-            user_id: "".into(),
+            user_id: Arc::new("".to_string()),
         };
 
         assert!(config.signature_key_set().is_err());
