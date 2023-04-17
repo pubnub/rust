@@ -131,7 +131,7 @@ where
     pub(crate) transport: T,
 
     /// Instance ID
-    #[builder(setter(strip_option), default = "Arc::new(Some(\"None\".to_string()))")]
+    #[builder(setter(strip_option), default = "Arc::new(None)")]
     pub(crate) instance_id: Arc<Option<String>>,
 
     /// Sequence number for the publish requests
