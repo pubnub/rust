@@ -25,6 +25,7 @@
 ///
 /// [`serde`]: https://crates.io/crates/serde
 /// [`dx`]: ../dx/index.html
+/// [`Serializer`]: ../core/trait.Serializer.html
 pub struct SerdeSerializer;
 
 impl<'se, T> crate::core::Serializer<'se, T> for SerdeSerializer

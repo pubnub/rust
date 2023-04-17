@@ -16,21 +16,21 @@ use super::PubNubError;
 /// trait over the [`dx`] selected by you in the Cargo.toml file.
 ///
 /// Features and their results:
-/// - `publish` - [`PublishResponse`]
-/// - `grant_token` - [`GrantTokenResponse`]
+/// - [`publish_message`] - [`PublishResult`]
+/// - [`grant_token`] - [`GrantTokenResult`]
+/// - [`revoke_token`] - [`RevokeTokenResult`]
 ///
 /// More information about the response of the PubNub API can be found in the
 /// [PubNub API Reference](https://www.pubnub.com/docs).
 ///
 /// # Examples
 /// ```no_run
-/// use pubnub::core::{Deserializer, PubNubError};
-/// use pubnub::publish::PublishResult;
+/// use pubnub::core::{Serializer, PubNubError};
 ///
-/// struct MyDeserializer;
+/// struct MySerializer;
 ///
-/// impl<'de> Deserializer<'de, PublishResult> for MyDeserializer {
-///    fn deserialize(&self, bytes: &'de [u8]) -> Result<PublishResult, PubNubError> {
+/// impl<'se, T> Serializer<'se, T> for MySerializer {
+///    fn serialize(&self, object: &'se T) -> Result<Vec<u8>, PubNubError> {
 ///         // ...
 ///         # unimplemented!()
 ///    }
@@ -38,6 +38,12 @@ use super::PubNubError;
 /// ```
 ///
 /// [`dx`]: ../dx/index.html
+/// [`PublishResult`]: ../dx/publish/struct.PublishResult.html
+/// [`GrantTokenResult`]: ../dx/access/struct.GrantTokenResult.html
+/// [`RevokeTokenResult`]: ../dx/access/struct.RevokeTokenResult.html
+/// [`publish_message`]: crate::dx::PubNubClient::publish_message
+/// [`grant_token`]: crate::dx::PubNubClient::grant_token
+/// [`revoke_token`]: crate::dx::PubNubClient::revoke_token
 pub trait Serializer<'se, T> {
     /// Serialize a `&T` into a `Result<Vec<u8>, PubNubError>`.
     ///

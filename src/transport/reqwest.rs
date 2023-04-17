@@ -60,6 +60,7 @@ impl Transport for TransportReqwest {
         let builder = match request.method {
             TransportMethod::Get => self.prepare_get_method(request, request_url),
             TransportMethod::Post => self.prepare_post_method(request, request_url),
+            TransportMethod::Delete => self.prepare_delete_method(request, request_url),
         }?;
 
         let result = builder
@@ -134,6 +135,14 @@ impl TransportReqwest {
                 "Body should not be empty for POST".into(),
             ))
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
+    }
+
+    fn prepare_delete_method(
+        &self,
+        _request: TransportRequest,
+        url: String,
+    ) -> Result<reqwest::RequestBuilder, PubNubError> {
+        Ok(self.reqwest_client.delete(url))
     }
 }
 

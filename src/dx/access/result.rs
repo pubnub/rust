@@ -49,7 +49,7 @@ pub enum GrantTokenResponseBody {
     ///   "service": "Access Manager"
     /// }
     /// ```
-    SuccessResponse(APISuccessBody<GrantTokenPayload>),
+    SuccessResponse(APISuccessBody<GrantTokenResponseBodyPayload>),
 
     /// This is an error response body for a grant token operation in the
     /// Access Manager service.
@@ -81,15 +81,54 @@ pub enum GrantTokenResponseBody {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum RevokeTokenResponseBody {
-    SuccessResponse(APISuccessBody<RevokeTokenPayload>),
+pub enum RevokeTokenResponseBody {
+    /// This is a success response body for a revoke token operation in the
+    /// Access Manager service.
+    /// It contains information about the service that gave the response and the
+    /// operation result message.
+    ///
+    /// #  Example
+    /// ```json
+    /// {
+    ///   "status": 200,
+    ///   "data": {
+    ///     "message": "Success",]
+    ///   },
+    ///   "service": "Access Manager"
+    /// }
+    /// ```
+    SuccessResponse(APISuccessBody<RevokeTokenResponseBodyPayload>),
+
+    /// This is an error response body for a revoke token operation in the
+    /// Access Manager service.
+    /// It contains information about the service that provided the response and
+    /// details of what exactly was wrong.
+    ///
+    /// # Example
+    /// ```json
+    /// {
+    ///     "error": {
+    ///         "message": "Invalid signature",
+    ///         "source": "grant",
+    ///         "details": [
+    ///             {
+    ///                 "message": "Client and server produced different signatures for the same inputs.",
+    ///                 "location": "signature",
+    ///                 "locationType": "query"
+    ///             }
+    ///         ]
+    ///     },
+    ///     "service": "Access Manager",
+    ///     "status": 403
+    /// }
+    /// ```
     ErrorResponse(APIErrorBody),
 }
 
 /// Token grant operation response payload.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct GrantTokenPayload {
+pub struct GrantTokenResponseBodyPayload {
     message: String,
     token: String,
 }
@@ -97,7 +136,7 @@ pub struct GrantTokenPayload {
 /// Token revoke operation response payload.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RevokeTokenPayload {
+pub struct RevokeTokenResponseBodyPayload {
     message: String,
 }
 
@@ -110,6 +149,17 @@ pub struct APISuccessBody<D> {
     status: i32,
     data: D,
     service: String,
+}
+
+impl TryFrom<RevokeTokenResponseBody> for RevokeTokenResult {
+    type Error = PubNubError;
+
+    fn try_from(value: RevokeTokenResponseBody) -> Result<Self, Self::Error> {
+        match value {
+            RevokeTokenResponseBody::SuccessResponse(_) => Ok(RevokeTokenResult),
+            RevokeTokenResponseBody::ErrorResponse(resp) => Err(resp.into()),
+        }
+    }
 }
 
 impl TryFrom<GrantTokenResponseBody> for GrantTokenResult {
