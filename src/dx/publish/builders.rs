@@ -227,9 +227,13 @@ where
     #[builder(setter(custom))]
     pub(super) seqn: u16,
 
-    // TODO: Moved to heap to avoid partial move, but this is not ideal. ref: mod.rs[1]
-    #[builder(setter(custom))]
-    pub(super) deserializer: Arc<D>,
+    /// Deserializer to deserialize the response with.
+    /// Note that the deserializer must implement the [`Deserializer`] trait for
+    /// the [`PublishResponseBody`] type.
+    /// [`Deserializer`]: crate::core::Deserializer
+    /// [`PublishResponseBody`]: crate::core::publish::PublishResponseBody
+    #[builder(setter(name = "deserialize_with"))]
+    pub(super) deserializer: D,
 
     /// Message to publish
     pub(super) message: M,
@@ -270,35 +274,4 @@ where
     /// Message type to publish.
     #[builder(setter(strip_option, into), default = "None")]
     pub(super) r#type: Option<String>,
-}
-
-impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
-where
-    M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
-{
-    /// Deserializer to deserialize the response with.
-    /// Note that the deserializer must implement the [`Deserializer`] trait for
-    /// the [`PublishResponseBody`] type.
-    /// [`Deserializer`]: crate::core::Deserializer
-    /// [`PublishResponseBody`]: crate::core::publish::PublishResponseBody
-    pub fn deserialize_with<D2>(self, deserializer: D2) -> PublishMessageViaChannelBuilder<T, M, D2>
-    where
-        D2: for<'de> Deserializer<'de, PublishResponseBody>,
-    {
-        PublishMessageViaChannelBuilder {
-            pub_nub_client: self.pub_nub_client,
-            channel: self.channel,
-            message: self.message,
-            seqn: self.seqn,
-            store: self.store,
-            replicate: self.replicate,
-            ttl: self.ttl,
-            use_post: self.use_post,
-            meta: self.meta,
-            space_id: self.space_id,
-            r#type: self.r#type,
-            deserializer: Some(Arc::new(deserializer)),
-        }
-    }
 }

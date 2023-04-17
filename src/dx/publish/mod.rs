@@ -31,6 +31,8 @@ use result::body_to_result;
 use std::{collections::HashMap, ops::Not};
 use urlencoding::encode;
 
+use super::pubnub_client::PubNubConfig;
+
 impl<T> PubNubClient<T> {
     /// Create a new publish message builder.
     /// This method is used to publish a message to a channel.
@@ -93,6 +95,24 @@ impl<T> PubNubClient<T> {
 
 impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
+    M: Serialize,
+    D: for<'de> Deserializer<'de, PublishResponseBody>,
+{
+    fn prepare_request(
+        self,
+    ) -> Result<PublishMessageContext<T, D, Result<TransportRequest, PubNubError>>, PubNubError>
+    {
+        let instance = self
+            .build()
+            .map_err(|err| PubNubError::PublishError(err.to_string()))?;
+
+        Ok(PublishMessageContext::from(instance)
+            .map_data(|client, _, params| params.create_transport_request(&client.config)))
+    }
+}
+
+impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
+where
     T: Transport,
     M: Serialize,
     D: for<'de> Deserializer<'de, PublishResponseBody>,
@@ -129,27 +149,27 @@ where
     /// [`PublishResponse`]: struct.PublishResponse.html
     /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
-        let instance = self
-            .build()
-            .map_err(|err| PubNubError::PublishError(err.to_string()))?;
-
-        let client: PubNubClient<_> = instance.pub_nub_client.clone();
-
-        // TODO: ref: builders.rs[1]
-        let deserializer = instance.deserializer.clone();
-
-        instance
-            .create_transport_request()
-            .map(|request| async move { Self::send_request(&client.transport, request).await })?
+        self.prepare_request()?
+            .map_data(
+                |client, _, request| async move { Self::send_request(client, request?).await },
+            )
+            .map(|async_message| async move {
+                PublishMessageContext {
+                    client: async_message.client,
+                    deserializer: async_message.deserializer,
+                    data: async_message.data.await,
+                }
+            })
             .await
-            .map(|response| response_to_result(&*deserializer, response))?
+            .map_data(|_, deserializer, resposne| response_to_result(deserializer, resposne?))
+            .data
     }
 
     async fn send_request(
-        transport: &T,
+        client: PubNubClient<T>,
         request: TransportRequest,
     ) -> Result<TransportResponse, PubNubError> {
-        transport.send(request).await
+        client.transport.send(request).await
     }
 }
 
@@ -192,19 +212,10 @@ where
     /// [`PublishResponse`]: struct.PublishResponse.html
     /// [`PubNubError`]: enum.PubNubError.html
     pub fn execute_blocking(self) -> Result<PublishResult, PubNubError> {
-        let instance = self
-            .build()
-            .map_err(|err| PubNubError::PublishError(err.to_string()))?;
-
-        let client: PubNubClient<_> = instance.pub_nub_client.clone();
-
-        // TODO: ref: builders.rs[1]
-        let deserializer = instance.deserializer.clone();
-
-        instance
-            .create_transport_request()
-            .map(|request| Self::send_blocking_request(&client.transport, request))?
-            .map(|response| response_to_result(&*deserializer, response))?
+        self.prepare_request()?
+            .map_data(|client, _, request| Self::send_blocking_request(&client.transport, request?))
+            .map_data(|_, deserializer, response| response_to_result(deserializer, response?))
+            .data
     }
 
     fn send_blocking_request(
@@ -215,10 +226,9 @@ where
     }
 }
 
-impl<T, M, D> PublishMessageViaChannel<T, M, D>
+impl<M> PublishMessageParams<M>
 where
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     fn prepare_publish_query_params(&self) -> HashMap<String, String> {
         let mut query_params: HashMap<String, String> = HashMap::new();
@@ -252,16 +262,17 @@ where
     }
 
     // TODO: create test for path creation!
-    fn create_transport_request(self) -> Result<TransportRequest, PubNubError> {
+    fn create_transport_request(
+        self,
+        config: &PubNubConfig,
+    ) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
 
-        let pub_key = &self
-            .pub_nub_client
-            .config
+        let pub_key = config
             .publish_key
             .as_ref()
             .ok_or_else(|| PubNubError::PublishError("Publish key is not set".into()))?;
-        let sub_key = &self.pub_nub_client.config.subscribe_key;
+        let sub_key = &config.subscribe_key;
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
@@ -292,6 +303,78 @@ where
                 })
         }
     }
+}
+
+struct PublishMessageContext<T, D, X> {
+    client: PubNubClient<T>,
+    deserializer: D,
+    data: X,
+}
+
+impl<T, D, M> From<PublishMessageViaChannel<T, M, D>>
+    for PublishMessageContext<T, D, PublishMessageParams<M>>
+where
+    M: Serialize,
+    D: for<'de> Deserializer<'de, PublishResponseBody>,
+{
+    fn from(value: PublishMessageViaChannel<T, M, D>) -> Self {
+        Self {
+            client: value.pub_nub_client,
+            deserializer: value.deserializer,
+            data: PublishMessageParams {
+                channel: value.channel,
+                message: value.message,
+                store: value.store,
+                ttl: value.ttl,
+                meta: value.meta,
+                seqn: value.seqn,
+                replicate: value.replicate,
+                use_post: value.use_post,
+                space_id: value.space_id,
+                r#type: value.r#type,
+            },
+        }
+    }
+}
+
+impl<T, D, X> PublishMessageContext<T, D, X>
+where
+    D: for<'de> Deserializer<'de, PublishResponseBody>,
+{
+    fn map_data<F, Y>(self, f: F) -> PublishMessageContext<T, D, Y>
+    where
+        F: FnOnce(PubNubClient<T>, &D, X) -> Y,
+    {
+        let client = self.client;
+        let deserializer = self.deserializer;
+        let data = f(client.clone(), &deserializer, self.data);
+
+        PublishMessageContext {
+            client,
+            deserializer,
+            data,
+        }
+    }
+
+    fn map<F, Y>(self, f: F) -> Y
+    where
+        F: FnOnce(Self) -> Y,
+    {
+        f(self)
+    }
+}
+
+struct PublishMessageParams<M> {
+    message: M,
+    seqn: u16,
+    channel: String,
+    store: Option<bool>,
+    replicate: bool,
+    ttl: Option<u32>,
+    use_post: bool,
+    meta: Option<HashMap<String, String>>,
+    space_id: Option<String>,
+    r#type: Option<String>,
 }
 
 fn bool_to_numeric(value: bool) -> String {
