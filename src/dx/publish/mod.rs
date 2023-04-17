@@ -98,7 +98,7 @@ where
     M: Serialize,
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
-    fn prepare_request(
+    fn prepare_context_with_request(
         self,
     ) -> Result<PublishMessageContext<T, D, Result<TransportRequest, PubNubError>>, PubNubError>
     {
@@ -149,7 +149,7 @@ where
     /// [`PublishResponse`]: struct.PublishResponse.html
     /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
-        self.prepare_request()?
+        self.prepare_context_with_request()?
             .map_data(
                 |client, _, request| async move { Self::send_request(client, request?).await },
             )
@@ -212,7 +212,7 @@ where
     /// [`PublishResponse`]: struct.PublishResponse.html
     /// [`PubNubError`]: enum.PubNubError.html
     pub fn execute_blocking(self) -> Result<PublishResult, PubNubError> {
-        self.prepare_request()?
+        self.prepare_context_with_request()?
             .map_data(|client, _, request| Self::send_blocking_request(&client.transport, request?))
             .map_data(|_, deserializer, response| response_to_result(deserializer, response?))
             .data
@@ -504,9 +504,7 @@ mod should {
             .space_id("space_id")
             .r#type("message_type")
             .meta(HashMap::from([("k".to_string(), "v".to_string())]))
-            .build()
-            .unwrap()
-            .create_transport_request()
+            .prepare_context_with_request()
             .unwrap();
 
         assert_eq!(
@@ -519,7 +517,7 @@ mod should {
                 ("ttl".into(), "50".into()),
                 ("seqn".into(), "1".into())
             ]),
-            result.query_parameters
+            result.data.unwrap().query_parameters
         );
     }
 
@@ -570,9 +568,7 @@ mod should {
         let result = client
             .publish_message(message)
             .channel(channel.clone())
-            .build()
-            .unwrap()
-            .create_transport_request()
+            .prepare_context_with_request()
             .unwrap();
 
         assert_eq!(
@@ -581,7 +577,7 @@ mod should {
                 channel,
                 encode(&format!("\"{}\"", message))
             ),
-            result.path
+            result.data.unwrap().path
         );
     }
 
@@ -594,14 +590,12 @@ mod should {
         let result = client
             .publish_message(message)
             .channel(channel.clone())
-            .build()
-            .unwrap()
-            .create_transport_request()
+            .prepare_context_with_request()
             .unwrap();
 
         assert_eq!(
             format!("publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
-            result.path
+            result.data.unwrap().path
         );
     }
 
@@ -615,15 +609,14 @@ mod should {
             .publish_message(message)
             .channel(channel.clone())
             .use_post(true)
-            .build()
-            .unwrap()
-            .create_transport_request()
+            .prepare_context_with_request()
             .unwrap();
 
-        assert_eq!(format!("publish///0/{}/0", channel), result.path);
+        let result_data = result.data.unwrap();
+        assert_eq!(format!("publish///0/{}/0", channel), result_data.path);
         assert_eq!(
             format!("\"{}\"", message),
-            String::from_utf8(result.body.unwrap()).unwrap()
+            String::from_utf8(result_data.body.unwrap()).unwrap()
         );
     }
 
