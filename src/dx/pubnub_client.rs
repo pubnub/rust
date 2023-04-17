@@ -131,7 +131,10 @@ where
     pub(crate) transport: T,
 
     /// Instance ID
-    #[builder(field(type = "&'static str", build = "Arc::new(Some(self.instance_id.to_string()))"))]
+    #[builder(field(
+        type = "&'static str",
+        build = "Arc::new(Some(self.instance_id.to_string()))"
+    ))]
     pub(crate) instance_id: Arc<Option<String>>,
 
     /// Sequence number for the publish requests
