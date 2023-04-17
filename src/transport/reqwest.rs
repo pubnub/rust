@@ -20,8 +20,9 @@ use crate::{
     },
     PubNubClientBuilder,
 };
+use bytes::Bytes;
 use log::info;
-use reqwest::header::HeaderMap;
+use reqwest::{header::HeaderMap, StatusCode};
 use std::collections::HashMap;
 use urlencoding::encode;
 
@@ -71,16 +72,12 @@ impl Transport for TransportReqwest {
             .await
             .map_err(|e| TransportError(e.to_string()))?;
 
-        Ok(TransportResponse {
-            status: result.status().as_u16(),
-            body: result
-                .bytes()
-                .await
-                .map(|b| b.to_vec())
-                .map(|b| (!b.is_empty()).then_some(b))
-                .map_err(|e| TransportError(e.to_string()))?,
-            ..Default::default()
-        })
+        let status = result.status();
+        result
+            .bytes()
+            .await
+            .map_err(|e| TransportError(e.to_string()))
+            .and_then(|bytes| create_result(status, bytes))
     }
 }
 
@@ -157,6 +154,14 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
     qp
 }
 
+fn create_result(status: StatusCode, body: Bytes) -> Result<TransportResponse, PubNubError> {
+    Ok(TransportResponse {
+        status: status.as_u16(),
+        body: (!body.is_empty()).then(|| body.to_vec()),
+        ..Default::default()
+    })
+}
+
 impl PubNubClientBuilder<TransportReqwest> {
     /// Creates a new [`PubNubClientBuilder`] with the default [`TransportReqwest`] transport.
     /// The default transport uses the [`reqwest`] crate to send requests to the [`PubNub API`].
@@ -210,7 +215,7 @@ pub mod blocking {
 
     use crate::{
         core::{PubNubError, TransportMethod, TransportRequest, TransportResponse},
-        transport::reqwest::{prepare_headers, prepare_url},
+        transport::reqwest::{create_result, prepare_headers, prepare_url},
         PubNubClientBuilder,
     };
 
@@ -258,15 +263,11 @@ pub mod blocking {
                 .send()
                 .map_err(|e| PubNubError::TransportError(e.to_string()))?;
 
-            Ok(TransportResponse {
-                status: result.status().as_u16(),
-                body: result
-                    .bytes()
-                    .map(|b| b.to_vec())
-                    .map(|b| (!b.is_empty()).then_some(b))
-                    .map_err(|e| PubNubError::TransportError(e.to_string()))?,
-                ..Default::default()
-            })
+            let status = result.status();
+            result
+                .bytes()
+                .map_err(|e| PubNubError::TransportError(e.to_string()))
+                .and_then(|bytes| create_result(status, bytes))
         }
     }
 
