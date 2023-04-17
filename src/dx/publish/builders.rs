@@ -10,7 +10,7 @@ use crate::{
     dx::PubNubClient,
 };
 use derive_builder::Builder;
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///

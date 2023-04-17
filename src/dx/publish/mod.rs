@@ -100,14 +100,20 @@ where
 {
     fn prepare_context_with_request(
         self,
-    ) -> Result<PublishMessageContext<T, D, Result<TransportRequest, PubNubError>>, PubNubError>
-    {
+    ) -> Result<PublishMessageContext<T, D, TransportRequest>, PubNubError> {
         let instance = self
             .build()
             .map_err(|err| PubNubError::PublishError(err.to_string()))?;
 
-        Ok(PublishMessageContext::from(instance)
-            .map_data(|client, _, params| params.create_transport_request(&client.config)))
+        PublishMessageContext::from(instance)
+            .map_data(|client, _, params| params.create_transport_request(&client.config))
+            .map(|ctx| {
+                Ok(PublishMessageContext {
+                    client: ctx.client,
+                    deserializer: ctx.deserializer,
+                    data: ctx.data?,
+                })
+            })
     }
 }
 
@@ -150,9 +156,7 @@ where
     /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
         self.prepare_context_with_request()?
-            .map_data(
-                |client, _, request| async move { Self::send_request(client, request?).await },
-            )
+            .map_data(|client, _, request| async move { Self::send_request(client, request).await })
             .map(|async_message| async move {
                 PublishMessageContext {
                     client: async_message.client,
@@ -213,7 +217,7 @@ where
     /// [`PubNubError`]: enum.PubNubError.html
     pub fn execute_blocking(self) -> Result<PublishResult, PubNubError> {
         self.prepare_context_with_request()?
-            .map_data(|client, _, request| Self::send_blocking_request(&client.transport, request?))
+            .map_data(|client, _, request| Self::send_blocking_request(&client.transport, request))
             .map_data(|_, deserializer, response| response_to_result(deserializer, response?))
             .data
     }
@@ -517,7 +521,7 @@ mod should {
                 ("ttl".into(), "50".into()),
                 ("seqn".into(), "1".into())
             ]),
-            result.data.unwrap().query_parameters
+            result.data.query_parameters
         );
     }
 
@@ -577,7 +581,7 @@ mod should {
                 channel,
                 encode(&format!("\"{}\"", message))
             ),
-            result.data.unwrap().path
+            result.data.path
         );
     }
 
@@ -595,7 +599,7 @@ mod should {
 
         assert_eq!(
             format!("publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
-            result.data.unwrap().path
+            result.data.path
         );
     }
 
@@ -612,7 +616,7 @@ mod should {
             .prepare_context_with_request()
             .unwrap();
 
-        let result_data = result.data.unwrap();
+        let result_data = result.data;
         assert_eq!(format!("publish///0/{}/0", channel), result_data.path);
         assert_eq!(
             format!("\"{}\"", message),
