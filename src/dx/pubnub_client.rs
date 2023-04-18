@@ -99,13 +99,24 @@ pub(crate) const SDK_ID: &str = "PubNub-Rust";
 /// [`Keyset`]: ../core/struct.Keyset.html
 /// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
 #[derive(Debug)]
-pub struct PubNubClient<T>
-where
-    T: Transport,
-{
-    // TODO: how about Rc and blocking calls?
-    //       or should we be always async library?
+pub struct PubNubClient<T> {
     pub(crate) inner: Arc<PubNubClientRef<T>>,
+}
+
+impl<T> Deref for PubNubClient<T> {
+    type Target = PubNubClientRef<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> Clone for PubNubClient<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
 }
 
 /// Client reference
@@ -123,10 +134,7 @@ where
     build_fn(private, name = "build_internal"),
     setter(prefix = "with")
 )]
-pub struct PubNubClientRef<T>
-where
-    T: Transport,
-{
+pub struct PubNubClientRef<T> {
     /// Transport layer
     pub(crate) transport: T,
 
@@ -145,10 +153,7 @@ where
     pub(crate) config: PubNubConfig,
 }
 
-impl<T> PubNubClient<T>
-where
-    T: Transport,
-{
+impl<T> PubNubClient<T> {
     /// Create a new builder for [`PubNubClient`]
     ///
     /// # Examples
@@ -162,7 +167,8 @@ where
     /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
     /// #         unimplemented!()
     /// #     }
-    /// # }
+    /// #  }
+    /// #
     /// # impl MyTransport {
     /// #     fn new() -> Self {
     /// #         Self
@@ -187,39 +193,65 @@ where
     /// ```
     ///
     /// [`PubNubClient`]: struct.PubNubClient.html
-    pub fn with_transport(transport: T) -> PubNubClientBuilder<T> {
+    pub fn with_transport(transport: T) -> PubNubClientBuilder<T>
+    where
+        T: Transport,
+    {
+        PubNubClientBuilder {
+            transport: Some(transport),
+        }
+    }
+
+    /// Create a new builder for [`PubNubClient`]
+    ///
+    /// # Examples
+    /// ```
+    /// use pubnub::{PubNubClient, Keyset};
+    ///
+    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
+    /// # struct MyTransport;
+    /// # #[async_trait::async_trait]
+    /// # impl pubnub::core::blocking::Transport for MyTransport {
+    /// #     fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
+    /// #         unimplemented!()
+    /// #     }
+    /// #  }
+    /// #
+    /// # impl MyTransport {
+    /// #     fn new() -> Self {
+    /// #         Self
+    /// #     }
+    /// # }
+    ///
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// // note that MyTransport must implement the `Transport` trait
+    /// let transport = MyTransport::new();
+    ///
+    /// let builder = PubNubClient::with_blocking_transport(transport)
+    ///     .with_keyset(Keyset {
+    ///        publish_key: Some("pub-c-abc123"),
+    ///        subscribe_key: "sub-c-abc123",
+    ///        secret_key: None,
+    ///     })
+    ///     .with_user_id("my-user-id")
+    ///     .build()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`PubNubClient`]: struct.PubNubClient.html
+    pub fn with_blocking_transport(transport: T) -> PubNubClientBuilder<T>
+    where
+        T: crate::core::blocking::Transport,
+    {
         PubNubClientBuilder {
             transport: Some(transport),
         }
     }
 }
 
-impl<T> Deref for PubNubClient<T>
-where
-    T: Transport,
-{
-    type Target = PubNubClientRef<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> Clone for PubNubClient<T>
-where
-    T: Transport,
-{
-    fn clone(&self) -> Self {
-        Self {
-            inner: Arc::clone(&self.inner),
-        }
-    }
-}
-
-impl<T> PubNubClientConfigBuilder<T>
-where
-    T: Transport,
-{
+impl<T> PubNubClientConfigBuilder<T> {
     /// Build a [`PubNubClient`] from the builder
     ///
     /// [`PubNubClient`]: struct.PubNubClient.html
@@ -300,26 +332,17 @@ impl PubNubConfig {
 ///
 /// [`PubNubClient`]: struct.PubNubClient.html
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PubNubClientBuilder<T>
-where
-    T: Transport,
-{
+pub struct PubNubClientBuilder<T> {
     pub(crate) transport: Option<T>,
 }
 
-impl<T> Default for PubNubClientBuilder<T>
-where
-    T: Transport,
-{
+impl<T> Default for PubNubClientBuilder<T> {
     fn default() -> Self {
         Self { transport: None }
     }
 }
 
-impl<T> PubNubClientBuilder<T>
-where
-    T: Transport,
-{
+impl<T> PubNubClientBuilder<T> {
     /// Create a new builder without transport
     ///
     /// # Examples
@@ -353,7 +376,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use pubnub::{PubNubClient, Keyset};
+    /// use pubnub::{PubNubClientBuilder, Keyset};
     ///
     /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
     /// # struct MyTransport;
@@ -369,10 +392,21 @@ where
     /// #     }
     /// # }
     ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClient::with_transport(transport);
+    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    ///                     .with_transport(transport)
+    ///                     .with_keyset(Keyset {
+    ///                         publish_key: Some("pub-c-abc123"),
+    ///                         subscribe_key: "sub-c-abc123",
+    ///                         secret_key: None,
+    ///                     })
+    ///                     .with_user_id("my-user-id")
+    ///                     .build()?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn with_transport<U>(self, transport: U) -> PubNubClientBuilder<U>
     where
@@ -383,6 +417,49 @@ where
         }
     }
 
+    /// Set the blocking transport layer for the client
+    ///
+    /// # Examples
+    /// ```
+    /// use pubnub::{PubNubClientBuilder, Keyset};
+    ///
+    /// # use pubnub::core::{blocking::Transport, TransportRequest, TransportResponse, PubNubError};
+    /// # struct MyTransport;
+    /// # impl Transport for MyTransport {
+    /// #     fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
+    /// #         unimplemented!()
+    /// #     }
+    /// # }
+    /// # impl MyTransport {
+    /// #     fn new() -> Self {
+    /// #         Self
+    /// #     }
+    /// # }
+    ///
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// // note that MyTransport must implement the `Transport` trait
+    /// let transport = MyTransport::new();
+    ///
+    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    ///                     .with_blocking_transport(transport)
+    ///                     .with_keyset(Keyset {
+    ///                         publish_key: Some("pub-c-abc123"),
+    ///                         subscribe_key: "sub-c-abc123",
+    ///                         secret_key: None,
+    ///                     })
+    ///                     .with_user_id("my-user-id")
+    ///                     .build()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_blocking_transport<U>(self, transport: U) -> PubNubClientBuilder<U>
+    where
+        U: crate::core::blocking::Transport,
+    {
+        PubNubClientBuilder {
+            transport: Some(transport),
+        }
+    }
     /// Set the keyset for the client
     ///
     /// It returns [`PubNubClientUserIdBuilder`] builder that you can use
@@ -446,7 +523,6 @@ where
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubClientUserIdBuilder<T, S>
 where
-    T: Transport,
     S: Into<String>,
 {
     transport: Option<T>,
@@ -455,7 +531,6 @@ where
 
 impl<T, S> PubNubClientUserIdBuilder<T, S>
 where
-    T: Transport,
     S: Into<String>,
 {
     /// Set UUID for the client

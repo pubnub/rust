@@ -22,6 +22,7 @@ urlencoding = "2.1.2"
 hmac = "0.12"
 sha2 = "0.10"
 base64 = "0.21"
+bytes = "1.4"
 
 # serde
 serde = { version = "1.0", features = ["derive"], optional = true }
@@ -54,11 +55,12 @@ harness = false
 required-features = ["contract_test"]
 
 [features]
-full = ["serde", "reqwest", "aescbc", "parse_token"]
+full = ["serde", "reqwest", "aescbc", "parse_token", "blocking"]
 default = ["serde", "reqwest", "aescbc"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
+blocking = ["reqwest?/blocking"]
 contract_test = []
 parse_token = ["dep:ciborium"]
 
@@ -66,3 +68,6 @@ parse_token = ["dep:ciborium"]
 name = "publish"
 required-features = ["default"]
 
+[[example]]
+name = "publish_blocking"
+required-features = ["default", "blocking"]

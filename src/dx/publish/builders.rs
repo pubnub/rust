@@ -6,7 +6,7 @@ use super::PublishResponseBody;
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
-    core::{Deserializer, Serialize, Transport},
+    core::{Deserializer, Serialize},
     dx::PubNubClient,
 };
 use derive_builder::Builder;
@@ -49,7 +49,6 @@ use std::{collections::HashMap, sync::Arc};
 /// [`PubNub`]:https://www.pubnub.com/
 pub struct PublishMessageBuilder<T, M>
 where
-    T: Transport,
     M: Serialize,
 {
     pub(super) pub_nub_client: PubNubClient<T>,
@@ -59,7 +58,6 @@ where
 
 impl<T, M> PublishMessageBuilder<T, M>
 where
-    T: Transport,
     M: Serialize,
 {
     /// The [`channel`] method is used to set the channel to publish the message to.
@@ -148,7 +146,6 @@ where
 #[cfg(not(feature = "serde"))]
 pub struct PublishMessageDeserializerBuilder<T, M>
 where
-    T: Transport,
     M: Serialize,
 {
     pub_nub_client: PubNubClient<T>,
@@ -160,7 +157,6 @@ where
 #[cfg(not(feature = "serde"))]
 impl<T, M> PublishMessageDeserializerBuilder<T, M>
 where
-    T: Transport,
     M: Serialize,
 {
     /// The [`deserialize_with`] method is used to set the deserializer to deserialize the response with.
@@ -222,7 +218,6 @@ where
 #[builder(pattern = "owned", build_fn(vis = "pub(super)"))]
 pub struct PublishMessageViaChannel<T, M, D>
 where
-    T: Transport,
     M: Serialize,
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
@@ -279,7 +274,6 @@ where
 
 impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
-    T: Transport,
     M: Serialize,
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
