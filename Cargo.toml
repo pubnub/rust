@@ -63,3 +63,7 @@ contract_test = []
 name = "publish"
 required-features = ["default"]
 
+[[example]]
+name = "pam"
+required-features = ["default"]
+

@@ -48,11 +48,63 @@ pub enum ResourceType {
     UserId,
 }
 
+/// `Channel` permission.
+///
+/// Single `channel` permission information.
+///
+/// # Example
+/// ```rust, no_run
+/// # use pubnub::dx::access::permissions::{self, ChannelPermission, Permission};
+/// #
+/// let channel_permission = // Channel
+/// #    permissions::channel("my-channel")
+///     .get()
+///     .manage();
+/// ```
+pub struct ChannelPermission {
+    name: String,
+    bits: u8,
+}
+
+/// `Channel group` permission.
+///
+/// Single `channel group` permission information.
+///
+/// # Example
+/// ```rust, no_run
+/// # use pubnub::dx::access::permissions::{self, Permission, ChannelGroupPermission};
+/// #
+/// let channel_permission = // ChannelGroup
+/// #    permissions::channel_group("my-channel-group")
+///     .read();
+/// ```
+pub struct ChannelGroupPermission {
+    name: String,
+    bits: u8,
+}
+
+/// `UserId` permission.
+///
+/// Single `userId` permission information.
+///
+/// # Example
+/// ```rust, no_run
+/// # use pubnub::dx::access::permissions::{self, Permission, UserIdPermission};
+/// #
+/// let channel_permission = // UserId
+/// #    permissions::user_id("my-user-id")
+///     .update();
+/// ```
+pub struct UserIdPermission {
+    id: String,
+    bits: u8,
+}
+
 /// `Channel`-based endpoint permissions.
 ///
 /// Trait contains methods to configure permissions to access endpoints related
 /// to `channels`.
-pub trait ChannelPermission {
+impl ChannelPermission {
     /// Resource **read** permissions.
     ///
     /// This permission for channel (including `channel-pnpres`) allows to:
@@ -68,7 +120,10 @@ pub trait ChannelPermission {
     /// * download files
     /// * register for push notifications
     /// * unregister from push notifications
-    fn read(self) -> Self;
+    pub fn read(mut self) -> Box<Self> {
+        self.bits |= READ;
+        Box::new(self)
+    }
 
     /// Resource **write** permissions.
     ///
@@ -77,7 +132,10 @@ pub trait ChannelPermission {
     /// * add message action
     /// * send signal
     /// * send file
-    fn write(self) -> Self;
+    pub fn write(mut self) -> Box<Self> {
+        self.bits |= WRITE;
+        Box::new(self)
+    }
 
     /// Resource **delete** permissions.
     ///
@@ -86,138 +144,52 @@ pub trait ChannelPermission {
     /// * delete message action
     /// * delete file
     /// * delete channel metadata
-    fn delete(self) -> Self;
+    pub fn delete(mut self) -> Box<Self> {
+        self.bits |= DELETE;
+        Box::new(self)
+    }
 
     /// Resource **get** permissions.
     ///
     /// This permission for channel allows to:
     /// * get channel metadata
     /// * get channel members
-    fn get(self) -> Self;
+    pub fn get(mut self) -> Box<Self> {
+        self.bits |= GET;
+        Box::new(self)
+    }
 
     /// Resource **update** permissions.
     ///
     /// This permission for channel allows to:
     /// * set channel metadata
-    fn update(self) -> Self;
+    pub fn update(mut self) -> Box<Self> {
+        self.bits |= UPDATE;
+        Box::new(self)
+    }
 
     /// Resource **manage** permissions.
     ///
     /// This permission for channel allows to:
     /// * set channel members
     /// * remove channel members
-    fn manage(self) -> Self;
+    pub fn manage(mut self) -> Box<Self> {
+        self.bits |= MANAGE;
+        Box::new(self)
+    }
 
     /// Resource **join** permissions.
     ///
     /// This permission for channel allows to:
     /// * set channel memberships
     /// * remove channel memberships
-    fn join(self) -> Self;
+    pub fn join(mut self) -> Box<Self> {
+        self.bits |= JOIN;
+        Box::new(self)
+    }
 }
 
-/// `Channel group`-based endpoint permissions.
-///
-/// Trait contains methods to configure permissions to access endpoints related
-/// to `channel groups`.
-pub trait ChannelGroupPermission {
-    /// Resource **read** permissions.
-    ///
-    /// This permission for channel groups (including `channel-group-pnpres`)
-    /// allows to:
-    /// * subscribe
-    fn read(self) -> Self;
-
-    /// Resource **manage** permissions.
-    ///
-    /// This permission for channel groups allows to:
-    /// * add channels to channel group
-    /// * remove channels from channel group
-    /// * list channels in channel group
-    /// * remove channel group
-    fn manage(self) -> Self;
-}
-
-/// `UserId`-based endpoint permissions.
-///
-/// Trait contains methods to configure permissions to access endpoints related
-/// to `UserId`.
-pub trait UserIdPermission {
-    /// Resource **get** permissions.
-    ///
-    /// This permission for user ids allows to:
-    /// * get user metadata
-    /// * get channel memberships
-    fn get(self) -> Self;
-
-    /// Resource **update** permissions.
-    ///
-    /// This permission for user ids allows to:
-    /// * set user metadata
-    /// * set channel memberships
-    /// * remove channel memberships
-    fn update(self) -> Self;
-
-    /// Resource **delete** permissions.
-    ///
-    /// This permission for user ids allows to:
-    /// * delete user metadata
-    fn delete(self) -> Self;
-}
-
-/// `Channel` permission.
-///
-/// Single `channel` permission information.
-///
-/// # Example
-/// ```rust, no_run
-/// # use pubnub::dx::access::permissions::{self, Channel, Permission, ChannelPermission};
-/// #
-/// let channel_permission = // Channel
-/// #    permissions::channel("my-channel")
-///     .get()
-///     .manage();
-/// ```
-pub struct Channel {
-    name: String,
-    bits: u8,
-}
-
-/// `Channel group` permission.
-///
-/// Single `channel group` permission information.
-///
-/// # Example
-/// ```rust, no_run
-/// # use pubnub::dx::access::permissions::{self, Permission, ChannelGroup, ChannelGroupPermission};
-/// #
-/// let channel_permission = // ChannelGroup
-/// #    permissions::channel_group("my-channel-group")
-///     .read();
-/// ```
-pub struct ChannelGroup {
-    name: String,
-    bits: u8,
-}
-
-/// `UserId` permission.
-///
-/// Single `userId` permission information.
-///
-/// # Example
-/// ```rust, no_run
-/// # use pubnub::dx::access::permissions::{self, Permission, UserId, UserIdPermission};
-/// #
-/// let channel_permission = // UserId
-/// #    permissions::user_id("my-user-id")
-///     .update();
-/// ```
-pub struct UserId {
-    id: String,
-    bits: u8,
-}
-
-impl Permission for Channel {
+impl Permission for ChannelPermission {
     fn id(&self) -> &String {
         &self.name
     }
@@ -231,7 +203,35 @@ impl Permission for Channel {
     }
 }
 
-impl Permission for ChannelGroup {
+/// `Channel group`-based endpoint permissions.
+///
+/// Trait contains methods to configure permissions to access endpoints related
+/// to `channel groups`.
+impl ChannelGroupPermission {
+    /// Resource **read** permissions.
+    ///
+    /// This permission for channel groups (including `channel-group-pnpres`)
+    /// allows to:
+    /// * subscribe
+    pub fn read(mut self) -> Box<Self> {
+        self.bits |= READ;
+        Box::new(self)
+    }
+
+    /// Resource **manage** permissions.
+    ///
+    /// This permission for channel groups allows to:
+    /// * add channels to channel group
+    /// * remove channels from channel group
+    /// * list channels in channel group
+    /// * remove channel group
+    pub fn manage(mut self) -> Box<Self> {
+        self.bits |= MANAGE;
+        Box::new(self)
+    }
+}
+
+impl Permission for ChannelGroupPermission {
     fn id(&self) -> &String {
         &self.name
     }
@@ -245,7 +245,43 @@ impl Permission for ChannelGroup {
     }
 }
 
-impl Permission for UserId {
+/// `UserId`-based endpoint permissions.
+///
+/// Trait contains methods to configure permissions to access endpoints related
+/// to `UserId`.
+impl UserIdPermission {
+    /// Resource **get** permissions.
+    ///
+    /// This permission for user ids allows to:
+    /// * get user metadata
+    /// * get channel memberships
+    pub fn get(mut self) -> Box<Self> {
+        self.bits |= GET;
+        Box::new(self)
+    }
+
+    /// Resource **update** permissions.
+    ///
+    /// This permission for user ids allows to:
+    /// * set user metadata
+    /// * set channel memberships
+    /// * remove channel memberships
+    pub fn update(mut self) -> Box<Self> {
+        self.bits |= UPDATE;
+        Box::new(self)
+    }
+
+    /// Resource **delete** permissions.
+    ///
+    /// This permission for user ids allows to:
+    /// * delete user metadata
+    pub fn delete(mut self) -> Box<Self> {
+        self.bits |= DELETE;
+        Box::new(self)
+    }
+}
+
+impl Permission for UserIdPermission {
     fn id(&self) -> &String {
         &self.id
     }
@@ -259,71 +295,6 @@ impl Permission for UserId {
     }
 }
 
-impl ChannelPermission for Box<Channel> {
-    fn read(mut self) -> Self {
-        self.bits |= READ;
-        self
-    }
-
-    fn write(mut self) -> Self {
-        self.bits |= WRITE;
-        self
-    }
-
-    fn delete(mut self) -> Self {
-        self.bits |= DELETE;
-        self
-    }
-
-    fn get(mut self) -> Self {
-        self.bits |= GET;
-        self
-    }
-
-    fn update(mut self) -> Self {
-        self.bits |= UPDATE;
-        self
-    }
-
-    fn manage(mut self) -> Self {
-        self.bits |= MANAGE;
-        self
-    }
-
-    fn join(mut self) -> Self {
-        self.bits |= JOIN;
-        self
-    }
-}
-
-impl ChannelGroupPermission for Box<ChannelGroup> {
-    fn read(mut self) -> Self {
-        self.bits |= READ;
-        self
-    }
-    fn manage(mut self) -> Self {
-        self.bits |= MANAGE;
-        self
-    }
-}
-
-impl UserIdPermission for Box<UserId> {
-    fn get(mut self) -> Self {
-        self.bits |= GET;
-        self
-    }
-
-    fn update(mut self) -> Self {
-        self.bits |= UPDATE;
-        self
-    }
-
-    fn delete(mut self) -> Self {
-        self.bits |= DELETE;
-        self
-    }
-}
-
 /// Grant permission to the `channel`.
 ///
 /// Create a `channel` permission information object that can be used to specify
@@ -331,16 +302,16 @@ impl UserIdPermission for Box<UserId> {
 ///
 /// # Example
 /// ```rust
-/// # use pubnub::dx::access::permissions::{self, Channel, Permission, ChannelPermission};
+/// # use pubnub::dx::access::permissions::{self, Permission, ChannelPermission};
 /// #
 /// let channel_permission = permissions::channel("my-channel").get().manage();
 /// # assert_eq!(channel_permission.value(), &0b0010_0100);
 /// ```
-pub fn channel<N>(name: N) -> Box<Channel>
+pub fn channel<N>(name: N) -> Box<ChannelPermission>
 where
     N: Into<String>,
 {
-    Box::new(Channel {
+    Box::new(ChannelPermission {
         name: name.into(),
         bits: 0,
     })
@@ -353,17 +324,17 @@ where
 ///
 /// # Example
 /// ```rust
-/// # use pubnub::dx::access::permissions::{self, Permission, ChannelGroup, ChannelGroupPermission};
+/// # use pubnub::dx::access::permissions::{self, Permission, ChannelGroupPermission};
 /// #
 /// let channel_group_permission = permissions::channel_group("my-channel-group")
 ///     .read();
 /// # assert_eq!(channel_group_permission.value(), &0b0000_0001);
 /// ```
-pub fn channel_group<N>(name: N) -> Box<ChannelGroup>
+pub fn channel_group<N>(name: N) -> Box<ChannelGroupPermission>
 where
     N: Into<String>,
 {
-    Box::new(ChannelGroup {
+    Box::new(ChannelGroupPermission {
         name: name.into(),
         bits: 0,
     })
@@ -376,17 +347,17 @@ where
 ///
 /// # Example
 /// ```rust
-/// # use pubnub::dx::access::permissions::{self, Permission, UserId, UserIdPermission};
+/// # use pubnub::dx::access::permissions::{self, Permission, UserIdPermission};
 /// #
 /// let channel_group_permission = permissions::user_id("my-user-id")
 ///     .update();
 /// # assert_eq!(channel_group_permission.value(), &0b0100_0000);
 /// ```
-pub fn user_id<I>(id: I) -> Box<UserId>
+pub fn user_id<I>(id: I) -> Box<UserIdPermission>
 where
     I: Into<String>,
 {
-    Box::new(UserId {
+    Box::new(UserIdPermission {
         id: id.into(),
         bits: 0,
     })
@@ -395,40 +366,17 @@ where
 #[cfg(test)]
 mod it_should {
     use super::*;
+    use test_case::test_case;
 
-    #[test]
-    fn set_proper_read_permission_bits() {
-        assert_eq!(channel("test").read().value(), &0b0000_0001);
-    }
-
-    #[test]
-    fn set_proper_write_permission_bits() {
-        assert_eq!(channel("test").write().value(), &0b0000_0010);
-    }
-
-    #[test]
-    fn set_proper_manage_permission_bits() {
-        assert_eq!(channel("test").manage().value(), &0b0000_0100);
-    }
-
-    #[test]
-    fn set_proper_delete_permission_bits() {
-        assert_eq!(channel("test").delete().value(), &0b0000_1000);
-    }
-
-    #[test]
-    fn set_proper_get_permission_bits() {
-        assert_eq!(channel("test").get().value(), &0b0010_0000);
-    }
-
-    #[test]
-    fn set_proper_update_permission_bits() {
-        assert_eq!(channel("test").update().value(), &0b0100_0000);
-    }
-
-    #[test]
-    fn set_proper_join_permission_bits() {
-        assert_eq!(channel("test").join().value(), &0b1000_0000);
+    #[test_case(channel("test").read().value(), &0b0000_0001 ; "compare read permission")]
+    #[test_case(channel("test").write().value(), &0b0000_0010 ; "compare write permission")]
+    #[test_case(channel("test").manage().value(), &0b0000_0100 ; "compare manage permission")]
+    #[test_case(channel("test").delete().value(), &0b0000_1000 ; "compare delete permission")]
+    #[test_case(channel("test").get().value(), &0b0010_0000 ; "compare get permission")]
+    #[test_case(channel("test").update().value(), &0b0100_0000 ; "compare update permission")]
+    #[test_case(channel("test").join().value(), &0b1000_0000 ; "compare join permission")]
+    fn bits_properly_set(expected: &u8, actual: &u8) {
+        assert_eq!(expected, actual);
     }
 
     #[test]

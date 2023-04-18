@@ -13,6 +13,7 @@ impl From<APIErrorBody> for PubNubError {
         PubNubError::API {
             status: value.status(),
             message: value.message(),
+            service: value.service(),
             affected_channels: value.affected_channels(),
             affected_channel_groups: value.affected_channel_groups(),
         }
@@ -304,6 +305,17 @@ impl APIErrorBody {
             APIErrorBody::AsObjectWithErrorObject { status, .. } => *status,
             APIErrorBody::AsArray2(_, _) => 400,
             APIErrorBody::AsArray3(_, _, _) => 400,
+        }
+    }
+
+    /// Retrieve service name from error body payload.
+    fn service(&self) -> Option<String> {
+        match self {
+            APIErrorBody::AsObjectWithServiceAndErrorPayload { service, .. } => {
+                Some(service.to_owned())
+            }
+            APIErrorBody::AsObjectWithService { service, .. } => Some(service.to_owned()),
+            _ => None,
         }
     }
 

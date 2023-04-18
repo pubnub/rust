@@ -25,7 +25,7 @@
 /// ```
 ///
 /// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum PubNubError {
     /// this error is returned when the transport layer fails
     #[error("Transport error: {0}")]
@@ -68,6 +68,9 @@ pub enum PubNubError {
         /// A message explaining what went wrong.
         message: String,
 
+        /// Service which reported an error.
+        service: Option<String>,
+
         /// List of channels which is affected by error.
         affected_channels: Option<Vec<String>>,
 
@@ -88,6 +91,7 @@ impl PubNubError {
         Self::API {
             status: status.unwrap_or(400),
             message: message.into(),
+            service: None,
             affected_channels: None,
             affected_channel_groups: None,
         }

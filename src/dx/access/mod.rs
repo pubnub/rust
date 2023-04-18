@@ -1,8 +1,15 @@
 //! Access Manager module.
 //!
 //! Manage resource endpoints access token.
-//! This access manager module contains the [`GrantTokenRequestBuilder`] and
-//! [`Permission`].
+//! This access manager module contains the [`GrantTokenRequestBuilder`],
+//! [`RevokeTokenRequestBuilder`], [`ChannelPermission`],
+//! [`ChannelGroupPermission`] and [`UserIdPermission`] which is used for access
+//! token management.
+//!
+//! This module is accountable for granting and revoking access permissions to
+//! resources of the [`PubNub`] network.
+//!
+//! [`PubNub`]:https://www.pubnub.com/
 
 #[doc(inline)]
 pub(crate) use payloads::*;
@@ -64,8 +71,9 @@ where
     ///     .grant_token(10)
     ///     .resources(&[permissions::channel("test-channel").read().write()])
     ///     .meta(HashMap::from([
-    ///          ("string-val".into(), MetaValue::String("hello there".into())),
-    ///          ("null-val".into(), MetaValue::Null),
+    ///          ("role".into(), "administrator".into()),
+    ///          ("access-duration".into(), 2800.into()),
+    ///          ("ping-interval".into(), 1754.88.into()),
     ///      ]))
     ///     .execute()
     ///     .await?;
@@ -134,8 +142,9 @@ where
     ///     .derialize_with(MyDeserializer)
     ///     .resources(&[permissions::channel("test-channel").read().write()])
     ///     .meta(HashMap::from([
-    ///          ("string-val".into(), MetaValue::String("hello there".into())),
-    ///          ("null-val".into(), MetaValue::Null),
+    ///          ("role".into(), "administrator".into()),
+    ///          ("access-duration".into(), 2800.into()),
+    ///          ("ping-interval".into(), 1754.88.into()),
     ///      ]))
     ///     .execute()
     ///     .await?;
@@ -253,15 +262,29 @@ mod it_should {
     use crate::{dx::access::types::MetaValue, Keyset, PubNubClientBuilder};
     use std::collections::HashMap;
 
+    /// Keyset with default non-PAM enabled keys.
+    fn default_keyset() -> Keyset<String> {
+        Keyset {
+            subscribe_key: option_env!("SDK_SUB_KEY").unwrap_or("demo").into(),
+            publish_key: Some(option_env!("SDK_PUB_KEY").unwrap_or("demo").into()),
+            secret_key: Some(option_env!("SDK_PUB_KEY").unwrap_or("demo").into()),
+        }
+    }
+
+    /// Keyset with PAM enabled keys.
+    fn pam_keyset() -> Keyset<String> {
+        Keyset {
+            subscribe_key: option_env!("SDK_PAM_SUB_KEY").unwrap_or("demo").into(),
+            publish_key: Some(option_env!("SDK_PAM_PUB_KEY").unwrap_or("demo").into()),
+            secret_key: Some(option_env!("SDK_PAM_SEC_KEY").unwrap_or("demo").into()),
+        }
+    }
+
     /// Grant token success
     #[tokio::test]
     async fn should_grant_token() -> Result<(), Box<dyn std::error::Error>> {
         let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(Keyset {
-                subscribe_key: option_env!("SDK_PAM_SUB_KEY").unwrap_or("demo"),
-                publish_key: Some(option_env!("SDK_PAM_PUB_KEY").unwrap_or("demo")),
-                secret_key: Some(option_env!("SDK_PAM_SEC_KEY").unwrap_or("demo")),
-            })
+            .with_keyset(pam_keyset())
             .with_user_id("test")
             .build()?;
 
@@ -290,21 +313,14 @@ mod it_should {
     #[tokio::test]
     async fn should_not_grant_token() -> Result<(), Box<dyn std::error::Error>> {
         let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(Keyset {
-                subscribe_key: "demo",
-                publish_key: Some("demo"),
-                secret_key: Some("demo"),
-            })
+            .with_keyset(default_keyset())
             .with_user_id("test")
             .build()?;
 
         let result = client
             .grant_token(10)
             .resources(&[permissions::channel("test-channel").read().write()])
-            .meta(HashMap::from([(
-                "string-val".into(),
-                MetaValue::String("hello there".into()),
-            )]))
+            .meta(HashMap::from([("string-val".into(), "hello there".into())]))
             .execute()
             .await;
 
@@ -325,11 +341,7 @@ mod it_should {
     #[tokio::test]
     async fn should_revoke_token() -> Result<(), Box<dyn std::error::Error>> {
         let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(Keyset {
-                subscribe_key: option_env!("SDK_PAM_SUB_KEY").unwrap_or("demo"),
-                publish_key: Some(option_env!("SDK_PAM_PUB_KEY").unwrap_or("demo")),
-                secret_key: Some(option_env!("SDK_PAM_SEC_KEY").unwrap_or("demo")),
-            })
+            .with_keyset(pam_keyset())
             .with_user_id("test")
             .build()?;
 
@@ -357,11 +369,7 @@ mod it_should {
     #[tokio::test]
     async fn should_not_revoke_expired_token() -> Result<(), Box<dyn std::error::Error>> {
         let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(Keyset {
-                subscribe_key: option_env!("SDK_PAM_SUB_KEY").unwrap_or("demo"),
-                publish_key: Some(option_env!("SDK_PAM_PUB_KEY").unwrap_or("demo")),
-                secret_key: Some(option_env!("SDK_PAM_SEC_KEY").unwrap_or("demo")),
-            })
+            .with_keyset(pam_keyset())
             .with_user_id("demo")
             .build()?;
 
@@ -385,11 +393,7 @@ mod it_should {
     #[tokio::test]
     async fn should_not_revoke_malformed_token() -> Result<(), Box<dyn std::error::Error>> {
         let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(Keyset {
-                subscribe_key: option_env!("SDK_PAM_SUB_KEY").unwrap_or("demo"),
-                publish_key: Some(option_env!("SDK_PAM_PUB_KEY").unwrap_or("demo")),
-                secret_key: Some(option_env!("SDK_PAM_SEC_KEY").unwrap_or("demo")),
-            })
+            .with_keyset(pam_keyset())
             .with_user_id("demo")
             .build()?;
 
