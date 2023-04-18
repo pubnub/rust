@@ -96,7 +96,7 @@ impl<'request> GrantTokenPayload<'request> {
 fn resource_permissions(
     resources: &Option<&[Box<dyn Permission>]>,
 ) -> Option<GrantTokenResourcesPayload> {
-    if let Some(res) = resources {
+    resources.map(|res| {
         let mut channels: HashMap<String, u8> = HashMap::new();
         let mut groups: HashMap<String, u8> = HashMap::new();
         let mut uuids: HashMap<String, u8> = HashMap::new();
@@ -112,20 +112,10 @@ fn resource_permissions(
             }
         });
 
-        return Some(GrantTokenResourcesPayload {
-            channels: if !channels.is_empty() {
-                Some(channels)
-            } else {
-                None
-            },
-            groups: if !groups.is_empty() {
-                Some(groups)
-            } else {
-                None
-            },
-            uuids: if !uuids.is_empty() { Some(uuids) } else { None },
-        });
-    }
-
-    None
+        GrantTokenResourcesPayload {
+            channels: (!channels.is_empty()).then_some(channels),
+            groups: (!groups.is_empty()).then_some(groups),
+            uuids: (!uuids.is_empty()).then_some(uuids),
+        }
+    })
 }
