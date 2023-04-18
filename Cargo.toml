@@ -35,6 +35,8 @@ aes = { version = "0.8.2", optional = true }
 cbc = { version = "0.1.2", optional = true }
 rand = { version = "0.8.5", optional = true }
 
+#parse_token
+ciborium = { git = "https://github.com/enarx/ciborium.git", rev = "dc9d27d", optional = true }
 
 [dev-dependencies]
 async-trait = "0.1"
@@ -52,12 +54,13 @@ harness = false
 required-features = ["contract_test"]
 
 [features]
-full = ["serde", "reqwest"]
+full = ["serde", "reqwest", "aescbc", "parse_token"]
 default = ["serde", "reqwest", "aescbc"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
 contract_test = []
+parse_token = ["dep:ciborium"]
 
 [[example]]
 name = "publish"
