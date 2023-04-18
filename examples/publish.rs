@@ -4,8 +4,8 @@ use std::env;
 
 #[derive(Serialize)]
 struct Message {
-    content: String,
-    author: String,
+    url: String,
+    description: String,
 }
 
 #[tokio::main]
@@ -26,30 +26,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client
         .publish_message("hello world!")
         .channel("my_channel")
+        .r#type("text-message")
         .execute()
         .await?;
 
     // publish with other async task
-    let cloned = client.clone();
-    let handle = tokio::spawn(async move {
-        cloned
+    let handle = tokio::spawn(
+        client
             .publish_message("hello async world!")
             .channel("my_channel")
-            .execute()
-            .await
-    });
+            .r#type("text-message")
+            .execute(),
+    );
 
     // publish a struct
     client
         .publish_message(Message {
-            content: "hello world!".into(),
-            author: "me".into(),
+            url: "https://this/is/an/example".into(),
+            description: "Check out this awesome playlist I made!".into(),
         })
         .channel("my_channel")
+        .r#type("url-with-description")
         .execute()
         .await?;
 
-    // publish with whole config options
+    // publish with all config options
     client
         .publish_message("hello with params!")
         .channel("my_channel")
@@ -59,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .use_post(true)
         .ttl(10)
         .space_id("my_space")
-        .r#type("my_type")
+        .r#type("text-message")
         .execute()
         .await?;
 

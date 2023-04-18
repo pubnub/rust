@@ -47,18 +47,17 @@
 //!
 //! ### Example
 //!
-//! Try the following sample code to get up and running quicky!
+//! Try the following sample code to get up and running quickly!
 //!
 //! ```no_run
-//! use std::env;
 //! use pubnub::{Keyset, PubNubClientBuilder};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
-//!     let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
+//!     let publish_key = "my_publish_key";
+//!     let subscribe_key = "my_subscribe_key";
 //!
-//!     let mut client = PubNubClientBuilder::with_reqwest_transport()
+//!     let client = PubNubClientBuilder::with_reqwest_transport()
 //!         .with_keyset(Keyset {
 //!             subscribe_key,
 //!             publish_key: Some(publish_key),
@@ -70,6 +69,7 @@
 //!     client
 //!         .publish_message("hello world!")
 //!         .channel("my_channel")
+//!         .r#type("text-message")
 //!         .execute()
 //!         .await?;
 //!
