@@ -249,8 +249,8 @@ mod should {
 
         let middleware = PubNubMiddleware {
             transport: MockTransport::default(),
-            instance_id: Some(String::from("instance_id")),
-            user_id: "user_id".to_string(),
+            instance_id: Some(String::from("instance_id")).into(),
+            user_id: "user_id".to_string().into(),
             signature_keys: None,
         };
 
