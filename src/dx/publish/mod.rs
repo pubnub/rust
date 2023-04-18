@@ -30,7 +30,6 @@ use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
 use result::body_to_result;
 use std::{collections::HashMap, ops::Not};
 use urlencoding::encode;
-
 use super::pubnub_client::PubNubConfig;
 
 impl<T> PubNubClient<T> {
@@ -167,6 +166,7 @@ where
             .await
             .map_data(|_, deserializer, resposne| response_to_result(deserializer, resposne?))
             .data
+
     }
 
     async fn send_request(
