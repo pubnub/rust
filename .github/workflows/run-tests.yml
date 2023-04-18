@@ -52,7 +52,7 @@ jobs:
           features-path: tests/features
       - name: Run acceptance tests
         run: |
-          cargo test --features contract_test --test contract_test -- -t "not @na=rust and @featureSet=publish"
+          cargo test --features contract_test --test contract_test -- -t "(not @na=rust) and (@featureSet=publish or @featureSet=access)"
       - name: Expose acceptance tests reports
         uses: actions/upload-artifact@v3
         with:
