@@ -156,7 +156,7 @@ where
     /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
         self.prepare_context_with_request()?
-            .map_data(|client, _, request| Self::send_request(client, request))
+            .map_data(|client, _, request| Self::send_request(client.clone(), request))
             .map(|async_message| async move {
                 PublishMessageContext {
                     client: async_message.client,
@@ -346,11 +346,11 @@ where
 {
     fn map_data<F, Y>(self, f: F) -> PublishMessageContext<T, D, Y>
     where
-        F: FnOnce(PubNubClient<T>, &D, X) -> Y,
+        F: FnOnce(&PubNubClient<T>, &D, X) -> Y,
     {
         let client = self.client;
         let deserializer = self.deserializer;
-        let data = f(client.clone(), &deserializer, self.data);
+        let data = f(&client, &deserializer, self.data);
 
         PublishMessageContext {
             client,
