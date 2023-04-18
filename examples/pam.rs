@@ -46,7 +46,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         status, message, ..
     }) = revoke_result
     {
-        println!("{} (HTTP status code: {})", message, status);
+        eprintln!(
+            "Expected error:\n {} (HTTP status code: {})",
+            message, status
+        );
     };
 
     Ok(())
