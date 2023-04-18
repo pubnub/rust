@@ -156,7 +156,7 @@ where
     /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
         self.prepare_context_with_request()?
-            .map_data(|client, _, request| async move { Self::send_request(client, request).await })
+            .map_data(|client, _, request| Self::send_request(client, request))
             .map(|async_message| async move {
                 PublishMessageContext {
                     client: async_message.client,
