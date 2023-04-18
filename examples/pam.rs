@@ -32,6 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .execute()
         .await?;
 
+    println!("Access token: {}", grant_result.token.clone());
+
     // Revoke token permissions.
     client
         .revoke_token(grant_result.token.clone())
@@ -39,7 +41,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     // Handling API errors.
-    let revoke_result = client.revoke_token(grant_result.token).execute().await;
+    let revoke_result = client
+        .revoke_token("p0F2AkF0GmQ-sFxDdHRsAUNyZXOlRGNoYW6gQ2dycKFtY2hhbm5lbC1ncm91cAFDc3BjoEN1c3KgRHV1aWShZWFkbWluGEhDcGF0pURjaGFuoXNecm9vbS1bYS16QS1aMC05XSokGINDZ3JwoENzcGOgQ3VzcqBEdXVpZKBEbWV0YaBDc2lnWCAlbzrEPQ5FOLm2iJ_46Aqyi6kHXhBtyehh9oB_2Vk1BQ==")
+        .execute()
+        .await;
     if let Err(PubNubError::API {
         status, message, ..
     }) = revoke_result

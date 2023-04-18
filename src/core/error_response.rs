@@ -314,6 +314,9 @@ impl APIErrorBody {
             APIErrorBody::AsObjectWithServiceAndErrorPayload { service, .. } => {
                 Some(service.to_owned())
             }
+            APIErrorBody::AsObjectWithErrorObjectDetails { service, .. } => {
+                Some(service.to_owned())
+            }
             APIErrorBody::AsObjectWithService { service, .. } => Some(service.to_owned()),
             _ => None,
         }
