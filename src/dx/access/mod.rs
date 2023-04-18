@@ -334,17 +334,56 @@ mod it_should {
             .build()?;
 
         let result = client
-            .revoke_token("p0F2AkF0GmQ9bG1DdHRsCkNyZXOlRGNoYW6hbHRlc3QtY2hhbm5lbANDZ3JwoENzcGOgQ3VzcqBEdXVpZKBDcGF0pURjaGFuoENncnCgQ3NwY6BDdXNyoER1dWlkoERtZXRhoENzaWdYIMdiD69zM9yMKWwV1SItHQbYUc2BQldqSkGrB7yLDjqL")
+            .grant_token(10)
+            .resources(&[permissions::channel("test-channel").read().write()])
+            .meta(HashMap::from([(
+                "string-val".into(),
+                MetaValue::String("hello there".into()),
+            )]))
             .execute()
-            .await;
+            .await?;
 
-        assert!(result.is_ok());
+        let result = client.revoke_token(result.token).execute().await;
+
+        if let Err(err) = result {
+            eprintln!("Revoke token error: {err}");
+            panic!("Request shouldn't fail");
+        }
+
         Ok(())
     }
 
     /// Revoke token failure
     #[tokio::test]
-    async fn should_not_revoke_token() -> Result<(), Box<dyn std::error::Error>> {
+    async fn should_not_revoke_expired_token() -> Result<(), Box<dyn std::error::Error>> {
+        let client = PubNubClientBuilder::with_reqwest_transport()
+            .with_keyset(Keyset {
+                subscribe_key: option_env!("SDK_PAM_SUB_KEY").unwrap_or("demo"),
+                publish_key: Some(option_env!("SDK_PAM_PUB_KEY").unwrap_or("demo")),
+                secret_key: Some(option_env!("SDK_PAM_SEC_KEY").unwrap_or("demo")),
+            })
+            .with_user_id("demo")
+            .build()?;
+
+        let result = client.revoke_token("some-token-here").execute().await;
+
+        match result {
+            Ok(_) => panic!("Request should fail."),
+            Err(err) => {
+                if let PubNubError::API { status, .. } = err {
+                    // We are expecting failure because of wrong access token.
+                    assert_eq!(status, 400);
+                    Ok(())
+                } else {
+                    panic!("Unexpected error type.");
+                }
+            }
+        }
+    }
+
+    /// Revoke token failure
+    #[tokio::test]
+    async fn should_not_revoke_malformed_token() -> Result<(), Box<dyn std::error::Error>> {
         let client = PubNubClientBuilder::with_reqwest_transport()
             .with_keyset(Keyset {
                 subscribe_key: option_env!("SDK_PAM_SUB_KEY").unwrap_or("demo"),
