@@ -18,6 +18,7 @@ pub mod result;
 pub use builders::PublishMessageBuilder;
 pub mod builders;
 
+use super::pubnub_client::PubNubConfig;
 use crate::{
     core::{
         headers::{APPLICATION_JSON, CONTENT_TYPE},
@@ -30,7 +31,6 @@ use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
 use result::body_to_result;
 use std::{collections::HashMap, ops::Not};
 use urlencoding::encode;
-use super::pubnub_client::PubNubConfig;
 
 impl<T> PubNubClient<T> {
     /// Create a new publish message builder.
@@ -166,7 +166,6 @@ where
             .await
             .map_data(|_, deserializer, resposne| response_to_result(deserializer, resposne?))
             .data
-
     }
 
     async fn send_request(
