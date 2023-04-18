@@ -126,7 +126,7 @@ fn message_not_empty(world: &mut PubNubWorld) {
 #[then(regex = r"^the error detail location is '(.*)'$")]
 fn has_error_location_information(world: &mut PubNubWorld, expected_location: String) {
     if let PubNubError::API { message, .. } = world.api_error.clone().unwrap() {
-        assert!(service.contains(format!("name: '{expected_location}'").as_str()));
+        assert!(message.contains(format!("name: '{expected_location}'").as_str()));
     } else {
         panic!("API error is missing");
     }
@@ -135,7 +135,7 @@ fn has_error_location_information(world: &mut PubNubWorld, expected_location: St
 #[then(regex = r"^the error detail location type is '(.*)'$")]
 fn has_error_location_type_information(world: &mut PubNubWorld, expected_location_type: String) {
     if let PubNubError::API { message, .. } = world.api_error.clone().unwrap() {
-        assert!(service.contains(format!("location: '{expected_location_type}'").as_str()));
+        assert!(message.contains(format!("location: '{expected_location_type}'").as_str()));
     } else {
         panic!("API error is missing");
     }
