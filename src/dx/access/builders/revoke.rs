@@ -14,7 +14,10 @@ use derive_builder::Builder;
 use urlencoding::encode;
 
 #[derive(Builder)]
-#[builder(pattern = "owned", build_fn(vis = "pub(super)"))]
+#[builder(
+    pattern = "owned",
+    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate")
+)]
 /// The [`RevokeTokenRequestBuilder`] is used to build revoke access token
 /// permissions to access specific resource endpoints request that is sent to
 /// the [`PubNub`] network.
@@ -69,7 +72,7 @@ where
     D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
 {
     /// Create transport request from the request builder.
-    fn transport_request(&self) -> TransportRequest {
+    pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
         let sub_key = &self.pubnub_client.config.subscribe_key;
 
         TransportRequest {
@@ -86,6 +89,14 @@ where
     T: Transport,
     D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
 {
+    /// Validate user-provided data for request builder.
+    ///
+    /// Validator ensure that list of provided data is enough to build valid
+    /// request instance.
+    fn validate(&self) -> Result<(), String> {
+        builders::validate_configuration(&self.pubnub_client)
+    }
+
     /// Build and call request.
     pub async fn execute(self) -> Result<RevokeTokenResult, PubNubError> {
         // Build request instance and report errors if any.

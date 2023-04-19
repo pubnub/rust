@@ -24,7 +24,7 @@ use std::collections::HashMap;
 #[derive(Builder)]
 #[builder(
     pattern = "owned",
-    build_fn(vis = "pub(super)", validate = "Self::validate")
+    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate")
 )]
 pub struct GrantTokenRequest<'pa, T, S, D>
 where
@@ -136,7 +136,7 @@ where
     D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
 {
     /// Create transport request from the request builder.
-    fn transport_request(&self) -> TransportRequest {
+    pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
         let sub_key = &self.pubnub_client.config.subscribe_key;
         let payload = GrantTokenPayload::new(self);
         let body = self.serializer.serialize(&payload).unwrap_or(vec![]);
@@ -169,6 +169,7 @@ where
                 .iter()
                 .for_each(|perm| perm_len += *perm.value());
         }
+
         if let Some(patterns) = self.patterns {
             patterns
                 .unwrap_or(&[])
@@ -184,7 +185,7 @@ where
             );
         }
 
-        Ok(())
+        builders::validate_configuration(&self.pubnub_client)
     }
 
     /// Build and call request.

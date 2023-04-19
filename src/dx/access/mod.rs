@@ -258,158 +258,246 @@ where
 #[cfg(test)]
 mod it_should {
     use super::*;
-    use crate::core::PubNubError;
-    use crate::{dx::access::types::MetaValue, Keyset, PubNubClientBuilder};
+    use crate::{
+        core::{PubNubError, TransportMethod, TransportRequest, TransportResponse},
+        transport::middleware::PubNubMiddleware,
+        Keyset,
+    };
     use std::collections::HashMap;
 
-    /// Keyset with default non-PAM enabled keys.
-    fn default_keyset() -> Keyset<String> {
-        Keyset {
-            subscribe_key: option_env!("SDK_SUB_KEY").unwrap_or("demo").into(),
-            publish_key: Some(option_env!("SDK_PUB_KEY").unwrap_or("demo").into()),
-            secret_key: Some(option_env!("SDK_PUB_KEY").unwrap_or("demo").into()),
+    /// Requests handler function type.
+    type RequestHandler = Box<dyn Fn(&TransportRequest) + Send + Sync>;
+
+    #[derive(Default)]
+    struct MockTransport {
+        ///  Response which mocked transport should return.
+        response: Option<TransportResponse>,
+
+        /// Request handler function which will be called before returning
+        /// response.
+        ///
+        /// Use function to verify request parameters.
+        request_handler: Option<RequestHandler>,
+    }
+
+    #[async_trait::async_trait]
+    impl Transport for MockTransport {
+        async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+            // Calling request handler (if provided).
+            if let Some(handler) = &self.request_handler {
+                handler(&req);
+            }
+
+            Ok(self
+                .response
+                .clone()
+                .unwrap_or(transport_response(200, None)))
         }
     }
 
-    /// Keyset with PAM enabled keys.
-    fn pam_keyset() -> Keyset<String> {
-        Keyset {
-            subscribe_key: option_env!("SDK_PAM_SUB_KEY").unwrap_or("demo").into(),
-            publish_key: Some(option_env!("SDK_PAM_PUB_KEY").unwrap_or("demo").into()),
-            secret_key: Some(option_env!("SDK_PAM_SEC_KEY").unwrap_or("demo").into()),
+    /// Service response payload.
+    fn transport_response(status: u16, token: Option<String>) -> TransportResponse {
+        let error = "\"error\":{{\"message\":\"Overall error\",\"source\":\"test\",\
+        \"details\":[{{\"message\":\"Error\",\"location\":\"signature\",\"locationType\":\"query\"}}]}}";
+        let data = format!(
+            "\"data\":{{\"message\":\"Success\"{}}}}}",
+            token.map_or(String::new(), |t| format!(",\"token\":\"{}\"", t))
+        );
+
+        TransportResponse {
+            status,
+            body: Some(Vec::from(format!(
+                "{{\"status\":{},\"service\":\"Access Manager\",{}",
+                status,
+                if status < 400 { data } else { error.to_owned() }
+            ))),
+            ..Default::default()
         }
     }
 
-    /// Grant token success
+    /// List of default permissions.
+    fn permissions() -> Vec<Box<dyn permissions::Permission>> {
+        vec![
+            permissions::channel("channel").read().update(),
+            permissions::user_id("id").get().delete(),
+        ]
+    }
+
+    /// Construct test client with mocked transport.
+    fn client(
+        with_subscribe_key: bool,
+        with_secret_key: bool,
+        transport: Option<MockTransport>,
+    ) -> PubNubClient<PubNubMiddleware<MockTransport>> {
+        PubNubClient::with_transport(transport.unwrap_or(MockTransport {
+            response: None,
+            request_handler: None,
+        }))
+        .with_keyset(Keyset {
+            subscribe_key: if with_subscribe_key { "demo" } else { "" },
+            publish_key: Some(""),
+            secret_key: with_secret_key.then_some("demo"),
+        })
+        .with_user_id("user")
+        .build()
+        .unwrap()
+    }
+
+    #[test]
+    fn not_grant_token_when_subscribe_key_missing() {
+        let permissions = permissions();
+        let client = client(false, true, None);
+        let request = client.grant_token(10).resources(&permissions).build();
+
+        assert!(&client.config.subscribe_key.is_empty());
+        assert!(request.is_err());
+    }
+
+    #[test]
+    fn not_grant_token_when_secret_key_missing() {
+        let permissions = permissions();
+        let client = client(true, false, None);
+        let request = client.grant_token(10).resources(&permissions).build();
+
+        assert!(client
+            .config
+            .secret_key
+            .as_deref()
+            .unwrap_or_default()
+            .is_empty());
+        assert!(request.is_err());
+    }
+
     #[tokio::test]
-    async fn should_grant_token() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(pam_keyset())
-            .with_user_id("test")
-            .build()?;
-
+    async fn grant_token() {
+        let permissions = permissions();
+        let transport = MockTransport {
+            response: Some(transport_response(200, Some("test-token".to_string()))),
+            ..Default::default()
+        };
+        let client = client(true, true, Some(transport));
         let result = client
             .grant_token(10)
-            .resources(&[permissions::channel("test-channel").read().write()])
+            .resources(&permissions)
+            .execute()
+            .await;
+
+        match result {
+            Ok(response) => assert_eq!(response.token, "test-token"),
+            Err(err) => panic!("Request should not fail: {}", err),
+        }
+    }
+
+    #[tokio::test]
+    async fn include_timestamp_in_query_for_grant_token() {
+        let permissions = permissions();
+        let transport = MockTransport {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                assert!(req.query_parameters.contains_key("timestamp"));
+                assert!(req.query_parameters.get("timestamp").is_some());
+            })),
+        };
+
+        let _ = client(true, true, Some(transport))
+            .grant_token(10)
+            .resources(&permissions)
+            .execute()
+            .await;
+    }
+
+    #[tokio::test]
+    async fn include_signature_in_query_for_grant_token() {
+        let permissions = permissions();
+        let transport = MockTransport {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                assert!(req.query_parameters.contains_key("signature"));
+                assert!(req.query_parameters.get("signature").is_some());
+                assert!(req
+                    .query_parameters
+                    .get("signature")
+                    .unwrap()
+                    .contains("v2."));
+            })),
+        };
+
+        let _ = client(true, true, Some(transport))
+            .grant_token(10)
+            .resources(&permissions)
+            .execute()
+            .await;
+    }
+
+    #[test]
+    fn include_body_for_grant_token() {
+        let permissions = permissions();
+        let request = client(true, true, None)
+            .grant_token(10)
+            .resources(&permissions)
             .meta(HashMap::from([
-                ("string-val".into(), MetaValue::String("hello there".into())),
-                ("null-val".into(), MetaValue::Null),
+                ("string".into(), "string-value".into()),
+                ("integer".into(), 465.into()),
+                ("float".into(), 15.89.into()),
+                ("boolean".into(), true.into()),
+                ("null".into(), ().into()),
             ]))
-            .execute()
-            .await;
+            .build()
+            .unwrap()
+            .transport_request();
 
-        match result {
-            Ok(result) => {
-                assert!(!result.token.is_empty());
-                Ok(())
-            }
-            Err(err) => {
-                panic!("Unexpected error: {}", err);
-            }
-        }
+        // Serialization order is not constant. so ensure thar required
+        // key/value pairs is present in body.
+        let body = String::from_utf8(request.body.unwrap()).unwrap_or("".into());
+        assert!(body.contains("\"string\":\"string-value\""));
+        assert!(body.contains("\"boolean\":true"));
+        assert!(body.contains("\"null\":null"));
+        assert!(body.contains("\"integer\":465"));
+        assert!(body.contains("\"float\":15.89"));
+        assert!(body.contains("\"channels\":{\"channel\":65}"));
+        assert!(body.contains("\"uuids\":{\"id\":40}"));
+        assert!(matches!(&request.method, TransportMethod::Post));
     }
 
-    /// Grant token failure because of signature mismatch.
-    #[tokio::test]
-    async fn should_not_grant_token() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(default_keyset())
-            .with_user_id("test")
-            .build()?;
+    #[test]
+    fn not_revoke_token_when_subscribe_key_missing() {
+        let client = client(false, true, None);
+        let request = client.revoke_token("test/to+en==").build();
 
-        let result = client
-            .grant_token(10)
-            .resources(&[permissions::channel("test-channel").read().write()])
-            .meta(HashMap::from([("string-val".into(), "hello there".into())]))
-            .execute()
-            .await;
-
-        match result {
-            Ok(_) => panic!("Request should fail."),
-            Err(err) => {
-                if let PubNubError::API { status, .. } = err {
-                    assert_eq!(status, 403);
-                    Ok(())
-                } else {
-                    panic!("Unexpected error type.");
-                }
-            }
-        }
+        assert!(&client.config.subscribe_key.is_empty());
+        assert!(request.is_err());
     }
 
-    /// Revoke token success
-    #[tokio::test]
-    async fn should_revoke_token() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(pam_keyset())
-            .with_user_id("test")
-            .build()?;
+    #[test]
+    fn not_revoke_token_when_secret_key_missing() {
+        let client = client(true, false, None);
+        let request = client.revoke_token("test/to+en==").build();
 
-        let result = client
-            .grant_token(10)
-            .resources(&[permissions::channel("test-channel").read().write()])
-            .meta(HashMap::from([(
-                "string-val".into(),
-                MetaValue::String("hello there".into()),
-            )]))
-            .execute()
-            .await?;
-
-        let result = client.revoke_token(result.token).execute().await;
-
-        if let Err(err) = result {
-            eprintln!("Revoke token error: {err}");
-            panic!("Request shouldn't fail");
-        }
-
-        Ok(())
+        assert!(client
+            .config
+            .secret_key
+            .as_deref()
+            .unwrap_or_default()
+            .is_empty());
+        assert!(request.is_err());
     }
 
-    /// Revoke token failure
     #[tokio::test]
-    async fn should_not_revoke_expired_token() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(pam_keyset())
-            .with_user_id("demo")
-            .build()?;
+    async fn revoke_token() {
+        let client = client(true, true, None);
+        let result = client.revoke_token("test/to+en==").execute().await;
 
-        let result = client.revoke_token("some-token-here").execute().await;
-
-        match result {
-            Ok(_) => panic!("Request should fail."),
-            Err(err) => {
-                if let PubNubError::API { status, .. } = err {
-                    // We are expecting failure because of wrong access token.
-                    assert_eq!(status, 400);
-                    Ok(())
-                } else {
-                    panic!("Unexpected error type.");
-                }
-            }
-        }
+        assert!(result.is_ok());
     }
 
-    /// Revoke token failure
     #[tokio::test]
-    async fn should_not_revoke_malformed_token() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(pam_keyset())
-            .with_user_id("demo")
-            .build()?;
-
-        let result = client.revoke_token("some-token-here").execute().await;
-
-        match result {
-            Ok(_) => panic!("Request should fail."),
-            Err(err) => {
-                if let PubNubError::API { status, .. } = err {
-                    // We are expecting failure because of wrong access token.
-                    assert_eq!(status, 400);
-                    Ok(())
-                } else {
-                    panic!("Unexpected error type.");
-                }
-            }
-        }
+    async fn include_encoded_token_in_path_for_revoke_token() {
+        let request = client(true, true, None)
+            .revoke_token("test/to+en==")
+            .build()
+            .unwrap()
+            .transport_request();
+        assert!(request.path.ends_with("test%2Fto%2Ben%3D%3D"));
+        assert!(matches!(&request.method, TransportMethod::Delete));
     }
 }

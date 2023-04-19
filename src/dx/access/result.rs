@@ -92,7 +92,7 @@ pub enum RevokeTokenResponseBody {
     /// {
     ///   "status": 200,
     ///   "data": {
-    ///     "message": "Success",]
+    ///     "message": "Success"
     ///   },
     ///   "service": "Access Manager"
     /// }
