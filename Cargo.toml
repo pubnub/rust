@@ -61,7 +61,7 @@ serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
 blocking = ["reqwest?/blocking"]
-contract_test = []
+contract_test = ["parse_token"]
 parse_token = ["dep:ciborium"]
 
 [[example]]

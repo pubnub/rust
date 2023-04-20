@@ -9,7 +9,6 @@ use pubnub::{
     Keyset, PubNubClient, PubNubClientBuilder,
 };
 use std::fmt::Debug;
-use std::ops::Deref;
 
 /// Type of resource for which permissions currently configured.
 #[derive(Default, Debug)]
@@ -89,6 +88,7 @@ pub struct PAMState {
     pub resource_permissions: PAMPermissions,
     pub pattern_permissions: PAMPermissions,
     pub authorized_uuid: Option<String>,
+    pub resource_name: Option<String>,
     pub access_token: Option<String>,
     pub ttl: Option<usize>,
 }
@@ -102,6 +102,7 @@ impl Default for PAMState {
             resource_permissions: PAMPermissions::default(),
             pattern_permissions: PAMPermissions::default(),
             authorized_uuid: None,
+            resource_name: None,
             access_token: None,
             ttl: None,
         }
@@ -138,7 +139,6 @@ impl PubNubWorld {
         &self,
         keyset: Keyset<String>,
     ) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
-        println!("~~~~> Create world again");
         let transport = {
             let mut transport = TransportReqwest::default();
             transport.hostname = "http://localhost:8090".into();
@@ -178,6 +178,7 @@ fn an_error_is_returned(world: &mut PubNubWorld) {
 }
 
 #[then(regex = r"^the error status code is (\d+)$")]
+#[given(regex = r"^the error status code is (\d+)$")]
 fn has_specific_error_code(world: &mut PubNubWorld, expected_status_code: u16) {
     if let PubNubError::API { status, .. } = world.api_error.clone().unwrap() {
         assert_eq!(status, expected_status_code);
@@ -186,7 +187,18 @@ fn has_specific_error_code(world: &mut PubNubWorld, expected_status_code: u16) {
     }
 }
 
+// /// Instead of `then` need to use `given` for feature steps descrived with `*`.
+// #[given(regex = r"^the error status code is (\d+)$")]
+// fn has_specific_error_code2(world: &mut PubNubWorld, expected_status_code: u16) {
+//     if let PubNubError::API { status, .. } = world.api_error.clone().unwrap() {
+//         assert_eq!(status, expected_status_code);
+//     } else {
+//         panic!("API error is missing");
+//     }
+// }
+
 #[then(regex = r"^the error message is '(.*)'$")]
+#[given(regex = r"^the error message is '(.*)'$")]
 fn contains_specific_error_message(world: &mut PubNubWorld, expected_message: String) {
     if let PubNubError::API { message, .. } = world.api_error.clone().unwrap() {
         assert!(message.contains(expected_message.as_str()));
@@ -195,7 +207,8 @@ fn contains_specific_error_message(world: &mut PubNubWorld, expected_message: St
     }
 }
 
-#[then(regex = r"^the error service is '(.*)''$")]
+#[then(regex = r"^the error service is '(.*)'$")]
+#[given(regex = r"^the error service is '(.*)'$")]
 fn has_specific_service(world: &mut PubNubWorld, expected_service: String) {
     if let PubNubError::API { service, .. } = world.api_error.clone().unwrap() {
         if let Some(service) = service {
@@ -208,12 +221,14 @@ fn has_specific_service(world: &mut PubNubWorld, expected_service: String) {
     }
 }
 
-#[then(regex = r"^the error source is '(.*)''$")]
+#[then(regex = r"^the error source is '(.*)'$")]
+#[given(regex = r"^the error source is '(.*)'$")]
 fn has_specific_source(_world: &mut PubNubWorld) {
     // noop
 }
 
 #[then("the error detail message is not empty")]
+#[given("the error detail message is not empty")]
 fn message_not_empty(world: &mut PubNubWorld) {
     if let PubNubError::API { message, .. } = world.api_error.clone().unwrap() {
         assert_ne!(message.len(), 0, "Error message shouldn't be empty.");
@@ -222,7 +237,18 @@ fn message_not_empty(world: &mut PubNubWorld) {
     }
 }
 
+#[then(regex = r"^the error detail message is '(.*)'$")]
+#[given(regex = r"^the error detail message is '(.*)'$")]
+fn has_error_information(world: &mut PubNubWorld, expected_information: String) {
+    if let PubNubError::API { message, .. } = world.api_error.clone().unwrap() {
+        assert!(message.contains(expected_information.as_str()));
+    } else {
+        panic!("API error is missing");
+    }
+}
+
 #[then(regex = r"^the error detail location is '(.*)'$")]
+#[given(regex = r"^the error detail location is '(.*)'$")]
 fn has_error_location_information(world: &mut PubNubWorld, expected_location: String) {
     if let PubNubError::API { message, .. } = world.api_error.clone().unwrap() {
         assert!(message.contains(format!("name: '{expected_location}'").as_str()));
@@ -232,6 +258,7 @@ fn has_error_location_information(world: &mut PubNubWorld, expected_location: St
 }
 
 #[then(regex = r"^the error detail location type is '(.*)'$")]
+#[given(regex = r"^the error detail location type is '(.*)'$")]
 fn has_error_location_type_information(world: &mut PubNubWorld, expected_location_type: String) {
     if let PubNubError::API { message, .. } = world.api_error.clone().unwrap() {
         assert!(message.contains(format!("location: '{expected_location_type}'").as_str()));

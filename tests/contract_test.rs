@@ -42,8 +42,11 @@ async fn main() {
                 .tee(writer::JUnit::new(file, 0))
                 .normalized(),
         )
-        // .fail_fast()
         .fail_on_skipped()
-        .run("tests/features")
+        .filter_run("tests/features", |_, _, scenario| {
+            // Filter out features and scenario which doesn't have @featureSet
+            // and @contract tags.
+            scenario.tags.iter().any(|tag| tag.contains("contract="))
+        })
         .await;
 }

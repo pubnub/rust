@@ -1,6 +1,10 @@
 use crate::common::{common_steps::PAMCurrentResourceType, PubNubWorld};
 use cucumber::{given, then, when};
-use pubnub::{core::PubNubError, dx::access::permissions};
+use pubnub::{
+    core::PubNubError,
+    dx::{access::permissions, parse_token},
+};
+use std::collections::HashMap;
 use std::ops::Not;
 
 /// Retrieve permission
@@ -92,7 +96,20 @@ fn add_permission(
 
 #[given("a token")]
 fn given_token(world: &mut PubNubWorld) {
-    world.pam_state.access_token = Some("valid access token".into());
+    given_token_string(world, "valid access token".to_string());
+}
+
+#[given(regex = r"^the token string '(.*)'$")]
+fn given_token_string(world: &mut PubNubWorld, token: String) {
+    world.pam_state.access_token = Some(token);
+}
+
+#[given("I have a known token containing an authorized UUID")]
+#[given("I have a known token containing UUID resource permissions")]
+#[given("I have a known token containing UUID pattern Permissions")]
+fn given_token_with_authorized_uuid(world: &mut PubNubWorld) {
+    given_token_string(world,
+                       "qEF2AkF0GmEI03xDdHRsGDxDcmVzpURjaGFuoWljaGFubmVsLTEY70NncnChb2NoYW5uZWxfZ3JvdXAtMQVDdXNyoENzcGOgRHV1aWShZnV1aWQtMRhoQ3BhdKVEY2hhbqFtXmNoYW5uZWwtXFMqJBjvQ2dycKF0XjpjaGFubmVsX2dyb3VwLVxTKiQFQ3VzcqBDc3BjoER1dWlkoWpedXVpZC1cUyokGGhEbWV0YaBEdXVpZHR0ZXN0LWF1dGhvcml6ZWQtdXVpZENzaWdYIPpU-vCe9rkpYs87YUrFNWkyNq8CVvmKwEjVinnDrJJc".to_string());
 }
 
 #[given(regex = r#"^the authorized UUID "(.*)"$"#)]
@@ -128,21 +145,36 @@ fn given_resource_permission(world: &mut PubNubWorld, category: String, permissi
     add_permission(world, None, None, &category, &permission);
 }
 
-#[when("I grant a token specifying those permissions")]
-async fn grant_given_permissions(world: &mut PubNubWorld) {
+#[when(regex = r"^I (attempt to )?grant a token specifying those permissions")]
+async fn grant_given_permissions(world: &mut PubNubWorld, _unused: String) {
     let resource_permissions = world.pam_state.resource_permissions.permissions();
     let pattern_permissions = world.pam_state.pattern_permissions.permissions();
-    let result = world
-        .get_pubnub(world.keyset.to_owned())
+    let client = world.get_pubnub(world.keyset.to_owned());
+    let mut builder = client
         .grant_token(world.pam_state.ttl.unwrap())
         .resources(&resource_permissions)
-        .patterns(&pattern_permissions)
-        .authorized_user_id(world.pam_state.authorized_uuid.clone().unwrap())
-        .execute()
-        .await;
+        .patterns(&pattern_permissions);
 
-    world.is_succeed = world.publish_result.is_ok();
-    world.pam_state.access_token = result.is_ok().then_some(result.unwrap().token);
+    // Adding authorized user identifier if provided.
+    if let Some(authorised_uuid) = &world.pam_state.authorized_uuid {
+        builder = builder.authorized_user_id(authorised_uuid);
+    }
+
+    world.pam_state.grant_token_result = builder
+        .execute()
+        .await
+        .map_err(|err| {
+            if let PubNubError::API { .. } = err {
+                world.api_error = Some(err.clone());
+            }
+            err
+        })
+        .map(|response| {
+            world.pam_state.access_token = Some(response.token.clone());
+            response
+        });
+
+    world.is_succeed = world.pam_state.grant_token_result.is_ok();
 }
 
 #[when("I revoke a token")]
@@ -169,7 +201,128 @@ fn i_receive_token_revoke_confirmation(world: &mut PubNubWorld) {
     assert!(world.is_succeed, "Expected successful response");
 }
 
-#[then(regex = r#"the token contains the authorized UUID "(.*)""#)]
+#[then(regex = r#"^the token contains the authorized UUID "(.*)"$"#)]
+#[then(regex = r#"^the parsed token output contains the authorized UUID "(.*)"$"#)]
 fn token_contains_authorization_uuid(world: &mut PubNubWorld, uuid: String) {
-    // world.pam_state.revoke_token_result = world.get_pubnub(world.keyset.to_owned())
+    let token_string = world.pam_state.access_token.clone().unwrap();
+    let mut matched = false;
+    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+        assert!(token.authorized_user_id.is_some());
+        assert_eq!(token.authorized_user_id.unwrap(), uuid);
+        matched = true;
+    }
+    assert!(matched);
+}
+
+#[then("the token does not contain an authorized uuid")]
+fn token_not_contains_authorization_uuid(world: &mut PubNubWorld) {
+    let token_string = world.pam_state.access_token.clone().unwrap();
+    let mut matched = false;
+    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+        assert!(token.authorized_user_id.is_none());
+        matched = true;
+    }
+    assert!(matched);
+}
+
+#[then(regex = r"^the token contains the TTL (\d+)$")]
+fn token_contains_ttl(world: &mut PubNubWorld, ttl: u32) {
+    let token_string = world.pam_state.access_token.clone().unwrap();
+    let mut matched = false;
+    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+        assert!(token.ttl.gt(&0));
+        assert_eq!(token.ttl, ttl);
+        matched = true;
+    }
+    assert!(matched);
+}
+
+#[then(
+    regex = r"^the token has '(.*)' (CHANNEL|CHANNEL_GROUP|UUID) (resource|pattern) access permissions$"
+)]
+fn token_contains_resource(
+    world: &mut PubNubWorld,
+    name: String,
+    resource: String,
+    category: String,
+) {
+    let token_string = world.pam_state.access_token.clone().unwrap();
+    let mut matched = false;
+
+    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+        let resources = if category == "resource" {
+            token.resources
+        } else {
+            token.patterns
+        };
+
+        if resource == "CHANNEL" && resources.channels.contains_key(name.as_str()) {
+            world.pam_state.resource_type = PAMCurrentResourceType::Channel;
+            world.pam_state.resource_name = Some(name);
+            matched = true;
+        } else if resource == "CHANNEL_GROUP" && resources.groups.contains_key(name.as_str()) {
+            world.pam_state.resource_type = PAMCurrentResourceType::ChannelGroup;
+            world.pam_state.resource_name = Some(name);
+            matched = true;
+        } else if resource == "UUID" && resources.users.contains_key(name.as_str()) {
+            world.pam_state.resource_type = PAMCurrentResourceType::UserId;
+            world.pam_state.resource_name = Some(name);
+            matched = true;
+        }
+    }
+    assert!(matched);
+}
+
+#[given(
+    regex = r"^token (resource|pattern) permission (READ|WRITE|MANAGE|DELETE|GET|UPDATE|JOIN)$"
+)]
+fn token_resource_has_permission(world: &mut PubNubWorld, category: String, permission: String) {
+    let resource_name = world.pam_state.resource_name.clone().unwrap();
+    let token_string = world.pam_state.access_token.clone().unwrap();
+    let mut matched = false;
+
+    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+        let resources = if category == "resource" {
+            token.resources
+        } else {
+            token.patterns
+        };
+        let resource_permission = match world.pam_state.resource_type {
+            PAMCurrentResourceType::Channel => resources.channels,
+            PAMCurrentResourceType::ChannelGroup => resources.groups,
+            PAMCurrentResourceType::UserId => resources.users,
+            PAMCurrentResourceType::None => HashMap::new(),
+        };
+        let token_permission = resource_permission.get(resource_name.as_str()).unwrap();
+        matched = true;
+
+        if permission == "READ" {
+            assert!(token_permission.read);
+        } else if permission == "WRITE" {
+            assert!(token_permission.write);
+        } else if permission == "GET" {
+            assert!(token_permission.get);
+        } else if permission == "MANAGE" {
+            assert!(token_permission.manage);
+        } else if permission == "UPDATE" {
+            assert!(token_permission.update);
+        } else if permission == "JOIN" {
+            assert!(token_permission.join);
+        } else if permission == "DELETE" {
+            assert!(token_permission.delete);
+        } else {
+            matched = false;
+        }
+    }
+    assert!(matched);
+}
+
+#[given(regex = r"^deny resource permission (READ|WRITE|MANAGE|DELETE|GET|UPDATE|JOIN)$")]
+fn deny_token_permission(_world: &mut PubNubWorld, _permission: String) {
+    // Don't add any permissions.
+}
+
+#[when("I parse the token")]
+fn i_parse_token(_world: &mut PubNubWorld) {
+    // Do nothing, actual parsing happens in step.
 }

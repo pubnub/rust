@@ -9,12 +9,16 @@
 pub enum MetaValue {
     /// `String` value.
     String(String),
+
     /// `Integer` value.
     Integer(i64),
+
     /// `Float` / `double` value.
     Float(f64),
+
     /// `Boolean` value.
     Boolean(bool),
+
     /// `null` value.
     Null,
 }

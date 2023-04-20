@@ -57,8 +57,8 @@ where
     )]
     pub authorized_user_id: Option<String>,
 
-    /// Extra metadata to be published with the request. Values must be scalar
-    /// only.
+    /// Extra metadata to be included into resulting access token. Values must
+    /// be scalar only.
     #[builder(
         field(vis = "pub(in crate::dx::access)"),
         setter(strip_option),
@@ -162,29 +162,6 @@ where
     /// Validator ensure that list of provided data is enough to build valid
     /// request instance.
     fn validate(&self) -> Result<(), String> {
-        let mut perm_len: u64 = 0;
-        if let Some(resources) = self.resources {
-            resources
-                .unwrap_or(&[])
-                .iter()
-                .for_each(|perm| perm_len += *perm.value() as u64);
-        }
-
-        if let Some(patterns) = self.patterns {
-            patterns
-                .unwrap_or(&[])
-                .iter()
-                .for_each(|perm| perm_len += *perm.value() as u64);
-        }
-
-        if perm_len == 0 {
-            return Err(
-                "The list of resources and patterns permissions is empty or doesn't have any \
-                permission associated with them."
-                    .into(),
-            );
-        }
-
         builders::validate_configuration(&self.pubnub_client)
     }
 
