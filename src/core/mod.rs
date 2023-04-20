@@ -18,7 +18,7 @@ pub(crate) use error_response::APIErrorBody;
 pub(crate) mod error_response;
 
 #[doc(inline)]
-pub use transport::Transport;
+pub use transport::{blocking, Transport};
 pub mod transport;
 
 #[doc(inline)]

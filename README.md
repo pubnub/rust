@@ -83,13 +83,16 @@ Feature list:
 * `full` - enables all not conflicting features
 * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
 * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
+* `blocking` - enables blocking API
+* `aescbc` - enables AES-CBC encryption
 * `default` - default features that include:
    * `serde`
    * `reqwest`
+   * `aescbc`
 
 ## Documentation
 
-:warning: We are under the development! **Links below do not work** :warning:
+:warning: We are under the development! **Links below not work** :warning:
 
 * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
