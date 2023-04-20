@@ -36,7 +36,16 @@ pub struct GrantTokenResourcesPayload {
 /// This type used by [`GrantTokenPayload`] to store information about requested
 /// token permissions.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct GrantTokenPermissionsPayload {
+pub struct GrantTokenPermissionsPayload<'request> {
+    /// A user ID, which is authorized to use the token to make API requests to
+    /// PubNub.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub uuid: &'request Option<String>,
+
+    /// Extra metadata to be published with the request. Values must be scalar only.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub meta: &'request Option<HashMap<String, MetaValue>>,
+
     /// List of permissions mapped to resource identifiers.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub resources: Option<GrantTokenResourcesPayload>,
@@ -55,18 +64,9 @@ pub struct GrantTokenPayload<'request> {
     /// How long (in minutes) the generated token should be valid.
     pub ttl: usize,
 
-    /// A user ID, which is authorized to use the token to make API requests to
-    /// PubNub.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub authorized_user_id: &'request Option<String>,
-
-    /// Extra metadata to be published with the request. Values must be scalar only.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub meta: &'request Option<HashMap<String, MetaValue>>,
-
     /// Permissions which should be granted to token.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub permissions: Option<GrantTokenPermissionsPayload>,
+    pub permissions: Option<GrantTokenPermissionsPayload<'request>>,
 }
 
 impl<'request> GrantTokenPayload<'request> {
@@ -82,11 +82,11 @@ impl<'request> GrantTokenPayload<'request> {
     {
         GrantTokenPayload {
             ttl: request.ttl,
-            authorized_user_id: &request.authorized_user_id,
-            meta: &request.meta,
             permissions: Some(GrantTokenPermissionsPayload {
-                resources: resource_permissions(&request.resources),
                 patterns: resource_permissions(&request.patterns),
+                resources: resource_permissions(&request.resources),
+                uuid: &request.authorized_user_id,
+                meta: &request.meta,
             }),
         }
     }

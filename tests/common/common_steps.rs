@@ -2,21 +2,117 @@ use cucumber::{given, then, World};
 use pubnub::{
     core::PubNubError,
     dx::{
-        access::{GrantTokenResult, RevokeTokenResult},
+        access::{permissions, GrantTokenResult, RevokeTokenResult},
         publish::PublishResult,
     },
     transport::{middleware::PubNubMiddleware, TransportReqwest},
     Keyset, PubNubClient, PubNubClientBuilder,
 };
-use std::fmt::format;
+use std::fmt::Debug;
+use std::ops::Deref;
+
+/// Type of resource for which permissions currently configured.
+#[derive(Default, Debug)]
+pub enum PAMCurrentResourceType {
+    Channel,
+    ChannelGroup,
+    UserId,
+    #[default]
+    None,
+}
+
+impl From<&String> for PAMCurrentResourceType {
+    fn from(value: &String) -> Self {
+        if value == "CHANNEL" {
+            Self::Channel
+        } else if value == "CHANNEL_GROUP" {
+            Self::ChannelGroup
+        } else if value == "UUID" {
+            Self::UserId
+        } else {
+            Self::None
+        }
+    }
+}
+
+/// PAM token configuration requires repetitive objects, so it better to be
+/// stored as structure.
+#[derive(Debug)]
+pub struct PAMPermissions {
+    pub channels: Vec<Box<permissions::ChannelPermission>>,
+    pub groups: Vec<Box<permissions::ChannelGroupPermission>>,
+    pub user_ids: Vec<Box<permissions::UserIdPermission>>,
+}
+
+impl PAMPermissions {
+    pub fn permissions(&self) -> Vec<Box<dyn permissions::Permission>> {
+        let mut vec: Vec<Box<dyn permissions::Permission>> = vec![];
+        self.channels.iter().for_each(|el| {
+            vec.push(Box::new(permissions::ChannelPermission {
+                name: el.name.clone(),
+                bits: el.bits,
+            }))
+        });
+        self.groups.iter().for_each(|el| {
+            vec.push(Box::new(permissions::ChannelGroupPermission {
+                name: el.name.clone(),
+                bits: el.bits,
+            }))
+        });
+        self.user_ids.iter().for_each(|el| {
+            vec.push(Box::new(permissions::UserIdPermission {
+                id: el.id.clone(),
+                bits: el.bits,
+            }))
+        });
+
+        vec
+    }
+}
+
+impl Default for PAMPermissions {
+    fn default() -> Self {
+        Self {
+            channels: vec![],
+            groups: vec![],
+            user_ids: vec![],
+        }
+    }
+}
+
+/// World state for PAM.
+#[derive(Debug)]
+pub struct PAMState {
+    pub revoke_token_result: Result<RevokeTokenResult, PubNubError>,
+    pub grant_token_result: Result<GrantTokenResult, PubNubError>,
+    pub resource_type: PAMCurrentResourceType,
+    pub resource_permissions: PAMPermissions,
+    pub pattern_permissions: PAMPermissions,
+    pub authorized_uuid: Option<String>,
+    pub access_token: Option<String>,
+    pub ttl: Option<usize>,
+}
+
+impl Default for PAMState {
+    fn default() -> Self {
+        Self {
+            revoke_token_result: Err(PubNubError::Transport("This is default value".into())),
+            grant_token_result: Err(PubNubError::Transport("This is default value".into())),
+            resource_type: PAMCurrentResourceType::default(),
+            resource_permissions: PAMPermissions::default(),
+            pattern_permissions: PAMPermissions::default(),
+            authorized_uuid: None,
+            access_token: None,
+            ttl: None,
+        }
+    }
+}
 
 #[derive(Debug, World)]
 pub struct PubNubWorld {
     pub keyset: pubnub::Keyset<String>,
     pub publish_result: Result<PublishResult, PubNubError>,
-    pub grant_token_result: Result<GrantTokenResult, PubNubError>,
-    pub revoke_token_result: Result<RevokeTokenResult, PubNubError>,
-    pub access_token: Option<String>,
+    pub pam_state: PAMState,
     pub api_error: Option<PubNubError>,
     pub is_succeed: bool,
 }
@@ -30,11 +126,9 @@ impl Default for PubNubWorld {
                 secret_key: Some("demo".to_string()),
             },
             publish_result: Err(PubNubError::Transport("This is default value".into())),
-            grant_token_result: Err(PubNubError::Transport("This is default value".into())),
-            revoke_token_result: Err(PubNubError::Transport("This is default value".into())),
-            access_token: None,
             api_error: None,
             is_succeed: false,
+            pam_state: PAMState::default(),
         }
     }
 }
@@ -44,6 +138,7 @@ impl PubNubWorld {
         &self,
         keyset: Keyset<String>,
     ) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
+        println!("~~~~> Create world again");
         let transport = {
             let mut transport = TransportReqwest::default();
             transport.hostname = "http://localhost:8090".into();
@@ -64,12 +159,16 @@ fn set_keyset(world: &mut PubNubWorld) {
     world.keyset.subscribe_key = "demo".to_string();
 }
 
-#[given("I have a keyset with access manager enabled")]
-fn i_have_keyset_with_access_manager_enabled(world: &mut PubNubWorld) {
+#[given(regex = r"^I have a keyset with access manager enabled(.*)?")]
+fn i_have_keyset_with_access_manager_enabled(world: &mut PubNubWorld, info: String) {
     world.keyset = Keyset {
         subscribe_key: "demo".into(),
         publish_key: Some("demo".into()),
-        secret_key: Some("demo".into()),
+        secret_key: if info.contains("without") {
+            None
+        } else {
+            Some("demo".into())
+        },
     }
 }
 
@@ -110,7 +209,7 @@ fn has_specific_service(world: &mut PubNubWorld, expected_service: String) {
 }
 
 #[then(regex = r"^the error source is '(.*)''$")]
-fn has_specific_source(world: &mut PubNubWorld) {
+fn has_specific_source(_world: &mut PubNubWorld) {
     // noop
 }
 

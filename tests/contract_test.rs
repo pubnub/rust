@@ -42,6 +42,8 @@ async fn main() {
                 .tee(writer::JUnit::new(file, 0))
                 .normalized(),
         )
+        // .fail_fast()
+        .fail_on_skipped()
         .run("tests/features")
         .await;
 }

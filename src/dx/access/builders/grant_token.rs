@@ -162,19 +162,19 @@ where
     /// Validator ensure that list of provided data is enough to build valid
     /// request instance.
     fn validate(&self) -> Result<(), String> {
-        let mut perm_len = 0;
+        let mut perm_len: u64 = 0;
         if let Some(resources) = self.resources {
             resources
                 .unwrap_or(&[])
                 .iter()
-                .for_each(|perm| perm_len += *perm.value());
+                .for_each(|perm| perm_len += *perm.value() as u64);
         }
 
         if let Some(patterns) = self.patterns {
             patterns
                 .unwrap_or(&[])
                 .iter()
-                .for_each(|pat| perm_len += *pat.value());
+                .for_each(|perm| perm_len += *perm.value() as u64);
         }
 
         if perm_len == 0 {

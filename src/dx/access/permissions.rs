@@ -61,9 +61,13 @@ pub enum ResourceType {
 ///     .get()
 ///     .manage();
 /// ```
+#[derive(Debug)]
 pub struct ChannelPermission {
-    name: String,
-    bits: u8,
+    /// Name of channel for which permission level specified.
+    pub name: String,
+
+    /// Bitmask with configured permission level.
+    pub bits: u8,
 }
 
 /// `Channel group` permission.
@@ -78,9 +82,13 @@ pub struct ChannelPermission {
 /// #    permissions::channel_group("my-channel-group")
 ///     .read();
 /// ```
+#[derive(Debug)]
 pub struct ChannelGroupPermission {
-    name: String,
-    bits: u8,
+    /// Name of channel group for which permission level specified.
+    pub name: String,
+
+    /// Bitmask with configured permission level.
+    pub bits: u8,
 }
 
 /// `UserId` permission.
@@ -95,9 +103,13 @@ pub struct ChannelGroupPermission {
 /// #    permissions::user_id("my-user-id")
 ///     .update();
 /// ```
+#[derive(Debug)]
 pub struct UserIdPermission {
-    id: String,
-    bits: u8,
+    /// User id for which permission level specified.
+    pub id: String,
+
+    /// Bitmask with configured permission level.
+    pub bits: u8,
 }
 
 /// `Channel`-based endpoint permissions.
