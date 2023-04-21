@@ -148,7 +148,6 @@ fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMa
     HeaderMap::try_from(request_headers).map_err(|err| PubNubError::TransportError(err.to_string()))
 }
 
-// TODO: create test for merging query params
 fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
         return format!("{}{}", hostname, path);
@@ -502,6 +501,22 @@ mod should {
         assert_eq!(response.status, 200);
     }
 
+    #[test]
+    fn verify_query_params_merge() {
+        let query_params = HashMap::<String, String>::from([
+            ("norep".into(), "true".into()),
+            ("space-id".to_string(), "space_id".to_string()),
+            ("meta".to_string(), "{\"k\":\"v\"}".to_string()),
+            ("seqn".to_string(), "1".to_string()),
+            ("pnsdk".to_string(), "rust/1.2".to_string()),
+        ]);
+
+        let url_string = prepare_url("host:8080", "/key/channel", &query_params);
+        let parsed_url = reqwest::Url::parse(&url_string).unwrap();
+        let retrived_query_params: HashMap<String, String> =
+            parsed_url.query_pairs().into_owned().collect();
+        assert_eq!(query_params, retrived_query_params);
+    }
     #[tokio::test]
     async fn send_via_post_method() {
         let message = "\"Hello from post\"";

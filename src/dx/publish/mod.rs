@@ -263,7 +263,6 @@ where
         query_params
     }
 
-    // TODO: create test for path creation!
     fn create_transport_request(
         self,
         config: &PubNubConfig,
@@ -620,6 +619,39 @@ mod should {
             format!("\"{}\"", message),
             String::from_utf8(result_data.body.unwrap()).unwrap()
         );
+    }
+
+    #[test]
+    fn test_path_segments_get() {
+        let client = client();
+        let channel = String::from("channel_name");
+        let message = HashMap::from([("number", 7)]);
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .prepare_context_with_request()
+            .unwrap();
+
+        assert_eq!(
+            format!("publish///0/{}/0/{}", channel, encode("{\"number\":7}")),
+            result.data.path
+        );
+    }
+
+    #[test]
+    fn test_path_segments_post() {
+        let client = client();
+        let channel = String::from("channel_name");
+        let message = HashMap::from([("number", 7)]);
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .use_post(true)
+            .prepare_context_with_request()
+            .unwrap();
+        assert_eq!(format!("publish///0/{}/0", channel), result.data.path);
     }
 
     #[test_case(HashMap::from([("k".to_string(), "v".to_string())]), "{\"k\":\"v\"}" ; "hash map with elements")]
