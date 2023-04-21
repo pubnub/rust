@@ -42,6 +42,7 @@ pub trait Transport: Send + Sync {
     async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError>;
 }
 
+#[cfg(feature = "blocking")]
 pub mod blocking {
     //! # Blocking transport module
     //!
@@ -83,7 +84,7 @@ pub mod blocking {
         /// Send a request to the [`PubNub API`].
         ///
         /// # Errors
-        /// Should return an [`PubNubError::TransportError`] if the request cannot be sent.
+        /// Should return an [`PubNubError::Transport`] if the request cannot be sent.
         ///
         /// [`PubNub API`]: https://www.pubnub.com/docs
         fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError>;

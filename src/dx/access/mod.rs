@@ -33,16 +33,13 @@ pub mod builders;
 pub use permissions::*;
 pub mod permissions;
 
+use crate::dx::PubNubClient;
 #[cfg(feature = "serde")]
 use crate::providers::{
     deserialization_serde::SerdeDeserializer, serialization_serde::SerdeSerializer,
 };
-use crate::{core::Transport, dx::PubNubClient};
 
-impl<T> PubNubClient<T>
-where
-    T: Transport,
-{
+impl<T> PubNubClient<T> {
     /// Create grant token permissions request builder.
     /// This method is used to generate token with required permissions.
     ///
@@ -160,6 +157,7 @@ where
     }
 
     /// Create grant token request builder.
+    ///
     /// This method is used to revoke token permissions.
     ///
     /// Instance of [`RevokeTokenRequestBuilder`] returned.
@@ -259,7 +257,7 @@ where
 mod it_should {
     use super::*;
     use crate::{
-        core::{PubNubError, TransportMethod, TransportRequest, TransportResponse},
+        core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
         transport::middleware::PubNubMiddleware,
         Keyset,
     };
@@ -327,9 +325,11 @@ mod it_should {
     fn client(
         with_subscribe_key: bool,
         with_secret_key: bool,
+        with_auth_key: Option<String>,
+        with_auth_token: Option<String>,
         transport: Option<MockTransport>,
     ) -> PubNubClient<PubNubMiddleware<MockTransport>> {
-        PubNubClient::with_transport(transport.unwrap_or(MockTransport {
+        let mut builder = PubNubClient::with_transport(transport.unwrap_or(MockTransport {
             response: None,
             request_handler: None,
         }))
@@ -338,15 +338,25 @@ mod it_should {
             publish_key: Some(""),
             secret_key: with_secret_key.then_some("demo"),
         })
-        .with_user_id("user")
-        .build()
-        .unwrap()
+        .with_user_id("user");
+
+        if let Some(auth_key) = with_auth_key {
+            builder = builder.with_auth_key(auth_key);
+        }
+
+        let client = builder.build().unwrap();
+
+        if let Some(auth_token) = with_auth_token {
+            client.set_token(auth_token);
+        }
+
+        client
     }
 
     #[test]
     fn not_grant_token_when_subscribe_key_missing() {
         let permissions = permissions();
-        let client = client(false, true, None);
+        let client = client(false, true, None, None, None);
         let request = client.grant_token(10).resources(&permissions).build();
 
         assert!(&client.config.subscribe_key.is_empty());
@@ -356,7 +366,7 @@ mod it_should {
     #[test]
     fn not_grant_token_when_secret_key_missing() {
         let permissions = permissions();
-        let client = client(true, false, None);
+        let client = client(true, false, None, None, None);
         let request = client.grant_token(10).resources(&permissions).build();
 
         assert!(client
@@ -375,7 +385,7 @@ mod it_should {
             response: Some(transport_response(200, Some("test-token".to_string()))),
             ..Default::default()
         };
-        let client = client(true, true, Some(transport));
+        let client = client(true, true, None, None, Some(transport));
         let result = client
             .grant_token(10)
             .resources(&permissions)
@@ -399,7 +409,7 @@ mod it_should {
             })),
         };
 
-        let _ = client(true, true, Some(transport))
+        let _ = client(true, true, None, None, Some(transport))
             .grant_token(10)
             .resources(&permissions)
             .execute()
@@ -422,7 +432,7 @@ mod it_should {
             })),
         };
 
-        let _ = client(true, true, Some(transport))
+        let _ = client(true, true, None, None, Some(transport))
             .grant_token(10)
             .resources(&permissions)
             .execute()
@@ -432,7 +442,7 @@ mod it_should {
     #[test]
     fn include_body_for_grant_token() {
         let permissions = permissions();
-        let request = client(true, true, None)
+        let request = client(true, true, None, None, None)
             .grant_token(10)
             .resources(&permissions)
             .meta(HashMap::from([
@@ -461,7 +471,7 @@ mod it_should {
 
     #[test]
     fn not_revoke_token_when_subscribe_key_missing() {
-        let client = client(false, true, None);
+        let client = client(false, true, None, None, None);
         let request = client.revoke_token("test/to+en==").build();
 
         assert!(&client.config.subscribe_key.is_empty());
@@ -470,7 +480,7 @@ mod it_should {
 
     #[test]
     fn not_revoke_token_when_secret_key_missing() {
-        let client = client(true, false, None);
+        let client = client(true, false, None, None, None);
         let request = client.revoke_token("test/to+en==").build();
 
         assert!(client
@@ -484,7 +494,7 @@ mod it_should {
 
     #[tokio::test]
     async fn revoke_token() {
-        let client = client(true, true, None);
+        let client = client(true, true, None, None, None);
         let result = client.revoke_token("test/to+en==").execute().await;
 
         assert!(result.is_ok());
@@ -492,12 +502,73 @@ mod it_should {
 
     #[tokio::test]
     async fn include_encoded_token_in_path_for_revoke_token() {
-        let request = client(true, true, None)
+        let request = client(true, true, None, None, None)
             .revoke_token("test/to+en==")
             .build()
             .unwrap()
             .transport_request();
         assert!(request.path.ends_with("test%2Fto%2Ben%3D%3D"));
         assert!(matches!(&request.method, TransportMethod::Delete));
+    }
+
+    #[tokio::test]
+    async fn include_auth_key_in_query_for_revoke_token() {
+        let transport = MockTransport {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                assert!(req.query_parameters.contains_key("auth"));
+                assert_eq!(req.query_parameters.get("auth").unwrap(), "auth-key");
+            })),
+        };
+        let client = client(
+            true,
+            true,
+            Some("auth-key".to_string()),
+            None,
+            Some(transport),
+        );
+
+        let _ = client.revoke_token("test/to+en==").execute().await;
+    }
+
+    #[tokio::test]
+    async fn include_auth_token_in_query_for_revoke_token() {
+        let transport = MockTransport {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                assert!(req.query_parameters.contains_key("auth"));
+                assert_eq!(req.query_parameters.get("auth").unwrap(), "auth-token");
+            })),
+        };
+
+        let client = client(
+            true,
+            true,
+            None,
+            Some("auth-token".to_string()),
+            Some(transport),
+        );
+
+        let _ = client.revoke_token("test/to+en==").execute().await;
+    }
+
+    #[tokio::test]
+    async fn include_auth_token_when_auth_key_present_in_query_for_revoke_token() {
+        let transport = MockTransport {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                assert!(req.query_parameters.contains_key("auth"));
+                assert_eq!(req.query_parameters.get("auth").unwrap(), "auth-token");
+            })),
+        };
+        let client = client(
+            true,
+            true,
+            Some("auth-key".to_string()),
+            Some("auth-token".to_string()),
+            Some(transport),
+        );
+
+        let _ = client.revoke_token("test/to+en==").execute().await;
     }
 }

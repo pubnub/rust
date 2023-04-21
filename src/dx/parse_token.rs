@@ -15,7 +15,7 @@ use std::{collections::HashMap, ops::Deref};
 /// resources.
 pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
     let token_bytes = general_purpose::URL_SAFE
-        .decode(token.as_bytes())
+        .decode(format!("{token}{}", "=".repeat(token.len() % 4)).as_bytes())
         .map_err(|e| PubNubError::TokenDeserialization(e.to_string()))?;
 
     from_reader(token_bytes.deref()).map_err(|e| PubNubError::TokenDeserialization(e.to_string()))

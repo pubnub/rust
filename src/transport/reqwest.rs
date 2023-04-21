@@ -14,10 +14,7 @@
 //! [`reqwest` feature]: ../index.html#features
 
 use crate::{
-    core::{
-        error::{PubNubError, PubNubError::TransportError},
-        Transport, TransportMethod, TransportRequest, TransportResponse,
-    },
+    core::{error::PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
     PubNubClientBuilder,
 };
 use bytes::Bytes;
@@ -48,7 +45,7 @@ pub struct TransportReqwest {
     ///
     /// let transport = {
     ///    let mut transport = TransportReqwest::default();
-    ///    transport.hostname = "https://wherever.you.want.com/".into();
+    ///    transport.hostname = "https://wherever.you.want.com".into();
     ///    transport
     /// };
     /// ```
@@ -64,19 +61,20 @@ impl Transport for TransportReqwest {
         let builder = match request.method {
             TransportMethod::Get => self.prepare_get_method(request, request_url),
             TransportMethod::Post => self.prepare_post_method(request, request_url),
+            TransportMethod::Delete => self.prepare_delete_method(request, request_url),
         }?;
 
         let result = builder
             .headers(headers)
             .send()
             .await
-            .map_err(|e| TransportError(e.to_string()))?;
+            .map_err(|e| PubNubError::Transport(e.to_string()))?;
 
         let status = result.status();
         result
             .bytes()
             .await
-            .map_err(|e| TransportError(e.to_string()))
+            .map_err(|e| PubNubError::Transport(e.to_string()))
             .and_then(|bytes| create_result(status, bytes))
     }
 }
@@ -85,7 +83,7 @@ impl Default for TransportReqwest {
     fn default() -> Self {
         Self {
             reqwest_client: reqwest::Client::default(),
-            hostname: "https://ps.pndsn.com/".into(),
+            hostname: "https://ps.pndsn.com".into(),
         }
     }
 }
@@ -139,13 +137,23 @@ impl TransportReqwest {
     ) -> Result<reqwest::RequestBuilder, PubNubError> {
         request
             .body
-            .ok_or(TransportError("Body should not be empty for POST".into()))
+            .ok_or(PubNubError::Transport(
+                "Body should not be empty for POST".into(),
+            ))
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
+    }
+
+    fn prepare_delete_method(
+        &self,
+        _request: TransportRequest,
+        url: String,
+    ) -> Result<reqwest::RequestBuilder, PubNubError> {
+        Ok(self.reqwest_client.delete(url))
     }
 }
 
 fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMap, PubNubError> {
-    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::TransportError(err.to_string()))
+    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::Transport(err.to_string()))
 }
 
 // TODO: create test for merging query params
@@ -250,7 +258,7 @@ pub mod blocking {
         ///
         /// let transport = {
         ///    let mut transport = TransportReqwest::default();
-        ///    transport.hostname = "https://wherever.you.want.com/".into();
+        ///    transport.hostname = "https://wherever.you.want.com".into();
         ///    transport
         /// };
         /// ```
@@ -265,17 +273,18 @@ pub mod blocking {
             let builder = match request.method {
                 TransportMethod::Get => self.prepare_get_method(request, request_url),
                 TransportMethod::Post => self.prepare_post_method(request, request_url),
+                TransportMethod::Delete => self.prepare_delete_method(request, request_url),
             }?;
 
             let result = builder
                 .headers(headers)
                 .send()
-                .map_err(|e| PubNubError::TransportError(e.to_string()))?;
+                .map_err(|e| PubNubError::Transport(e.to_string()))?;
 
             let status = result.status();
             result
                 .bytes()
-                .map_err(|e| PubNubError::TransportError(e.to_string()))
+                .map_err(|e| PubNubError::Transport(e.to_string()))
                 .and_then(|bytes| create_result(status, bytes))
         }
     }
@@ -284,7 +293,7 @@ pub mod blocking {
         fn default() -> Self {
             Self {
                 reqwest_client: reqwest::blocking::Client::default(),
-                hostname: "https://ps.pndsn.com/".into(),
+                hostname: "https://ps.pndsn.com".into(),
             }
         }
     }
@@ -334,6 +343,14 @@ pub mod blocking {
                 None => builder,
             };
             Ok(builder)
+        }
+
+        fn prepare_delete_method(
+            &self,
+            _request: TransportRequest,
+            request_url: String,
+        ) -> Result<reqwest::blocking::RequestBuilder, PubNubError> {
+            Ok(self.reqwest_client.delete(request_url))
         }
     }
 

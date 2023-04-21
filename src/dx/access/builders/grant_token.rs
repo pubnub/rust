@@ -28,7 +28,6 @@ use std::collections::HashMap;
 )]
 pub struct GrantTokenRequest<'pa, T, S, D>
 where
-    T: Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
     D: for<'dl> Deserializer<'dl, GrantTokenResponseBody>,
 {
@@ -93,10 +92,7 @@ where
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[cfg(not(feature = "serde"))]
-pub struct GrantTokenRequestWithSerializerBuilder<T>
-where
-    T: Transport,
-{
+pub struct GrantTokenRequestWithSerializerBuilder<T> {
     /// Current client which can provide transportation to perform the request.
     pub(in crate::dx::access) pubnub_client: PubNubClient<T>,
 
@@ -116,7 +112,6 @@ where
 #[cfg(not(feature = "serde"))]
 pub struct GrantTokenRequestWithDeserializerBuilder<T, S>
 where
-    T: Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
 {
     /// Current client which can provide transportation to perform the request.
@@ -131,7 +126,6 @@ where
 
 impl<'pa, T, S, D> GrantTokenRequest<'pa, T, S, D>
 where
-    T: Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
     D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
 {
@@ -153,7 +147,6 @@ where
 
 impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
-    T: Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
     D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
 {
@@ -164,22 +157,25 @@ where
     fn validate(&self) -> Result<(), String> {
         builders::validate_configuration(&self.pubnub_client)
     }
+}
 
+impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
+where
+    T: Transport,
+    S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
+    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+{
     /// Build and call request.
     pub async fn execute(self) -> Result<GrantTokenResult, PubNubError> {
         // Build request instance and report errors if any.
-        let request = self.build().map_err(|err| match err {
-            GrantTokenRequestBuilderError::UninitializedField(msg) => {
-                PubNubError::general_api_error(msg, None)
-            }
-            GrantTokenRequestBuilderError::ValidationError(msg) => {
-                PubNubError::general_api_error(msg, None)
-            }
-        })?;
+        let request = self
+            .build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
         let deserializer = request.deserializer;
+
         client
             .transport
             .send(transport_request)
@@ -198,11 +194,75 @@ where
     }
 }
 
-#[cfg(not(feature = "serde"))]
-impl<T> GrantTokenRequestWithSerializerBuilder<T>
+#[cfg(feature = "blocking")]
+impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
-    T: Transport,
+    T: crate::core::blocking::Transport,
+    S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
+    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
 {
+    /// Execute the request and return the result.
+    ///
+    /// This method is synchronous and will return result which will resolve to
+    /// a [`RevokeTokenResult`] or [`PubNubError`].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use pubnub::{PubNubClientBuilder, Keyset, access::*};
+    /// # use std::collections::HashMap;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut pubnub = // PubNubClient
+    /// #     PubNubClientBuilder::with_reqwest_blocking_transport()
+    /// #         .with_keyset(Keyset {
+    /// #              subscribe_key: "demo",
+    /// #              publish_key: Some("demo"),
+    /// #              secret_key: Some("demo")
+    /// #          })
+    /// #         .with_user_id("uuid")
+    /// #         .build()?;
+    /// pubnub
+    ///     .grant_token(10)
+    ///     .resources(&[permissions::channel("test-channel").read().write()])
+    ///     .meta(HashMap::from([
+    ///          ("role".into(), "administrator".into()),
+    ///          ("access-duration".into(), 2800.into()),
+    ///          ("ping-interval".into(), 1754.88.into()),
+    ///      ]))
+    ///     .execute_blocking()?;
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn execute_blocking(self) -> Result<GrantTokenResult, PubNubError> {
+        // Build request instance and report errors if any.
+        let request = self
+            .build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+
+        let transport_request = request.transport_request();
+        let client = request.pubnub_client.clone();
+        let deserializer = request.deserializer;
+
+        client
+            .transport
+            .send(transport_request)?
+            .body
+            .map(|bytes| deserializer.deserialize(&bytes))
+            .map_or(
+                Err(PubNubError::general_api_error(
+                    "No body in the response!",
+                    None,
+                )),
+                |response_body| {
+                    response_body.and_then::<GrantTokenResult, _>(|body| body.try_into())
+                },
+            )
+    }
+}
+
+#[cfg(not(feature = "serde"))]
+impl<T> GrantTokenRequestWithSerializerBuilder<T> {
     /// Add custom serializer.
     ///
     /// Adds the serializer to the [`GrantTokenRequestBuilder`].
@@ -227,7 +287,6 @@ where
 #[cfg(not(feature = "serde"))]
 impl<T, S> GrantTokenRequestWithDeserializerBuilder<T, S>
 where
-    T: Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
 {
     /// Add custom deserializer.

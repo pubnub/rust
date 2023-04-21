@@ -13,6 +13,59 @@ async fn init_server(script: String) -> Result<String, Box<dyn std::error::Error
     Ok(body)
 }
 
+fn get_feature_set(tags: &[String]) -> String {
+    tags.iter()
+        .filter(|tag| tag.starts_with("featureSet"))
+        .map(|tag| tag.split('=').last().unwrap().to_string())
+        .collect::<String>()
+}
+
+fn feature_allows_beta(feature: &str) -> bool {
+    let features: Vec<&str> = vec!["access", "publish"];
+    features.contains(&feature)
+}
+
+fn feature_allows_skipped(feature: &str) -> bool {
+    let features: Vec<&str> = vec![];
+    features.contains(&feature)
+}
+
+fn feature_allows_contract_less(feature: &str) -> bool {
+    let features: Vec<&str> = vec!["access"];
+    features.contains(&feature)
+}
+
+fn is_ignored_feature_set_tag(feature: &str, tags: &[String]) -> bool {
+    let supported_features = ["access", "publish"];
+    let mut ignored_tags = vec!["na=rust"];
+
+    if !feature_allows_beta(feature) {
+        ignored_tags.push("beta");
+    }
+
+    if !feature_allows_skipped(feature) {
+        ignored_tags.push("skip");
+    }
+
+    ignored_tags
+        .iter()
+        .any(|tag| tags.contains(&tag.to_string()))
+        || !supported_features.contains(&feature)
+}
+
+fn is_ignored_scenario_tag(feature: &str, tags: &[String]) -> bool {
+    // If specific contract should be tested, it's name should be added below.
+    let tested_contract = "";
+
+    tags.contains(&"na=rust".to_string())
+        || !feature_allows_beta(feature) && tags.iter().any(|tag| tag.starts_with("beta"))
+        || !feature_allows_skipped(feature) && tags.iter().any(|tag| tag.starts_with("skip"))
+        || (!feature_allows_contract_less(feature) || !tested_contract.is_empty())
+            && !tags
+                .iter()
+                .any(|tag| tag.starts_with(format!("contract={tested_contract}").as_str()))
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::builder().try_init().unwrap();
@@ -43,14 +96,12 @@ async fn main() {
                 .normalized(),
         )
         .fail_on_skipped()
-        .filter_run("tests/features", |feature, _, scenario| {
+        .filter_run("tests/features", move |feature, _, scenario| {
             // Filter out features and scenario which doesn't have @featureSet
             // and @contract tags.
-            scenario.tags.iter().any(|tag| tag.starts_with("contract="))
-                && feature
-                    .tags
-                    .iter()
-                    .any(|tag| tag.starts_with("featureSet="))
+            let current_feature = get_feature_set(&feature.tags);
+            !(is_ignored_feature_set_tag(&current_feature, &feature.tags)
+                || is_ignored_scenario_tag(&current_feature, &scenario.tags))
         })
         .await;
 }

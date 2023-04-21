@@ -9,6 +9,7 @@ use base64::{engine::general_purpose, Engine as _};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use urlencoding::encode;
@@ -34,6 +35,8 @@ pub struct PubNubMiddleware<T> {
     pub(crate) instance_id: Arc<Option<String>>,
     pub(crate) user_id: Arc<String>,
     pub(crate) signature_keys: Option<SignatureKeySet>,
+    pub(crate) auth_key: Option<Arc<String>>,
+    pub(crate) auth_token: Arc<spin::RwLock<String>>,
 }
 
 #[derive(Debug)]
@@ -108,6 +111,15 @@ impl<T> PubNubMiddleware<T> {
                 .insert("instanceid".into(), instance_id.into());
         }
 
+        // Adding access token or authorization key.
+        let auth_token = self.auth_token.read();
+        if !auth_token.is_empty() {
+            req.query_parameters
+                .insert("auth".into(), auth_token.deref().into());
+        } else if let Some(auth_key) = self.auth_key.as_deref() {
+            req.query_parameters.insert("auth".into(), auth_key.into());
+        }
+
         if let Some(signature_key_set) = &self.signature_keys {
             req.query_parameters.insert(
                 "timestamp".into(),
@@ -139,6 +151,7 @@ where
     }
 }
 
+#[cfg(feature = "blocking")]
 impl<T> crate::core::blocking::Transport for PubNubMiddleware<T>
 where
     T: crate::core::blocking::Transport,
@@ -154,6 +167,7 @@ mod should {
     use super::*;
     use crate::core::TransportMethod::Get;
     use crate::core::TransportResponse;
+    use spin::rwlock::RwLock;
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -189,6 +203,8 @@ mod should {
             instance_id: Arc::new(Some(String::from("instance_id"))),
             user_id: String::from("user_id").into(),
             signature_keys: None,
+            auth_token: Arc::new(RwLock::new(String::new())),
+            auth_key: None,
         };
 
         let result = middleware.send(TransportRequest::default()).await;
@@ -221,6 +237,7 @@ mod should {
         assert_eq!("v2.AHl5lMpzyT4qcvvlqaszCjTUqU6dPb10a4_XSaYCNIQ", signature);
     }
 
+    #[cfg(feature = "blocking")]
     #[test]
     fn blocking_transport() {
         use crate::core::blocking::Transport;
@@ -252,6 +269,8 @@ mod should {
             instance_id: Some(String::from("instance_id")).into(),
             user_id: "user_id".to_string().into(),
             signature_keys: None,
+            auth_token: Arc::new(RwLock::new(String::new())),
+            auth_key: None,
         };
 
         let result = middleware.send(TransportRequest::default());

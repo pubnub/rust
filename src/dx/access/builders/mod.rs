@@ -19,7 +19,7 @@ pub use revoke::RevokeTokenRequestWithDeserializerBuilder;
 pub use revoke::{RevokeTokenRequest, RevokeTokenRequestBuilder};
 pub mod revoke;
 
-use crate::{core::Transport, PubNubClient};
+use crate::PubNubClient;
 
 /// Validate [`PubNubClient`] configuration.
 ///
@@ -27,10 +27,7 @@ use crate::{core::Transport, PubNubClient};
 /// for PAM endpoint usage or not.
 pub(in crate::dx::access::builders) fn validate_configuration<T>(
     client: &Option<PubNubClient<T>>,
-) -> Result<(), String>
-where
-    T: Transport,
-{
+) -> Result<(), String> {
     if let Some(client) = client {
         if client.config.subscribe_key.is_empty() {
             return Err("Incomplete PubNub client configuration: 'subscribe_key' is empty.".into());

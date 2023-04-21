@@ -6,7 +6,7 @@
 
 use crate::core::Serializer;
 use crate::{
-    core::{Deserializer, Transport},
+    core::Deserializer,
     dx::access::{permissions::*, types::MetaValue, GrantTokenRequest, GrantTokenResponseBody},
 };
 use std::collections::HashMap;
@@ -76,7 +76,6 @@ impl<'request> GrantTokenPayload<'request> {
     /// final payload, which should then be sent to the PubNub API endpoint.
     pub(super) fn new<T, S, D>(request: &'request GrantTokenRequest<'_, T, S, D>) -> Self
     where
-        T: Transport,
         S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
         D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
     {

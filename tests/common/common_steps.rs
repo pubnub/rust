@@ -172,9 +172,35 @@ fn i_have_keyset_with_access_manager_enabled(world: &mut PubNubWorld, info: Stri
     }
 }
 
+#[then("I receive an error response")]
+fn i_receive_error_response(world: &mut PubNubWorld) {
+    assert!(!world.is_succeed)
+}
+
+#[then("the result is successful")]
+fn i_receive_success_response(world: &mut PubNubWorld) {
+    assert!(world.is_succeed)
+}
+
 #[then("an error is returned")]
 fn an_error_is_returned(world: &mut PubNubWorld) {
     assert!(world.api_error.is_some(), "Expected to receive API error");
+}
+
+#[then("an auth error is returned")]
+fn an_auth_error_is_returned(world: &mut PubNubWorld) {
+    assert!(world.api_error.is_some(), "Expected to receive API error");
+    if let Some(PubNubError::API {
+        status, service, ..
+    }) = &world.api_error
+    {
+        assert_eq!(status, &403);
+        if let Some(service) = service {
+            assert_eq!(service, "Access Manager");
+        }
+    } else {
+        assert!(world.api_error.is_some(), "Unexpected to receive API error");
+    }
 }
 
 #[then(regex = r"^the error status code is (\d+)$")]
@@ -187,21 +213,15 @@ fn has_specific_error_code(world: &mut PubNubWorld, expected_status_code: u16) {
     }
 }
 
-// /// Instead of `then` need to use `given` for feature steps descrived with `*`.
-// #[given(regex = r"^the error status code is (\d+)$")]
-// fn has_specific_error_code2(world: &mut PubNubWorld, expected_status_code: u16) {
-//     if let PubNubError::API { status, .. } = world.api_error.clone().unwrap() {
-//         assert_eq!(status, expected_status_code);
-//     } else {
-//         panic!("API error is missing");
-//     }
-// }
-
 #[then(regex = r"^the error message is '(.*)'$")]
 #[given(regex = r"^the error message is '(.*)'$")]
+#[given(regex = r"^the auth error message is '(.*)'$")]
 fn contains_specific_error_message(world: &mut PubNubWorld, expected_message: String) {
     if let PubNubError::API { message, .. } = world.api_error.clone().unwrap() {
-        assert!(message.contains(expected_message.as_str()));
+        assert!(
+            message.contains(expected_message.as_str()),
+            "Expected '{expected_message}', but got '{message}'"
+        );
     } else {
         panic!("API error is missing");
     }

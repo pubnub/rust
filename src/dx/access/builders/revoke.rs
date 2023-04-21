@@ -29,7 +29,6 @@ use urlencoding::encode;
 /// [`revoke_token`]: crate::dx::PubNubClient::revoke_token
 pub struct RevokeTokenRequest<T, D>
 where
-    T: Transport,
     D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
 {
     /// Current client which can provide transportation to perform the request.
@@ -68,7 +67,6 @@ where
 
 impl<T, D> RevokeTokenRequest<T, D>
 where
-    T: Transport,
     D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
 {
     /// Create transport request from the request builder.
@@ -86,7 +84,6 @@ where
 
 impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
-    T: Transport,
     D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
 {
     /// Validate user-provided data for request builder.
@@ -96,18 +93,19 @@ where
     fn validate(&self) -> Result<(), String> {
         builders::validate_configuration(&self.pubnub_client)
     }
+}
 
+impl<T, D> RevokeTokenRequestBuilder<T, D>
+where
+    T: Transport,
+    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+{
     /// Build and call request.
     pub async fn execute(self) -> Result<RevokeTokenResult, PubNubError> {
         // Build request instance and report errors if any.
-        let request = self.build().map_err(|err| match err {
-            RevokeTokenRequestBuilderError::UninitializedField(msg) => {
-                PubNubError::general_api_error(msg, None)
-            }
-            RevokeTokenRequestBuilderError::ValidationError(msg) => {
-                PubNubError::general_api_error(msg, None)
-            }
-        })?;
+        let request = self
+            .build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
@@ -131,11 +129,67 @@ where
     }
 }
 
-#[cfg(not(feature = "serde"))]
-impl<T> RevokeTokenRequestWithDeserializerBuilder<T>
+#[cfg(feature = "blocking")]
+impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
-    T: Transport,
+    T: crate::core::blocking::Transport,
+    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
 {
+    /// Execute the request and return the result.
+    ///
+    /// This method is synchronous and will return result which will resolve to
+    /// a [`RevokeTokenResult`] or [`PubNubError`].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use pubnub::{PubNubClientBuilder, Keyset};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut pubnub = // PubNubClient
+    /// #     PubNubClientBuilder::with_reqwest_blocking_transport()
+    /// #         .with_keyset(Keyset {
+    /// #              subscribe_key: "demo",
+    /// #              publish_key: Some("demo"),
+    /// #              secret_key: Some("demo")
+    /// #          })
+    /// #         .with_user_id("uuid")
+    /// #         .build()?;
+    /// pubnub
+    ///     .revoke_token("p0F2AkF0Gl043r....Dc3BjoERtZXRhoENzaWdYIGOAeTyWGJI")
+    ///     .execute_blocking()?;
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn execute_blocking(self) -> Result<RevokeTokenResult, PubNubError> {
+        // Build request instance and report errors if any.
+        let request = self
+            .build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+
+        let transport_request = request.transport_request();
+        let client = request.pubnub_client.clone();
+        let deserializer = request.deserializer;
+
+        client
+            .transport
+            .send(transport_request)?
+            .body
+            .map(|bytes| deserializer.deserialize(&bytes))
+            .map_or(
+                Err(PubNubError::general_api_error(
+                    "No body in the response!",
+                    None,
+                )),
+                |response_body| {
+                    response_body.and_then::<RevokeTokenResult, _>(|body| body.try_into())
+                },
+            )
+    }
+}
+
+#[cfg(not(feature = "serde"))]
+impl<T> RevokeTokenRequestWithDeserializerBuilder<T> {
     /// Add custom deserializer.
     ///
     /// Adds the deserializer to the [`RevokeTokenRequestBuilder`].

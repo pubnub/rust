@@ -107,6 +107,9 @@ fn given_token_string(world: &mut PubNubWorld, token: String) {
 #[given("I have a known token containing an authorized UUID")]
 #[given("I have a known token containing UUID resource permissions")]
 #[given("I have a known token containing UUID pattern Permissions")]
+#[given(regex = r"^a( valid|n expired) token with permissions to publish with channel .*$")]
+#[given("The SDK is configured with an AuthKey representing an access Token")]
+#[given("I have associated an access token with the SDK instance")]
 fn given_token_with_authorized_uuid(world: &mut PubNubWorld) {
     given_token_string(world,
                        "qEF2AkF0GmEI03xDdHRsGDxDcmVzpURjaGFuoWljaGFubmVsLTEY70NncnChb2NoYW5uZWxfZ3JvdXAtMQVDdXNyoENzcGOgRHV1aWShZnV1aWQtMRhoQ3BhdKVEY2hhbqFtXmNoYW5uZWwtXFMqJBjvQ2dycKF0XjpjaGFubmVsX2dyb3VwLVxTKiQFQ3VzcqBDc3BjoER1dWlkoWpedXVpZC1cUyokGGhEbWV0YaBEdXVpZHR0ZXN0LWF1dGhvcml6ZWQtdXVpZENzaWdYIPpU-vCe9rkpYs87YUrFNWkyNq8CVvmKwEjVinnDrJJc".to_string());
