@@ -14,6 +14,8 @@ pub use error::PubNubError;
 pub mod error;
 
 #[doc(inline)]
+pub use transport::blocking;
+#[doc(inline)]
 pub use transport::Transport;
 pub mod transport;
 

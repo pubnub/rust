@@ -19,6 +19,9 @@ use base64::{engine::general_purpose, Engine as _};
 use hashbrown::HashMap;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use time::OffsetDateTime;
 use urlencoding::encode;
 use uuid::Uuid;
@@ -38,13 +41,10 @@ use uuid::Uuid;
 ///
 /// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Debug)]
-pub struct PubNubMiddleware<T>
-where
-    T: Transport,
-{
+pub struct PubNubMiddleware<T> {
     pub(crate) transport: T,
-    pub(crate) instance_id: Option<String>,
-    pub(crate) user_id: String,
+    pub(crate) instance_id: Arc<Option<String>>,
+    pub(crate) user_id: Arc<String>,
     pub(crate) signature_keys: Option<SignatureKeySet>,
 }
 
@@ -106,22 +106,18 @@ impl SignatureKeySet {
     }
 }
 
-#[async_trait::async_trait]
-impl<T> Transport for PubNubMiddleware<T>
-where
-    T: Transport,
-{
-    async fn send(&self, mut req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+impl<T> PubNubMiddleware<T> {
+    fn prepare_request(&self, mut req: TransportRequest) -> Result<TransportRequest, PubNubError> {
         req.query_parameters
             .insert("requestid".into(), Uuid::new_v4().to_string());
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, VERSION));
         req.query_parameters
-            .insert("uuid".into(), self.user_id.clone());
+            .insert("uuid".into(), self.user_id.as_ref().into());
 
-        if let Some(instance_id) = &self.instance_id {
+        if let Some(instance_id) = self.instance_id.as_deref() {
             req.query_parameters
-                .insert("instanceid".into(), instance_id.clone());
+                .insert("instanceid".into(), instance_id.into());
         }
 
         if let Some(signature_key_set) = &self.signature_keys {
@@ -135,7 +131,29 @@ where
             );
         }
 
-        self.transport.send(req).await
+        Ok(req)
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> Transport for PubNubMiddleware<T>
+where
+    T: Transport,
+{
+    async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+        self.prepare_request(req)
+            .map(|req| self.transport.send(req))?
+            .await
+    }
+}
+
+impl<T> crate::core::blocking::Transport for PubNubMiddleware<T>
+where
+    T: crate::core::blocking::Transport,
+{
+    fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+        self.prepare_request(req)
+            .and_then(|req| self.transport.send(req))
     }
 }
 
@@ -175,8 +193,8 @@ mod should {
 
         let middleware = PubNubMiddleware {
             transport: MockTransport::default(),
-            instance_id: Some(String::from("instance_id")),
-            user_id: "user_id".to_string(),
+            instance_id: Arc::new(Some(String::from("instance_id"))),
+            user_id: String::from("user_id").into(),
             signature_keys: None,
         };
 
@@ -208,5 +226,43 @@ mod should {
         };
         let signature = signature_key_set.calculate_signature(&request);
         assert_eq!("v2.AHl5lMpzyT4qcvvlqaszCjTUqU6dPb10a4_XSaYCNIQ", signature);
+    }
+
+    #[test]
+    fn blocking_transport() {
+        use crate::core::blocking::Transport;
+
+        #[derive(Default)]
+        struct MockTransport;
+
+        impl crate::core::blocking::Transport for MockTransport {
+            fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
+                assert_eq!(
+                    "user_id",
+                    request.query_parameters.get("uuid").unwrap().clone()
+                );
+                assert_eq!(
+                    "instance_id",
+                    request.query_parameters.get("instanceid").unwrap().clone()
+                );
+                assert_eq!(
+                    format!("{}/{}", SDK_ID, VERSION),
+                    request.query_parameters.get("pnsdk").unwrap().clone()
+                );
+                assert!(request.query_parameters.contains_key("requestid"));
+                Ok(TransportResponse::default())
+            }
+        }
+
+        let middleware = PubNubMiddleware {
+            transport: MockTransport::default(),
+            instance_id: Some(String::from("instance_id")).into(),
+            user_id: "user_id".to_string().into(),
+            signature_keys: None,
+        };
+
+        let result = middleware.send(TransportRequest::default());
+
+        assert!(result.is_ok());
     }
 }
