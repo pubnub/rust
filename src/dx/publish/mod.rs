@@ -104,9 +104,9 @@ where
     fn prepare_context_with_request(
         self,
     ) -> Result<PublishMessageContext<T, D, TransportRequest>, PubNubError> {
-        let instance = self
-            .build()
-            .map_err(|err| PubNubError::PublishError(err.to_string()))?;
+        let instance = self.build().map_err(|err| PubNubError::PublishError {
+            details: err.to_string(),
+        })?;
 
         PublishMessageContext::from(instance)
             .map_data(|client, _, params| params.create_transport_request(&client.config))
@@ -418,11 +418,8 @@ where
         .map(|body| deserializer.deserialize(&body))
         .transpose()
         .and_then(|body| {
-            body.ok_or_else(|| {
-                PubNubError::PublishError(format!(
-                    "No body in the response! Status code: {}",
-                    response.status
-                ))
+            body.ok_or_else(|| PubNubError::PublishError {
+                details: format!("No body in the response! Status code: {}", response.status),
             })
             .map(|body| body_to_result(body, response.status))
         })?

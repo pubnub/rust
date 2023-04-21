@@ -28,10 +28,10 @@ use crate::{
 use bytes::Bytes;
 use hashbrown::HashMap;
 use log::info;
-use log::info;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
-use reqwest::{header::HeaderMap, StatusCode};
-use std::collections::HashMap;
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue},
+    StatusCode,
+};
 use urlencoding::encode;
 
 /// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
@@ -293,15 +293,20 @@ pub mod blocking {
                 TransportMethod::Post => self.prepare_post_method(request, request_url),
             }?;
 
-            let result = builder
-                .headers(headers)
-                .send()
-                .map_err(|e| PubNubError::TransportError(e.to_string()))?;
+            let result =
+                builder
+                    .headers(headers)
+                    .send()
+                    .map_err(|e| PubNubError::TransportError {
+                        details: e.to_string(),
+                    })?;
 
             let status = result.status();
             result
                 .bytes()
-                .map_err(|e| PubNubError::TransportError(e.to_string()))
+                .map_err(|e| PubNubError::TransportError {
+                    details: e.to_string(),
+                })
                 .and_then(|bytes| create_result(status, bytes))
         }
     }

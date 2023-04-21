@@ -27,7 +27,6 @@ snafu = "0.7"
 hmac = "0.12"
 sha2 = "0.10"
 time = { version = "0.3", features = ["alloc"] }
-base64 = "0.21"
 bytes = "1.4"
 
 # serde
@@ -62,7 +61,7 @@ harness = false
 required-features = ["contract_test"]
 
 [features]
-full = ["serde", "reqwest", "aescbc", "parse_token", "blocking" "std"]
+full = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
 default = ["serde", "reqwest", "aescbc", "std"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]

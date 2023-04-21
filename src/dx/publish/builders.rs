@@ -8,7 +8,7 @@ use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
     core::{Deserializer, Serialize},
     dx::PubNubClient,
-    lib::a::{string::String, sync::Arc},
+    lib::a::string::String,
 };
 use derive_builder::Builder;
 use hashbrown::HashMap;
