@@ -43,10 +43,14 @@ async fn main() {
                 .normalized(),
         )
         .fail_on_skipped()
-        .filter_run("tests/features", |_, _, scenario| {
+        .filter_run("tests/features", |feature, _, scenario| {
             // Filter out features and scenario which doesn't have @featureSet
             // and @contract tags.
-            scenario.tags.iter().any(|tag| tag.contains("contract="))
+            scenario.tags.iter().any(|tag| tag.starts_with("contract="))
+                && feature
+                    .tags
+                    .iter()
+                    .any(|tag| tag.starts_with("featureSet="))
         })
         .await;
 }
