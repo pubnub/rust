@@ -633,7 +633,7 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("publish///0/{}/0/{}", channel, encode("{\"number\":7}")),
+            format!("/publish///0/{}/0/{}", channel, encode("{\"number\":7}")),
             result.data.path
         );
     }
@@ -650,7 +650,7 @@ mod should {
             .use_post(true)
             .prepare_context_with_request()
             .unwrap();
-        assert_eq!(format!("publish///0/{}/0", channel), result.data.path);
+        assert_eq!(format!("/publish///0/{}/0", channel), result.data.path);
     }
 
     #[test_case(HashMap::from([("k".to_string(), "v".to_string())]), "{\"k\":\"v\"}" ; "hash map with elements")]
