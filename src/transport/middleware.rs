@@ -112,10 +112,9 @@ impl<T> PubNubMiddleware<T> {
         }
 
         // Adding access token or authorization key.
-        let auth_token = self.auth_token.read();
-        if !auth_token.is_empty() {
+        if !self.auth_token.read().is_empty() {
             req.query_parameters
-                .insert("auth".into(), auth_token.deref().into());
+                .insert("auth".into(), self.auth_token.read().deref().into());
         } else if let Some(auth_key) = self.auth_key.as_deref() {
             req.query_parameters.insert("auth".into(), auth_key.into());
         }

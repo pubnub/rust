@@ -359,7 +359,7 @@ impl<T> PubNubClientConfigBuilder<T> {
                     },
                     instance_id: pre_build.instance_id,
                     next_seqn: pre_build.next_seqn,
-                    auth_token: token.clone(),
+                    auth_token: token,
                     config: pre_build.config,
                 })
             })
