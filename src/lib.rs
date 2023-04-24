@@ -111,6 +111,8 @@
 //!
 
 #[doc(inline)]
+pub use dx::access;
+#[doc(inline)]
 pub use dx::publish;
 #[doc(inline)]
 pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};

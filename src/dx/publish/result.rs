@@ -3,7 +3,7 @@
 //! This module contains the `PublishResult` type.
 //! The `PublishResult` type is used to represent the result of a publish operation.
 
-use crate::core::PubNubError;
+use crate::core::{APIErrorBody, PubNubError};
 
 /// The result of a publish operation.
 /// It contains the timetoken of the published message.
@@ -24,7 +24,7 @@ pub struct PublishResult {
 /// [`PublishResult`]: struct.PublishResult.html
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PublishResponseBody {
     /// The response body of a publish operation in publish service.
     /// It contains the error indicator, the message from service and the timetoken
@@ -36,28 +36,9 @@ pub enum PublishResponseBody {
     /// ```json
     /// [1, "Sent", "15815800000000000"]
     /// ```
-    PublishResponse(i32, String, String),
+    SuccessResponse(i32, String, String),
     /// The response body of a publish operation in other services.
-    OtherResponse(OtherResponse),
-}
-
-/// The response body of a publish operation in other services.
-/// It contains the status code, the error indicator, the service name and the message.
-/// The error indicator is `true` if the operation was successful and `false` otherwise.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct OtherResponse {
-    /// Status code of the response.
-    pub status: u16,
-
-    /// Indicates if the operation was successful.
-    pub error: bool,
-
-    /// The name of the service.
-    pub service: String,
-
-    /// The message from the service.
-    pub message: String,
+    ErrorResponse(APIErrorBody),
 }
 
 pub(super) fn body_to_result(
@@ -65,20 +46,14 @@ pub(super) fn body_to_result(
     status: u16,
 ) -> Result<PublishResult, PubNubError> {
     match body {
-        PublishResponseBody::PublishResponse(error_indicator, message, timetoken) => {
+        PublishResponseBody::SuccessResponse(error_indicator, message, timetoken) => {
             if error_indicator == 1 {
                 Ok(PublishResult { timetoken })
             } else {
-                Err(PubNubError::PublishError(format!(
-                    "Status code: {}, body: {:?}",
-                    status, message
-                )))
+                Err(PubNubError::general_api_error(message, Some(status)))
             }
         }
-        PublishResponseBody::OtherResponse(body) => Err(PubNubError::PublishError(format!(
-            "Status code: {}, body: {:?}",
-            status, body
-        ))),
+        PublishResponseBody::ErrorResponse(resp) => Err(resp.into()),
     }
 }
 
@@ -88,7 +63,7 @@ mod should {
 
     #[test]
     fn parse_publish_response() {
-        let body = PublishResponseBody::PublishResponse(
+        let body = PublishResponseBody::SuccessResponse(
             1,
             "Sent".to_string(),
             "15815800000000000".to_string(),
@@ -101,8 +76,7 @@ mod should {
     #[test]
     fn parse_other_response() {
         let status = 400;
-
-        let body = PublishResponseBody::OtherResponse(OtherResponse {
+        let body = PublishResponseBody::ErrorResponse(APIErrorBody::AsObjectWithService {
             status,
             error: true,
             service: "service".to_string(),

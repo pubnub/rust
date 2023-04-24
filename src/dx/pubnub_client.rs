@@ -8,12 +8,15 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use std::ops::Deref;
-use std::sync::{Arc, Mutex};
+use std::{
+    ops::Deref,
+    sync::{Arc, Mutex},
+};
 
-use crate::core::PubNubError::ClientInitializationError;
-use crate::transport::middleware::SignatureKeySet;
-use crate::{core::PubNubError, core::Transport, transport::middleware::PubNubMiddleware};
+use crate::{
+    core::{PubNubError, Transport},
+    transport::middleware::{PubNubMiddleware, SignatureKeySet},
+};
 use derive_builder::Builder;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -151,6 +154,14 @@ pub struct PubNubClientRef<T> {
 
     /// Configuration
     pub(crate) config: PubNubConfig,
+
+    /// Access token
+    #[builder(
+        setter(custom),
+        field(vis = "pub(crate)"),
+        default = "Arc::new(spin::RwLock::new(String::new()))"
+    )]
+    pub(crate) auth_token: Arc<spin::RwLock<String>>,
 }
 
 impl<T> PubNubClient<T> {
@@ -241,6 +252,7 @@ impl<T> PubNubClient<T> {
     /// ```
     ///
     /// [`PubNubClient`]: struct.PubNubClient.html
+    #[cfg(feature = "blocking")]
     pub fn with_blocking_transport(transport: T) -> PubNubClientBuilder<T>
     where
         T: crate::core::blocking::Transport,
@@ -249,25 +261,105 @@ impl<T> PubNubClient<T> {
             transport: Some(transport),
         }
     }
+
+    /// Update currently used authentication token.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
+    ///
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let token = "<auth token from grant_token>";
+    /// let client = // PubNubClient
+    /// #     PubNubClientBuilder::with_reqwest_transport()
+    /// #         .with_keyset(Keyset {
+    /// #              subscribe_key: "demo",
+    /// #              publish_key: Some("demo"),
+    /// #              secret_key: Some("demo")
+    /// #          })
+    /// #         .with_user_id("uuid")
+    /// #         .build()?;
+    /// client.set_token(token);
+    /// // Now client has access to all endpoints for which `token` has
+    /// // permissions.
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn set_token<S>(&self, access_token: S)
+    where
+        S: Into<String>,
+    {
+        let mut token = self.auth_token.write();
+        *token = access_token.into();
+    }
+
+    /// Retrieve currently used authentication token.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
+    ///
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// #     let token = "<auth token from grant_token>";
+    /// let client = // PubNubClient
+    /// #     PubNubClientBuilder::with_reqwest_transport()
+    /// #         .with_keyset(Keyset {
+    /// #              subscribe_key: "demo",
+    /// #              publish_key: Some("demo"),
+    /// #              secret_key: Some("demo")
+    /// #          })
+    /// #         .with_user_id("uuid")
+    /// #         .build()?;
+    /// #     client.set_token(token);
+    /// println!("Current authentication token: {:?}", client.get_token());
+    /// // Now client has access to all endpoints for which `token` has
+    /// // permissions.
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn get_token(&self) -> Option<String> {
+        let token = self.auth_token.read().deref().clone();
+        token.is_empty().then_some(token)
+    }
 }
 
 impl<T> PubNubClientConfigBuilder<T> {
+    /// Set client authentication key.
+    ///
+    /// It returns [`PubNubClientConfigBuilder`] that you can use to set the
+    /// configuration for the client. This is a part the
+    /// [`PubNubClientConfigBuilder`].
+    pub fn with_auth_key<S>(mut self, auth_key: S) -> Self
+    where
+        S: Into<String>,
+    {
+        if let Some(configuration) = self.config.as_mut() {
+            configuration.auth_key = Some(Arc::new(auth_key.into()));
+        }
+
+        self
+    }
+
     /// Build a [`PubNubClient`] from the builder
     ///
     /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn build(self) -> Result<PubNubClient<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
-            .map_err(|err| ClientInitializationError(err.to_string()))
+            .map_err(|err| PubNubError::ClientInitialization(err.to_string()))
             .and_then(|pre_build| {
+                let token = Arc::new(spin::RwLock::new(String::new()));
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
-                        transport: pre_build.transport,
-                        instance_id: Arc::clone(&pre_build.instance_id),
-                        user_id: Arc::clone(&pre_build.config.user_id),
                         signature_keys: pre_build.config.clone().signature_key_set()?,
+                        auth_key: pre_build.config.auth_key.clone(),
+                        instance_id: pre_build.instance_id.clone(),
+                        user_id: pre_build.config.user_id.clone(),
+                        transport: pre_build.transport,
+                        auth_token: token.clone(),
                     },
                     instance_id: pre_build.instance_id,
                     next_seqn: pre_build.next_seqn,
+                    auth_token: token,
                     config: pre_build.config,
                 })
             })
@@ -296,12 +388,15 @@ pub struct PubNubConfig {
 
     /// Secret key
     pub(crate) secret_key: Option<String>,
+
+    /// Authorization key
+    pub(crate) auth_key: Option<Arc<String>>,
 }
 
 impl PubNubConfig {
     fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
         if let Some(secret_key) = self.secret_key {
-            let publish_key = self.publish_key.ok_or(ClientInitializationError(
+            let publish_key = self.publish_key.ok_or(PubNubError::ClientInitialization(
                 "You must also provide the publish key if you use the secret key.".to_string(),
             ))?;
             Ok(Some(SignatureKeySet {
@@ -396,7 +491,7 @@ impl<T> PubNubClientBuilder<T> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    /// let client = PubNubClientBuilder::<MyTransport>::new()
     ///                     .with_transport(transport)
     ///                     .with_keyset(Keyset {
     ///                         publish_key: Some("pub-c-abc123"),
@@ -440,7 +535,7 @@ impl<T> PubNubClientBuilder<T> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    /// let client = PubNubClientBuilder::<MyTransport>::new()
     ///                     .with_blocking_transport(transport)
     ///                     .with_keyset(Keyset {
     ///                         publish_key: Some("pub-c-abc123"),
@@ -452,6 +547,7 @@ impl<T> PubNubClientBuilder<T> {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "blocking")]
     pub fn with_blocking_transport<U>(self, transport: U) -> PubNubClientBuilder<U>
     where
         U: crate::core::blocking::Transport,
@@ -554,6 +650,7 @@ where
                 subscribe_key: self.keyset.subscribe_key.into(),
                 secret_key,
                 user_id: Arc::new(user_id.into()),
+                auth_key: None,
             }),
             ..Default::default()
         }
@@ -636,6 +733,7 @@ mod should {
             subscribe_key: "sub_key".into(),
             secret_key: Some("sec_key".into()),
             user_id: Arc::new("".to_string()),
+            auth_key: None,
         };
 
         assert!(config.signature_key_set().is_err());
