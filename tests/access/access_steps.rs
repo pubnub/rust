@@ -7,7 +7,8 @@ use pubnub::{
 use std::collections::HashMap;
 use std::ops::Not;
 
-/// Retrieve permission
+/// Add permission to specified `resource` in `resource` or `pattern`
+/// permissions list.
 fn add_permission(
     world: &mut PubNubWorld,
     name: Option<&String>,
@@ -37,20 +38,15 @@ fn add_permission(
             }
 
             if let Some(perm) = resources.channels.pop() {
-                if permission == "READ" {
-                    resources.channels.push(perm.read());
-                } else if permission == "WRITE" {
-                    resources.channels.push(perm.write());
-                } else if permission == "GET" {
-                    resources.channels.push(perm.get());
-                } else if permission == "MANAGE" {
-                    resources.channels.push(perm.manage());
-                } else if permission == "UPDATE" {
-                    resources.channels.push(perm.update());
-                } else if permission == "JOIN" {
-                    resources.channels.push(perm.join());
-                } else if permission == "DELETE" {
-                    resources.channels.push(perm.delete());
+                match permission.as_str() {
+                    "READ" => resources.channels.push(perm.read()),
+                    "WRITE" => resources.channels.push(perm.write()),
+                    "GET" => resources.channels.push(perm.get()),
+                    "MANAGE" => resources.channels.push(perm.manage()),
+                    "UPDATE" => resources.channels.push(perm.update()),
+                    "JOIN" => resources.channels.push(perm.join()),
+                    "DELETE" => resources.channels.push(perm.delete()),
+                    &_ => {}
                 }
             }
         }
@@ -64,10 +60,10 @@ fn add_permission(
             }
 
             if let Some(perm) = resources.groups.pop() {
-                if permission == "READ" {
-                    resources.groups.push(perm.read());
-                } else if permission == "MANAGE" {
-                    resources.groups.push(perm.manage());
+                match permission.as_str() {
+                    "READ" => resources.groups.push(perm.read()),
+                    "MANAGE" => resources.groups.push(perm.manage()),
+                    &_ => {}
                 }
             }
         }
@@ -81,12 +77,11 @@ fn add_permission(
             }
 
             if let Some(perm) = resources.user_ids.pop() {
-                if permission == "GET" {
-                    resources.user_ids.push(perm.get());
-                } else if permission == "UPDATE" {
-                    resources.user_ids.push(perm.update());
-                } else if permission == "DELETE" {
-                    resources.user_ids.push(perm.delete());
+                match permission.as_str() {
+                    "GET" => resources.user_ids.push(perm.get()),
+                    "UPDATE" => resources.user_ids.push(perm.update()),
+                    "DELETE" => resources.user_ids.push(perm.delete()),
+                    &_ => {}
                 }
             }
         }
@@ -299,22 +294,15 @@ fn token_resource_has_permission(world: &mut PubNubWorld, category: String, perm
         let token_permission = resource_permission.get(resource_name.as_str()).unwrap();
         matched = true;
 
-        if permission == "READ" {
-            assert!(token_permission.read);
-        } else if permission == "WRITE" {
-            assert!(token_permission.write);
-        } else if permission == "GET" {
-            assert!(token_permission.get);
-        } else if permission == "MANAGE" {
-            assert!(token_permission.manage);
-        } else if permission == "UPDATE" {
-            assert!(token_permission.update);
-        } else if permission == "JOIN" {
-            assert!(token_permission.join);
-        } else if permission == "DELETE" {
-            assert!(token_permission.delete);
-        } else {
-            matched = false;
+        match permission.as_str() {
+            "READ" => assert!(token_permission.read),
+            "WRITE" => assert!(token_permission.write),
+            "GET" => assert!(token_permission.get),
+            "MANAGE" => assert!(token_permission.manage),
+            "UPDATE" => assert!(token_permission.update),
+            "JOIN" => assert!(token_permission.join),
+            "DELETE" => assert!(token_permission.delete),
+            &_ => matched = false,
         }
     }
     assert!(matched);
