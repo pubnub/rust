@@ -56,7 +56,7 @@ pub struct TransportReqwest {
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
         let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);
-        info!("{}", request_url);
+        info!("{} {:?} {}", request.method, request.headers, request_url);
         let headers = prepare_headers(&request.headers)?;
         let builder = match request.method {
             TransportMethod::Get => self.prepare_get_method(request, request_url),
@@ -267,7 +267,7 @@ pub mod blocking {
     impl crate::core::blocking::Transport for TransportReqwest {
         fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
             let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);
-            info!("{}", request_url);
+            info!("{} {:?} {}", request.method, request.headers, request_url);
             let headers = prepare_headers(&request.headers)?;
             let builder = match request.method {
                 TransportMethod::Get => self.prepare_get_method(request, request_url),
