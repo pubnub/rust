@@ -21,7 +21,7 @@ use snafu::Snafu;
 /// }
 ///
 /// foo().map_err(|e| match e {
-///   PubNubError::Transport(_) => println!("Transport error"),
+///   PubNubError::Transport { .. } => println!("Transport error"),
 ///   PubNubError::API { .. } => println!("Publish error"),
 ///   _ => println!("Other error"),
 /// });
