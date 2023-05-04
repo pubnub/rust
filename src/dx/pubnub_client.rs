@@ -10,9 +10,9 @@
 
 use crate::transport::middleware::SignatureKeySet;
 use crate::{
-    core::{PubNubError, PubNubError::ClientInitializationError, Transport},
+    core::{PubNubError, Transport},
     lib::a::string::{String, ToString},
-    lib::a::sync::{Arc, Mutex},
+    lib::a::sync::Arc,
     lib::c::ops::Deref,
     transport::middleware::PubNubMiddleware,
 };
@@ -346,7 +346,7 @@ impl<T> PubNubClientConfigBuilder<T> {
     /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn build(self) -> Result<PubNubClient<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
-            .map_err(|err| ClientInitialization {
+            .map_err(|err| PubNubError::ClientInitialization {
                 details: err.to_string(),
             })
             .and_then(|pre_build| {
@@ -399,7 +399,7 @@ pub struct PubNubConfig {
 impl PubNubConfig {
     fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
         if let Some(secret_key) = self.secret_key {
-            let publish_key = self.publish_key.ok_or(ClientInitialization {
+            let publish_key = self.publish_key.ok_or(PubNubError::ClientInitialization {
                 details: "You must also provide the publish key if you use the secret key."
                     .to_string(),
             })?;

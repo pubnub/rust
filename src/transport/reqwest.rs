@@ -14,10 +14,7 @@
 //! [`reqwest` feature]: ../index.html#features
 
 use crate::{
-    core::{
-        error::{PubNubError, PubNubError::TransportError},
-        Transport, TransportMethod, TransportRequest, TransportResponse,
-    },
+    core::{error::PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
     lib::a::{
         boxed::Box,
         format,
@@ -79,7 +76,7 @@ impl Transport for TransportReqwest {
             .headers(headers)
             .send()
             .await
-            .map_err(|e| Transport {
+            .map_err(|e| PubNubError::Transport {
                 details: e.to_string(),
             })?;
 
@@ -87,7 +84,7 @@ impl Transport for TransportReqwest {
         result
             .bytes()
             .await
-            .map_err(|e| Transport {
+            .map_err(|e| PubNubError::Transport {
                 details: e.to_string(),
             })
             .and_then(|bytes| create_result(status, bytes))
@@ -152,7 +149,7 @@ impl TransportReqwest {
     ) -> Result<reqwest::RequestBuilder, PubNubError> {
         request
             .body
-            .ok_or(Transport {
+            .ok_or(PubNubError::Transport {
                 details: "Body should not be empty for POST".into(),
             })
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
@@ -171,11 +168,12 @@ fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMa
     request_headers
         .iter()
         .map(|(k, v)| -> Result<(HeaderName, HeaderValue), PubNubError> {
-            let name = TryFrom::try_from(k).map_err(|err: InvalidHeaderName| Transport {
-                details: err.to_string(),
-            })?;
+            let name =
+                TryFrom::try_from(k).map_err(|err: InvalidHeaderName| PubNubError::Transport {
+                    details: err.to_string(),
+                })?;
             let value: HeaderValue =
-                TryFrom::try_from(v).map_err(|err: InvalidHeaderValue| Transport {
+                TryFrom::try_from(v).map_err(|err: InvalidHeaderValue| PubNubError::Transport {
                     details: err.to_string(),
                 })?;
             Ok((name, value))

@@ -19,6 +19,8 @@ pub mod result;
 pub use builders::PublishMessageBuilder;
 pub mod builders;
 
+use self::result::body_to_result;
+
 use super::pubnub_client::PubNubConfig;
 use crate::{
     core::{
@@ -36,7 +38,6 @@ use crate::{
     },
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
-use result::body_to_result;
 use urlencoding::encode;
 
 impl<T> PubNubClient<T> {
@@ -415,7 +416,7 @@ where
         .map(|body| deserializer.deserialize(&body))
         .transpose()
         .and_then(|body| {
-        .body.ok_or_else(|| {
+            body.ok_or_else(|| {
                 PubNubError::general_api_error(
                     format!("No body in the response! Status code: {}", response.status),
                     None,

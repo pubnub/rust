@@ -18,6 +18,7 @@
 //!
 //! [`Serialize`]: ../trait.Serialize.html
 
+use crate::core::PubNubError;
 use crate::lib::{a::string::ToString, Vec};
 
 /// Serde implementation for PubNub [`Serializer`] trait.
@@ -35,8 +36,9 @@ where
     T: serde::Serialize,
 {
     fn serialize(&self, object: &'se T) -> Result<Vec<u8>, crate::core::PubNubError> {
-        serde_json::to_vec(object)
-            .map_err(|e| crate::core::PubNubError::Serialization(e.to_string()))
+        serde_json::to_vec(object).map_err(|e| PubNubError::Serialization {
+            details: e.to_string(),
+        })
     }
 }
 
@@ -45,7 +47,7 @@ where
     S: serde::Serialize,
 {
     fn serialize(self) -> Result<Vec<u8>, crate::core::PubNubError> {
-        serde_json::to_vec(&self).map_err(|e| crate::core::PubNubError::Serialization {
+        serde_json::to_vec(&self).map_err(|e| PubNubError::Serialization {
             details: e.to_string(),
         })
     }

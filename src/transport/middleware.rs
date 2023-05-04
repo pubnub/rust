@@ -12,7 +12,7 @@ use crate::{
             format,
             string::{String, ToString},
         },
-        ops::Deref,
+        c::ops::Deref,
         Vec,
     },
 };
