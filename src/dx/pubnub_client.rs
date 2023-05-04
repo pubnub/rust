@@ -693,6 +693,7 @@ where
 mod should {
     use super::*;
     use crate::core::{TransportRequest, TransportResponse};
+    use crate::lib::a::boxed::Box;
     use std::any::type_name;
 
     #[test]
@@ -736,7 +737,7 @@ mod should {
             publish_key: None,
             subscribe_key: "sub_key".into(),
             secret_key: Some("sec_key".into()),
-            user_id: Arc::new("".to_string()),
+            user_id: Arc::new("".into()),
             auth_key: None,
         };
 

@@ -259,6 +259,10 @@ mod it_should {
     use super::*;
     use crate::{
         core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
+        lib::{
+            a::{borrow::ToOwned, format},
+            Vec,
+        },
         transport::middleware::PubNubMiddleware,
         Keyset,
     };
@@ -383,7 +387,7 @@ mod it_should {
     async fn grant_token() {
         let permissions = permissions();
         let transport = MockTransport {
-            response: Some(transport_response(200, Some("test-token".to_string()))),
+            response: Some(transport_response(200, Some("test-token".into()))),
             ..Default::default()
         };
         let client = client(true, true, None, None, Some(transport));
@@ -521,13 +525,7 @@ mod it_should {
                 assert_eq!(req.query_parameters.get("auth").unwrap(), "auth-key");
             })),
         };
-        let client = client(
-            true,
-            true,
-            Some("auth-key".to_string()),
-            None,
-            Some(transport),
-        );
+        let client = client(true, true, Some("auth-key".into()), None, Some(transport));
 
         let _ = client.revoke_token("test/to+en==").execute().await;
     }
@@ -542,13 +540,7 @@ mod it_should {
             })),
         };
 
-        let client = client(
-            true,
-            true,
-            None,
-            Some("auth-token".to_string()),
-            Some(transport),
-        );
+        let client = client(true, true, None, Some("auth-token".into()), Some(transport));
 
         let _ = client.revoke_token("test/to+en==").execute().await;
     }
@@ -565,8 +557,8 @@ mod it_should {
         let client = client(
             true,
             true,
-            Some("auth-key".to_string()),
-            Some("auth-token".to_string()),
+            Some("auth-key".into()),
+            Some("auth-token".into()),
             Some(transport),
         );
 
