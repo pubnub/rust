@@ -5,7 +5,10 @@
 //! traits.
 
 use crate::core::Serializer;
-use crate::lib::{a::boxed::Box, a::string::String};
+use crate::lib::{
+    a::boxed::Box,
+    a::string::{String, ToString},
+};
 use crate::{
     core::Deserializer,
     dx::access::{permissions::*, types::MetaValue, GrantTokenRequest, GrantTokenResponseBody},

@@ -4,7 +4,14 @@
 //! responses for [`PubNubError`] consumption.
 
 use crate::core::PubNubError;
-use crate::lib::{a::format, a::string::String, Vec};
+use crate::lib::{
+    a::{
+        borrow::ToOwned,
+        format,
+        string::{String, ToString},
+    },
+    Vec,
+};
 use hashbrown::HashMap;
 
 /// Implementation for [`APIError`] to create struct from service error response

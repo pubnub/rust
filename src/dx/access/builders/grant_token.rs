@@ -9,7 +9,7 @@ use crate::{
         Deserializer, Serializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, PubNubClient},
-    lib::a::{format, vec},
+    lib::a::{format, string::ToString, vec},
 };
 use derive_builder::Builder;
 use hashbrown::HashMap;
