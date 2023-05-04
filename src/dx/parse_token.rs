@@ -1,61 +1,89 @@
+//! Access token parser module.
+//!
+//! This module contains the [`parse_token`] function, which produces a
+//! [`Token`] with information about the permissions granted to the token.
+
 use crate::core::PubNubError;
-use base64::engine::general_purpose;
-use base64::Engine;
+use base64::{engine::general_purpose, Engine};
 use ciborium::de::from_reader;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::ops::Deref;
+use std::{collections::HashMap, ops::Deref};
 
-/// The [`parse_token`] function decodes an existing token and returns the struct containing permissions embedded in that token.
-/// The client can use this method for debugging to check the permissions to the resources
+/// The [`parse_token`] function decodes an existing token and returns the
+/// struct containing permissions embedded in that token.
+/// The client can use this method for debugging to check the permissions to the
+/// resources.
 pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
-    let token_bytes = general_purpose::URL_SAFE_NO_PAD
-        .decode(token.as_bytes())
-        .map_err(|e| PubNubError::TokenDeserializationError {
-            details: e.to_string(),
-        })?;
+    let token_bytes = general_purpose::URL_SAFE
+        .decode(format!("{token}{}", "=".repeat(token.len() % 4)).as_bytes())
+        .map_err(|e| PubNubError::TokenDeserialization{details: e.to_string()})?;
 
-    from_reader(token_bytes.deref()).map_err(|e| PubNubError::TokenDeserializationError {
-        details: e.to_string(),
-    })
+    from_reader(token_bytes.deref()).map_err(|e| PubNubError::TokenDeserialization{details: e.to_string()}))
 }
 
+/// Version based access token.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum Token {
+    /// Decoded token information (version 2).
     V2(TokenV2),
 }
 
+/// Access token (version 2) with information about resources and their
+/// permissions.
 #[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct TokenV2 {
+    /// Access token version (version 2).
     #[serde(rename = "v")]
-    version: u8,
+    pub version: u8,
+
+    /// Unix-timestamp with the date when token has been granted.
     #[serde(rename = "t")]
-    timestamp: u32,
+    pub timestamp: u32,
+
+    /// Duration (in minutes) during which this token permissions are valid.
     #[serde(rename = "ttl")]
-    ttl: u32,
+    pub ttl: u32,
+
+    /// Dedicated user ID which can use this access token (if provided during
+    /// grant token call).
     #[serde(rename = "uuid")]
-    authorized_user_id: Option<String>,
+    pub authorized_user_id: Option<String>,
+
+    /// Permissions for resources identified by their names.
     #[serde(rename = "res")]
-    resources: TokenResources,
+    pub resources: TokenResources,
+
+    /// Permissions for resources identified by regular expressions.
     #[serde(rename = "pat")]
-    patterns: TokenResources,
-    meta: HashMap<String, MetaValue>,
+    pub patterns: TokenResources,
+
+    /// Extra metadata to which has been included into access token.
+    pub meta: HashMap<String, MetaValue>,
 }
 
+/// Typed resource permissions map.
 #[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct TokenResources {
+    /// `Channel`-based endpoints permission map between channel name / regexp
+    /// and set of permissions.
     #[serde(rename = "chan")]
-    channels: HashMap<String, ResourcePermissions>,
+    pub channels: HashMap<String, ResourcePermissions>,
+
+    /// `Channel group`-based endpoints permission map between channel
+    /// name / regexp and set of permissions.
     #[serde(rename = "grp")]
-    groups: HashMap<String, ResourcePermissions>,
+    pub groups: HashMap<String, ResourcePermissions>,
+
+    /// `UserId`-based endpoints permission map between channel
+    /// name / regexp and set of permissions.
     #[serde(rename = "uuid")]
-    users: HashMap<String, ResourcePermissions>,
+    pub users: HashMap<String, ResourcePermissions>,
 }
 
 impl From<u8> for ResourcePermissions {
@@ -73,28 +101,57 @@ impl From<u8> for ResourcePermissions {
     }
 }
 
+/// Resource permissions map.
+///
+/// This structure contains information about permissions which has been granted
+/// to specific resource.
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[allow(dead_code)]
 #[serde(from = "u8")]
 pub struct ResourcePermissions {
-    read: bool,
-    write: bool,
-    manage: bool,
-    delete: bool,
-    create: bool,
-    get: bool,
-    update: bool,
-    join: bool,
+    /// Whether or not the resource has **read** permission.
+    pub read: bool,
+
+    /// Whether or not the resource has **write** permission.
+    pub write: bool,
+
+    /// Whether or not the resource has **manage** permission.
+    pub manage: bool,
+
+    /// Whether or not the resource has **delete** permission.
+    pub delete: bool,
+
+    /// Whether or not the resource has **create** permission.
+    pub create: bool,
+
+    /// Whether or not the resource has **get** permission.
+    pub get: bool,
+
+    /// Whether or not the resource has **update** permission.
+    pub update: bool,
+
+    /// Whether or not the resource has **join** permission.
+    pub join: bool,
 }
 
+/// Enum for values associated with token.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum MetaValue {
+    /// `String` value.
     String(String),
+
+    /// `Integer` value.
     Integer(i64),
+
+    /// `Float` / `double` value.
     Float(f64),
+
+    /// `Boolean` value.
     Bool(bool),
+
+    /// `null` value.
     Null,
 }
 

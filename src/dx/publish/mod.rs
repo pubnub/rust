@@ -104,9 +104,9 @@ where
     fn prepare_context_with_request(
         self,
     ) -> Result<PublishMessageContext<T, D, TransportRequest>, PubNubError> {
-        let instance = self.build().map_err(|err| PubNubError::PublishError {
-            details: err.to_string(),
-        })?;
+        let instance = self
+            .build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
 
         PublishMessageContext::from(instance)
             .map_data(|client, _, params| params.create_transport_request(&client.config))
@@ -267,7 +267,6 @@ where
         query_params
     }
 
-    // TODO: create test for path creation!
     fn create_transport_request(
         self,
         config: &PubNubConfig,
@@ -277,14 +276,12 @@ where
         let pub_key = config
             .publish_key
             .as_ref()
-            .ok_or_else(|| PubNubError::PublishError {
-                details: "Publish key is not set".into(),
-            })?;
+            .ok_or_else(|| PubNubError::general_api_error("Publish key is not set", None))?;
         let sub_key = &config.subscribe_key;
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
+                path: format!("/publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
@@ -294,13 +291,13 @@ where
             self.message
                 .serialize()
                 .and_then(|m_vec| {
-                    String::from_utf8(m_vec).map_err(|e| PubNubError::SerializationError {
+                    String::from_utf8(m_vec).map_err(|e| PubNubError::Serialization {
                         details: e.to_string(),
                     })
                 })
                 .map(|m_str| TransportRequest {
                     path: format!(
-                        "publish/{}/{}/0/{}/0/{}",
+                        "/publish/{}/{}/0/{}/0/{}",
                         pub_key,
                         sub_key,
                         encode(&self.channel),
@@ -418,8 +415,11 @@ where
         .map(|body| deserializer.deserialize(&body))
         .transpose()
         .and_then(|body| {
-            body.ok_or_else(|| PubNubError::PublishError {
-                details: format!("No body in the response! Status code: {}", response.status),
+        .body.ok_or_else(|| {
+                PubNubError::general_api_error(
+                    format!("No body in the response! Status code: {}", response.status),
+                    None,
+                )
             })
             .map(|body| body_to_result(body, response.status))
         })?
@@ -580,7 +580,7 @@ mod should {
 
         assert_eq!(
             format!(
-                "publish///0/{}/0/{}",
+                "/publish///0/{}/0/{}",
                 channel,
                 encode(&format!("\"{}\"", message))
             ),
@@ -601,7 +601,7 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
+            format!("/publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
             result.data.path
         );
     }
@@ -620,11 +620,44 @@ mod should {
             .unwrap();
 
         let result_data = result.data;
-        assert_eq!(format!("publish///0/{}/0", channel), result_data.path);
+        assert_eq!(format!("/publish///0/{}/0", channel), result_data.path);
         assert_eq!(
             format!("\"{}\"", message),
             String::from_utf8(result_data.body.unwrap()).unwrap()
         );
+    }
+
+    #[test]
+    fn test_path_segments_get() {
+        let client = client();
+        let channel = String::from("channel_name");
+        let message = HashMap::from([("number", 7)]);
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .prepare_context_with_request()
+            .unwrap();
+
+        assert_eq!(
+            format!("/publish///0/{}/0/{}", channel, encode("{\"number\":7}")),
+            result.data.path
+        );
+    }
+
+    #[test]
+    fn test_path_segments_post() {
+        let client = client();
+        let channel = String::from("channel_name");
+        let message = HashMap::from([("number", 7)]);
+
+        let result = client
+            .publish_message(message)
+            .channel(channel.clone())
+            .use_post(true)
+            .prepare_context_with_request()
+            .unwrap();
+        assert_eq!(format!("/publish///0/{}/0", channel), result.data.path);
     }
 
     #[test_case(HashMap::from([("k".to_string(), "v".to_string())]), "{\"k\":\"v\"}" ; "hash map with elements")]

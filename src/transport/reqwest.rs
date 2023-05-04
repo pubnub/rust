@@ -56,7 +56,7 @@ pub struct TransportReqwest {
     ///
     /// let transport = {
     ///    let mut transport = TransportReqwest::default();
-    ///    transport.hostname = "https://wherever.you.want.com/".into();
+    ///    transport.hostname = "https://wherever.you.want.com".into();
     ///    transport
     /// };
     /// ```
@@ -72,13 +72,14 @@ impl Transport for TransportReqwest {
         let builder = match request.method {
             TransportMethod::Get => self.prepare_get_method(request, request_url),
             TransportMethod::Post => self.prepare_post_method(request, request_url),
+            TransportMethod::Delete => self.prepare_delete_method(request, request_url),
         }?;
 
         let result = builder
             .headers(headers)
             .send()
             .await
-            .map_err(|e| TransportError {
+            .map_err(|e| Transport {
                 details: e.to_string(),
             })?;
 
@@ -86,7 +87,7 @@ impl Transport for TransportReqwest {
         result
             .bytes()
             .await
-            .map_err(|e| TransportError {
+            .map_err(|e| Transport {
                 details: e.to_string(),
             })
             .and_then(|bytes| create_result(status, bytes))
@@ -97,7 +98,7 @@ impl Default for TransportReqwest {
     fn default() -> Self {
         Self {
             reqwest_client: reqwest::Client::default(),
-            hostname: "https://ps.pndsn.com/".into(),
+            hostname: "https://ps.pndsn.com".into(),
         }
     }
 }
@@ -151,10 +152,18 @@ impl TransportReqwest {
     ) -> Result<reqwest::RequestBuilder, PubNubError> {
         request
             .body
-            .ok_or(TransportError {
+            .ok_or(Transport {
                 details: "Body should not be empty for POST".into(),
             })
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
+    }
+
+    fn prepare_delete_method(
+        &self,
+        _request: TransportRequest,
+        url: String,
+    ) -> Result<reqwest::RequestBuilder, PubNubError> {
+        Ok(self.reqwest_client.delete(url))
     }
 }
 
@@ -162,11 +171,11 @@ fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMa
     request_headers
         .iter()
         .map(|(k, v)| -> Result<(HeaderName, HeaderValue), PubNubError> {
-            let name = TryFrom::try_from(k).map_err(|err: InvalidHeaderName| TransportError {
+            let name = TryFrom::try_from(k).map_err(|err: InvalidHeaderName| Transport {
                 details: err.to_string(),
             })?;
             let value: HeaderValue =
-                TryFrom::try_from(v).map_err(|err: InvalidHeaderValue| TransportError {
+                TryFrom::try_from(v).map_err(|err: InvalidHeaderValue| Transport {
                     details: err.to_string(),
                 })?;
             Ok((name, value))
@@ -174,7 +183,6 @@ fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMa
         .collect()
 }
 
-// TODO: create test for merging query params
 fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String>) -> String {
     if query_params.is_empty() {
         return format!("{}{}", hostname, path);
@@ -276,7 +284,7 @@ pub mod blocking {
         ///
         /// let transport = {
         ///    let mut transport = TransportReqwest::default();
-        ///    transport.hostname = "https://wherever.you.want.com/".into();
+        ///    transport.hostname = "https://wherever.you.want.com".into();
         ///    transport
         /// };
         /// ```
@@ -291,20 +299,20 @@ pub mod blocking {
             let builder = match request.method {
                 TransportMethod::Get => self.prepare_get_method(request, request_url),
                 TransportMethod::Post => self.prepare_post_method(request, request_url),
+                TransportMethod::Delete => self.prepare_delete_method(request, request_url),
             }?;
 
-            let result =
-                builder
-                    .headers(headers)
-                    .send()
-                    .map_err(|e| PubNubError::TransportError {
-                        details: e.to_string(),
-                    })?;
+            let result = builder
+                .headers(headers)
+                .send()
+                .map_err(|e| PubNubError::Transport {
+                    details: e.to_string(),
+                })?;
 
             let status = result.status();
             result
                 .bytes()
-                .map_err(|e| PubNubError::TransportError {
+                .map_err(|e| PubNubError::Transport {
                     details: e.to_string(),
                 })
                 .and_then(|bytes| create_result(status, bytes))
@@ -315,7 +323,7 @@ pub mod blocking {
         fn default() -> Self {
             Self {
                 reqwest_client: reqwest::blocking::Client::default(),
-                hostname: "https://ps.pndsn.com/".into(),
+                hostname: "https://ps.pndsn.com".into(),
             }
         }
     }
@@ -365,6 +373,14 @@ pub mod blocking {
                 None => builder,
             };
             Ok(builder)
+        }
+
+        fn prepare_delete_method(
+            &self,
+            _request: TransportRequest,
+            request_url: String,
+        ) -> Result<reqwest::blocking::RequestBuilder, PubNubError> {
+            Ok(self.reqwest_client.delete(request_url))
         }
     }
 
@@ -533,6 +549,22 @@ mod should {
         assert_eq!(response.status, 200);
     }
 
+    #[test]
+    fn verify_query_params_merge() {
+        let query_params = HashMap::<String, String>::from([
+            ("norep".into(), "true".into()),
+            ("space-id".to_string(), "space_id".to_string()),
+            ("meta".to_string(), "{\"k\":\"v\"}".to_string()),
+            ("seqn".to_string(), "1".to_string()),
+            ("pnsdk".to_string(), "rust/1.2".to_string()),
+        ]);
+
+        let url_string = prepare_url("host:8080", "/key/channel", &query_params);
+        let parsed_url = reqwest::Url::parse(&url_string).unwrap();
+        let retrived_query_params: HashMap<String, String> =
+            parsed_url.query_pairs().into_owned().collect();
+        assert_eq!(query_params, retrived_query_params);
+    }
     #[tokio::test]
     async fn send_via_post_method() {
         let message = "\"Hello from post\"";

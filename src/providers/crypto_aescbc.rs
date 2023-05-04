@@ -84,7 +84,7 @@ impl AesCbcCrypto {
     /// bytes, it will be clipped or filled with zeros if it is shorter.
     ///
     /// # Errors
-    /// Should return an [`PubNubError::CryptoInitializationError`] if cipher
+    /// Should return an [`PubNubError::CryptoInitialization`] if cipher
     /// key or initialization vectors are empty.
     pub fn new<C>(cipher_key: C, iv: AesCbcIv) -> Result<Self, PubNubError>
     where
@@ -94,7 +94,7 @@ impl AesCbcCrypto {
         let cipher_key: Vec<u8> = cipher_key.into();
 
         if cipher_key.is_empty() {
-            return Err(PubNubError::CryptoInitializationError {
+            return Err(PubNubError::CryptoInitialization {
                 details: "Cipher key is empty".into(),
             });
         }
@@ -206,7 +206,7 @@ impl Cryptor for AesCbcCrypto {
     /// ```
     ///
     /// # Errors
-    /// Should return an [`PubNubError::EncryptionError`] if provided data can't
+    /// Should return an [`PubNubError::Encryption`] if provided data can't
     /// be encrypted or underlying cryptor misconfigured.
     fn encrypt<'en, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
     where
@@ -220,7 +220,7 @@ impl Cryptor for AesCbcCrypto {
 
         let result = Encryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
             .encrypt_padded_b2b_mut::<Pkcs7>(data, data_slice)
-            .map_err(|err| PubNubError::EncryptionError {
+            .map_err(|err| PubNubError::Encryption {
                 details: err.to_string(),
             })?;
         let encrypted_len = result.len() + data_offset;
@@ -264,7 +264,7 @@ impl Cryptor for AesCbcCrypto {
     /// ```
     ///
     /// # Errors
-    /// Should return an [`PubNubError::DecryptionError`] if provided data can't
+    /// Should return an [`PubNubError::Decryption`] if provided data can't
     /// be decrypted or underlying cryptor misconfigured.
     fn decrypt<'de, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
     where
@@ -278,7 +278,7 @@ impl Cryptor for AesCbcCrypto {
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
             .decrypt_padded_b2b_mut::<Pkcs7>(data_slice, buffer.as_mut())
-            .map_err(|err| PubNubError::DecryptionError {
+            .map_err(|err| PubNubError::Decryption {
                 details: err.to_string(),
             })?;
 

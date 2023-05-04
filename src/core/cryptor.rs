@@ -53,7 +53,7 @@ pub trait Cryptor {
     /// Decrypt provided data.
     ///
     /// # Errors
-    /// Should return an [`PubNubError::EncryptionError`] if provided data can't
+    /// Should return an [`PubNubError::Encryption`] if provided data can't
     /// be encrypted or underlying cryptor misconfigured.
     fn encrypt<'en, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
     where
@@ -62,7 +62,7 @@ pub trait Cryptor {
     /// Decrypt provided data.
     ///
     /// # Errors
-    /// Should return an [`PubNubError::DecryptionError`] if provided data can't
+    /// Should return an [`PubNubError::Decryption`] if provided data can't
     /// be decrypted or underlying cryptor misconfigured.
     fn decrypt<'de, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
     where

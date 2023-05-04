@@ -29,6 +29,9 @@ sha2 = "0.10"
 time = { version = "0.3", features = ["alloc"] }
 bytes = "1.4"
 
+# synchronization
+spin = { version = "0.9.8", features = ["rwlock"] }
+
 # serde
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
@@ -67,7 +70,7 @@ serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
 blocking = ["reqwest?/blocking"]
-contract_test = []
+contract_test = ["parse_token"]
 parse_token = ["dep:ciborium"]
 std = []
 
@@ -78,3 +81,12 @@ required-features = ["default"]
 [[example]]
 name = "publish_blocking"
 required-features = ["default", "blocking"]
+
+[[example]]
+name = "pam"
+required-features = ["default"]
+
+[[example]]
+name = "pam_blocking"
+required-features = ["default", "blocking"]
+

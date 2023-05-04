@@ -24,6 +24,9 @@ pub enum TransportMethod {
 
     /// The POST method.
     Post,
+
+    /// The DELETE method.
+    Delete,
 }
 
 impl Display for TransportMethod {
@@ -34,6 +37,7 @@ impl Display for TransportMethod {
             match self {
                 TransportMethod::Get => "GET",
                 TransportMethod::Post => "POST",
+                TransportMethod::Delete => "DELETE",
             }
         )
     }
