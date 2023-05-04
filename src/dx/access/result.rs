@@ -5,6 +5,7 @@
 //! generation operation.
 
 use crate::core::{APIErrorBody, PubNubError};
+use crate::lib::a::string::String;
 
 /// The result of a grant token operation.
 /// It has a token that can be used to get access to restricted resources.

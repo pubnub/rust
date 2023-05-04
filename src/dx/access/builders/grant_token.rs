@@ -9,9 +9,10 @@ use crate::{
         Deserializer, Serializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, PubNubClient},
+    lib::a::{format, vec},
 };
 use derive_builder::Builder;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 /// The [`GrantTokenRequestBuilder`] is used to build grant access token
 /// permissions to access specific resource endpoints request that is sent to

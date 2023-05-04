@@ -62,7 +62,7 @@ required-features = ["contract_test"]
 
 [features]
 full = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
-default = ["serde", "reqwest", "aescbc", "std"]
+default = ["serde", "reqwest", "aescbc"]
 serde = ["dep:serde", "dep:serde_json"]
 reqwest = ["dep:reqwest"]
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]

@@ -5,11 +5,12 @@
 //! traits.
 
 use crate::core::Serializer;
+use crate::lib::{a::boxed::Box, a::string::String};
 use crate::{
     core::Deserializer,
     dx::access::{permissions::*, types::MetaValue, GrantTokenRequest, GrantTokenResponseBody},
 };
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 /// Resource and pattern-based permissions payload.
 ///

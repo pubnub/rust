@@ -11,6 +11,7 @@ use crate::{
             boxed::Box,
             format,
             string::{String, ToString},
+            sync::Arc,
         },
         c::ops::Deref,
         Vec,
@@ -20,7 +21,6 @@ use base64::{engine::general_purpose, Engine as _};
 use hashbrown::HashMap;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
-use std::sync::Arc;
 use time::OffsetDateTime;
 use urlencoding::encode;
 use uuid::Uuid;

@@ -19,6 +19,7 @@ pub use revoke::RevokeTokenRequestWithDeserializerBuilder;
 pub use revoke::{RevokeTokenRequest, RevokeTokenRequestBuilder};
 pub mod revoke;
 
+use crate::lib::a::string::String;
 use crate::PubNubClient;
 
 /// Validate [`PubNubClient`] configuration.

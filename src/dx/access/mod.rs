@@ -34,6 +34,7 @@ pub use permissions::*;
 pub mod permissions;
 
 use crate::dx::PubNubClient;
+use crate::lib::{a::boxed::Box, a::string::String};
 #[cfg(feature = "serde")]
 use crate::providers::{
     deserialization_serde::SerdeDeserializer, serialization_serde::SerdeSerializer,
@@ -261,7 +262,7 @@ mod it_should {
         transport::middleware::PubNubMiddleware,
         Keyset,
     };
-    use std::collections::HashMap;
+    use hashbrown::HashMap;
 
     /// Requests handler function type.
     type RequestHandler = Box<dyn Fn(&TransportRequest) + Send + Sync>;
