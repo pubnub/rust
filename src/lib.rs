@@ -112,12 +112,18 @@
 
 #[doc(inline)]
 pub use dx::access;
+
+#[doc(inline)]
+#[cfg(feature = "parse_token")]
+pub use dx::{parse_token, Token};
+
 #[doc(inline)]
 pub use dx::publish;
+
 #[doc(inline)]
 pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
-pub mod dx;
 
 pub mod core;
+pub mod dx;
 pub mod providers;
 pub mod transport;

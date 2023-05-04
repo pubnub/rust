@@ -1,9 +1,6 @@
 use crate::common::{common_steps::PAMCurrentResourceType, PubNubWorld};
 use cucumber::{given, then, when};
-use pubnub::{
-    core::PubNubError,
-    dx::{access::permissions, parse_token},
-};
+use pubnub::{access::permissions, core::PubNubError, parse_token, Token};
 use std::collections::HashMap;
 use std::ops::Not;
 
@@ -204,7 +201,7 @@ fn i_receive_token_revoke_confirmation(world: &mut PubNubWorld) {
 fn token_contains_authorization_uuid(world: &mut PubNubWorld, uuid: String) {
     let token_string = world.pam_state.access_token.clone().unwrap();
     let mut matched = false;
-    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+    if let Ok(Token::V2(token)) = parse_token(token_string.as_str()) {
         assert!(token.authorized_user_id.is_some());
         assert_eq!(token.authorized_user_id.unwrap(), uuid);
         matched = true;
@@ -216,7 +213,7 @@ fn token_contains_authorization_uuid(world: &mut PubNubWorld, uuid: String) {
 fn token_not_contains_authorization_uuid(world: &mut PubNubWorld) {
     let token_string = world.pam_state.access_token.clone().unwrap();
     let mut matched = false;
-    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+    if let Ok(Token::V2(token)) = parse_token(token_string.as_str()) {
         assert!(token.authorized_user_id.is_none());
         matched = true;
     }
@@ -227,7 +224,7 @@ fn token_not_contains_authorization_uuid(world: &mut PubNubWorld) {
 fn token_contains_ttl(world: &mut PubNubWorld, ttl: u32) {
     let token_string = world.pam_state.access_token.clone().unwrap();
     let mut matched = false;
-    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+    if let Ok(Token::V2(token)) = parse_token(token_string.as_str()) {
         assert!(token.ttl.gt(&0));
         assert_eq!(token.ttl, ttl);
         matched = true;
@@ -247,7 +244,7 @@ fn token_contains_resource(
     let token_string = world.pam_state.access_token.clone().unwrap();
     let mut matched = false;
 
-    if let Ok(parse_token::Token::V2(token)) = parse_token(token_string.as_str()) {
+    if let Ok(Token::V2(token)) = parse_token(token_string.as_str()) {
         let resources = if category == "resource" {
             token.resources
         } else {

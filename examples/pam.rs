@@ -1,5 +1,4 @@
-use pubnub::core::PubNubError;
-use pubnub::{access::*, Keyset, PubNubClientBuilder};
+use pubnub::{access::*, core::PubNubError, parse_token, Keyset, PubNubClientBuilder, Token};
 use std::{collections::HashMap, env};
 
 #[tokio::main]
@@ -51,6 +50,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             message, status
         );
     };
+
+    match parse_token(grant_result.token.clone().as_str()) {
+        Ok(Token::V2(token)) => println!("Token information: {token:#?}"),
+        Err(err) => println!("Token parse error: {err:#?}"),
+    }
 
     Ok(())
 }
