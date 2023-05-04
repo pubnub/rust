@@ -17,7 +17,8 @@ use urlencoding::encode;
 #[derive(Builder)]
 #[builder(
     pattern = "owned",
-    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate")
+    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate"),
+    no_std
 )]
 /// The [`RevokeTokenRequestBuilder`] is used to build revoke access token
 /// permissions to access specific resource endpoints request that is sent to

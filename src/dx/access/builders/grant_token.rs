@@ -25,7 +25,8 @@ use hashbrown::HashMap;
 #[derive(Builder)]
 #[builder(
     pattern = "owned",
-    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate")
+    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate"),
+    no_std
 )]
 pub struct GrantTokenRequest<'pa, T, S, D>
 where
