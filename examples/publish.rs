@@ -10,8 +10,8 @@ struct Message {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
-    let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
-    let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
+    let publish_key = env::var("SDK_PUB_KEY")?;
+    let subscribe_key = env::var("SDK_SUB_KEY")?;
 
     let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {

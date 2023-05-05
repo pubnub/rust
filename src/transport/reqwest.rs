@@ -256,6 +256,11 @@ pub mod blocking {
 
     use crate::{
         core::{PubNubError, TransportMethod, TransportRequest, TransportResponse},
+        lib::a::{
+            boxed::Box,
+            format,
+            string::{String, ToString},
+        },
         transport::reqwest::{create_result, prepare_headers, prepare_url},
         PubNubClientBuilder,
     };

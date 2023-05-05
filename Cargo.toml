@@ -80,10 +80,18 @@ name = "publish_blocking"
 required-features = ["default", "blocking"]
 
 [[example]]
+name = "publish_no_std"
+required-features = ["serde", "reqwest", "blocking"]
+
+[[example]]
 name = "pam"
 required-features = ["default"]
 
 [[example]]
 name = "pam_blocking"
 required-features = ["default", "blocking"]
+
+[[example]]
+name = "pam_no_std"
+required-features = ["serde", "reqwest", "blocking"]
 

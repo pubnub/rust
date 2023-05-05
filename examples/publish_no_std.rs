@@ -1,6 +1,9 @@
-use pubnub::{Keyset, PubNubClientBuilder};
+#![no_std]
+extern crate alloc;
+
+use alloc::string::String;
+use pubnub::{core::PubNubError, Keyset, PubNubClientBuilder};
 use serde::Serialize;
-use std::env;
 
 #[derive(Serialize)]
 struct Message {
@@ -8,9 +11,12 @@ struct Message {
     author: String,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let publish_key = env::var("SDK_PUB_KEY")?;
-    let subscribe_key = env::var("SDK_SUB_KEY")?;
+// As `no_std` does not support `Error` trait, we use `PubNubError` instead.
+// In your program, you should handle the error properly for your use case.
+fn main() -> Result<(), PubNubError> {
+    // As `no_std` does not support `env::var`, you need to set the keys manually.
+    let publish_key = "SDK_PUB_KEY";
+    let subscribe_key = "SDK_SUB_KEY";
 
     let client = PubNubClientBuilder::with_reqwest_blocking_transport()
         .with_keyset(Keyset {
@@ -21,25 +27,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_user_id("user_id")
         .build()?;
 
+    // `execute_blocking` returns result with the outcome of the operation.
+    // As `no_std` does not support `println`, we omit the result in this example.
+    // See more details in `publish_blocking.rs`.
+
     // publish simple string
-    let result = client
+    client
         .publish_message("hello world!")
         .channel("my_channel")
         .execute_blocking()?;
 
-    println!("result: {:?}", result);
-
-    // spawn a blocking thread to publish a struct
-    let cloned = client.clone();
-    let handle = std::thread::spawn(move || {
-        cloned
-            .publish_message("Hello from thread!")
-            .channel("my_channel")
-            .execute_blocking()
-    });
-
     // publish a struct
-    let result = client
+    client
         .publish_message(Message {
             content: "hello world!".into(),
             author: "me".into(),
@@ -47,10 +46,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .channel("my_channel")
         .execute_blocking()?;
 
-    println!("result: {:?}", result);
-
     // publish with whole config options
-    let result = client
+    client
         .publish_message("hello with params!")
         .channel("my_channel")
         .store(true)
@@ -61,15 +58,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .space_id("my_space")
         .r#type("my_type")
         .execute_blocking()?;
-
-    println!("result: {:?}", result);
-
-    // wait for the thread to finish
-    let result = handle
-        .join()
-        .expect("The publishing thread has panicked!")?;
-
-    println!("result: {:?}", result);
 
     Ok(())
 }
