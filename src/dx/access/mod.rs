@@ -260,7 +260,7 @@ mod it_should {
     use crate::{
         core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
         lib::{
-            alloc::{borrow::ToOwned, format, vec::Vec},
+            alloc::{borrow::ToOwned, format, vec, vec::Vec},
             collections::HashMap,
         },
         transport::middleware::PubNubMiddleware,
