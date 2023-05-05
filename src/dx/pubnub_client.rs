@@ -18,7 +18,7 @@ use crate::{
     transport::middleware::{PubNubMiddleware, SignatureKeySet},
 };
 use derive_builder::Builder;
-use log::debug;
+use log::info;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(crate) const SDK_ID: &str = "PubNub-Rust";
@@ -349,7 +349,7 @@ impl<T> PubNubClientConfigBuilder<T> {
             .map_err(|err| PubNubError::ClientInitialization(err.to_string()))
             .and_then(|pre_build| {
                 let token = Arc::new(spin::RwLock::new(String::new()));
-                debug!("Client Configuration: \n publish_key: {:?}\n subscribe_key: {}\n user_id: {}\n instance_id: {:?}", pre_build.config.publish_key, pre_build.config.subscribe_key, pre_build.config.user_id, pre_build.instance_id);
+                info!("Client Configuration: \n publish_key: {:?}\n subscribe_key: {}\n user_id: {}\n instance_id: {:?}", pre_build.config.publish_key, pre_build.config.subscribe_key, pre_build.config.user_id, pre_build.instance_id);
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
                         signature_keys: pre_build.config.clone().signature_key_set()?,
