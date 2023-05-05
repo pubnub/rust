@@ -148,9 +148,6 @@ mod lib {
         #[cfg(not(feature = "std"))]
         pub(crate) use super::alloc::collections::*;
 
-        #[cfg(feature = "std")]
-        pub(crate) use std::collections::*;
-
         pub(crate) use hash_map::HashMap;
 
         pub(crate) mod hash_map {
