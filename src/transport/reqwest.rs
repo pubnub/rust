@@ -15,15 +15,17 @@
 
 use crate::{
     core::{error::PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
-    lib::a::{
-        boxed::Box,
-        format,
-        string::{String, ToString},
+    lib::{
+        alloc::{
+            boxed::Box,
+            format,
+            string::{String, ToString},
+        },
+        collections::HashMap,
     },
     PubNubClientBuilder,
 };
 use bytes::Bytes;
-use hashbrown::HashMap;
 use log::info;
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue},
@@ -256,7 +258,7 @@ pub mod blocking {
 
     use crate::{
         core::{PubNubError, TransportMethod, TransportRequest, TransportResponse},
-        lib::a::{
+        lib::alloc::{
             boxed::Box,
             format,
             string::{String, ToString},

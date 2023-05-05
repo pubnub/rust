@@ -7,18 +7,18 @@ use crate::{
     core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
     dx::pubnub_client::{SDK_ID, VERSION},
     lib::{
-        a::{
+        alloc::{
             boxed::Box,
             format,
             string::{String, ToString},
             sync::Arc,
+            vec::Vec,
         },
-        c::ops::Deref,
-        Vec,
+        collections::HashMap,
+        core::ops::Deref,
     },
 };
 use base64::{engine::general_purpose, Engine as _};
-use hashbrown::HashMap;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use time::OffsetDateTime;

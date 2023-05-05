@@ -5,14 +5,14 @@
 
 use crate::core::PubNubError;
 use crate::lib::{
-    a::{
+    alloc::{
         borrow::ToOwned,
         format,
         string::{String, ToString},
+        vec::Vec,
     },
-    Vec,
+    collections::hash_map::HashMap,
 };
-use hashbrown::HashMap;
 
 /// Implementation for [`APIError`] to create struct from service error response
 /// body.

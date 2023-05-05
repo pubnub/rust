@@ -20,7 +20,7 @@
 
 use crate::{
     core::{Deserializer, PubNubError},
-    lib::a::string::ToString,
+    lib::alloc::string::ToString,
 };
 
 /// Serde implementation for PubNub [`Deserializer`] trait.
@@ -48,7 +48,7 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::lib::a::string::String;
+    use crate::lib::alloc::string::String;
     use serde::Deserialize;
 
     #[derive(Deserialize, Debug, PartialEq)]

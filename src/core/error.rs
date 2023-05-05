@@ -4,7 +4,7 @@
 //!
 //! [`pubnub`]: ../index.html
 
-use crate::lib::{a::string::String, Vec};
+use crate::lib::{alloc::string::String, alloc::vec::Vec};
 use snafu::Snafu;
 
 /// PubNub error type

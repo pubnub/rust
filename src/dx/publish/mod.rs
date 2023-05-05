@@ -30,11 +30,11 @@ use crate::{
     },
     dx::PubNubClient,
     lib::{
-        a::{
+        alloc::{
             format,
             string::{String, ToString},
         },
-        c::ops::Not,
+        core::ops::Not,
     },
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
@@ -429,7 +429,7 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::lib::a::{boxed::Box, sync::Arc};
+    use crate::lib::alloc::{boxed::Box, sync::Arc, vec};
     use crate::{
         core::TransportResponse,
         dx::{
@@ -439,7 +439,6 @@ mod should {
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };
-    use alloc::vec;
     use test_case::test_case;
 
     #[derive(Default, Debug)]

@@ -6,7 +6,7 @@
 ///
 /// Token can be associated with flat HashMap which represent `meta`
 /// information.
-use crate::lib::a::string::String;
+use crate::lib::alloc::string::String;
 
 pub enum MetaValue {
     /// `String` value.

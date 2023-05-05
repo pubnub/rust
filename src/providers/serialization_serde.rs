@@ -19,7 +19,7 @@
 //! [`Serialize`]: ../trait.Serialize.html
 
 use crate::core::PubNubError;
-use crate::lib::{a::string::ToString, Vec};
+use crate::lib::alloc::{string::ToString, vec::Vec};
 
 /// Serde implementation for PubNub [`Serializer`] trait.
 ///
@@ -56,7 +56,7 @@ where
 #[cfg(test)]
 mod should {
     use crate::core::Serialize;
-    use crate::lib::a::string::String;
+    use crate::lib::alloc::string::String;
 
     #[test]
     fn serialize_serde_values() {

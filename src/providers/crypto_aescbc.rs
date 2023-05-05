@@ -11,10 +11,12 @@
 //! [`cbc`]: https://crates.io/crates/cbc
 //! [`aescbc` feature]: ../index.html#features
 use crate::core::{error::PubNubError, Cryptor};
-use crate::lib::a::format;
-use crate::lib::a::string::{String, ToString};
-use crate::lib::a::vec;
-use crate::lib::Vec;
+use crate::lib::alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha256};

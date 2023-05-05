@@ -4,7 +4,7 @@
 //! serialization of Rust data structures.
 
 use super::PubNubError;
-use crate::lib::Vec;
+use crate::lib::alloc::vec::Vec;
 
 /// Trait for serializing Rust data structures.
 ///

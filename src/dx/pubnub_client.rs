@@ -11,9 +11,11 @@
 use crate::transport::middleware::SignatureKeySet;
 use crate::{
     core::{PubNubError, Transport},
-    lib::a::string::{String, ToString},
-    lib::a::sync::Arc,
-    lib::c::ops::Deref,
+    lib::alloc::{
+        string::{String, ToString},
+        sync::Arc,
+    },
+    lib::core::ops::Deref,
     transport::middleware::PubNubMiddleware,
 };
 use derive_builder::Builder;
@@ -693,7 +695,7 @@ where
 mod should {
     use super::*;
     use crate::core::{TransportRequest, TransportResponse};
-    use crate::lib::a::boxed::Box;
+    use crate::lib::alloc::boxed::Box;
     use std::any::type_name;
 
     #[test]

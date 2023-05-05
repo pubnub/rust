@@ -4,7 +4,7 @@
 //! [`ChannelPermission`],  [`ChannelGroupPermission`] and [`UserIdPermission`]
 //! traits.
 
-use crate::lib::{a::boxed::Box, a::string::String};
+use crate::lib::{alloc::boxed::Box, alloc::string::String};
 
 /// Resource **read** permissions.
 const READ: u8 = 0b0000_0001;

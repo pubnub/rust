@@ -7,8 +7,11 @@
 //!
 //! [`pubnub`]: ../index.html
 
-use crate::lib::{a::string::String, c::fmt::Display, c::fmt::Formatter, Vec};
-use hashbrown::HashMap;
+use crate::lib::{
+    alloc::{string::String, vec::Vec},
+    collections::HashMap,
+    core::fmt::{Display, Formatter, Result},
+};
 
 /// The method to use for a request.
 ///
@@ -30,7 +33,7 @@ pub enum TransportMethod {
 }
 
 impl Display for TransportMethod {
-    fn fmt(&self, f: &mut Formatter<'_>) -> crate::lib::a::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
             "{}",

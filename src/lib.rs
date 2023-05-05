@@ -118,26 +118,52 @@ pub use dx::publish;
 #[doc(inline)]
 pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod dx;
-extern crate alloc;
 
 pub mod core;
 pub mod providers;
 pub mod transport;
 
+/// A facade around all the std types that we use in the library.
+/// It is used to make the library `no_std` compatible.
 mod lib {
-    pub(crate) mod c {
+    #[cfg(not(feature = "std"))]
+    extern crate alloc as std_alloc;
+
+    pub(crate) mod core {
         #[cfg(not(feature = "std"))]
         pub(crate) use core::*;
         #[cfg(feature = "std")]
         pub(crate) use std::*;
     }
 
-    #[cfg(not(feature = "std"))]
-    pub(crate) use ::alloc::vec::Vec;
-    #[cfg(feature = "std")]
-    pub(crate) use std::vec::Vec;
+    pub(crate) mod alloc {
+        #[cfg(not(feature = "std"))]
+        pub(crate) use super::std_alloc::*;
 
-    pub(crate) mod a {
-        pub(crate) use ::alloc::*;
+        #[cfg(feature = "std")]
+        pub(crate) use std::alloc::*;
+    }
+
+    pub(crate) mod collections {
+        #[cfg(not(feature = "std"))]
+        pub(crate) use super::alloc::collections::*;
+
+        #[cfg(feature = "std")]
+        pub(crate) use std::collections::*;
+
+        pub(crate) use hash_map::HashMap;
+
+        pub(crate) mod hash_map {
+            /// Depending of the `std` feature, this module will re-export
+            /// either `std::collections::HashMap` or `hashbrown::HashMap`.
+            /// This is needed because there is no `no_std` HashMap available.
+            /// We decided to use `hashbrown` because it is fast and has same API as `std` HashMap.
+
+            #[cfg(not(feature = "std"))]
+            pub(crate) use hashbrown::HashMap;
+
+            #[cfg(feature = "std")]
+            pub(crate) use std::collections::HashMap;
+        }
     }
 }

@@ -5,9 +5,9 @@
 //! traits.
 
 use crate::core::Serializer;
-use crate::lib::{
-    a::boxed::Box,
-    a::string::{String, ToString},
+use crate::lib::alloc::{
+    boxed::Box,
+    string::{String, ToString},
 };
 use crate::{
     core::Deserializer,

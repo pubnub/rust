@@ -5,7 +5,7 @@
 
 use crate::{
     core::{APIErrorBody, PubNubError},
-    lib::a::string::String,
+    lib::alloc::string::String,
 };
 
 /// The result of a publish operation.

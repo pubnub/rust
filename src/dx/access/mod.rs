@@ -34,7 +34,7 @@ pub use permissions::*;
 pub mod permissions;
 
 use crate::dx::PubNubClient;
-use crate::lib::{a::boxed::Box, a::string::String};
+use crate::lib::alloc::{boxed::Box, string::String};
 #[cfg(feature = "serde")]
 use crate::providers::{
     deserialization_serde::SerdeDeserializer, serialization_serde::SerdeSerializer,
@@ -259,10 +259,7 @@ mod it_should {
     use super::*;
     use crate::{
         core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
-        lib::{
-            a::{borrow::ToOwned, format},
-            Vec,
-        },
+        lib::alloc::{borrow::ToOwned, format, vec::Vec},
         transport::middleware::PubNubMiddleware,
         Keyset,
     };

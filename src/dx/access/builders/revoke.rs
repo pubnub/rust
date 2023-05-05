@@ -9,7 +9,7 @@ use crate::{
         Deserializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, PubNubClient},
-    lib::a::{format, string::ToString},
+    lib::alloc::{format, string::ToString},
 };
 use derive_builder::Builder;
 use urlencoding::encode;
