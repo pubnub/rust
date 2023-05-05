@@ -1,6 +1,6 @@
 use pubnub::core::PubNubError;
 use pubnub::{access::*, Keyset, PubNubClientBuilder};
-use std::{collections::HashMap, env};
+use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .join()
             .read()
             .write()])
-        .meta(HashMap::from([("owner-role".into(), "admin".into())]))
+        .meta([("owner-role".into(), "admin".into())].into())
         .execute()
         .await?;
 

@@ -1,6 +1,6 @@
 use pubnub::core::PubNubError;
 use pubnub::{access::*, Keyset, PubNubClientBuilder};
-use std::{collections::HashMap, env};
+use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subscribe_key = env::var("SDK_PAM_SUB_KEY")?;
@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .join()
             .read()
             .write()])
-        .meta(HashMap::from([("owner-role".into(), "admin".into())]))
+        .meta([("owner-role".into(), "admin".into())].into())
         .execute_blocking()?;
 
     println!("Access token: {}", grant_result.token);
@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .join()
                 .read()
                 .write()])
-            .meta(HashMap::from([("owner-role".into(), "admin".into())]))
+            .meta([("owner-role".into(), "admin".into())].into())
             .execute_blocking()
     });
 

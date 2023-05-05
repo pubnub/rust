@@ -96,8 +96,12 @@ pub struct PAMState {
 impl Default for PAMState {
     fn default() -> Self {
         Self {
-            revoke_token_result: Err(PubNubError::Transport("This is default value".into())),
-            grant_token_result: Err(PubNubError::Transport("This is default value".into())),
+            revoke_token_result: Err(PubNubError::Transport {
+                details: "This is default value".into(),
+            }),
+            grant_token_result: Err(PubNubError::Transport {
+                details: "This is default value".into(),
+            }),
             resource_type: PAMCurrentResourceType::default(),
             resource_permissions: PAMPermissions::default(),
             pattern_permissions: PAMPermissions::default(),
@@ -131,6 +135,7 @@ impl Default for PubNubWorld {
             }),
             is_succeed: false,
             pam_state: PAMState::default(),
+            api_error: None,
         }
     }
 }

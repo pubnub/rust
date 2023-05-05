@@ -46,16 +46,16 @@ jobs:
 
     - name: Run cargo check tool to check if the codes are valid
       run: |
-       cargo check --workspace --all-targets 
+       cargo check --workspace --all-targets --features="full" 
     - name: Run cargo check tool to check if the `no_std` codes are valid 
       run: |
-       cargo check --all-targets --no-default-features --features="default_no_std"
+       cargo check --all-targets --no-default-features --features="full_no_std"
     - name: Run cargo clippy tool to check if all the best code practices are followed
       run: |
-       cargo clippy --workspace --all-targets -- -D warnings
+       cargo clippy --workspace --all-targets --features="full" -- -D warnings
     - name: Run cargo clippy tool to check if all the best code practices are followed for `no_std` codes
       run: |
-       cargo clippy --workspace --all-targets --no-default-features --features="default_no_std" -- -D warnings
+       cargo clippy --workspace --all-targets --no-default-features --features="full_no_std" -- -D warnings
     - name: Run cargo fmt tool to check if codes are well formatted 
       run: |
        cargo fmt --check --verbose --all

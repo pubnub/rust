@@ -72,7 +72,7 @@ std = []
 
 # internal features
 contract_test = ["parse_token"]
-default_no_std = ["serde", "reqwest", "aescbc"]
+full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking"]
 
 [[example]]
 name = "publish"

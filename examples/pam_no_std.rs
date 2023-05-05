@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use hashbrown::HashMap;
 use pubnub::core::PubNubError;
 use pubnub::{access::*, Keyset, PubNubClientBuilder};
 
@@ -43,7 +42,7 @@ fn pam_example() -> Result<(), PubNubError> {
             .join()
             .read()
             .write()])
-        .meta(HashMap::from([("owner-role".into(), "admin".into())]))
+        .meta([("owner-role".into(), "admin".into())].into())
         .execute_blocking()?;
 
     // here you can use the token to access PubNub API
