@@ -88,10 +88,12 @@
 //! * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 //! * `blocking` - enables blocking API
 //! * `aescbc` - enables AES-CBC encryption
+//! * `std` - enables `std` library
 //! * `default` - default features that include:
 //!    * `serde`
 //!    * `reqwest`
 //!    * `aescbc`
+//!    * `std`
 //!
 //! ## Documentation
 //!
@@ -99,6 +101,21 @@
 //!
 //! * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 //! * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
+//!
+//! ## `no_std` support
+//!
+//! The `pubnub` crate is `no_std` compatible. To use it in a `no_std` environment, you have to disable the default
+//! features and enable the needed ones.
+//!
+//! We recommend using the all default features and disabling only the `std` one. This way, you will get the most
+//! functionality out of the box.
+//!
+//! You can use the following configuration in your `Cargo.toml` file:
+//!
+//! ```toml
+//! [dependencies]
+//! pubnub = { version = "0.0.0", default-features = false, features = ["serde", "reqwest", "aescbc"] }
+//! ```
 //!
 //! ## Support
 //!

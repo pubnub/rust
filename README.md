@@ -45,18 +45,17 @@ pubnub = { version = "0.0.0", features = ["full"] }
 
 ### Example
 
-Try the following sample code to get up and running quicky!
+Try the following sample code to get up and running quickly!
 
 ```rust
-use std::env;
 use pubnub::{Keyset, PubNubClientBuilder};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
-    let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
+    let publish_key = "my_publish_key";
+    let subscribe_key = "my_subscribe_key";
 
-    let mut client = PubNubClientBuilder::with_reqwest_transport()
+    let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
             subscribe_key,
             publish_key: Some(publish_key),
@@ -68,6 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client
         .publish_message("hello world!")
         .channel("my_channel")
+        .r#type("text-message")
         .execute()
         .await?;
 
@@ -85,10 +85,12 @@ Feature list:
 * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 * `blocking` - enables blocking API
 * `aescbc` - enables AES-CBC encryption
+* `std` - enables `std` library
 * `default` - default features that include:
    * `serde`
    * `reqwest`
    * `aescbc`
+   * `std`
 
 ## Documentation
 
@@ -96,6 +98,21 @@ Feature list:
 
 * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
+
+## `no_std` support
+
+The `pubnub` crate is `no_std` compatible. To use it in a `no_std` environment, you have to disable the default
+features and enable the needed ones.
+
+We recommend using the all default features and disabling only the `std` one. This way, you will get the most
+functionality out of the box.
+
+You can use the following configuration in your `Cargo.toml` file:
+
+```toml
+[dependencies]
+pubnub = { version = "0.0.0", default-features = false, features = ["serde", "reqwest", "aescbc"] }
+```
 
 ## Support
 
