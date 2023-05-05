@@ -67,9 +67,12 @@ serde = ["dep:serde", "dep:serde_json", "hashbrown/serde"]
 reqwest = ["dep:reqwest"]
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
 blocking = ["reqwest?/blocking"]
-contract_test = ["parse_token"]
 parse_token = ["dep:ciborium"]
 std = []
+
+# internal features
+contract_test = ["parse_token"]
+default_no_std = ["serde", "reqwest", "aescbc"]
 
 [[example]]
 name = "publish"
