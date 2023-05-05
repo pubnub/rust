@@ -3,11 +3,20 @@
 //! This module contains the [`parse_token`] function, which produces a
 //! [`Token`] with information about the permissions granted to the token.
 
-use crate::core::PubNubError;
+use crate::{
+    core::PubNubError,
+    lib::{
+        alloc::{
+            format,
+            string::{String, ToString},
+        },
+        collections::HashMap,
+        core::ops::Deref,
+    },
+};
 use base64::{engine::general_purpose, Engine};
 use ciborium::de::from_reader;
 use serde::Deserialize;
-use std::{collections::HashMap, ops::Deref};
 
 /// The [`parse_token`] function decodes an existing token and returns the
 /// struct containing permissions embedded in that token.
