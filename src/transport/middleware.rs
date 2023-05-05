@@ -170,9 +170,10 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::core::TransportMethod::Get;
-    use crate::core::TransportResponse;
-    use hashbrown::HashMap;
+    use crate::{
+        core::{TransportMethod::Get, TransportResponse},
+        lib::collections::HashMap,
+    };
     use spin::rwlock::RwLock;
 
     #[tokio::test]

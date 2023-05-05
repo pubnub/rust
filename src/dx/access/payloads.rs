@@ -4,16 +4,17 @@
 //! [`ChannelPermission`],  [`ChannelGroupPermission`] and [`UserIdPermission`]
 //! traits.
 
-use crate::core::Serializer;
-use crate::lib::alloc::{
-    boxed::Box,
-    string::{String, ToString},
-};
 use crate::{
-    core::Deserializer,
+    core::{Deserializer, Serializer},
     dx::access::{permissions::*, types::MetaValue, GrantTokenRequest, GrantTokenResponseBody},
+    lib::{
+        alloc::{
+            boxed::Box,
+            string::{String, ToString},
+        },
+        collections::HashMap,
+    },
 };
-use hashbrown::HashMap;
 
 /// Resource and pattern-based permissions payload.
 ///

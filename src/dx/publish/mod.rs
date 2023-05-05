@@ -10,7 +10,6 @@
 //! [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder]
 //! [`PubNub`]:https://www.pubnub.com/
 
-use hashbrown::HashMap;
 #[doc(inline)]
 pub use result::{PublishResponseBody, PublishResult};
 pub mod result;
@@ -34,6 +33,7 @@ use crate::{
             format,
             string::{String, ToString},
         },
+        collections::HashMap,
         core::ops::Not,
     },
 };

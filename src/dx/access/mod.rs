@@ -259,11 +259,13 @@ mod it_should {
     use super::*;
     use crate::{
         core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
-        lib::alloc::{borrow::ToOwned, format, vec::Vec},
+        lib::{
+            alloc::{borrow::ToOwned, format, vec::Vec},
+            collections::HashMap,
+        },
         transport::middleware::PubNubMiddleware,
         Keyset,
     };
-    use hashbrown::HashMap;
 
     /// Requests handler function type.
     type RequestHandler = Box<dyn Fn(&TransportRequest) + Send + Sync>;

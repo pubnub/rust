@@ -8,10 +8,9 @@ use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
     core::{Deserializer, Serialize},
     dx::PubNubClient,
-    lib::alloc::string::String,
+    lib::{alloc::string::String, collections::HashMap},
 };
 use derive_builder::Builder;
-use hashbrown::HashMap;
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///

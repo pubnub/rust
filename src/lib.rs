@@ -141,7 +141,7 @@ mod lib {
         pub(crate) use super::std_alloc::*;
 
         #[cfg(feature = "std")]
-        pub(crate) use std::alloc::*;
+        pub(crate) use std::*;
     }
 
     pub(crate) mod collections {
