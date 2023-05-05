@@ -1,12 +1,23 @@
 #![no_std]
+#![no_main]
 
 use hashbrown::HashMap;
 use pubnub::core::PubNubError;
 use pubnub::{access::*, Keyset, PubNubClientBuilder};
 
+// As we're using `no_main` attribute, we need to define `main` function manually.
+// For this example we're using `extern "C"` ABI to make it work.
+//
+// Note that we're usine standard rust panic handler, so probably you'll need
+// to implement `#[panic_handler]` function for your target.
+#[no_mangle]
+pub extern "C" fn main(_argc: isize, _argv: *const *const u8) -> usize {
+    pam_example().map(|_| 0).unwrap()
+}
+
 // As `no_std` does not support `Error` trait, we use `PubNubError` instead.
 // In your program, you should handle the error properly for your use case.
-fn main() -> Result<(), PubNubError> {
+fn pam_example() -> Result<(), PubNubError> {
     // As `no_std` does not support `env::var`, you need to set the keys manually.
     let subscribe_key = "SDK_PAM_SUB_KEY";
     let publish_key = "SDK_PAM_PUB_KEY";

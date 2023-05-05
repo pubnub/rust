@@ -1,4 +1,6 @@
 #![no_std]
+#![no_main]
+
 extern crate alloc;
 
 use alloc::string::String;
@@ -11,9 +13,19 @@ struct Message {
     author: String,
 }
 
+// As we're using `no_main` attribute, we need to define `main` function manually.
+// For this example we're using `extern "C"` ABI to make it work.
+//
+// Note that we're usine standard rust panic handler, so probably you'll need
+// to implement `#[panic_handler]` function for your target.
+#[no_mangle]
+pub extern "C" fn main(_argc: isize, _argv: *const *const u8) -> usize {
+    publish_example().map(|_| 0).unwrap()
+}
+
 // As `no_std` does not support `Error` trait, we use `PubNubError` instead.
 // In your program, you should handle the error properly for your use case.
-fn main() -> Result<(), PubNubError> {
+fn publish_example() -> Result<(), PubNubError> {
     // As `no_std` does not support `env::var`, you need to set the keys manually.
     let publish_key = "SDK_PUB_KEY";
     let subscribe_key = "SDK_SUB_KEY";
