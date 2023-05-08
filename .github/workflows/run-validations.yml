@@ -76,6 +76,16 @@ jobs:
       with:
         command: check ${{ matrix.checks }}
 
+  additional-targets:
+    name: Check if additional targets compiles as expected
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Web Assembly target
+        run: |
+          cargo check --workspace --all-targets --features="full" --target wasm32-unknown-unknown 
+
   all-validations:
     name: Validations
     runs-on: ubuntu-latest
