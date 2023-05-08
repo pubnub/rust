@@ -78,6 +78,10 @@ where
         .deserialize_with(SerdeDeserializer)
     }
 
+    /// The [`channel`] method is used to set the channel to publish the message to.
+    ///
+    /// [`channel`]: crate::dx::publish::PublishMessageBuilder::channel
+
     #[cfg(not(feature = "serde"))]
     pub fn channel<S>(self, channel: S) -> PublishMessageDeserializerBuilder<T, M>
     where
@@ -173,7 +177,7 @@ where
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
-            deserializer: Some(Arc::new(deserializer)),
+            deserializer: Some(deserializer),
             ..Default::default()
         }
         .message(self.message)

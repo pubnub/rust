@@ -56,10 +56,7 @@ where
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[cfg(not(feature = "serde"))]
-pub struct RevokeTokenRequestWithDeserializerBuilder<T>
-where
-    T: Transport,
-{
+pub struct RevokeTokenRequestWithDeserializerBuilder<T> {
     /// Current client which can provide transportation to perform the request.
     pub(in crate::dx::access) pubnub_client: PubNubClient<T>,
 

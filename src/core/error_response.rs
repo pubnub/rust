@@ -57,7 +57,7 @@ pub(crate) struct ErrorObjectDetails {
     location: String,
 
     /// Type of issue reason.
-    #[serde(rename(deserialize = "locationType"))]
+    #[cfg_attr(feature = "serde", serde(rename(deserialize = "locationType")))]
     location_type: String,
 }
 

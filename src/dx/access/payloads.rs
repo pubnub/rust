@@ -24,16 +24,16 @@ use crate::{
 pub struct GrantTokenResourcesPayload {
     /// Specific channels permissions for `channel`-based endpoints access.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    channels: Option<HashMap<String, u8>>,
+    pub channels: Option<HashMap<String, u8>>,
 
     /// Specific channel groups permissions for `channel group`-based endpoints
     /// access.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    groups: Option<HashMap<String, u8>>,
+    pub groups: Option<HashMap<String, u8>>,
 
     /// Specific `userId` permissions for `userId`-based endpoints access.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    uuids: Option<HashMap<String, u8>>,
+    pub uuids: Option<HashMap<String, u8>>,
 }
 
 /// Token permissions.
