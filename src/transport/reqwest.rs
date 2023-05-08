@@ -62,7 +62,8 @@ pub struct TransportReqwest {
     pub hostname: String,
 }
 
-#[async_trait::async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
         let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);

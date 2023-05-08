@@ -32,7 +32,8 @@ use crate::lib::alloc::boxed::Box;
 /// ```
 ///
 /// [`PubNub API`]: https://www.pubnub.com/docs
-#[async_trait::async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait Transport: Send + Sync {
     /// Send a request to the [`PubNub API`].
     ///
