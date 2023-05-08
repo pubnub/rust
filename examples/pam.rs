@@ -3,7 +3,6 @@ use std::{collections::HashMap, env};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     let subscribe_key = env::var("SDK_PAM_SUB_KEY")?;
     let publish_key = env::var("SDK_PAM_PUB_KEY")?;
     let secret_key = env::var("SDK_PAM_SEC_KEY")?;
