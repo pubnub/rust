@@ -64,13 +64,33 @@ harness = false
 required-features = ["contract_test"]
 
 [features]
+
+# Enables all non-conflicting features
 full = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
+
+# Enables all default features
 default = ["serde", "reqwest", "aescbc", "std"]
-serde = ["dep:serde", "dep:serde_json", "hashbrown/serde"]
-reqwest = ["dep:reqwest"]
+
+# [PubNub features]
+
+## Enables AES-CBC encryption
 aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
-blocking = ["reqwest?/blocking"]
+
+## Enables token parsing
 parse_token = ["dep:ciborium"]
+
+# [Implementation features]
+
+## Enables serde implementation for serialization and deserialization
+serde = ["dep:serde", "dep:serde_json", "hashbrown/serde"]
+
+## Enables reqwest implementation for transport layer
+reqwest = ["dep:reqwest"]
+
+## Enables blocking implementation for transport layer
+blocking = ["reqwest?/blocking"]
+
+## Enables std library
 std = [
     "derive_builder/std",
     "log/std",
@@ -85,7 +105,13 @@ std = [
     "getrandom/std",
 ]
 
-# internal features
+## Use the portable_atomic crate to support platforms without native atomic operations.
+## Note that this is unsafe and enabling it for multicore systems is unsound.
+## See the portable_atomic crate docs for more information.
+## https://docs.rs/portable_atomic
+portable_atomic = ["spin/portable_atomic"]
+
+# [Internal features] (not intended for use outside of the library)
 contract_test = ["parse_token"]
 full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking"]
 
