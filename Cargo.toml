@@ -105,11 +105,19 @@ std = [
     "getrandom/std",
 ]
 
-## Use the portable_atomic crate to support platforms without native atomic operations.
+## Enables very specific implementations for different platforms.
+## Should not be used without a good reason!
+##
+## It adds the following behaviors:
+## - uses portable_atomic crate instead of std::sync::atomic
+## - uses `vTODO` feature of UUID crate instead of `v4`
+##
+## # portable_atomic
+## Using the portable_atomic crate allow us to support platforms without native atomic operations.
 ## Note that this is unsafe and enabling it for multicore systems is unsound.
 ## See the portable_atomic crate docs for more information.
 ## https://docs.rs/portable_atomic
-portable_atomic = ["spin/portable_atomic"]
+extra_platforms = ["spin/portable_atomic"] # TODO: add UUID vTODO feature
 
 # [Internal features] (not intended for use outside of the library)
 contract_test = ["parse_token"]
