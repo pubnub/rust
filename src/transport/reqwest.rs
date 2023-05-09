@@ -238,7 +238,8 @@ impl PubNubClientBuilder<TransportReqwest> {
     }
 }
 
-#[cfg(feature = "blocking")]
+// blocking calls are disabled for reqwest on WASM target
+#[cfg(all(feature = "blocking", not(target_arch = "wasm32")))]
 pub mod blocking {
     //! # Reqwest Transport Blocking Implementation
     //!
