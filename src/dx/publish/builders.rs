@@ -219,7 +219,8 @@ where
 /// [`PubNub`]:https://www.pubnub.com/
 /// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Builder)]
-#[builder(pattern = "owned", build_fn(vis = "pub(super)"), no_std)]
+#[builder(pattern = "owned", build_fn(vis = "pub(super)"))]
+#[cfg_attr(not(feature = "std"), builder(no_std))]
 pub struct PublishMessageViaChannel<T, M, D>
 where
     M: Serialize,
