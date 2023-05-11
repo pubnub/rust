@@ -97,6 +97,13 @@ jobs:
         run: |
           cargo check --workspace --all-targets --features="full" 
 
+      - name: Web Assembly target - pubnub features only
+        uses: actions-rs/toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
+        run: |
+          cargo check --workspace --all-targets --no-default-features --features="pubnub_only"
+
   all-validations:
     name: Validations
     runs-on: ubuntu-latest
