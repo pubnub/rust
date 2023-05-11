@@ -22,7 +22,7 @@ use crate::{
             string::{String, ToString},
         },
         collections::HashMap,
-        encoding::encode,
+        encoding::url_encode,
     },
     PubNubClientBuilder,
 };
@@ -191,7 +191,7 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
     let mut qp = query_params
         .iter()
         .fold(format!("{}{}?", hostname, path), |acc_query, (k, v)| {
-            format!("{}{}={}&", acc_query, k, encode(v.as_bytes()))
+            format!("{}{}={}&", acc_query, k, url_encode(v.as_bytes()))
         });
 
     qp.remove(qp.len() - 1);

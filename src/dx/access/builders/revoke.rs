@@ -11,7 +11,7 @@ use crate::{
     dx::{access::*, PubNubClient},
     lib::{
         alloc::{format, string::ToString},
-        encoding::encode,
+        encoding::url_encode,
     },
 };
 use derive_builder::Builder;
@@ -75,7 +75,10 @@ where
         let sub_key = &self.pubnub_client.config.subscribe_key;
 
         TransportRequest {
-            path: format!("/v3/pam/{sub_key}/grant/{}", encode(self.token.as_bytes())),
+            path: format!(
+                "/v3/pam/{sub_key}/grant/{}",
+                url_encode(self.token.as_bytes())
+            ),
             method: TransportMethod::Delete,
             headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             ..Default::default()

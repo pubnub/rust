@@ -35,7 +35,7 @@ use crate::{
         },
         collections::HashMap,
         core::ops::Not,
-        encoding::encode,
+        encoding::url_encode,
     },
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
@@ -284,7 +284,7 @@ where
             self.message.serialize().map(|m_vec| TransportRequest {
                 path: format!(
                     "/publish/{pub_key}/{sub_key}/0/{}/0",
-                    encode(self.channel.as_bytes())
+                    url_encode(self.channel.as_bytes())
                 ),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
@@ -304,8 +304,8 @@ where
                         "/publish/{}/{}/0/{}/0/{}",
                         pub_key,
                         sub_key,
-                        encode(self.channel.as_bytes()),
-                        encode(m_str.as_bytes())
+                        url_encode(self.channel.as_bytes()),
+                        url_encode(m_str.as_bytes())
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
@@ -584,7 +584,7 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                encode(&format!("\"{}\"", message).as_bytes())
+                url_encode(&format!("\"{}\"", message).as_bytes())
             ),
             result.data.path
         );
@@ -606,7 +606,7 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                encode("{\"a\":\"b\"}".as_bytes())
+                url_encode("{\"a\":\"b\"}".as_bytes())
             ),
             result.data.path
         );
@@ -649,7 +649,7 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                encode("{\"number\":7}".as_bytes())
+                url_encode("{\"number\":7}".as_bytes())
             ),
             result.data.path
         );
