@@ -44,18 +44,20 @@ pub struct PubNubMiddleware<T> {
     pub(crate) transport: T,
     pub(crate) instance_id: Arc<Option<String>>,
     pub(crate) user_id: Arc<String>,
-    pub(crate) signature_keys: Option<SignatureKeySet>,
     pub(crate) auth_key: Option<Arc<String>>,
     pub(crate) auth_token: Arc<spin::RwLock<String>>,
+    pub(crate) signature_keys: Option<SignatureKeySet>,
 }
 
 #[derive(Debug)]
+#[cfg_attr(not(feature = "std"), allow(dead_code))]
 pub(crate) struct SignatureKeySet {
     pub(crate) secret_key: String,
     pub(crate) publish_key: String,
     pub(crate) subscribe_key: String,
 }
 
+#[cfg(feature = "std")]
 impl SignatureKeySet {
     fn handle_query_params(query_parameters: &HashMap<String, String>) -> String {
         let mut query_params_str = query_parameters
@@ -129,6 +131,7 @@ impl<T> PubNubMiddleware<T> {
             req.query_parameters.insert("auth".into(), auth_key.into());
         }
 
+        #[cfg(feature = "std")]
         if let Some(signature_key_set) = &self.signature_keys {
             req.query_parameters.insert(
                 "timestamp".into(),

@@ -401,6 +401,9 @@ pub struct PubNubConfig {
 impl PubNubConfig {
     fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
         if let Some(secret_key) = self.secret_key {
+            #[cfg(not(feature = "std"))]
+            log::warn!("Signature calculation is not supported in `no_std`` environment!");
+
             let publish_key = self.publish_key.ok_or(PubNubError::ClientInitialization {
                 details: "You must also provide the publish key if you use the secret key."
                     .to_string(),
