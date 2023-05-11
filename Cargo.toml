@@ -63,8 +63,10 @@ std = [
 ## # portable_atomic
 ## Using the portable_atomic crate allow us to support platforms without native atomic operations.
 ## Note that this is unsafe and enabling it for multicore systems is unsound.
-## See the portable_atomic crate docs for more information.
+## See the `portable_atomic` and `critical_section` crates docs for more information.
 ## https://docs.rs/portable_atomic
+## and
+## https://docs.rs/critical-section/latest/critical_section/
 ## 
 ## # vTODO
 ## Using the `vTODO` feature of the UUID crate allow us to support platforms
