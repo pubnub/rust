@@ -35,10 +35,10 @@ use crate::{
         },
         collections::HashMap,
         core::ops::Not,
+        encoding::encode,
     },
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
-use urlencoding::encode;
 
 impl<T> PubNubClient<T> {
     /// Create a new publish message builder.
@@ -282,7 +282,10 @@ where
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("/publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
+                path: format!(
+                    "/publish/{pub_key}/{sub_key}/0/{}/0",
+                    encode(self.channel.as_bytes())
+                ),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
@@ -301,8 +304,8 @@ where
                         "/publish/{}/{}/0/{}/0/{}",
                         pub_key,
                         sub_key,
-                        encode(&self.channel),
-                        encode(&m_str)
+                        encode(self.channel.as_bytes()),
+                        encode(m_str.as_bytes())
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
@@ -581,7 +584,7 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                encode(&format!("\"{}\"", message))
+                encode(&format!("\"{}\"", message).as_bytes())
             ),
             result.data.path
         );
@@ -600,7 +603,11 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("/publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
+            format!(
+                "/publish///0/{}/0/{}",
+                channel,
+                encode("{\"a\":\"b\"}".as_bytes())
+            ),
             result.data.path
         );
     }
@@ -639,7 +646,11 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("/publish///0/{}/0/{}", channel, encode("{\"number\":7}")),
+            format!(
+                "/publish///0/{}/0/{}",
+                channel,
+                encode("{\"number\":7}".as_bytes())
+            ),
             result.data.path
         );
     }

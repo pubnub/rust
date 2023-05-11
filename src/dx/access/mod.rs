@@ -511,6 +511,7 @@ mod it_should {
             .build()
             .unwrap()
             .transport_request();
+        dbg!(&request.path);
         assert!(request.path.ends_with("test%2Fto%2Ben%3D%3D"));
         assert!(matches!(&request.method, TransportMethod::Delete));
     }

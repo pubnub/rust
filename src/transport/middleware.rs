@@ -16,13 +16,13 @@ use crate::{
         },
         collections::HashMap,
         core::ops::Deref,
+        encoding::encode,
     },
 };
 use base64::{engine::general_purpose, Engine as _};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use time::OffsetDateTime;
-use urlencoding::encode;
 use uuid::Uuid;
 
 /// PubNub middleware.
@@ -60,7 +60,7 @@ impl SignatureKeySet {
     fn handle_query_params(query_parameters: &HashMap<String, String>) -> String {
         let mut query_params_str = query_parameters
             .iter()
-            .map(|(key, value)| format!("{}={}", key, encode(value)))
+            .map(|(key, value)| format!("{}={}", key, encode(value.as_bytes())))
             .collect::<Vec<String>>();
         query_params_str.sort_unstable();
         query_params_str.join("&")

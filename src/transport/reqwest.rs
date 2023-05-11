@@ -22,6 +22,7 @@ use crate::{
             string::{String, ToString},
         },
         collections::HashMap,
+        encoding::encode,
     },
     PubNubClientBuilder,
 };
@@ -31,7 +32,6 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue},
     StatusCode,
 };
-use urlencoding::encode;
 
 /// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
 /// It is used as the transport type for the [`PubNubClient`].
@@ -191,7 +191,7 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
     let mut qp = query_params
         .iter()
         .fold(format!("{}{}?", hostname, path), |acc_query, (k, v)| {
-            format!("{}{}={}&", acc_query, k, encode(v))
+            format!("{}{}={}&", acc_query, k, encode(v.as_bytes()))
         });
 
     qp.remove(qp.len() - 1);
