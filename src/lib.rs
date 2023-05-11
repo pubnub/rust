@@ -179,6 +179,7 @@ mod lib {
     }
 
     pub(crate) mod encoding {
+        use super::alloc::string::{String, ToString};
         /// `percent_encoding` crate recommends you to create your own set for encoding.
         /// To be consistent in the whole codebase - we created a function that can be used
         /// for encoding related stuff.
@@ -206,7 +207,7 @@ mod lib {
         /// TODO: @reviewers - why do we need that `+` sign?
         pub(crate) const PUBNUB_SET: &AsciiSet = &USERINFO.add(b'+');
 
-        pub(crate) fn encode(data: &[u8]) -> super::alloc::string::String {
+        pub(crate) fn encode(data: &[u8]) -> String {
             percent_encode(data, PUBNUB_SET).to_string()
         }
     }
