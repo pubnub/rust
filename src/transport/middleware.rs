@@ -3,8 +3,13 @@
 //! This module contains the middleware that is used to add the required query parameters to the requests.
 //! The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and `requestid` query parameters to the requests.
 
+#[cfg(feature = "std")]
 use crate::{
-    core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
+    core::TransportMethod,
+    lib::{alloc::vec::Vec, collections::HashMap, encoding::url_encode},
+};
+use crate::{
+    core::{PubNubError, Transport, TransportRequest, TransportResponse},
     dx::pubnub_client::{SDK_ID, VERSION},
     lib::{
         alloc::{
@@ -12,16 +17,17 @@ use crate::{
             format,
             string::{String, ToString},
             sync::Arc,
-            vec::Vec,
         },
-        collections::HashMap,
         core::ops::Deref,
-        encoding::url_encode,
     },
 };
+#[cfg(feature = "std")]
 use base64::{engine::general_purpose, Engine as _};
+#[cfg(feature = "std")]
 use hmac::{Hmac, Mac};
+#[cfg(feature = "std")]
 use sha2::Sha256;
+#[cfg(feature = "std")]
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -46,6 +52,7 @@ pub struct PubNubMiddleware<T> {
     pub(crate) user_id: Arc<String>,
     pub(crate) auth_key: Option<Arc<String>>,
     pub(crate) auth_token: Arc<spin::RwLock<String>>,
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     pub(crate) signature_keys: Option<SignatureKeySet>,
 }
 
