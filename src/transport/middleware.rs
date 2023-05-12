@@ -230,6 +230,7 @@ mod should {
         assert!(result.is_ok());
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_signature() {
         let signature_key_set = SignatureKeySet {
