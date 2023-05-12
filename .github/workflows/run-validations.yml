@@ -104,7 +104,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --features=full
+          args: --lib --features=full
 
   no_std-target:
     name: Check if `no_std` target compiles as expected
@@ -122,7 +122,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --no-default-features --features=full_no_std_platform_independent,mock_getrandom
+          args: --lib --no-default-features --features=full_no_std_platform_independent,mock_getrandom
 
   all-validations:
     name: Validations
