@@ -2,7 +2,7 @@
 
 This directory contains examples of usage the `PubNub` crate.
 
-All examples can be executed with:
+All simple examples can be executed with:
 
 ```sh
 cargo run --example <name>
@@ -16,5 +16,10 @@ Some of examples require to enable certain features to work with. To use them si
 cargo run --example <name> --features="<feature1> <feature2> ..."
 ```
 
-Have fun! 
+## Additional examples
+
+You can find more additional examples of usage of PubNub SDK in sub-directories. 
+Each one is separated Cargo project that allows you to find needed dependencies, used features and implementation to achieve desired usage.
+
+## Have fun! 
 

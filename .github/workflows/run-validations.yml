@@ -64,6 +64,10 @@ jobs:
       run: |
        cargo clippy --workspace --all-targets --no-default-features --features="full_no_std" -- -D warnings
 
+    - name: Run cargo check tool to check if the additional example code are valid
+      run: |
+        cargo check --manifest-path examples/no_std/Cargo.toml --target thumbv7m-none-eabi
+
     - name: Run cargo fmt tool to check if code are well formatted 
       run: |
        cargo fmt --check --verbose --all
@@ -97,12 +101,13 @@ jobs:
         run: |
           cargo check --workspace --all-targets --features="full" 
 
-      - name: Web Assembly target - pubnub features only
+      - name: thumbv7em-none-eabi target
         uses: actions-rs/toolchain@v1
         with:
           target: wasm32-unknown-unknown
         run: |
-          cargo check --workspace --all-targets --no-default-features --features="pubnub_only"
+          cargo check --workspace --all-targets --no-default-features --features="full_no_std_platform_independent"
+
 
   all-validations:
     name: Validations

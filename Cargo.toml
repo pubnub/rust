@@ -16,7 +16,7 @@ categories = ["api-bindings", "asynchronous", "network-programming", "wasm"]
 full = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
 
 # Enables all default features
-default = ["serde", "reqwest", "aescbc", "std"]
+default = ["serde", "reqwest", "aescbc", "std", "blocking"]
 
 # [PubNub features]
 
@@ -59,10 +59,6 @@ std = [
 ## Enables very specific implementations for different platforms.
 ## Should not be used without a good reason!
 ##
-## It adds the following behaviors:
-## - uses portable_atomic crate instead of std::sync::atomic
-##
-## # portable_atomic
 ## Using the portable_atomic crate allow us to support platforms without native atomic operations.
 ## Note that this is unsafe and enabling it for multicore systems is unsound.
 ## See the `portable_atomic` and `critical_section` crates docs for more information.
@@ -127,6 +123,7 @@ futures = "0.3"
 reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
 hashbrown = { version = "0.13", features = ["serde"] }
+getrandom = { version = "0.2", features = ["custom"] }
 
 [[test]]
 name = "contract_test"
@@ -142,18 +139,10 @@ name = "publish_blocking"
 required-features = ["default", "blocking"]
 
 [[example]]
-name = "publish_no_std"
-required-features = ["serde", "reqwest", "blocking"]
-
-[[example]]
 name = "pam"
 required-features = ["default"]
 
 [[example]]
 name = "pam_blocking"
 required-features = ["default", "blocking"]
-
-[[example]]
-name = "pam_no_std"
-required-features = ["serde", "reqwest", "blocking"]
 
