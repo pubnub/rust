@@ -140,7 +140,7 @@ required-features = ["default", "blocking"]
 
 [[example]]
 name = "pam"
-required-features = ["default"]
+required-features = ["default", "parse_token"]
 
 [[example]]
 name = "pam_blocking"
