@@ -119,7 +119,7 @@ impl SignatureKeySet {
 impl<T> PubNubMiddleware<T> {
     fn prepare_request(&self, mut req: TransportRequest) -> Result<TransportRequest, PubNubError> {
         req.query_parameters
-            .insert("requestid".into(), Self::random_uuid().to_string());
+            .insert("requestid".into(), Uuid::new_v4().to_string());
 
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, VERSION));
@@ -152,26 +152,6 @@ impl<T> PubNubMiddleware<T> {
         }
 
         Ok(req)
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn random_uuid() -> Uuid {
-        uuid::Builder::from_random_bytes(rand::random()).into_uuid()
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn random_uuid() -> Uuid {
-        let mut buf = [0u8; 16];
-
-        getrandom::getrandom(&mut buf)
-            .map(|()| uuid::Builder::from_random_bytes(buf).into_uuid())
-            .unwrap_or_else(|err| {
-                log::warn!(
-                    "Failed to generate random UUID for message, using dummy one! Reason: {}",
-                    err
-                );
-                Uuid::parse_str("000000-0000-0000-0000-000000000000").unwrap() // can't fail
-            })
     }
 }
 
