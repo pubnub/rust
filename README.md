@@ -99,20 +99,43 @@ Feature list:
 * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
 
+## WASM support
+
+The `pubnub` crate is compatible with WASM. You can use it in your WASM project.
+
 ## `no_std` support
 
 The `pubnub` crate is `no_std` compatible. To use it in a `no_std` environment, you have to disable the default
 features and enable the needed ones.
 
-We recommend using the all default features and disabling only the `std` one. This way, you will get the most
-functionality out of the box.
-
 You can use the following configuration in your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-pubnub = { version = "0.0.0", default-features = false, features = ["serde", "reqwest", "aescbc"] }
+pubnub = { version = "0.0.0", default-features = false, features = ["serde", "aescbc",
+"blocking"] }
 ```
+
+### Limitations
+
+The `no_std` support is limited by implementations details of the SDK.
+
+SDK uses `alloc` crate to allocate memory for some operations. That indicates that
+some of the targets are not supported. Additionally, as we provide synchronous API, we use
+some stuff related to `alloc::sync` module, which is also not supported in some `no_std` environments.
+
+Some of the SDK features are not supported in `no_std` environment:
+* `access` module (because of lack timestamp support)
+* partialy `reqwest` transport (because of the reqwest implementation details)
+* `std` feature (because of the `std` library)
+
+Important thing is that we are dependent on the random number generator. We use it to generate UUIDs.
+If you want to use the SDK in `no_std` environment, for some targets you will have to provide
+your own implementation of the random number generator.
+
+See more:
+* [`getrandom` crate](https://docs.rs/getrandom/latest/getrandom/)
+* [no_std examples](examples/no_std/)
 
 ## Support
 
