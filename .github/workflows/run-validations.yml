@@ -98,13 +98,13 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           target: wasm32-unknown-unknown
-        command: check --workspace --all-targets --features="full" 
+          command: check --workspace --all-targets --features="full" 
 
       - name: thumbv7em-none-eabi target
         uses: actions-rs/toolchain@v1
         with:
-          target: wasm32-unknown-unknown
-        command: check --workspace --all-targets --no-default-features --features="full_no_std_platform_independent"
+          target: thumbv7m-none-eabi
+          command: check --workspace --all-targets --no-default-features --features="full_no_std_platform_independent mock_getrandom"
 
 
   all-validations:
