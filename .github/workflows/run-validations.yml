@@ -104,6 +104,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
+          args: --features="full"
 
   no_std-target:
     name: Check if `no_std` target compiles as expected
