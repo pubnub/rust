@@ -212,3 +212,16 @@ mod lib {
         }
     }
 }
+
+// Mocking random for checking if `no_std` compiles.
+// Don't use that feature in production.
+#[cfg(feature = "mock_getrandom")]
+mod mock_getrandom {
+    use getrandom::{register_custom_getrandom, Error};
+
+    pub fn do_nothing(_buf: &mut [u8]) -> Result<(), Error> {
+        Ok(())
+    }
+
+    register_custom_getrandom!(do_nothing);
+}
