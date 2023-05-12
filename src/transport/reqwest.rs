@@ -14,7 +14,10 @@
 //! [`reqwest` feature]: ../index.html#features
 
 use crate::{
-    core::{error::PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
+    core::{
+        error::PubNubError, transport::PUBNUB_DEFAULT_BASE_URL, Transport, TransportMethod,
+        TransportRequest, TransportResponse,
+    },
     lib::{
         alloc::{
             boxed::Box,
@@ -98,7 +101,7 @@ impl Default for TransportReqwest {
     fn default() -> Self {
         Self {
             reqwest_client: reqwest::Client::default(),
-            hostname: "https://ps.pndsn.com".into(),
+            hostname: PUBNUB_DEFAULT_BASE_URL.into(),
         }
     }
 }
@@ -259,7 +262,10 @@ pub mod blocking {
     use log::info;
 
     use crate::{
-        core::{PubNubError, TransportMethod, TransportRequest, TransportResponse},
+        core::{
+            transport::PUBNUB_DEFAULT_BASE_URL, PubNubError, TransportMethod, TransportRequest,
+            TransportResponse,
+        },
         lib::alloc::string::{String, ToString},
         transport::reqwest::{create_result, prepare_headers, prepare_url},
         PubNubClientBuilder,
@@ -326,7 +332,7 @@ pub mod blocking {
         fn default() -> Self {
             Self {
                 reqwest_client: reqwest::blocking::Client::default(),
-                hostname: "https://ps.pndsn.com".into(),
+                hostname: PUBNUB_DEFAULT_BASE_URL.into(),
             }
         }
     }
