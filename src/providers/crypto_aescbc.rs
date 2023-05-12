@@ -18,7 +18,6 @@ use crate::lib::alloc::{
     vec::Vec,
 };
 use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
-use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha256};
 
 /// AES-SHA256 encryptor type.
@@ -146,7 +145,7 @@ impl AesCbcCrypto {
             Some(iv) => Vec::from(iv.as_slice()),
             None => {
                 let mut random = [0u8; AES_BLOCK_SIZE];
-                thread_rng().try_fill(&mut random).ok();
+                getrandom::getrandom(&mut random).ok();
                 Vec::from(random)
             }
         }
