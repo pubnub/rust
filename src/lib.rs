@@ -128,7 +128,7 @@
 //! some stuff related to `alloc::sync` module, which is also not supported in some `no_std` environments.
 //!
 //! Some of the SDK features are not supported in `no_std` environment:
-//! * `access` module (because of lack timestamp support)
+//! * partialy `access` module (because of lack timestamp support)
 //! * partialy `reqwest` transport (because of the reqwest implementation details)
 //! * `std` feature (because of the `std` library)
 //!
