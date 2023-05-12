@@ -30,10 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .meta([("owner-role".into(), "admin".into())].into())
         .execute_blocking()?;
 
-    println!(
-        "Access token - call with metadata: {}",
-        grant_result.token.clone()
-    );
+    println!("Access token - call with metadata: {}", grant_result.token);
 
     // Grant an authorized client different levels of access to various resources in a single call
     let grant_result_various_resources = client
@@ -52,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Access token - call with various resources: {}",
-        grant_result_various_resources.token.clone()
+        grant_result_various_resources.token
     );
 
     // Grant an authorized client multiple channels using RegEx
@@ -64,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Access token - call with multiple channels using RegEx: {}",
-        grant_result_multiple_channels_regex.token.clone()
+        grant_result_multiple_channels_regex.token
     );
 
     // Grant an authorized client different levels of access to various resources and read access to channels using RegEx
@@ -86,9 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Access token - call with different resources and patterns: {}",
-        grant_result_different_levels_resources_patterns_regex
-            .token
-            .clone()
+        grant_result_different_levels_resources_patterns_regex.token
     );
 
     // spawn a blocking thread to grant token

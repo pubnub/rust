@@ -584,7 +584,7 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                url_encode(&format!("\"{}\"", message).as_bytes())
+                url_encode(format!("\"{}\"", message).as_bytes())
             ),
             result.data.path
         );
