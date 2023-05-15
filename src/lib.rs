@@ -79,21 +79,21 @@
 //! You can find more examples in our [examples](examples/) directory!
 //!
 //! ## Features
-//! 
+//!
 //! The `pubnub` crate is split into multiple features. You can enable or disable them in the `Cargo.toml` file, like so:
-//! 
+//!
 //! ```toml
 //! # only blocking and access + default features
 //! [dependencies]
 //! pubnub = { version = "0.0.0", features = ["blocking", "access"] }
-//! 
+//!
 //! # only parse_token + default features
 //! [dependencies]
 //! pubnub = { version = "0.0.0", features = ["parse_token"] }
 //! ```
-//! 
+//!
 //! Available features include:
-//! 
+//!
 //! * `full` - enables all not conflicting features
 //! * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
 //! * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
