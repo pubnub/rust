@@ -115,9 +115,9 @@
 //! * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 //! * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
 //!
-//! ## WASM support
+//! ## Wasm support
 //!
-//! The `pubnub` crate is compatible with WASM. You can use it in your WASM project.
+//! The `pubnub` crate is compatible with WebAssembly. You can use it in your Wasm project.
 //!
 //! ## `no_std` support
 //!
@@ -136,7 +136,7 @@
 //!
 //! The `no_std` support is limited by the implementation details of the SDK.
 //!
-//! The SDK uses the `alloc` crate to allocate memory for some operations, whic means that
+//! The SDK uses the `alloc` crate to allocate memory for some operations, which means that
 //! certain targets aren't supported. Additionally, as we provide a synchronous API, we use
 //! some parts of the `alloc::sync` module, which is also not supported in certain `no_std` environments.
 //!
@@ -146,7 +146,7 @@
 //! * partially `reqwest` transport (because of the reqwest implementation details)
 //! * `std` feature (because of the `std` library)
 //!
-//! We depend on a random number generator to generate user IDs.
+//! We depend on a random number generator to generate data for debugging purposes.
 //! If you want to use the SDK in a `no_std` environment, you'll have to provide
 //! your own random number generator implementation for certain targets.
 //!
