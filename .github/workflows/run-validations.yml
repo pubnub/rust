@@ -124,7 +124,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with: 
           command: check
-          args: --manifest-path examples/no_std/Cargo.toml
+          args: --manifest-path examples/no_std/Cargo.toml --target thumbv7m-none-eabi
 
  
   all-validations:
