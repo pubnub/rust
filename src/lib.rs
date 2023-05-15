@@ -2,7 +2,6 @@
 
 //! # PubNub Rust SDK
 //!
-//!
 //! <div align = "center">
 //!
 //! ![PubNub](https://raw.githubusercontent.com/pubnub/rust/phoenix/logo.svg)
@@ -80,13 +79,27 @@
 //! You can find more examples in our [examples](examples/) directory!
 //!
 //! ## Features
-//! The `pubnub` crate is split into multiple features, which can be enabled or disabled in your `Cargo.toml` file.
-//! Feature list:
+//!
+//! The `pubnub` crate is split into multiple features. You can enable or disable them in the `Cargo.toml` file, like so:
+//!
+//! ```toml
+//! # only blocking and access + default features
+//! [dependencies]
+//! pubnub = { version = "0.0.0", features = ["blocking", "access"] }
+//!
+//! # only parse_token + default features
+//! [dependencies]
+//! pubnub = { version = "0.0.0", features = ["parse_token"] }
+//! ```
+//!
+//! Available features include:
+//!
 //! * `full` - enables all not conflicting features
 //! * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
 //! * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 //! * `blocking` - enables blocking API
 //! * `aescbc` - enables AES-CBC encryption
+//! * `parse_token` - enables parsing access manager tokens
 //! * `default` - default features that include:
 //!    * `serde`
 //!    * `reqwest`
