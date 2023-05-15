@@ -232,6 +232,7 @@ mod lib {
         }
     }
 
+    #[cfg(any(feature = "publish", feature = "access"))]
     pub(crate) mod encoding {
         use super::alloc::string::{String, ToString};
         use percent_encoding::{percent_encode, AsciiSet, CONTROLS};

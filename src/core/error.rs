@@ -126,6 +126,7 @@ impl PubNubError {
     ///
     /// This function used to inform about not initialized request parameters or
     /// validation failure.
+    #[cfg(any(feature = "publish", feature = "access"))]
     pub(crate) fn general_api_error<S>(message: S, status: Option<u16>) -> Self
     where
         S: Into<String>,
