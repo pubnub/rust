@@ -138,7 +138,7 @@ See more:
 * [no_std examples](examples/no_std/)
 
 If you having problems with compiling this crate for very exotic targets, you can try to use
-`extra_platforms` feature. This feature enables some funky stuff that can help you to compile
+`extra_platforms` feature. This feature enables some funky stuff that can may help you to compile
 this crate for your target. But be aware that this feature is not recommended to use.
 See more information about this feature in the [Cargo.toml](Cargo.toml) at `[features]` section.
 
