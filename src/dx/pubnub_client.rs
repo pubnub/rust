@@ -19,8 +19,8 @@ use crate::{
     transport::middleware::PubNubMiddleware,
 };
 use derive_builder::Builder;
-use spin::Mutex;
 use log::info;
+use spin::Mutex;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(crate) const SDK_ID: &str = "PubNub-Rust";
