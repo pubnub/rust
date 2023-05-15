@@ -17,5 +17,6 @@ or from the root directory
 cargo build --manifest-path examples/no_std/Cargo.toml --target thumbv7m-none-eabi
 ```
 
-Also you can try to compile for other target!
+Also you can try to compile it for other targets!
+See the [limitations paragraph](../../README.md#limitations) in main readme.
 
