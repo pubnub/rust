@@ -57,10 +57,11 @@ std = [
 ]
 
 ## Enables very specific implementations for different platforms.
-## Should not be used without a good reason!
+## 
+## Use only if you know what you're doing.
 ##
-## Using the portable_atomic crate allow us to support platforms without native atomic operations.
-## Note that this is unsafe and enabling it for multicore systems is unsound.
+## Using the portable_atomic crate allows for supporting platforms without native atomic operations.
+## This is unsafe and enabling it for multicore systems is unsound.
 ## See the `portable_atomic` and `critical_section` crates docs for more information.
 ## https://docs.rs/portable_atomic
 ## and
@@ -145,4 +146,3 @@ required-features = ["default", "parse_token"]
 [[example]]
 name = "pam_blocking"
 required-features = ["default", "blocking"]
-

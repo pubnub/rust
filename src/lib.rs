@@ -103,14 +103,14 @@
 //! * `std` - enables `std` library
 //! * `parse_token` - enables parsing access manager tokens
 //! * `default` - default features that include:
-//!    * `serde`
-//!    * `reqwest`
-//!    * `aescbc`
-//!    * `std`
+//!   * `serde`
+//!   * `reqwest`
+//!   * `aescbc`
+//!   * `std`
 //!
 //! ## Documentation
 //!
-//! :warning: We are under the development! **Links below not work** :warning:
+//! :warning: This SDK is a work in progress! **The links below may not work** :warning:
 //!
 //! * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 //! * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
@@ -122,9 +122,9 @@
 //! ## `no_std` support
 //!
 //! The `pubnub` crate is `no_std` compatible. To use it in a `no_std` environment, you have to disable the default
-//! features and enable the needed ones.
+//! features and enable the ones you need.
 //!
-//! You can use the following configuration in your `Cargo.toml` file:
+//! To disable the default features, use the following configuration in the `Cargo.toml` file:
 //!
 //! ```toml
 //! [dependencies]
@@ -134,29 +134,31 @@
 //!
 //! ### Limitations
 //!
-//! The `no_std` support is limited by implementations details of the SDK.
+//! The `no_std` support is limited by the implementation details of the SDK.
 //!
-//! SDK uses `alloc` crate to allocate memory for some operations. That indicates that
-//! some of the targets are not supported. Additionally, as we provide synchronous API, we use
-//! some stuff related to `alloc::sync` module, which is also not supported in some `no_std` environments.
+//! The SDK uses the `alloc` crate to allocate memory for some operations, whic means that
+//! certain targets aren't supported. Additionally, as we provide a synchronous API, we use
+//! some parts of the `alloc::sync` module, which is also not supported in certain `no_std` environments.
 //!
-//! Some of the SDK features are not supported in `no_std` environment:
-//! * partialy `access` module (because of lack timestamp support)
-//! * partialy `reqwest` transport (because of the reqwest implementation details)
+//! Some SDK features aren't supported in a `no_std` environment:
+//!
+//! * partially `access` module (because of lack timestamp support)
+//! * partially `reqwest` transport (because of the reqwest implementation details)
 //! * `std` feature (because of the `std` library)
 //!
-//! Important thing is that we are dependent on the random number generator. We use it to generate UUIDs.
-//! If you want to use the SDK in `no_std` environment, for some targets you will have to provide
-//! your own implementation of the random number generator.
+//! We depend on a random number generator to generate user IDs.
+//! If you want to use the SDK in a `no_std` environment, you'll have to provide
+//! your own random number generator implementation for certain targets.
 //!
 //! See more:
+//!
 //! * [`getrandom` crate](https://docs.rs/getrandom/latest/getrandom/)
 //! * [no_std examples](examples/no_std/)
 //!
-//! If you having problems with compiling this crate for very exotic targets, you can try to use
-//! `extra_platforms` feature. This feature enables some funky stuff that can may help you to compile
-//! this crate for your target. But be aware that this feature is not recommended to use.
-//! See more information about this feature in the [Cargo.toml](Cargo.toml) at `[features]` section.
+//! If you're having problems compiling this crate for more exotic targets, you can try to use the
+//! `extra_platforms` feature. Be aware that this feature is **not supported** and we do not recommend using it.
+//!
+//! For more information about this feature. refer to [Cargo.toml](Cargo.toml) in the `[features]` section.
 //!
 //! ## Support
 //!
@@ -215,7 +217,7 @@ mod lib {
             /// Depending of the `std` feature, this module will re-export
             /// either `std::collections::HashMap` or `hashbrown::HashMap`.
             /// This is needed because there is no `no_std` HashMap available.
-            /// We decided to use `hashbrown` because it is fast and has same API as `std` HashMap.
+            /// We decided to use `hashbrown` because it is fast and has the same API as `std` HashMap.
 
             #[cfg(not(feature = "std"))]
             pub(crate) use hashbrown::HashMap;
