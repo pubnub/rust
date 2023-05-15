@@ -64,10 +64,6 @@ jobs:
       run: |
        cargo clippy --workspace --all-targets --no-default-features --features="full_no_std" -- -D warnings
 
-    - name: Run cargo check tool to check if the additional example code are valid
-      run: |
-        cargo check --manifest-path examples/no_std/Cargo.toml --target thumbv7m-none-eabi
-
     - name: Run cargo fmt tool to check if code are well formatted 
       run: |
        cargo fmt --check --verbose --all
@@ -124,6 +120,13 @@ jobs:
           command: check
           args: --lib --no-default-features --features=full_no_std_platform_independent,mock_getrandom
 
+      - name: Run cargo check tool to check if the additional example code are valid
+        uses: actions-rs/cargo@v1
+        with: 
+          command: check
+          args: --manifest-path examples/no_std/Cargo.toml
+
+ 
   all-validations:
     name: Validations
     runs-on: ubuntu-latest
