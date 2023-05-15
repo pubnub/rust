@@ -250,7 +250,7 @@ mod lib {
             .add(b'^')
             .add(b'|');
 
-        /// TODO: @reviewers - why do we need that `+` sign?
+        /// `+` sign needed by PubNub API
         pub(crate) const PUBNUB_SET: &AsciiSet = &USERINFO.add(b'+');
 
         /// `percent_encoding` crate recommends you to create your own set for encoding.
