@@ -144,7 +144,7 @@ getrandom = { version = "0.2", features = ["custom"] }
 [[test]]
 name = "contract_test"
 harness = false
-required-features = ["contract_test"]
+required-features = ["contract_test", "publish", "access"]
 
 [[example]]
 name = "publish"
