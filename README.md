@@ -1,6 +1,5 @@
 # PubNub Rust SDK
 
-
 <div align = "center">
 
 ![PubNub](https://raw.githubusercontent.com/pubnub/rust/phoenix/logo.svg)
@@ -45,18 +44,17 @@ pubnub = { version = "0.0.0", features = ["full"] }
 
 ### Example
 
-Try the following sample code to get up and running quicky!
+Try the following sample code to get up and running quickly!
 
 ```rust
-use std::env;
 use pubnub::{Keyset, PubNubClientBuilder};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let publish_key = env::var("PUBNUB_PUBLISH_KEY")?;
-    let subscribe_key = env::var("PUBNUB_SUBSCRIBE_KEY")?;
+    let publish_key = "my_publish_key";
+    let subscribe_key = "my_subscribe_key";
 
-    let mut client = PubNubClientBuilder::with_reqwest_transport()
+    let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
             subscribe_key,
             publish_key: Some(publish_key),
@@ -68,6 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client
         .publish_message("hello world!")
         .channel("my_channel")
+        .r#type("text-message")
         .execute()
         .await?;
 
@@ -78,13 +77,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 You can find more examples in our [examples](examples/) directory!
 
 ## Features
-The `pubnub` crate is split into multiple features, which can be enabled or disabled in your `Cargo.toml` file.
-Feature list:
+
+The `pubnub` crate is split into multiple features. You can enable or disable them in the `Cargo.toml` file, like so:
+
+```toml
+# only blocking and access + default features
+[dependencies]
+pubnub = { version = "0.0.0", features = ["blocking", "access"] }
+
+# only parse_token + default features
+[dependencies]
+pubnub = { version = "0.0.0", features = ["parse_token"] }
+```
+
+Available features include:
+
 * `full` - enables all not conflicting features
 * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
 * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 * `blocking` - enables blocking API
 * `aescbc` - enables AES-CBC encryption
+* `parse_token` - enables parsing access manager tokens
 * `default` - default features that include:
    * `serde`
    * `reqwest`
