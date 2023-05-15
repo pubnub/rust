@@ -8,9 +8,9 @@ use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
     core::{Deserializer, Serialize},
     dx::PubNubClient,
+    lib::{alloc::string::String, collections::HashMap},
 };
 use derive_builder::Builder;
-use std::collections::HashMap;
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///
@@ -77,6 +77,10 @@ where
         .channel(channel.into())
         .deserialize_with(SerdeDeserializer)
     }
+
+    /// The [`channel`] method is used to set the channel to publish the message to.
+    ///
+    /// [`channel`]: crate::dx::publish::PublishMessageBuilder::channel
 
     #[cfg(not(feature = "serde"))]
     pub fn channel<S>(self, channel: S) -> PublishMessageDeserializerBuilder<T, M>
@@ -173,7 +177,7 @@ where
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
             seqn: Some(self.seqn),
-            deserializer: Some(Arc::new(deserializer)),
+            deserializer: Some(deserializer),
             ..Default::default()
         }
         .message(self.message)
@@ -216,6 +220,7 @@ where
 /// [`PubNubClient`]: crate::dx::PubNubClient
 #[derive(Builder)]
 #[builder(pattern = "owned", build_fn(vis = "pub(super)"))]
+#[cfg_attr(not(feature = "std"), builder(no_std))]
 pub struct PublishMessageViaChannel<T, M, D>
 where
     M: Serialize,

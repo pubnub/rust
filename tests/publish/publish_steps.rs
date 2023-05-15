@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use cucumber::{given, then, when};
 use pubnub::core::PubNubError;
-use std::collections::HashMap;
 
 use crate::common::PubNubWorld;
 

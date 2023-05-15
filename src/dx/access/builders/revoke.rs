@@ -9,14 +9,18 @@ use crate::{
         Deserializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, PubNubClient},
+    lib::{
+        alloc::{format, string::ToString},
+        encoding::url_encode,
+    },
 };
 use derive_builder::Builder;
-use urlencoding::encode;
 
 #[derive(Builder)]
 #[builder(
     pattern = "owned",
-    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate")
+    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate"),
+    no_std
 )]
 /// The [`RevokeTokenRequestBuilder`] is used to build revoke access token
 /// permissions to access specific resource endpoints request that is sent to
@@ -54,10 +58,7 @@ where
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[cfg(not(feature = "serde"))]
-pub struct RevokeTokenRequestWithDeserializerBuilder<T>
-where
-    T: Transport,
-{
+pub struct RevokeTokenRequestWithDeserializerBuilder<T> {
     /// Current client which can provide transportation to perform the request.
     pub(in crate::dx::access) pubnub_client: PubNubClient<T>,
 
@@ -74,7 +75,10 @@ where
         let sub_key = &self.pubnub_client.config.subscribe_key;
 
         TransportRequest {
-            path: format!("/v3/pam/{sub_key}/grant/{}", encode(&self.token)),
+            path: format!(
+                "/v3/pam/{sub_key}/grant/{}",
+                url_encode(self.token.as_bytes())
+            ),
             method: TransportMethod::Delete,
             headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             ..Default::default()

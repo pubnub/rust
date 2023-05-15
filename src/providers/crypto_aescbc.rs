@@ -11,8 +11,13 @@
 //! [`cbc`]: https://crates.io/crates/cbc
 //! [`aescbc` feature]: ../index.html#features
 use crate::core::{error::PubNubError, Cryptor};
+use crate::lib::alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
-use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha256};
 
 /// AES-SHA256 encryptor type.
@@ -90,9 +95,9 @@ impl AesCbcCrypto {
         let cipher_key: Vec<u8> = cipher_key.into();
 
         if cipher_key.is_empty() {
-            return Err(PubNubError::CryptoInitialization(
-                "Cipher key is empty".into(),
-            ));
+            return Err(PubNubError::CryptoInitialization {
+                details: "Cipher key is empty".into(),
+            });
         }
 
         Ok(AesCbcCrypto {
@@ -140,7 +145,7 @@ impl AesCbcCrypto {
             Some(iv) => Vec::from(iv.as_slice()),
             None => {
                 let mut random = [0u8; AES_BLOCK_SIZE];
-                thread_rng().try_fill(&mut random).ok();
+                getrandom::getrandom(&mut random).ok();
                 Vec::from(random)
             }
         }
@@ -216,7 +221,9 @@ impl Cryptor for AesCbcCrypto {
 
         let result = Encryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
             .encrypt_padded_b2b_mut::<Pkcs7>(data, data_slice)
-            .map_err(|err| PubNubError::Encryption(err.to_string()))?;
+            .map_err(|err| PubNubError::Encryption {
+                details: err.to_string(),
+            })?;
         let encrypted_len = result.len() + data_offset;
 
         // Prepend random initialization vector to encrypted data if required.
@@ -272,7 +279,9 @@ impl Cryptor for AesCbcCrypto {
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
             .decrypt_padded_b2b_mut::<Pkcs7>(data_slice, buffer.as_mut())
-            .map_err(|err| PubNubError::Decryption(err.to_string()))?;
+            .map_err(|err| PubNubError::Decryption {
+                details: err.to_string(),
+            })?;
 
         // Adjust size of buffer to actual processed data length.
         let decrypted_len = result.len();

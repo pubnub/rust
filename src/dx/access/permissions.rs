@@ -4,6 +4,8 @@
 //! [`ChannelPermission`],  [`ChannelGroupPermission`] and [`UserIdPermission`]
 //! traits.
 
+use crate::lib::{alloc::boxed::Box, alloc::string::String};
+
 /// Resource **read** permissions.
 const READ: u8 = 0b0000_0001;
 /// Resource **write** permissions.

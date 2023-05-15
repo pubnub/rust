@@ -8,17 +8,19 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use std::{
-    ops::Deref,
-    sync::{Arc, Mutex},
-};
-
+use crate::transport::middleware::SignatureKeySet;
 use crate::{
     core::{PubNubError, Transport},
-    transport::middleware::{PubNubMiddleware, SignatureKeySet},
+    lib::alloc::{
+        string::{String, ToString},
+        sync::Arc,
+    },
+    lib::core::ops::Deref,
+    transport::middleware::PubNubMiddleware,
 };
 use derive_builder::Builder;
 use log::info;
+use spin::Mutex;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(crate) const SDK_ID: &str = "PubNub-Rust";
@@ -136,7 +138,8 @@ impl<T> Clone for PubNubClient<T> {
     pattern = "owned",
     name = "PubNubClientConfigBuilder",
     build_fn(private, name = "build_internal"),
-    setter(prefix = "with")
+    setter(prefix = "with"),
+    no_std
 )]
 pub struct PubNubClientRef<T> {
     /// Transport layer
@@ -346,7 +349,9 @@ impl<T> PubNubClientConfigBuilder<T> {
     /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn build(self) -> Result<PubNubClient<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
-            .map_err(|err| PubNubError::ClientInitialization(err.to_string()))
+            .map_err(|err| PubNubError::ClientInitialization {
+                details: err.to_string(),
+            })
             .and_then(|pre_build| {
                 let token = Arc::new(spin::RwLock::new(String::new()));
                 info!("Client Configuration: \n publish_key: {:?}\n subscribe_key: {}\n user_id: {}\n instance_id: {:?}", pre_build.config.publish_key, pre_build.config.subscribe_key, pre_build.config.user_id, pre_build.instance_id);
@@ -398,9 +403,13 @@ pub struct PubNubConfig {
 impl PubNubConfig {
     fn signature_key_set(self) -> Result<Option<SignatureKeySet>, PubNubError> {
         if let Some(secret_key) = self.secret_key {
-            let publish_key = self.publish_key.ok_or(PubNubError::ClientInitialization(
-                "You must also provide the publish key if you use the secret key.".to_string(),
-            ))?;
+            #[cfg(not(feature = "std"))]
+            log::warn!("Signature calculation is not supported in `no_std`` environment!");
+
+            let publish_key = self.publish_key.ok_or(PubNubError::ClientInitialization {
+                details: "You must also provide the publish key if you use the secret key."
+                    .to_string(),
+            })?;
             Ok(Some(SignatureKeySet {
                 secret_key,
                 publish_key,
@@ -691,6 +700,7 @@ where
 mod should {
     use super::*;
     use crate::core::{TransportRequest, TransportResponse};
+    use crate::lib::alloc::boxed::Box;
     use std::any::type_name;
 
     #[test]
@@ -734,7 +744,7 @@ mod should {
             publish_key: None,
             subscribe_key: "sub_key".into(),
             secret_key: Some("sec_key".into()),
-            user_id: Arc::new("".to_string()),
+            user_id: Arc::new("".into()),
             auth_key: None,
         };
 

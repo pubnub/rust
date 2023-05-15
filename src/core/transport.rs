@@ -8,6 +8,15 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 
 use super::{transport_response::TransportResponse, PubNubError, TransportRequest};
+use crate::lib::alloc::boxed::Box;
+
+/// The default base URL for the [`PubNub API`].
+/// This is used for the transport layer.
+///
+/// Use it when you implement the [`Transport`] trait without any proxy.
+///
+/// [`PubNub API`]: https://www.pubnub.com/docs
+pub const PUBNUB_DEFAULT_BASE_URL: &str = "https://ps.pndsn.com";
 
 /// This trait is used to send requests to the [`PubNub API`].
 ///
@@ -31,7 +40,8 @@ use super::{transport_response::TransportResponse, PubNubError, TransportRequest
 /// ```
 ///
 /// [`PubNub API`]: https://www.pubnub.com/docs
-#[async_trait::async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait Transport: Send + Sync {
     /// Send a request to the [`PubNub API`].
     ///

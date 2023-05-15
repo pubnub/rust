@@ -8,64 +8,128 @@ description = "PubNub SDK for Rust"
 repository = "https://github.com/pubnub/rust"
 documentation = "https://docs.rs/pubnub" # TODO: add docs and connect with pubnub docs
 homepage = "https://www.pubnub.com"
-categories = ["api-bindings", "asynchronous", "network-programming"]
+categories = ["api-bindings", "asynchronous", "network-programming", "wasm"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+
+# Enables all non-conflicting features
+full = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
+
+# Enables all default features
+default = ["serde", "reqwest", "aescbc", "std", "blocking"]
+
+# [PubNub features]
+
+## Enables AES-CBC encryption
+aescbc = ["dep:aes", "dep:cbc", "getrandom"]
+
+## Enables token parsing
+parse_token = ["dep:ciborium"]
+
+# [Implementation features]
+
+## Enables serde implementation for serialization and deserialization
+serde = ["dep:serde", "dep:serde_json", "hashbrown/serde"]
+
+## Enables reqwest implementation for transport layer
+reqwest = ["dep:reqwest", "dep:bytes"]
+
+## Enables blocking implementation for transport layer
+blocking = ["reqwest?/blocking"]
+
+## Enables std library
+std = [
+    "derive_builder/std",
+    "log/std",
+    "uuid/std",
+    "base64/std",
+    "spin/std",
+    "snafu/std",
+    "hmac/std",
+    "sha2/std",
+    "time/std",
+    "bytes?/std",
+    "getrandom/std",
+    "rand/default",
+    "serde?/std",
+    "serde_json?/std",
+    "ciborium?/std"
+]
+
+## Enables very specific implementations for different platforms.
+## 
+## Use only if you know what you're doing.
+##
+## Using the portable_atomic crate allows for supporting platforms without native atomic operations.
+## This is unsafe and enabling it for multicore systems is unsound.
+## See the `portable_atomic` and `critical_section` crates docs for more information.
+## https://docs.rs/portable_atomic
+## and
+## https://docs.rs/critical-section/latest/critical_section/
+extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"] 
+
+# [Internal features] (not intended for use outside of the library)
+contract_test = ["parse_token"]
+full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking"]
+full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking"] 
+pubnub_only = ["aescbc", "parse_token", "blocking"]
+mock_getrandom = ["getrandom/custom"]
 
 [dependencies]
-derive_builder = "0.12"
 async-trait = "0.1"
-thiserror = "1.0"
 log = "0.4"
-uuid = { version = "1.3", features = ["v4"] }
-urlencoding = "2.1.2"
-hmac = "0.12"
-sha2 = "0.10"
-base64 = "0.21"
-bytes = "1.4"
+hashbrown = "0.13"
+spin = "0.9"
+percent-encoding = { version = "2.1", default-features = false }
+base64 = { version = "0.21", features = ["alloc"], default-features = false }
+derive_builder = {version = "0.12", default-features = false }
+uuid = { version = "1.3", features = ["v4"], default-features = false }
+snafu = { version = "0.7", features = ["rust_1_46"], default-features = false }
+rand = { version = "0.8.5", default-features = false }
 
-# synchronization
-spin = { version = "0.9.8", features = ["rwlock"] }
+# signature
+hmac = "0.12"
+sha2 = {version = "0.10", default-features = false }
+time = { version = "0.3", features = ["alloc"], default-features = false }
 
 # serde
-serde = { version = "1.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0", optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true, default-features = false }
+serde_json = { version = "1.0", optional = true, features = ["alloc"] ,default-features = false }
 
 # reqwest
 reqwest = { version = "0.11", optional = true }
+bytes = {version = "1.4", default-features = false, optional = true }
 
 # crypto
 aes = { version = "0.8.2", optional = true }
 cbc = { version = "0.1.2", optional = true }
-rand = { version = "0.8.5", optional = true }
+getrandom = { version = "0.2", optional = true }
 
-#parse_token
-ciborium = { git = "https://github.com/enarx/ciborium.git", rev = "dc9d27d", optional = true }
+# parse_token
+ciborium = { git = "https://github.com/enarx/ciborium.git", rev = "dc9d27d", default-features = false ,optional = true }
+
+# extra_platforms
+portable-atomic = { version = "1.3", optional = true, default-features = false, features = ["require-cas", "critical-section"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 async-trait = "0.1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"]}
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 wiremock = "0.5"
 env_logger = "0.10"
 cucumber = { version = "0.19", features = ["output-junit"] }
 futures = "0.3"
 reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
+hashbrown = { version = "0.13", features = ["serde"] }
+getrandom = { version = "0.2", features = ["custom"] }
 
 [[test]]
 name = "contract_test"
 harness = false
 required-features = ["contract_test"]
-
-[features]
-full = ["serde", "reqwest", "aescbc", "parse_token", "blocking"]
-default = ["serde", "reqwest", "aescbc"]
-serde = ["dep:serde", "dep:serde_json"]
-reqwest = ["dep:reqwest"]
-aescbc = ["dep:aes", "dep:cbc", "dep:rand"]
-blocking = ["reqwest?/blocking"]
-contract_test = ["parse_token"]
-parse_token = ["dep:ciborium"]
 
 [[example]]
 name = "publish"
@@ -82,4 +146,3 @@ required-features = ["default", "parse_token"]
 [[example]]
 name = "pam_blocking"
 required-features = ["default", "blocking"]
-

@@ -97,18 +97,65 @@ Available features include:
 * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 * `blocking` - enables blocking API
 * `aescbc` - enables AES-CBC encryption
+* `std` - enables `std` library
 * `parse_token` - enables parsing access manager tokens
 * `default` - default features that include:
-   * `serde`
-   * `reqwest`
-   * `aescbc`
+  * `serde`
+  * `reqwest`
+  * `aescbc`
+  * `std`
 
 ## Documentation
 
-:warning: We are under the development! **Links below not work** :warning:
+:warning: This SDK is a work in progress! **The links below may not work** :warning:
 
 * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
+
+## Wasm support
+
+The `pubnub` crate is compatible with WebAssembly. You can use it in your Wasm project.
+
+## `no_std` support
+
+The `pubnub` crate is `no_std` compatible. To use it in a `no_std` environment, you have to disable the default
+features and enable the ones you need.
+
+To disable the default features, use the following configuration in the `Cargo.toml` file:
+
+```toml
+[dependencies]
+pubnub = { version = "0.0.0", default-features = false, features = ["serde", "aescbc",
+"blocking"] }
+```
+
+### Limitations
+
+The `no_std` support is limited by the implementation details of the SDK.
+
+The SDK uses the `alloc` crate to allocate memory for some operations, which means that
+certain targets aren't supported. Additionally, as we provide a synchronous API, we use
+some parts of the `alloc::sync` module, which is also not supported in certain `no_std` environments.
+
+Some SDK features aren't supported in a `no_std` environment:
+
+* partially `access` module (because of lack timestamp support)
+* partially `reqwest` transport (because of the reqwest implementation details)
+* `std` feature (because of the `std` library)
+
+We depend on a random number generator to generate data for debugging purposes.
+If you want to use the SDK in a `no_std` environment, you'll have to provide
+your own random number generator implementation for certain targets.
+
+See more:
+
+* [`getrandom` crate](https://docs.rs/getrandom/latest/getrandom/)
+* [no_std examples](examples/no_std/)
+
+If you're having problems compiling this crate for more exotic targets, you can try to use the
+`extra_platforms` feature. Be aware that this feature is **not supported** and we do not recommend using it.
+
+For more information about this feature. refer to [Cargo.toml](Cargo.toml) in the `[features]` section.
 
 ## Support
 

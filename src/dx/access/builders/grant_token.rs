@@ -9,9 +9,12 @@ use crate::{
         Deserializer, Serializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, PubNubClient},
+    lib::{
+        alloc::{format, string::ToString, vec},
+        collections::HashMap,
+    },
 };
 use derive_builder::Builder;
-use std::collections::HashMap;
 
 /// The [`GrantTokenRequestBuilder`] is used to build grant access token
 /// permissions to access specific resource endpoints request that is sent to
@@ -24,7 +27,8 @@ use std::collections::HashMap;
 #[derive(Builder)]
 #[builder(
     pattern = "owned",
-    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate")
+    build_fn(vis = "pub(in crate::dx::access)", validate = "Self::validate"),
+    no_std
 )]
 pub struct GrantTokenRequest<'pa, T, S, D>
 where

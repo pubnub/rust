@@ -34,6 +34,7 @@ pub use permissions::*;
 pub mod permissions;
 
 use crate::dx::PubNubClient;
+use crate::lib::alloc::{boxed::Box, string::String};
 #[cfg(feature = "serde")]
 use crate::providers::{
     deserialization_serde::SerdeDeserializer, serialization_serde::SerdeSerializer,
@@ -258,10 +259,13 @@ mod it_should {
     use super::*;
     use crate::{
         core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
+        lib::{
+            alloc::{borrow::ToOwned, format, vec, vec::Vec},
+            collections::HashMap,
+        },
         transport::middleware::PubNubMiddleware,
         Keyset,
     };
-    use std::collections::HashMap;
 
     /// Requests handler function type.
     type RequestHandler = Box<dyn Fn(&TransportRequest) + Send + Sync>;
@@ -382,7 +386,7 @@ mod it_should {
     async fn grant_token() {
         let permissions = permissions();
         let transport = MockTransport {
-            response: Some(transport_response(200, Some("test-token".to_string()))),
+            response: Some(transport_response(200, Some("test-token".into()))),
             ..Default::default()
         };
         let client = client(true, true, None, None, Some(transport));
@@ -507,6 +511,7 @@ mod it_should {
             .build()
             .unwrap()
             .transport_request();
+        dbg!(&request.path);
         assert!(request.path.ends_with("test%2Fto%2Ben%3D%3D"));
         assert!(matches!(&request.method, TransportMethod::Delete));
     }
@@ -520,13 +525,7 @@ mod it_should {
                 assert_eq!(req.query_parameters.get("auth").unwrap(), "auth-key");
             })),
         };
-        let client = client(
-            true,
-            true,
-            Some("auth-key".to_string()),
-            None,
-            Some(transport),
-        );
+        let client = client(true, true, Some("auth-key".into()), None, Some(transport));
 
         let _ = client.revoke_token("test/to+en==").execute().await;
     }
@@ -541,13 +540,7 @@ mod it_should {
             })),
         };
 
-        let client = client(
-            true,
-            true,
-            None,
-            Some("auth-token".to_string()),
-            Some(transport),
-        );
+        let client = client(true, true, None, Some("auth-token".into()), Some(transport));
 
         let _ = client.revoke_token("test/to+en==").execute().await;
     }
@@ -564,8 +557,8 @@ mod it_should {
         let client = client(
             true,
             true,
-            Some("auth-key".to_string()),
-            Some("auth-token".to_string()),
+            Some("auth-key".into()),
+            Some("auth-token".into()),
             Some(transport),
         );
 

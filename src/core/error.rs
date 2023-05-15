@@ -4,6 +4,9 @@
 //!
 //! [`pubnub`]: ../index.html
 
+use crate::lib::{alloc::string::String, alloc::vec::Vec};
+use snafu::Snafu;
+
 /// PubNub error type
 ///
 /// This type is used to represent errors that can occur in the PubNub protocol.
@@ -18,54 +21,88 @@
 /// }
 ///
 /// foo().map_err(|e| match e {
-///   PubNubError::Transport(_) => println!("Transport error"),
+///   PubNubError::Transport { .. } => println!("Transport error"),
 ///   PubNubError::API { .. } => println!("Publish error"),
 ///   _ => println!("Other error"),
 /// });
 /// ```
 ///
 /// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(Snafu, Debug, Clone)]
 pub enum PubNubError {
     /// this error is returned when the transport layer fails
-    #[error("Transport error: {0}")]
-    Transport(String),
+    #[snafu(display("Transport error: {details}"))]
+    Transport {
+        ///docs
+        details: String,
+    },
+
+    /// this error is returned when the publication of the request fails
+    #[snafu(display("Publish error: {details}"))]
+    PublishError {
+        ///docs
+        details: String,
+    },
 
     /// this error is returned when the serialization of the response fails
-    #[error("Serialization error: {0}")]
-    Serialization(String),
+    #[snafu(display("Serialization error: {details}"))]
+    Serialization {
+        ///docs
+        details: String,
+    },
 
     /// this error is returned when the serialization of the response fails
-    #[error("Deserialization error: {0}")]
-    Deserialization(String),
+    #[snafu(display("Deserialization error: {details}"))]
+    Deserialization {
+        ///docs
+        details: String,
+    },
 
     /// this error is returned when the deserialization of the token fails
     #[cfg(feature = "parse_token")]
-    #[error("Token deserialization error: {0}")]
-    TokenDeserialization(String),
+    #[snafu(display("Token deserialization error: {details}"))]
+    TokenDeserialization {
+        ///docs
+        details: String,
+    },
 
     /// this error is returned when one of the needed keys is missing
-    #[error("No key provided error: {0}")]
-    NoKey(String),
+    #[snafu(display("No key provided error: {details}"))]
+    NoKey {
+        ///docs
+        details: String,
+    },
 
     /// this error is returned when the initialization of client fails
-    #[error("Client initialization error: {0}")]
-    ClientInitialization(String),
+    #[snafu(display("Client initialization error: {details}"))]
+    ClientInitialization {
+        ///docs
+        details: String,
+    },
 
     /// this error is returned when the initialization of the cryptor fails
-    #[error("Cryptor initialization error: {0}")]
-    CryptoInitialization(String),
+    #[snafu(display("Cryptor initialization error: {details}"))]
+    CryptoInitialization {
+        ///docs
+        details: String,
+    },
 
     /// this error is returned when the cryptor is unable to decrypt data
-    #[error("Data encryption error: {0}")]
-    Encryption(String),
+    #[snafu(display("Data encryption error: {details}"))]
+    Encryption {
+        ///docs
+        details: String,
+    },
 
     /// this error is returned when the crypror is unable to decrypt data
-    #[error("Data decryption error: {0}")]
-    Decryption(String),
+    #[snafu(display("Data decryption error: {details}"))]
+    Decryption {
+        ///docs
+        details: String,
+    },
 
     ///this error is returned when REST API request can't be handled by service.
-    #[error("REST API error: {message}")]
+    #[snafu(display("REST API error: {message}"))]
     API {
         /// Operation status (HTTP) code.
         status: u16,

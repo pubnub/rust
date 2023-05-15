@@ -18,6 +18,8 @@ pub mod result;
 pub use builders::PublishMessageBuilder;
 pub mod builders;
 
+use self::result::body_to_result;
+
 use super::pubnub_client::PubNubConfig;
 use crate::{
     core::{
@@ -26,11 +28,17 @@ use crate::{
         TransportResponse,
     },
     dx::PubNubClient,
+    lib::{
+        alloc::{
+            format,
+            string::{String, ToString},
+        },
+        collections::HashMap,
+        core::ops::Not,
+        encoding::url_encode,
+    },
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
-use result::body_to_result;
-use std::{collections::HashMap, ops::Not};
-use urlencoding::encode;
 
 impl<T> PubNubClient<T> {
     /// Create a new publish message builder.
@@ -77,10 +85,7 @@ impl<T> PubNubClient<T> {
     }
 
     fn seqn(&self) -> u16 {
-        let mut locked_value = self
-            .next_seqn
-            .lock()
-            .expect("dx::publish seqn lock poisoned!");
+        let mut locked_value = self.next_seqn.lock();
         let ret = *locked_value;
 
         if *locked_value == u16::MAX {
@@ -277,7 +282,10 @@ where
 
         if self.use_post {
             self.message.serialize().map(|m_vec| TransportRequest {
-                path: format!("/publish/{pub_key}/{sub_key}/0/{}/0", encode(&self.channel)),
+                path: format!(
+                    "/publish/{pub_key}/{sub_key}/0/{}/0",
+                    url_encode(self.channel.as_bytes())
+                ),
                 method: TransportMethod::Post,
                 query_parameters: query_params,
                 body: Some(m_vec),
@@ -287,15 +295,17 @@ where
             self.message
                 .serialize()
                 .and_then(|m_vec| {
-                    String::from_utf8(m_vec).map_err(|e| PubNubError::Serialization(e.to_string()))
+                    String::from_utf8(m_vec).map_err(|e| PubNubError::Serialization {
+                        details: e.to_string(),
+                    })
                 })
                 .map(|m_str| TransportRequest {
                     path: format!(
                         "/publish/{}/{}/0/{}/0/{}",
                         pub_key,
                         sub_key,
-                        encode(&self.channel),
-                        encode(&m_str)
+                        url_encode(self.channel.as_bytes()),
+                        url_encode(m_str.as_bytes())
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
@@ -421,9 +431,8 @@ where
 
 #[cfg(test)]
 mod should {
-    use std::sync::Arc;
-
     use super::*;
+    use crate::lib::alloc::{boxed::Box, sync::Arc, vec};
     use crate::{
         core::TransportResponse,
         dx::{
@@ -575,7 +584,7 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                encode(&format!("\"{}\"", message))
+                url_encode(format!("\"{}\"", message).as_bytes())
             ),
             result.data.path
         );
@@ -594,7 +603,11 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("/publish///0/{}/0/{}", channel, encode("{\"a\":\"b\"}")),
+            format!(
+                "/publish///0/{}/0/{}",
+                channel,
+                url_encode("{\"a\":\"b\"}".as_bytes())
+            ),
             result.data.path
         );
     }
@@ -633,7 +646,11 @@ mod should {
             .unwrap();
 
         assert_eq!(
-            format!("/publish///0/{}/0/{}", channel, encode("{\"number\":7}")),
+            format!(
+                "/publish///0/{}/0/{}",
+                channel,
+                url_encode("{\"number\":7}".as_bytes())
+            ),
             result.data.path
         );
     }

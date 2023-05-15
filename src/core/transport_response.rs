@@ -8,7 +8,10 @@
 //! [`Transport`]: ../transport/trait.Transport.html
 //! [`PubNub API`]: https://www.pubnub.com/docs
 
-use std::collections::HashMap;
+use crate::lib::{
+    alloc::{string::String, vec::Vec},
+    collections::HashMap,
+};
 
 /// This struct is used to represent the response from a request to the [`PubNub API`].
 /// It is used as the response type for the [`Transport`] trait.

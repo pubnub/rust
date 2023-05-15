@@ -4,7 +4,15 @@
 //! responses for [`PubNubError`] consumption.
 
 use crate::core::PubNubError;
-use std::{collections::HashMap, string::String};
+use crate::lib::{
+    alloc::{
+        borrow::ToOwned,
+        format,
+        string::{String, ToString},
+        vec::Vec,
+    },
+    collections::hash_map::HashMap,
+};
 
 /// Implementation for [`APIError`] to create struct from service error response
 /// body.
@@ -49,7 +57,7 @@ pub(crate) struct ErrorObjectDetails {
     location: String,
 
     /// Type of issue reason.
-    #[serde(rename(deserialize = "locationType"))]
+    #[cfg_attr(feature = "serde", serde(rename(deserialize = "locationType")))]
     location_type: String,
 }
 

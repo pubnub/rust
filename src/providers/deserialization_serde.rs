@@ -18,7 +18,10 @@
 //!
 //! [`Serialize`]: ../trait.Serialize.html
 
-use crate::core::{Deserializer, PubNubError};
+use crate::{
+    core::{Deserializer, PubNubError},
+    lib::alloc::string::ToString,
+};
 
 /// Serde implementation for PubNub [`Deserializer`] trait.
 ///
@@ -36,13 +39,16 @@ where
     T: serde::Deserialize<'de>,
 {
     fn deserialize(&self, bytes: &'de [u8]) -> Result<T, crate::core::PubNubError> {
-        serde_json::from_slice(bytes).map_err(|e| PubNubError::Deserialization(e.to_string()))
+        serde_json::from_slice(bytes).map_err(|e| PubNubError::Deserialization {
+            details: e.to_string(),
+        })
     }
 }
 
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::lib::alloc::string::String;
     use serde::Deserialize;
 
     #[derive(Deserialize, Debug, PartialEq)]

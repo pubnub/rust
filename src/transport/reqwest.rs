@@ -14,14 +14,27 @@
 //! [`reqwest` feature]: ../index.html#features
 
 use crate::{
-    core::{error::PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
+    core::{
+        error::PubNubError, transport::PUBNUB_DEFAULT_BASE_URL, Transport, TransportMethod,
+        TransportRequest, TransportResponse,
+    },
+    lib::{
+        alloc::{
+            boxed::Box,
+            format,
+            string::{String, ToString},
+        },
+        collections::HashMap,
+        encoding::url_encode,
+    },
     PubNubClientBuilder,
 };
 use bytes::Bytes;
 use log::info;
-use reqwest::{header::HeaderMap, StatusCode};
-use std::collections::HashMap;
-use urlencoding::encode;
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue},
+    StatusCode,
+};
 
 /// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
 /// It is used as the transport type for the [`PubNubClient`].
@@ -52,7 +65,8 @@ pub struct TransportReqwest {
     pub hostname: String,
 }
 
-#[async_trait::async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl Transport for TransportReqwest {
     async fn send(&self, request: TransportRequest) -> Result<TransportResponse, PubNubError> {
         let request_url = prepare_url(&self.hostname, &request.path, &request.query_parameters);
@@ -71,13 +85,17 @@ impl Transport for TransportReqwest {
             .headers(headers)
             .send()
             .await
-            .map_err(|e| PubNubError::Transport(e.to_string()))?;
+            .map_err(|e| PubNubError::Transport {
+                details: e.to_string(),
+            })?;
 
         let status = result.status();
         result
             .bytes()
             .await
-            .map_err(|e| PubNubError::Transport(e.to_string()))
+            .map_err(|e| PubNubError::Transport {
+                details: e.to_string(),
+            })
             .and_then(|bytes| create_result(status, bytes))
     }
 }
@@ -86,7 +104,7 @@ impl Default for TransportReqwest {
     fn default() -> Self {
         Self {
             reqwest_client: reqwest::Client::default(),
-            hostname: "https://ps.pndsn.com".into(),
+            hostname: PUBNUB_DEFAULT_BASE_URL.into(),
         }
     }
 }
@@ -140,9 +158,9 @@ impl TransportReqwest {
     ) -> Result<reqwest::RequestBuilder, PubNubError> {
         request
             .body
-            .ok_or(PubNubError::Transport(
-                "Body should not be empty for POST".into(),
-            ))
+            .ok_or(PubNubError::Transport {
+                details: "Body should not be empty for POST".into(),
+            })
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
     }
 
@@ -156,7 +174,20 @@ impl TransportReqwest {
 }
 
 fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMap, PubNubError> {
-    HeaderMap::try_from(request_headers).map_err(|err| PubNubError::Transport(err.to_string()))
+    request_headers
+        .iter()
+        .map(|(k, v)| -> Result<(HeaderName, HeaderValue), PubNubError> {
+            let name =
+                TryFrom::try_from(k).map_err(|err: InvalidHeaderName| PubNubError::Transport {
+                    details: err.to_string(),
+                })?;
+            let value: HeaderValue =
+                TryFrom::try_from(v).map_err(|err: InvalidHeaderValue| PubNubError::Transport {
+                    details: err.to_string(),
+                })?;
+            Ok((name, value))
+        })
+        .collect()
 }
 
 fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String>) -> String {
@@ -166,7 +197,7 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
     let mut qp = query_params
         .iter()
         .fold(format!("{}{}?", hostname, path), |acc_query, (k, v)| {
-            format!("{}{}={}&", acc_query, k, encode(v))
+            format!("{}{}={}&", acc_query, k, url_encode(v.as_bytes()))
         });
 
     qp.remove(qp.len() - 1);
@@ -213,7 +244,8 @@ impl PubNubClientBuilder<TransportReqwest> {
     }
 }
 
-#[cfg(feature = "blocking")]
+// blocking calls are disabled for reqwest on WASM target
+#[cfg(all(feature = "blocking", not(target_arch = "wasm32")))]
 pub mod blocking {
     //! # Reqwest Transport Blocking Implementation
     //!
@@ -233,7 +265,11 @@ pub mod blocking {
     use log::info;
 
     use crate::{
-        core::{PubNubError, TransportMethod, TransportRequest, TransportResponse},
+        core::{
+            transport::PUBNUB_DEFAULT_BASE_URL, PubNubError, TransportMethod, TransportRequest,
+            TransportResponse,
+        },
+        lib::alloc::string::{String, ToString},
         transport::reqwest::{create_result, prepare_headers, prepare_url},
         PubNubClientBuilder,
     };
@@ -284,12 +320,16 @@ pub mod blocking {
             let result = builder
                 .headers(headers)
                 .send()
-                .map_err(|e| PubNubError::Transport(e.to_string()))?;
+                .map_err(|e| PubNubError::Transport {
+                    details: e.to_string(),
+                })?;
 
             let status = result.status();
             result
                 .bytes()
-                .map_err(|e| PubNubError::Transport(e.to_string()))
+                .map_err(|e| PubNubError::Transport {
+                    details: e.to_string(),
+                })
                 .and_then(|bytes| create_result(status, bytes))
         }
     }
@@ -298,7 +338,7 @@ pub mod blocking {
         fn default() -> Self {
             Self {
                 reqwest_client: reqwest::blocking::Client::default(),
-                hostname: "https://ps.pndsn.com".into(),
+                hostname: PUBNUB_DEFAULT_BASE_URL.into(),
             }
         }
     }

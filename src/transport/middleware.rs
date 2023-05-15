@@ -3,16 +3,32 @@
 //! This module contains the middleware that is used to add the required query parameters to the requests.
 //! The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and `requestid` query parameters to the requests.
 
-use crate::core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse};
-use crate::dx::pubnub_client::{SDK_ID, VERSION};
+#[cfg(feature = "std")]
+use crate::{
+    core::TransportMethod,
+    lib::{alloc::vec::Vec, collections::HashMap, encoding::url_encode},
+};
+use crate::{
+    core::{PubNubError, Transport, TransportRequest, TransportResponse},
+    dx::pubnub_client::{SDK_ID, VERSION},
+    lib::{
+        alloc::{
+            boxed::Box,
+            format,
+            string::{String, ToString},
+            sync::Arc,
+        },
+        core::ops::Deref,
+    },
+};
+#[cfg(feature = "std")]
 use base64::{engine::general_purpose, Engine as _};
+#[cfg(feature = "std")]
 use hmac::{Hmac, Mac};
+#[cfg(feature = "std")]
 use sha2::Sha256;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
-use urlencoding::encode;
+#[cfg(feature = "std")]
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 /// PubNub middleware.
@@ -34,23 +50,26 @@ pub struct PubNubMiddleware<T> {
     pub(crate) transport: T,
     pub(crate) instance_id: Arc<Option<String>>,
     pub(crate) user_id: Arc<String>,
-    pub(crate) signature_keys: Option<SignatureKeySet>,
     pub(crate) auth_key: Option<Arc<String>>,
     pub(crate) auth_token: Arc<spin::RwLock<String>>,
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
+    pub(crate) signature_keys: Option<SignatureKeySet>,
 }
 
 #[derive(Debug)]
+#[cfg_attr(not(feature = "std"), allow(dead_code))]
 pub(crate) struct SignatureKeySet {
     pub(crate) secret_key: String,
     pub(crate) publish_key: String,
     pub(crate) subscribe_key: String,
 }
 
+#[cfg(feature = "std")]
 impl SignatureKeySet {
     fn handle_query_params(query_parameters: &HashMap<String, String>) -> String {
         let mut query_params_str = query_parameters
             .iter()
-            .map(|(key, value)| format!("{}={}", key, encode(value)))
+            .map(|(key, value)| format!("{}={}", key, url_encode(value.as_bytes())))
             .collect::<Vec<String>>();
         query_params_str.sort_unstable();
         query_params_str.join("&")
@@ -101,6 +120,7 @@ impl<T> PubNubMiddleware<T> {
     fn prepare_request(&self, mut req: TransportRequest) -> Result<TransportRequest, PubNubError> {
         req.query_parameters
             .insert("requestid".into(), Uuid::new_v4().to_string());
+
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, VERSION));
         req.query_parameters
@@ -119,14 +139,11 @@ impl<T> PubNubMiddleware<T> {
             req.query_parameters.insert("auth".into(), auth_key.into());
         }
 
+        #[cfg(feature = "std")]
         if let Some(signature_key_set) = &self.signature_keys {
             req.query_parameters.insert(
                 "timestamp".into(),
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map_err(|e| PubNubError::Transport(e.to_string()))?
-                    .as_secs()
-                    .to_string(),
+                OffsetDateTime::now_utc().unix_timestamp().to_string(),
             );
             req.query_parameters.insert(
                 "signature".into(),
@@ -138,7 +155,8 @@ impl<T> PubNubMiddleware<T> {
     }
 }
 
-#[async_trait::async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl<T> Transport for PubNubMiddleware<T>
 where
     T: Transport,
@@ -164,10 +182,10 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::core::TransportMethod::Get;
     use crate::core::TransportResponse;
+    #[cfg(feature = "std")]
+    use crate::{core::TransportMethod::Get, lib::collections::HashMap};
     use spin::rwlock::RwLock;
-    use std::collections::HashMap;
 
     #[tokio::test]
     async fn publish_message() {
@@ -211,6 +229,7 @@ mod should {
         assert!(result.is_ok());
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_signature() {
         let signature_key_set = SignatureKeySet {

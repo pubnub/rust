@@ -3,7 +3,10 @@
 //! This module contains the `PublishResult` type.
 //! The `PublishResult` type is used to represent the result of a publish operation.
 
-use crate::core::{APIErrorBody, PubNubError};
+use crate::{
+    core::{APIErrorBody, PubNubError},
+    lib::alloc::string::String,
+};
 
 /// The result of a publish operation.
 /// It contains the timetoken of the published message.
@@ -63,11 +66,8 @@ mod should {
 
     #[test]
     fn parse_publish_response() {
-        let body = PublishResponseBody::SuccessResponse(
-            1,
-            "Sent".to_string(),
-            "15815800000000000".to_string(),
-        );
+        let body =
+            PublishResponseBody::SuccessResponse(1, "Sent".into(), "15815800000000000".into());
         let result = body_to_result(body, 200).unwrap();
 
         assert_eq!(result.timetoken, "15815800000000000");
@@ -79,8 +79,8 @@ mod should {
         let body = PublishResponseBody::ErrorResponse(APIErrorBody::AsObjectWithService {
             status,
             error: true,
-            service: "service".to_string(),
-            message: "error".to_string(),
+            service: "service".into(),
+            message: "error".into(),
         });
         let result = body_to_result(body, status);
 
