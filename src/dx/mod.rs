@@ -6,7 +6,10 @@
 //! [`pubnub`]: ../index.html
 //! [PubNub]: https://www.pubnub.com/
 
+#[cfg(feature = "access")]
 pub mod access;
+
+#[cfg(feature = "publish")]
 pub mod publish;
 
 #[cfg(feature = "parse_token")]

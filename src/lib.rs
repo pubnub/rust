@@ -171,6 +171,7 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
+#[cfg(feature = "access")]
 #[doc(inline)]
 pub use dx::access;
 
@@ -178,6 +179,7 @@ pub use dx::access;
 #[cfg(feature = "parse_token")]
 pub use dx::{parse_token, Token};
 
+#[cfg(feature = "publish")]
 #[doc(inline)]
 pub use dx::publish;
 
