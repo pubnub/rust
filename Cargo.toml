@@ -84,7 +84,7 @@ std = [
 extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"] 
 
 # [Internal features] (not intended for use outside of the library)
-contract_test = ["parse_token"]
+contract_test = ["parse_token", "publish", "access"]
 full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access"]
 full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access"]
 pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access"]
@@ -144,7 +144,7 @@ getrandom = { version = "0.2", features = ["custom"] }
 [[test]]
 name = "contract_test"
 harness = false
-required-features = ["contract_test", "publish", "access"]
+required-features = ["contract_test"]
 
 [[example]]
 name = "publish"
