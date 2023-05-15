@@ -9,6 +9,7 @@ repository = "https://github.com/pubnub/rust"
 documentation = "https://docs.rs/pubnub" # TODO: add docs and connect with pubnub docs
 homepage = "https://www.pubnub.com"
 categories = ["api-bindings", "asynchronous", "network-programming", "wasm"]
+build = "build.rs"
 
 [features]
 
@@ -125,6 +126,9 @@ reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
 hashbrown = { version = "0.13", features = ["serde"] }
 getrandom = { version = "0.2", features = ["custom"] }
+
+[build-dependencies]
+built = "0.6"
 
 [[test]]
 name = "contract_test"

@@ -9,8 +9,10 @@ use crate::{
     lib::{alloc::vec::Vec, collections::HashMap, encoding::url_encode},
 };
 use crate::{
-    core::{PubNubError, Transport, TransportRequest, TransportResponse},
-    dx::pubnub_client::{SDK_ID, VERSION},
+    core::{
+        metadata::{PKG_VERSION, RUSTC_VERSION, SDK_ID, TARGET},
+        PubNubError, Transport, TransportRequest, TransportResponse,
+    },
     lib::{
         alloc::{
             boxed::Box,
@@ -122,7 +124,7 @@ impl<T> PubNubMiddleware<T> {
             .insert("requestid".into(), Uuid::new_v4().to_string());
 
         req.query_parameters
-            .insert("pnsdk".into(), format!("{}/{}", SDK_ID, VERSION));
+            .insert("pnsdk".into(), format!("{}/{}", SDK_ID, PKG_VERSION));
         req.query_parameters
             .insert("uuid".into(), self.user_id.as_ref().into());
 
@@ -150,6 +152,11 @@ impl<T> PubNubMiddleware<T> {
                 signature_key_set.calculate_signature(&req),
             );
         }
+
+        req.headers.insert(
+            "User-Agent".into(),
+            format!("{}/{} {}/{}", RUSTC_VERSION, TARGET, SDK_ID, PKG_VERSION),
+        );
 
         Ok(req)
     }
@@ -188,7 +195,7 @@ mod should {
     use spin::rwlock::RwLock;
 
     #[tokio::test]
-    async fn publish_message() {
+    async fn include_pubnub_metadata() {
         #[derive(Default)]
         struct MockTransport;
 
@@ -207,10 +214,16 @@ mod should {
                     request.query_parameters.get("instanceid").unwrap().clone()
                 );
                 assert_eq!(
-                    format!("{}/{}", SDK_ID, VERSION),
+                    format!("{}/{}", SDK_ID, PKG_VERSION),
                     request.query_parameters.get("pnsdk").unwrap().clone()
                 );
                 assert!(request.query_parameters.contains_key("requestid"));
+
+                assert_eq!(
+                    format!("{}/{} {}/{}", RUSTC_VERSION, TARGET, SDK_ID, PKG_VERSION),
+                    request.headers.get("User-Agent").unwrap().clone()
+                );
+
                 Ok(TransportResponse::default())
             }
         }
@@ -274,7 +287,7 @@ mod should {
                     request.query_parameters.get("instanceid").unwrap().clone()
                 );
                 assert_eq!(
-                    format!("{}/{}", SDK_ID, VERSION),
+                    format!("{}/{}", SDK_ID, PKG_VERSION),
                     request.query_parameters.get("pnsdk").unwrap().clone()
                 );
                 assert!(request.query_parameters.contains_key("requestid"));
