@@ -36,20 +36,11 @@ jobs:
         with:
           # This should be the same as the one specified for on.pull_request.branches
           ref: master
-      - name: Checkout actions
-        uses: actions/checkout@v3
-        with:
-          repository: pubnub/client-engineering-deployment-tools
-          ref: v1
-          token: ${{ secrets.GH_TOKEN }}
-          path: .github/.release/actions
       - name: Prepare cargo environment
         shell: bash
-        run: cargo install cargo-readme
+        run: ./.github/workflows/release/pre-publish.sh
       - name: Publish to Crates
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
-        run: |
-          cargo --dry-run
-          cargo publish
+        run: ./.github/workflows/release/publish.sh
