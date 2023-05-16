@@ -93,6 +93,8 @@ pubnub = { version = "0.0.0", features = ["parse_token"] }
 Available features include:
 
 * `full` - enables all not conflicting features
+* `publish` - enables publish API
+* `access` - enables access manager
 * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
 * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 * `blocking` - enables blocking API
@@ -100,6 +102,7 @@ Available features include:
 * `std` - enables `std` library
 * `parse_token` - enables parsing access manager tokens
 * `default` - default features that include:
+  * `publish`
   * `serde`
   * `reqwest`
   * `aescbc`
@@ -125,7 +128,7 @@ To disable the default features, use the following configuration in the `Cargo.t
 
 ```toml
 [dependencies]
-pubnub = { version = "0.0.0", default-features = false, features = ["serde", "aescbc",
+pubnub = { version = "0.0.0", default-features = false, features = ["serde", "publish",
 "blocking"] }
 ```
 

@@ -14,12 +14,27 @@ build = "build.rs"
 [features]
 
 # Enables all non-conflicting features
-full = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
+full = [
+    "publish",
+    "access",
+    "serde",
+    "reqwest",
+    "aescbc",
+    "parse_token",
+    "blocking",
+    "std"
+]
 
 # Enables all default features
-default = ["serde", "reqwest", "aescbc", "std", "blocking"]
+default = ["publish", "serde", "reqwest", "aescbc", "std", "blocking"]
 
 # [PubNub features]
+
+## Enables publish feature
+publish = []
+
+## Enables access manager feature
+access = []
 
 ## Enables AES-CBC encryption
 aescbc = ["dep:aes", "dep:cbc", "getrandom"]
@@ -70,10 +85,10 @@ std = [
 extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"] 
 
 # [Internal features] (not intended for use outside of the library)
-contract_test = ["parse_token"]
-full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking"]
-full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking"] 
-pubnub_only = ["aescbc", "parse_token", "blocking"]
+contract_test = ["parse_token", "publish", "access"]
+full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access"]
+full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access"]
+pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access"]
 mock_getrandom = ["getrandom/custom"]
 
 [dependencies]
@@ -145,8 +160,8 @@ required-features = ["default", "blocking"]
 
 [[example]]
 name = "pam"
-required-features = ["default", "parse_token"]
+required-features = ["default", "parse_token", "access"]
 
 [[example]]
 name = "pam_blocking"
-required-features = ["default", "blocking"]
+required-features = ["default", "blocking", "access"]

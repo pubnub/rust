@@ -96,6 +96,8 @@
 //! Available features include:
 //!
 //! * `full` - enables all not conflicting features
+//! * `publish` - enables publish API
+//! * `access` - enables access manager
 //! * `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
 //! * `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
 //! * `blocking` - enables blocking API
@@ -103,6 +105,7 @@
 //! * `std` - enables `std` library
 //! * `parse_token` - enables parsing access manager tokens
 //! * `default` - default features that include:
+//!   * `publish`
 //!   * `serde`
 //!   * `reqwest`
 //!   * `aescbc`
@@ -128,7 +131,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pubnub = { version = "0.0.0", default-features = false, features = ["serde", "aescbc",
+//! pubnub = { version = "0.0.0", default-features = false, features = ["serde", "publish",
 //! "blocking"] }
 //! ```
 //!
@@ -171,6 +174,7 @@
 //! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
 //!
 
+#[cfg(feature = "access")]
 #[doc(inline)]
 pub use dx::access;
 
@@ -178,6 +182,7 @@ pub use dx::access;
 #[cfg(feature = "parse_token")]
 pub use dx::{parse_token, Token};
 
+#[cfg(feature = "publish")]
 #[doc(inline)]
 pub use dx::publish;
 
@@ -227,6 +232,7 @@ mod lib {
         }
     }
 
+    #[cfg(any(feature = "publish", feature = "access"))]
     pub(crate) mod encoding {
         use super::alloc::string::{String, ToString};
         use percent_encoding::{percent_encode, AsciiSet, CONTROLS};

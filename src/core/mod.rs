@@ -13,8 +13,10 @@
 pub use error::PubNubError;
 pub mod error;
 
+#[cfg(any(feature = "publish", feature = "access"))]
 #[doc(inline)]
 pub(crate) use error_response::APIErrorBody;
+#[cfg(any(feature = "publish", feature = "access"))]
 pub(crate) mod error_response;
 
 #[cfg(feature = "blocking")]
@@ -34,7 +36,10 @@ pub mod transport_response;
 
 #[doc(inline)]
 pub use serialize::Serialize;
+
+#[cfg(any(feature = "publish", feature = "access"))]
 pub mod headers;
+
 pub mod serialize;
 
 #[doc(inline)]
