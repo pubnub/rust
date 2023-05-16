@@ -128,7 +128,7 @@ To disable the default features, use the following configuration in the `Cargo.t
 
 ```toml
 [dependencies]
-pubnub = { version = "0.0.0", default-features = false, features = ["serde", "aescbc",
+pubnub = { version = "0.0.0", default-features = false, features = ["serde", "publish",
 "blocking"] }
 ```
 
