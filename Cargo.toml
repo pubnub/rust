@@ -29,10 +29,10 @@ default = ["publish", "serde", "reqwest", "aescbc", "std", "blocking"]
 
 # [PubNub features]
 
-# Enables publish feature
+## Enables publish feature
 publish = []
 
-# Enables access manager feature
+## Enables access manager feature
 access = []
 
 ## Enables AES-CBC encryption
