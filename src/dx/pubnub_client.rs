@@ -22,9 +22,6 @@ use derive_builder::Builder;
 use log::info;
 use spin::Mutex;
 
-pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub(crate) const SDK_ID: &str = "PubNub-Rust";
-
 /// PubNub client
 ///
 /// Client for PubNub API with support for all [`selected`] PubNub features.

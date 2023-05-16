@@ -48,3 +48,5 @@ pub mod serializer;
 #[doc(inline)]
 pub use cryptor::Cryptor;
 pub mod cryptor;
+
+pub(crate) mod metadata;
