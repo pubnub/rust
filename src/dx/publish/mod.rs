@@ -27,7 +27,7 @@ use crate::{
         Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
         TransportResponse,
     },
-    dx::PubNubClientInstance,
+    dx::pubnub_client::PubNubClientInstance,
     lib::{
         alloc::{
             format,
@@ -435,10 +435,7 @@ mod should {
     use crate::lib::alloc::{boxed::Box, sync::Arc, vec};
     use crate::{
         core::TransportResponse,
-        dx::{
-            pubnub_client::{PubNubClientRef, PubNubConfig},
-            PubNubClientInstance,
-        },
+        dx::pubnub_client::{PubNubClientInstance, PubNubClientRef, PubNubConfig},
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };

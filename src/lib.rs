@@ -181,7 +181,10 @@ pub use dx::{parse_token, Token};
 pub use dx::publish;
 
 #[doc(inline)]
-pub use dx::{Keyset, PubNubClient, PubNubClientBuilder};
+pub use dx::{Keyset, PubNubClientBuilder, PubNubGenericClient};
+
+#[cfg(feature = "reqwest")]
+pub use dx::PubNubClient;
 
 pub mod core;
 pub mod dx;

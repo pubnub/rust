@@ -33,7 +33,7 @@ pub mod builders;
 pub use permissions::*;
 pub mod permissions;
 
-use crate::dx::PubNubClientInstance;
+use crate::dx::pubnub_client::PubNubClientInstance;
 use crate::lib::alloc::{boxed::Box, string::String};
 #[cfg(feature = "serde")]
 use crate::providers::{
@@ -259,7 +259,7 @@ mod it_should {
     use super::*;
     use crate::{
         core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
-        dx::PubNubClientInstance,
+        dx::pubnub_client::PubNubClientInstance,
         lib::{
             alloc::{borrow::ToOwned, format, vec, vec::Vec},
             collections::HashMap,

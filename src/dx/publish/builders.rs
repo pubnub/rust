@@ -7,7 +7,7 @@ use super::PublishResponseBody;
 use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
     core::{Deserializer, Serialize},
-    dx::PubNubClientInstance,
+    dx::pubnub_client::PubNubClientInstance,
     lib::{alloc::string::String, collections::HashMap},
 };
 use derive_builder::Builder;

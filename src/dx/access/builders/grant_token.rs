@@ -8,7 +8,7 @@ use crate::{
         headers::{APPLICATION_JSON, CONTENT_TYPE},
         Deserializer, Serializer, Transport, TransportMethod, TransportRequest,
     },
-    dx::{access::*, PubNubClientInstance},
+    dx::{access::*, pubnub_client::PubNubClientInstance},
     lib::{
         alloc::{format, string::ToString, vec},
         collections::HashMap,
