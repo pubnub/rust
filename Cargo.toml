@@ -145,6 +145,9 @@ getrandom = { version = "0.2", features = ["custom"] }
 [build-dependencies]
 built = "0.6"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [[test]]
 name = "contract_test"
 harness = false
