@@ -90,23 +90,19 @@ pubnub = { version = "0.0.0", features = ["blocking", "access"] }
 pubnub = { version = "0.0.0", features = ["parse_token"] }
 ```
 
-Available features include:
+### Available features
 
-* `full` - enables all not conflicting features
-* `publish` - enables publish API
-* `access` - enables access manager
-* `serde` - uses [serde](https://github.com/serde-rs/serde) for serialization
-* `reqwest` - uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer
-* `blocking` - enables blocking API
-* `aescbc` - enables AES-CBC encryption
-* `std` - enables `std` library
-* `parse_token` - enables parsing access manager tokens
-* `default` - default features that include:
-  * `publish`
-  * `serde`
-  * `reqwest`
-  * `aescbc`
-  * `std`
+| Feature name  | Description | Available PubNub APIs |
+| :------------ | :---------- | :------------- |
+| `full`        | Enables all non-conflicting features | Configuration, Publish, Access Manager, Parse Token |
+| `default`     | Enables default features: `publish`, `serde`, `reqwest`, `aescbc`, `std` | Configuration, Publish |
+| `publish`     | Enables Publish API | Configuration, Publish |
+| `access`      | Enables Access Manager API | Configuration, Access Manager |
+| `parse_token` | Enables parsing Access Manager tokens | Configuration, Parse Token |
+| `serde`       | Uses [serde](https://github.com/serde-rs/serde) for serialization | n/a |
+| `reqwest`     | Uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer | n/a |
+| `blocking`    | Enables blocking executions of APIs | n/a |
+| `aescbc`      | Enables AES-CBC encryption | n/a |
 
 ## Documentation
 
@@ -122,9 +118,7 @@ The `pubnub` crate is compatible with WebAssembly. You can use it in your Wasm p
 ## `no_std` support
 
 The `pubnub` crate is `no_std` compatible. To use it in a `no_std` environment, you have to disable the default
-features and enable the ones you need.
-
-To disable the default features, use the following configuration in the `Cargo.toml` file:
+features and enable the ones you need, for example:
 
 ```toml
 [dependencies]
@@ -153,7 +147,7 @@ your own random number generator implementation for certain targets.
 See more:
 
 * [`getrandom` crate](https://docs.rs/getrandom/latest/getrandom/)
-* [no_std examples](examples/no_std/)
+* [no_std examples](https://github.com/pubnub/rust/tree/master/examples/no_std/)
 
 If you're having problems compiling this crate for more exotic targets, you can try to use the
 `extra_platforms` feature. Be aware that this feature is **not supported** and we do not recommend using it.
