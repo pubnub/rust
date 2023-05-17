@@ -94,7 +94,7 @@
 //! ```
 //!
 //! ### Available features
-//! 
+//!
 //! | Feature name  | Description | Available PubNub APIs |
 //! | :------------ | :---------- | :------------- |
 //! | `full`        | Enables all non-conflicting features | Configuration, Publish, Access Manager, Parse Token |
@@ -106,7 +106,7 @@
 //! | `reqwest`     | Uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer | n/a |
 //! | `blocking`    | Enables blocking executions of APIs | n/a |
 //! | `aescbc`      | Enables AES-CBC encryption | n/a |
-//! 
+//!
 //! ## Documentation
 //!
 //! :warning: This SDK is a work in progress! **The links below may not work** :warning:
@@ -122,7 +122,7 @@
 //!
 //! The `pubnub` crate is `no_std` compatible. To use it in a `no_std` environment, you have to disable the default
 //! features and enable the ones you need, for example:
-//! 
+//!
 //! ```toml
 //! [dependencies]
 //! pubnub = { version = "0.0.0", default-features = false, features = ["serde", "publish",
