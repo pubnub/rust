@@ -38,7 +38,7 @@ pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
 }
 
 /// The [`parse_token`] function decodes an existing token and returns the
-/// struct deserialized by provided deserializer containing permissions embedded in that token.
+/// struct deserialized by provided cbor deserializer containing permissions embedded in that token.
 /// The client can use this method for debugging to check the permissions to the
 /// resources.
 #[cfg(not(feature = "serde"))]
