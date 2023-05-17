@@ -23,11 +23,9 @@ use ciborium::de::from_reader;
 struct CiboriumDeserializer;
 
 #[cfg(feature = "serde")]
-impl Deserializer for CiboriumDeserializer {
-    type Output = Token;
-
-    fn deserialize(&self, bytes: &[u8]) -> Result<Self::Output, PubNubError> {
-        from_reader(token_bytes.deref()).map_err(|e| PubNubError::TokenDeserialization {
+impl<'de> Deserializer<'de, Token> for CiboriumDeserializer {
+    fn deserialize(&self, bytes: &'de [u8]) -> Result<Token, PubNubError> {
+        from_reader(bytes.deref()).map_err(|e| PubNubError::TokenDeserialization {
             details: e.to_string(),
         })
     }
