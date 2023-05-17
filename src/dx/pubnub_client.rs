@@ -486,35 +486,6 @@ impl<T> Default for PubNubClientBuilder<T> {
 }
 
 impl<T> PubNubClientBuilder<T> {
-    /// Create a new builder without transport
-    ///
-    /// # Examples
-    /// ```
-    /// use pubnub::PubNubClientBuilder;
-    ///
-    /// # use pubnub::core::{Transport, TransportRequest, TransportResponse, PubNubError};
-    /// # struct MyTransport;
-    /// # #[async_trait::async_trait]
-    /// # impl Transport for MyTransport {
-    /// #     async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
-    /// #         unimplemented!()
-    /// #     }
-    /// # }
-    /// # impl MyTransport {
-    /// #     fn new() -> Self {
-    /// #         Self
-    /// #     }
-    /// # }
-    ///
-    /// // note that MyTransport must implement the `Transport` trait
-    /// let builder = PubNubClientBuilder::<MyTransport>::new();
-    /// ```
-    ///
-    /// [`Transport`]: ../core/trait.Transport.html
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Set the transport layer for the client
     ///
     /// # Examples
