@@ -1,4 +1,4 @@
-// Warning: This example is compiling for target `thumbv7em-none-eabi`
+// Warning: This example is compiling for target `thumbv7m-none-eabi`
 // but have never been tested for this target.
 //
 // Treat it as a reference only!
