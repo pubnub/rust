@@ -141,10 +141,7 @@ impl Default for PubNubWorld {
 }
 
 impl PubNubWorld {
-    pub fn get_pubnub(
-        &self,
-        keyset: Keyset<String>,
-    ) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
+    pub fn get_pubnub(&self, keyset: Keyset<String>) -> PubNubClient {
         let transport = {
             let mut transport = TransportReqwest::default();
             transport.hostname = "http://localhost:8090".into();
