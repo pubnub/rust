@@ -27,7 +27,7 @@ fn add_permission(
     match &world.pam_state.resource_type {
         PAMCurrentResourceType::Channel => {
             if let Some(name) = name {
-                resources.channels.push(permissions::channel(name));
+                resources.channels.push(*permissions::channel(name));
             }
 
             if permission.is_empty() {
@@ -36,20 +36,20 @@ fn add_permission(
 
             if let Some(perm) = resources.channels.pop() {
                 match permission.as_str() {
-                    "READ" => resources.channels.push(perm.read()),
-                    "WRITE" => resources.channels.push(perm.write()),
-                    "GET" => resources.channels.push(perm.get()),
-                    "MANAGE" => resources.channels.push(perm.manage()),
-                    "UPDATE" => resources.channels.push(perm.update()),
-                    "JOIN" => resources.channels.push(perm.join()),
-                    "DELETE" => resources.channels.push(perm.delete()),
+                    "READ" => resources.channels.push(*perm.read()),
+                    "WRITE" => resources.channels.push(*perm.write()),
+                    "GET" => resources.channels.push(*perm.get()),
+                    "MANAGE" => resources.channels.push(*perm.manage()),
+                    "UPDATE" => resources.channels.push(*perm.update()),
+                    "JOIN" => resources.channels.push(*perm.join()),
+                    "DELETE" => resources.channels.push(*perm.delete()),
                     &_ => {}
                 }
             }
         }
         PAMCurrentResourceType::ChannelGroup => {
             if let Some(name) = name {
-                resources.groups.push(permissions::channel_group(name));
+                resources.groups.push(*permissions::channel_group(name));
             }
 
             if permission.is_empty() {
@@ -58,15 +58,15 @@ fn add_permission(
 
             if let Some(perm) = resources.groups.pop() {
                 match permission.as_str() {
-                    "READ" => resources.groups.push(perm.read()),
-                    "MANAGE" => resources.groups.push(perm.manage()),
+                    "READ" => resources.groups.push(*perm.read()),
+                    "MANAGE" => resources.groups.push(*perm.manage()),
                     &_ => {}
                 }
             }
         }
         PAMCurrentResourceType::UserId => {
             if let Some(name) = name {
-                resources.user_ids.push(permissions::user_id(name));
+                resources.user_ids.push(*permissions::user_id(name));
             }
 
             if permission.is_empty() {
@@ -75,9 +75,9 @@ fn add_permission(
 
             if let Some(perm) = resources.user_ids.pop() {
                 match permission.as_str() {
-                    "GET" => resources.user_ids.push(perm.get()),
-                    "UPDATE" => resources.user_ids.push(perm.update()),
-                    "DELETE" => resources.user_ids.push(perm.delete()),
+                    "GET" => resources.user_ids.push(*perm.get()),
+                    "UPDATE" => resources.user_ids.push(*perm.update()),
+                    "DELETE" => resources.user_ids.push(*perm.delete()),
                     &_ => {}
                 }
             }
