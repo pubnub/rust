@@ -3,6 +3,8 @@
 //! This module contains the [`parse_token`] function, which produces a
 //! [`Token`] with information about the permissions granted to the token.
 
+#[cfg(not(feature = "serde"))]
+use crate::core::Deserializer;
 use crate::{
     core::PubNubError,
     lib::{
@@ -15,12 +17,14 @@ use crate::{
     },
 };
 use base64::{engine::general_purpose, Engine};
+#[cfg(feature = "serde")]
 use ciborium::de::from_reader;
 
 /// The [`parse_token`] function decodes an existing token and returns the
 /// struct containing permissions embedded in that token.
 /// The client can use this method for debugging to check the permissions to the
 /// resources.
+#[cfg(feature = "serde")]
 pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
     let token_bytes = general_purpose::URL_SAFE
         .decode(format!("{token}{}", "=".repeat(token.len() % 4)).as_bytes())
@@ -31,6 +35,24 @@ pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
     from_reader(token_bytes.deref()).map_err(|e| PubNubError::TokenDeserialization {
         details: e.to_string(),
     })
+}
+
+/// The [`parse_token`] function decodes an existing token and returns the
+/// struct deserialized by provided deserializer containing permissions embedded in that token.
+/// The client can use this method for debugging to check the permissions to the
+/// resources.
+#[cfg(not(feature = "serde"))]
+pub fn parse_token_with<D>(token: &str, deserializer: D) -> Result<Token, PubNubError>
+where
+    D: for<'de> Deserializer<'de, Token>,
+{
+    let token_bytes = general_purpose::URL_SAFE
+        .decode(format!("{token}{}", "=".repeat(token.len() % 4)).as_bytes())
+        .map_err(|e| PubNubError::TokenDeserialization {
+            details: e.to_string(),
+        })?;
+
+    deserializer.deserialize(token_bytes.deref())
 }
 
 /// Version based access token.
