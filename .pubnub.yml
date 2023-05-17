@@ -13,7 +13,7 @@ changelog:
       - type: feature
         text: "Add `pam` endpoints support."
       - type: feature
-        text: "Add `parse_token` for authorization tokens debug."
+        text: "Add `parse_token` for authorization token debug."
 sdks:
   - 
       type: library
@@ -63,10 +63,6 @@ features:
     - ACCESS-GRANT-TOKEN
     - ACCESS-PARSE-TOKEN
     - ACCESS-SET-TOKEN
-  channel-groups: []
-  notify: []
-  push: []
-  presence: []
   publish: 
     - PUBLISH-STORE-FLAG
     - PUBLISH-RAW-JSON
@@ -76,15 +72,6 @@ features:
     - PUBLISH-ASYNC
     - PUBLISH-REPLICATION-FLAG
     - PUBLISH-MESSAGE-TTL
-  storage: []
-  time: []
-  subscribe: []
-  signal: []
-  objects: []
-  files: []
-  unsubscribe: []
-  message-actions: []
-  others: []
 supported-platforms:
   - version: PubNub Rust SDK
     platforms:
