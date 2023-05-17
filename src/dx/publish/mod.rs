@@ -437,7 +437,7 @@ mod should {
         core::TransportResponse,
         dx::{
             pubnub_client::{PubNubClientRef, PubNubConfig},
-            PubNubClient,
+            PubNubClientInstance,
         },
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
@@ -447,7 +447,7 @@ mod should {
     #[derive(Default, Debug)]
     struct MockTransport;
 
-    fn client() -> PubNubClient<PubNubMiddleware<MockTransport>> {
+    fn client() -> PubNubClientInstance<PubNubMiddleware<MockTransport>> {
         #[async_trait::async_trait]
         impl Transport for MockTransport {
             async fn send(
@@ -462,7 +462,7 @@ mod should {
             }
         }
 
-        PubNubClient::with_transport(MockTransport::default())
+        PubNubClientInstance::with_transport(MockTransport::default())
             .with_keyset(Keyset {
                 publish_key: Some(""),
                 subscribe_key: "",
@@ -549,7 +549,7 @@ mod should {
 
             let ref_client = Arc::try_unwrap(default_client.inner).unwrap();
 
-            PubNubClient {
+            PubNubClientInstance {
                 inner: Arc::new(PubNubClientRef {
                     config: PubNubConfig {
                         publish_key: None,
