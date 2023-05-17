@@ -8,7 +8,7 @@ use crate::{
         headers::{APPLICATION_JSON, CONTENT_TYPE},
         Deserializer, Transport, TransportMethod, TransportRequest,
     },
-    dx::{access::*, PubNubClient},
+    dx::{access::*, PubNubClientInstance},
     lib::{
         alloc::{format, string::ToString},
         encoding::url_encode,
@@ -37,7 +37,7 @@ where
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
-    pub(in crate::dx::access) pubnub_client: PubNubClient<T>,
+    pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T>,
 
     /// Service response deserializer.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
@@ -60,7 +60,7 @@ where
 #[cfg(not(feature = "serde"))]
 pub struct RevokeTokenRequestWithDeserializerBuilder<T> {
     /// Current client which can provide transportation to perform the request.
-    pub(in crate::dx::access) pubnub_client: PubNubClient<T>,
+    pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T>,
 
     /// Access token for which permissions should be revoked.
     pub token: String,

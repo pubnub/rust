@@ -7,7 +7,7 @@ use super::PublishResponseBody;
 use crate::providers::deserialization_serde::SerdeDeserializer;
 use crate::{
     core::{Deserializer, Serialize},
-    dx::PubNubClient,
+    dx::PubNubClientInstance,
     lib::{alloc::string::String, collections::HashMap},
 };
 use derive_builder::Builder;
@@ -51,7 +51,7 @@ pub struct PublishMessageBuilder<T, M>
 where
     M: Serialize,
 {
-    pub(super) pub_nub_client: PubNubClient<T>,
+    pub(super) pub_nub_client: PubNubClientInstance<T>,
     pub(super) message: M,
     pub(super) seqn: u16,
 }
@@ -227,7 +227,7 @@ where
     D: for<'de> Deserializer<'de, PublishResponseBody>,
 {
     #[builder(setter(custom))]
-    pub(super) pub_nub_client: PubNubClient<T>,
+    pub(super) pub_nub_client: PubNubClientInstance<T>,
 
     #[builder(setter(custom))]
     pub(super) seqn: u16,

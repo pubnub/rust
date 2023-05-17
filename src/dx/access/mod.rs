@@ -33,14 +33,14 @@ pub mod builders;
 pub use permissions::*;
 pub mod permissions;
 
-use crate::dx::PubNubClient;
+use crate::dx::PubNubClientInstance;
 use crate::lib::alloc::{boxed::Box, string::String};
 #[cfg(feature = "serde")]
 use crate::providers::{
     deserialization_serde::SerdeDeserializer, serialization_serde::SerdeSerializer,
 };
 
-impl<T> PubNubClient<T> {
+impl<T> PubNubClientInstance<T> {
     /// Create grant token permissions request builder.
     /// This method is used to generate token with required permissions.
     ///

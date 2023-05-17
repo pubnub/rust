@@ -8,7 +8,7 @@ use crate::{
         headers::{APPLICATION_JSON, CONTENT_TYPE},
         Deserializer, Serializer, Transport, TransportMethod, TransportRequest,
     },
-    dx::{access::*, PubNubClient},
+    dx::{access::*, PubNubClientInstance},
     lib::{
         alloc::{format, string::ToString, vec},
         collections::HashMap,
@@ -37,7 +37,7 @@ where
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
-    pub(in crate::dx::access) pubnub_client: PubNubClient<T>,
+    pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T>,
 
     /// Request payload serializer.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
@@ -98,7 +98,7 @@ where
 #[cfg(not(feature = "serde"))]
 pub struct GrantTokenRequestWithSerializerBuilder<T> {
     /// Current client which can provide transportation to perform the request.
-    pub(in crate::dx::access) pubnub_client: PubNubClient<T>,
+    pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T>,
 
     /// How long (in minutes) the generated token should be valid.
     pub(in crate::dx::access) ttl: usize,
@@ -119,7 +119,7 @@ where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
 {
     /// Current client which can provide transportation to perform the request.
-    pubnub_client: PubNubClient<T>,
+    pubnub_client: PubNubClientInstance<T>,
 
     /// How long (in minutes) the generated token should be valid.
     ttl: usize,

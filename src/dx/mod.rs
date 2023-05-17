@@ -17,5 +17,6 @@ pub use parse_token::{parse_token, Token};
 #[cfg(feature = "parse_token")]
 pub mod parse_token;
 
+pub(crate) use pubnub_client::PubNubClientInstance;
 pub use pubnub_client::{Keyset, PubNubClient, PubNubClientBuilder};
 pub mod pubnub_client;

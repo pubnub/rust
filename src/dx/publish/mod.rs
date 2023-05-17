@@ -27,7 +27,7 @@ use crate::{
         Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
         TransportResponse,
     },
-    dx::PubNubClient,
+    dx::PubNubClientInstance,
     lib::{
         alloc::{
             format,
@@ -40,7 +40,7 @@ use crate::{
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
 
-impl<T> PubNubClient<T> {
+impl<T> PubNubClientInstance<T> {
     /// Create a new publish message builder.
     /// This method is used to publish a message to a channel.
     ///
@@ -174,7 +174,7 @@ where
     }
 
     async fn send_request(
-        client: PubNubClient<T>,
+        client: PubNubClientInstance<T>,
         request: TransportRequest,
     ) -> Result<TransportResponse, PubNubError> {
         client.transport.send(request).await
@@ -316,7 +316,7 @@ where
 }
 
 struct PublishMessageContext<T, D, X> {
-    client: PubNubClient<T>,
+    client: PubNubClientInstance<T>,
     deserializer: D,
     data: X,
 }
@@ -353,7 +353,7 @@ where
 {
     fn map_data<F, Y>(self, f: F) -> PublishMessageContext<T, D, Y>
     where
-        F: FnOnce(&PubNubClient<T>, &D, X) -> Y,
+        F: FnOnce(&PubNubClientInstance<T>, &D, X) -> Y,
     {
         let client = self.client;
         let deserializer = self.deserializer;
