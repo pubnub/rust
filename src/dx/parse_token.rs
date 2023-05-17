@@ -16,7 +16,6 @@ use crate::{
 };
 use base64::{engine::general_purpose, Engine};
 use ciborium::de::from_reader;
-use serde::Deserialize;
 
 /// The [`parse_token`] function decodes an existing token and returns the
 /// struct containing permissions embedded in that token.
@@ -35,8 +34,9 @@ pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
 }
 
 /// Version based access token.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum Token {
     /// Decoded token information (version 2).
@@ -45,33 +45,33 @@ pub enum Token {
 
 /// Access token (version 2) with information about resources and their
 /// permissions.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[allow(dead_code)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct TokenV2 {
     /// Access token version (version 2).
-    #[serde(rename = "v")]
+    #[cfg_attr(feature = "serde", serde(rename = "v"))]
     pub version: u8,
 
     /// Unix-timestamp with the date when token has been granted.
-    #[serde(rename = "t")]
+    #[cfg_attr(feature = "serde", serde(rename = "t"))]
     pub timestamp: u32,
 
     /// Duration (in minutes) during which this token permissions are valid.
-    #[serde(rename = "ttl")]
     pub ttl: u32,
 
     /// Dedicated user ID which can use this access token (if provided during
     /// grant token call).
-    #[serde(rename = "uuid")]
+    #[cfg_attr(feature = "serde", serde(rename = "uuid"))]
     pub authorized_user_id: Option<String>,
 
     /// Permissions for resources identified by their names.
-    #[serde(rename = "res")]
+    #[cfg_attr(feature = "serde", serde(rename = "res"))]
     pub resources: TokenResources,
 
     /// Permissions for resources identified by regular expressions.
-    #[serde(rename = "pat")]
+    #[cfg_attr(feature = "serde", serde(rename = "pat"))]
     pub patterns: TokenResources,
 
     /// Extra metadata to which has been included into access token.
@@ -79,23 +79,24 @@ pub struct TokenV2 {
 }
 
 /// Typed resource permissions map.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[allow(dead_code)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct TokenResources {
     /// `Channel`-based endpoints permission map between channel name / regexp
     /// and set of permissions.
-    #[serde(rename = "chan")]
+    #[cfg_attr(feature = "serde", serde(rename = "chan"))]
     pub channels: HashMap<String, ResourcePermissions>,
 
     /// `Channel group`-based endpoints permission map between channel
     /// name / regexp and set of permissions.
-    #[serde(rename = "grp")]
+    #[cfg_attr(feature = "serde", serde(rename = "grp"))]
     pub groups: HashMap<String, ResourcePermissions>,
 
     /// `UserId`-based endpoints permission map between channel
     /// name / regexp and set of permissions.
-    #[serde(rename = "uuid")]
+    #[cfg_attr(feature = "serde", serde(rename = "uuid"))]
     pub users: HashMap<String, ResourcePermissions>,
 }
 
@@ -118,10 +119,11 @@ impl From<u8> for ResourcePermissions {
 ///
 /// This structure contains information about permissions which has been granted
 /// to specific resource.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[allow(dead_code)]
-#[serde(from = "u8")]
+#[cfg_attr(feature = "serde", serde(from = "u8"))]
 pub struct ResourcePermissions {
     /// Whether or not the resource has **read** permission.
     pub read: bool,
@@ -149,8 +151,9 @@ pub struct ResourcePermissions {
 }
 
 /// Enum for values associated with token.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
 pub enum MetaValue {
     /// `String` value.
     String(String),
