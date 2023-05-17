@@ -20,10 +20,10 @@ use base64::{engine::general_purpose, Engine};
 use ciborium::de::from_reader;
 
 #[cfg(feature = "serde")]
-struct CborTokenDeserializer;
+struct CiboriumDeserializer;
 
 #[cfg(feature = "serde")]
-impl Deserializer for CborTokenDeserializer {
+impl Deserializer for CiboriumDeserializer {
     type Output = Token;
 
     fn deserialize(&self, bytes: &[u8]) -> Result<Self::Output, PubNubError> {
@@ -39,7 +39,7 @@ impl Deserializer for CborTokenDeserializer {
 /// resources.
 #[cfg(feature = "serde")]
 pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
-    parse_token_with(token, CborTokenDeserializer)
+    parse_token_with(token, CiboriumDeserializer)
 }
 
 /// The [`parse_token`] function decodes an existing token and returns the
