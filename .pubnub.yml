@@ -4,6 +4,16 @@ version: 0.0.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
+changelog: 
+  - date: 2022-12-12
+    version: 0.0.0
+    changes:
+      - type: feature
+        text: "Add `publish` endpoint support."
+      - type: feature
+        text: "Add `pam` endpoints support."
+      - type: feature
+        text: "Add `parse_token` for authorization token debug."
 sdks:
   - 
       type: library
@@ -48,23 +58,20 @@ sdks:
                     target-architecture:
                       - x86-64
               requires: []
-changelog: []
 features:
-  access: []
-  channel-groups: []
-  notify: []
-  push: []
-  presence: []
-  publish: []
-  storage: []
-  time: []
-  subscribe: []
-  signal: []
-  objects: []
-  files: []
-  unsubscribe: []
-  message-actions: []
-  others: []
+  access:
+    - ACCESS-GRANT-TOKEN
+    - ACCESS-PARSE-TOKEN
+    - ACCESS-SET-TOKEN
+  publish: 
+    - PUBLISH-STORE-FLAG
+    - PUBLISH-RAW-JSON
+    - PUBLISH-WITH-METADATA
+    - PUBLISH-GET
+    - PUBLISH-POST
+    - PUBLISH-ASYNC
+    - PUBLISH-REPLICATION-FLAG
+    - PUBLISH-MESSAGE-TTL
 supported-platforms:
   - version: PubNub Rust SDK
     platforms:
