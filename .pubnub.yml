@@ -1,4 +1,3 @@
-# TODO: prepare that file correctly
 name: rust
 version: 0.0.0
 schema: 1
@@ -33,10 +32,12 @@ sdks:
               distribution-type: source-code
               distribution-repository: crates.io
               package-name: pubnub
-              location: TODO
+              location: https://crates.io/crates/pubnub
               supported-platforms:
                 supported-operating-systems:
                   Linux:
+                    runtime-version:
+                      - Rust 1.31.0+
                     minimum-os-version:
                       - Ubuntu 12.04
                     maximum-os-version:
@@ -44,6 +45,8 @@ sdks:
                     target-architecture:
                       - x86-64
                   macOS:
+                    runtime-version:
+                      - Rust 1.31.0+
                     minimum-os-version:
                       - macOS 10.12
                     maximum-os-version:
@@ -51,6 +54,8 @@ sdks:
                     target-architecture:
                       - x86-64
                   Windows:
+                    runtime-version:
+                      - Rust 1.31.0+
                     minimum-os-version:
                       - Windows Vista Ultimate
                     maximum-os-version:
@@ -80,5 +85,5 @@ supported-platforms:
       - Unix 
       - WebAssembly
       - Embedded systems
-      - More information https://doc.rust-lang.org/nightly/rustc/platform-support.html
+      - More information: https://doc.rust-lang.org/nightly/rustc/platform-support.html
       - and https://github.com/pubnub/rust#limitations
