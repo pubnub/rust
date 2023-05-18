@@ -33,14 +33,14 @@ pub mod builders;
 pub use permissions::*;
 pub mod permissions;
 
-use crate::dx::PubNubClient;
+use crate::dx::pubnub_client::PubNubClientInstance;
 use crate::lib::alloc::{boxed::Box, string::String};
 #[cfg(feature = "serde")]
 use crate::providers::{
     deserialization_serde::SerdeDeserializer, serialization_serde::SerdeSerializer,
 };
 
-impl<T> PubNubClient<T> {
+impl<T> PubNubClientInstance<T> {
     /// Create grant token permissions request builder.
     /// This method is used to generate token with required permissions.
     ///
@@ -259,12 +259,13 @@ mod it_should {
     use super::*;
     use crate::{
         core::{PubNubError, Transport, TransportMethod, TransportRequest, TransportResponse},
+        dx::pubnub_client::PubNubClientInstance,
         lib::{
             alloc::{borrow::ToOwned, format, vec, vec::Vec},
             collections::HashMap,
         },
         transport::middleware::PubNubMiddleware,
-        Keyset,
+        {Keyset, PubNubClientBuilder},
     };
 
     /// Requests handler function type.
@@ -332,8 +333,8 @@ mod it_should {
         with_auth_key: Option<String>,
         with_auth_token: Option<String>,
         transport: Option<MockTransport>,
-    ) -> PubNubClient<PubNubMiddleware<MockTransport>> {
-        let mut builder = PubNubClient::with_transport(transport.unwrap_or(MockTransport {
+    ) -> PubNubClientInstance<PubNubMiddleware<MockTransport>> {
+        let mut builder = PubNubClientBuilder::with_transport(transport.unwrap_or(MockTransport {
             response: None,
             request_handler: None,
         }))
