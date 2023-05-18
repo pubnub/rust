@@ -152,7 +152,7 @@ pub struct PublishMessageDeserializerBuilder<T, M>
 where
     M: Serialize,
 {
-    pub_nub_client: PubNubClient<T>,
+    pub_nub_client: PubNubClientInstance<T>,
     message: M,
     seqn: u16,
     channel: String,
