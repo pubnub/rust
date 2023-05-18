@@ -54,4 +54,5 @@ pub mod serializer;
 pub use cryptor::Cryptor;
 pub mod cryptor;
 
+pub(crate) mod event_engine;
 pub(crate) mod metadata;
