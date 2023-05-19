@@ -1,6 +1,6 @@
 //! Event Engine module
 
-use std::sync::RwLock;
+use spin::rwlock::RwLock;
 
 #[doc(inline)]
 pub(crate) use effect::Effect;
@@ -34,7 +34,8 @@ pub(crate) mod transition;
 ///
 /// [`EventEngine`] is the core of state machines used in PubNub client and
 /// manages current system state and handles external events.
-pub struct EventEngine<S, EH, EF, EI>
+#[allow(dead_code)]
+pub(crate) struct EventEngine<S, EH, EF, EI>
 where
     EI: EffectInvocation<Effect = EF>,
     EH: EffectHandler<EI, EF>,
@@ -58,6 +59,7 @@ where
     S: State<State = S, Invocation = EI>,
 {
     /// Create [`EventEngine`] with initial state for state machine.
+    #[allow(dead_code)]
     pub fn new(handler: EH, state: S) -> Self {
         EventEngine {
             effect_dispatcher: EffectDispatcher::new(handler),
@@ -69,12 +71,12 @@ where
     ///
     /// Process event passed to the system and perform required transitions to
     /// new state if required.
+    #[allow(dead_code)]
     pub fn process(&self, event: &S::Event) {
-        if let Ok(state) = self.current_state.read() {
-            if let Some(transition) = state.transition(event) {
-                drop(state);
-                self.process_transition(transition);
-            }
+        let state = self.current_state.read();
+        if let Some(transition) = state.transition(event) {
+            drop(state);
+            self.process_transition(transition);
         }
     }
 
@@ -84,9 +86,9 @@ where
     /// * update current state
     /// * call effects dispatcher to process effect invocation
     fn process_transition(&self, transition: Transition<S::State, S::Invocation>) {
-        if let Ok(mut writable_state) = self.current_state.write() {
-            *writable_state = transition.state;
-        }
+        let mut writable_state = self.current_state.write();
+        *writable_state = transition.state;
+        drop(writable_state);
 
         transition.invocations.iter().for_each(|invocation| {
             self.effect_dispatcher.dispatch(invocation, |events| {

@@ -1,6 +1,10 @@
 use crate::{
     core::{event_engine::EffectInvocation, PubNubError},
     dx::subscribe::{event_engine::SubscribeEffect, SubscribeCursor, SubscribeStatus},
+    lib::{
+        alloc::{string::String, vec::Vec},
+        core::fmt::{Formatter, Result},
+    },
 };
 
 /// Subscribe effect invocations
@@ -8,7 +12,8 @@ use crate::{
 /// Invocation is form of intention to call some action without any information
 /// about it's implementation.
 #[derive(Debug)]
-pub enum SubscribeEffectInvocation {
+#[allow(dead_code)]
+pub(crate) enum SubscribeEffectInvocation {
     /// Initial subscribe effect invocation.
     Handshake {
         /// Optional list of channels.
@@ -165,8 +170,8 @@ impl EffectInvocation for SubscribeEffectInvocation {
     }
 }
 
-impl std::fmt::Display for SubscribeEffectInvocation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for SubscribeEffectInvocation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Handshake { .. } => write!(f, "Handshake"),
             Self::CancelHandshake => write!(f, "CancelHandshake"),

@@ -1,4 +1,6 @@
-pub trait Effect {
+use crate::lib::alloc::string::String;
+
+pub(crate) trait Effect {
     /// Unique effect identifier.
     fn id(&self) -> String;
 

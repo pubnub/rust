@@ -4,15 +4,17 @@ use crate::{
         event_engine::{SubscribeEffect, SubscribeEffectInvocation},
         SubscribeCursor,
     },
+    lib::alloc::{string::String, vec::Vec},
 };
 
-type HandshakeFunction = fn(
+pub(crate) type HandshakeFunction = fn(
     channels: Option<Vec<String>>,
     channel_groups: Option<Vec<String>>,
     attempt: u8,
     reason: Option<PubNubError>,
 );
-type ReceiveFunction = fn(
+
+pub(crate) type ReceiveFunction = fn(
     channels: Option<Vec<String>>,
     channel_groups: Option<Vec<String>>,
     cursor: SubscribeCursor,
@@ -20,7 +22,12 @@ type ReceiveFunction = fn(
     reason: Option<PubNubError>,
 );
 
-pub struct SubscribeEffectHandler {
+/// Subscription effect handler.
+///
+/// Handler responsible for effects implementation and creation in response on
+/// effect invocation.
+#[allow(dead_code)]
+pub(crate) struct SubscribeEffectHandler {
     /// Handshake function pointer.
     handshake: HandshakeFunction,
 
@@ -29,6 +36,8 @@ pub struct SubscribeEffectHandler {
 }
 
 impl SubscribeEffectHandler {
+    /// Create subscribe event handler.
+    #[allow(dead_code)]
     pub fn new(handshake: HandshakeFunction, receive: ReceiveFunction) -> Self {
         SubscribeEffectHandler { handshake, receive }
     }

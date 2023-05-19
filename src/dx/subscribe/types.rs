@@ -1,10 +1,13 @@
 //! Subscription types module.
 
+use crate::lib::core::fmt::{Formatter, Result};
+
 /// Time cursor.
 ///
 /// Cursor used by subscription loop to identify point in time after
 /// which updates will be delivered.
 #[derive(Debug, Copy, Clone)]
+#[allow(dead_code)]
 pub struct SubscribeCursor {
     timetoken: u64,
     region: u32,
@@ -24,8 +27,8 @@ pub enum SubscribeStatus {
     Disconnected,
 }
 
-impl std::fmt::Display for SubscribeStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for SubscribeStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Connected => write!(f, "Connected"),
             Self::Reconnected => write!(f, "Reconnected"),

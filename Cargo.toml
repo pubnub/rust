@@ -14,16 +14,7 @@ build = "build.rs"
 [features]
 
 # Enables all non-conflicting features
-full = [
-    "publish",
-    "access",
-    "serde",
-    "reqwest",
-    "aescbc",
-    "parse_token",
-    "blocking",
-    "std"
-]
+full = ["publish", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
 
 # Enables all default features
 default = ["publish", "serde", "reqwest", "aescbc", "std", "blocking"]
@@ -54,23 +45,7 @@ reqwest = ["dep:reqwest", "dep:bytes"]
 blocking = ["reqwest?/blocking"]
 
 ## Enables std library
-std = [
-    "derive_builder/std",
-    "log/std",
-    "uuid/std",
-    "base64/std",
-    "spin/std",
-    "snafu/std",
-    "hmac/std",
-    "sha2/std",
-    "time/std",
-    "bytes?/std",
-    "getrandom/std",
-    "rand/default",
-    "serde?/std",
-    "serde_json?/std",
-    "ciborium?/std"
-]
+std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "snafu/std", "hmac/std", "sha2/std", "time/std", "bytes?/std", "getrandom/std", "rand/default", "serde?/std", "serde_json?/std", "ciborium?/std"]
 
 ## Enables very specific implementations for different platforms.
 ## 
@@ -96,6 +71,7 @@ async-trait = "0.1"
 log = "0.4"
 hashbrown = "0.13"
 spin = "0.9"
+phantom-type = "0.4.2"
 percent-encoding = { version = "2.1", default-features = false }
 base64 = { version = "0.21", features = ["alloc"], default-features = false }
 derive_builder = {version = "0.12", default-features = false }

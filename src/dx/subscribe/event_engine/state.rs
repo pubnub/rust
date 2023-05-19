@@ -14,11 +14,13 @@ use crate::{
         },
         SubscribeCursor, SubscribeStatus,
     },
+    lib::alloc::{string::String, vec::Vec},
 };
 
 /// States of subscribe state machine.
 #[derive(Debug)]
-pub enum SubscribeState {
+#[allow(dead_code)]
+pub(crate) enum SubscribeState {
     /// Unsubscribed state.
     ///
     /// The initial state has no information about channels or groups from which

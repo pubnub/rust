@@ -1,6 +1,6 @@
 use crate::core::event_engine::{Effect, EffectInvocation};
 
-pub trait EffectHandler<I, E>
+pub(crate) trait EffectHandler<I, E>
 where
     I: EffectInvocation,
     E: Effect,

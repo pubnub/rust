@@ -1,8 +1,13 @@
-use crate::core::event_engine::{Effect, EffectHandler, EffectInvocation, Event};
-use std::{marker::PhantomData, rc::Rc, sync::RwLock};
+use crate::{
+    core::event_engine::{Effect, EffectHandler, EffectInvocation, Event},
+    lib::alloc::{rc::Rc, vec::Vec},
+};
+use phantom_type::PhantomType;
+use spin::rwlock::RwLock;
 
 /// State machine effects dispatcher.
-pub struct EffectDispatcher<EH, EF, EI>
+#[allow(dead_code)]
+pub(crate) struct EffectDispatcher<EH, EF, EI>
 where
     EI: EffectInvocation<Effect = EF>,
     EH: EffectHandler<EI, EF>,
@@ -21,7 +26,7 @@ where
     /// and cancels them when required.
     managed: RwLock<Vec<Rc<EF>>>,
 
-    _invocation: PhantomData<EI>,
+    _invocation: PhantomType<EI>,
 }
 
 impl<EH, EF, EI> EffectDispatcher<EH, EF, EI>
@@ -49,13 +54,8 @@ where
             let effect = Rc::new(effect);
 
             if invocation.managed() {
-                if let Ok(mut managed) = self.managed.write() {
-                    managed.push(effect.clone());
-
-                    // Drop as early as possible to avoid deadlock with `write`
-                    // lock in `remove_managed_effect`.
-                    drop(managed);
-                }
+                let mut managed = self.managed.write();
+                managed.push(effect.clone());
             }
 
             // Placeholder for effect invocation.
@@ -77,25 +77,17 @@ where
     /// Effects with managed lifecycle can be cancelled by corresponding effect
     /// invocations.
     fn cancel_effect(&self, invocation: &EI) {
-        if let Ok(mut managed) = self.managed.write() {
-            if let Some(position) = managed.iter().position(|e| invocation.cancelling_effect(e)) {
-                managed.remove(position);
-            }
-
-            // Drop as early as possible to avoid deadlocks.
-            drop(managed);
+        let mut managed = self.managed.write();
+        if let Some(position) = managed.iter().position(|e| invocation.cancelling_effect(e)) {
+            managed.remove(position);
         }
     }
 
     /// Remove managed effect.
     fn remove_managed_effect(&self, effect: &EF) {
-        if let Ok(mut managed) = self.managed.write() {
-            if let Some(position) = managed.iter().position(|ef| ef.id() == effect.id()) {
-                managed.remove(position);
-            }
-
-            // Drop as early as possible to avoid deadlocks.
-            drop(managed);
+        let mut managed = self.managed.write();
+        if let Some(position) = managed.iter().position(|ef| ef.id() == effect.id()) {
+            managed.remove(position);
         }
     }
 }

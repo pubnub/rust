@@ -5,6 +5,7 @@ pub(crate) use effect::SubscribeEffect;
 pub(crate) mod effect;
 
 #[doc(inline)]
+#[allow(unused_imports)]
 pub(crate) use effect_handler::SubscribeEffectHandler;
 pub(crate) mod effect_handler;
 
@@ -17,5 +18,6 @@ pub(crate) use event::SubscribeEvent;
 pub(crate) mod event;
 
 #[doc(inline)]
+#[allow(unused_imports)]
 pub(crate) use state::SubscribeState;
 pub(crate) mod state;

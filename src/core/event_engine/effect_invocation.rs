@@ -4,7 +4,7 @@ use crate::core::event_engine::Effect;
 ///
 /// Invocation is an intention to run an effect. Effect dispatcher uses intents
 /// to schedule actual effect invocation.
-pub trait EffectInvocation {
+pub(crate) trait EffectInvocation {
     type Effect: Effect;
 
     /// Unique effect invocation identifier.

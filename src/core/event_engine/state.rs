@@ -1,4 +1,7 @@
-use crate::core::event_engine::{EffectInvocation, Event, Transition};
+use crate::{
+    core::event_engine::{EffectInvocation, Event, Transition},
+    lib::alloc::vec::Vec,
+};
 
 /// State machine state trait.
 ///
@@ -7,7 +10,7 @@ use crate::core::event_engine::{EffectInvocation, Event, Transition};
 /// event.
 ///
 /// Types which are expected to be used as states should implement the trait.
-pub trait State {
+pub(crate) trait State {
     type State: State;
     type Invocation: EffectInvocation;
     type Event: Event;

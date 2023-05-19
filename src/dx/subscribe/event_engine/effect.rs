@@ -1,10 +1,12 @@
 use crate::{
     core::{event_engine::Effect, PubNubError},
     dx::subscribe::{SubscribeCursor, SubscribeStatus},
+    lib::alloc::{string::String, vec::Vec},
 };
 
 /// Subscription state machine effects.
-pub enum SubscribeEffect {
+#[allow(dead_code)]
+pub(crate) enum SubscribeEffect {
     /// Initial subscribe effect invocation.
     Handshake {
         /// Optional list of channels.

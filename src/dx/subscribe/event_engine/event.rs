@@ -1,13 +1,15 @@
 use crate::{
     core::{event_engine::Event, PubNubError},
     dx::subscribe::SubscribeCursor,
+    lib::alloc::{string::String, vec::Vec},
 };
 
 /// Subscription events.
 ///
 /// Subscribe state machine behaviour depends from external events which it
 /// receives.
-pub enum SubscribeEvent {
+#[allow(dead_code)]
+pub(crate) enum SubscribeEvent {
     /// Current list of channels / groups has been changed.
     ///
     /// Emitted when updates list of channels / groups has been passed for
