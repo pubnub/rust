@@ -14,7 +14,7 @@ use crate::{
         },
         SubscribeCursor, SubscribeStatus,
     },
-    lib::alloc::{string::String, vec::Vec},
+    lib::alloc::{string::String, vec, vec::Vec},
 };
 
 /// States of subscribe state machine.

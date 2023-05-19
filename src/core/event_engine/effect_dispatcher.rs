@@ -1,6 +1,6 @@
 use crate::{
     core::event_engine::{Effect, EffectHandler, EffectInvocation, Event},
-    lib::alloc::{rc::Rc, vec::Vec},
+    lib::alloc::{rc::Rc, vec, vec::Vec},
 };
 use phantom_type::PhantomType;
 use spin::rwlock::RwLock;
@@ -62,7 +62,8 @@ where
             effect.run(|| {
                 // Try remove effect from list of managed.
                 self.remove_managed_effect(&effect);
-                println!("Completed");
+
+                // Notify about effect run completion.
             });
         } else if invocation.cancelling() {
             self.cancel_effect(invocation);
