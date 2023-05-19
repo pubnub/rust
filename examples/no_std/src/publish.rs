@@ -1,4 +1,4 @@
-// Warning: This example is compiling for target `thumbv7em-none-eabi`
+// Warning: This example is compiling for target `thumbv7m-none-eabi`
 // but have never been tested for this target.
 //
 // Treat it as a reference only!
@@ -21,7 +21,7 @@ use pubnub::{
         transport_response::TransportResponse,
         PubNubError,
     },
-    Keyset, PubNubClient,
+    Keyset, PubNubClientBuilder,
 };
 use serde::Serialize;
 
@@ -102,7 +102,7 @@ fn publish_example() -> Result<(), PubNubError> {
     let publish_key = "SDK_PUB_KEY";
     let subscribe_key = "SDK_SUB_KEY";
 
-    let client = PubNubClient::with_blocking_transport(MyTransport)
+    let client = PubNubClientBuilder::with_blocking_transport(MyTransport)
         .with_keyset(Keyset {
             subscribe_key,
             publish_key: Some(publish_key),

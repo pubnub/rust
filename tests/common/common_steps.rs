@@ -5,7 +5,7 @@ use pubnub::{
         access::{permissions, GrantTokenResult, RevokeTokenResult},
         publish::PublishResult,
     },
-    transport::{middleware::PubNubMiddleware, TransportReqwest},
+    transport::TransportReqwest,
     Keyset, PubNubClient, PubNubClientBuilder,
 };
 use std::fmt::Debug;
@@ -36,11 +36,11 @@ impl From<&String> for PAMCurrentResourceType {
 
 /// PAM token configuration requires repetitive objects, so it better to be
 /// stored as structure.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct PAMPermissions {
-    pub channels: Vec<Box<permissions::ChannelPermission>>,
-    pub groups: Vec<Box<permissions::ChannelGroupPermission>>,
-    pub user_ids: Vec<Box<permissions::UserIdPermission>>,
+    pub channels: Vec<permissions::ChannelPermission>,
+    pub groups: Vec<permissions::ChannelGroupPermission>,
+    pub user_ids: Vec<permissions::UserIdPermission>,
 }
 
 impl PAMPermissions {
@@ -66,16 +66,6 @@ impl PAMPermissions {
         });
 
         vec
-    }
-}
-
-impl Default for PAMPermissions {
-    fn default() -> Self {
-        Self {
-            channels: vec![],
-            groups: vec![],
-            user_ids: vec![],
-        }
     }
 }
 
@@ -141,17 +131,13 @@ impl Default for PubNubWorld {
 }
 
 impl PubNubWorld {
-    pub fn get_pubnub(
-        &self,
-        keyset: Keyset<String>,
-    ) -> PubNubClient<PubNubMiddleware<TransportReqwest>> {
+    pub fn get_pubnub(&self, keyset: Keyset<String>) -> PubNubClient {
         let transport = {
             let mut transport = TransportReqwest::default();
             transport.hostname = "http://localhost:8090".into();
             transport
         };
-        PubNubClientBuilder::with_reqwest_transport()
-            .with_transport(transport)
+        PubNubClientBuilder::with_transport(transport)
             .with_keyset(keyset)
             .with_user_id("test")
             .build()

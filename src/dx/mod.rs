@@ -14,10 +14,15 @@ pub mod publish;
 
 pub mod subscribe;
 
+#[cfg(all(feature = "parse_token", feature = "serde"))]
+pub use parse_token::parse_token;
 #[cfg(feature = "parse_token")]
-pub use parse_token::{parse_token, Token};
+pub use parse_token::{parse_token_with, Token};
 #[cfg(feature = "parse_token")]
 pub mod parse_token;
 
-pub use pubnub_client::{Keyset, PubNubClient, PubNubClientBuilder};
+pub use pubnub_client::{Keyset, PubNubClientBuilder, PubNubGenericClient};
 pub mod pubnub_client;
+
+#[cfg(feature = "reqwest")]
+pub use pubnub_client::PubNubClient;

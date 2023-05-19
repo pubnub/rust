@@ -1,9 +1,18 @@
-# TODO: prepare that file correctly
 name: rust
 version: 0.0.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
+changelog: 
+  - date: 2022-12-12
+    version: 0.0.0
+    changes:
+      - type: feature
+        text: "Add `publish` endpoint support."
+      - type: feature
+        text: "Add `pam` endpoints support."
+      - type: feature
+        text: "Add `parse_token` for authorization token debug."
 sdks:
   - 
       type: library
@@ -23,10 +32,12 @@ sdks:
               distribution-type: source-code
               distribution-repository: crates.io
               package-name: pubnub
-              location: TODO
+              location: https://crates.io/crates/pubnub
               supported-platforms:
                 supported-operating-systems:
                   Linux:
+                    runtime-version:
+                      - Rust 1.65.0+
                     minimum-os-version:
                       - Ubuntu 12.04
                     maximum-os-version:
@@ -34,6 +45,8 @@ sdks:
                     target-architecture:
                       - x86-64
                   macOS:
+                    runtime-version:
+                      - Rust 1.65.0+
                     minimum-os-version:
                       - macOS 10.12
                     maximum-os-version:
@@ -41,49 +54,35 @@ sdks:
                     target-architecture:
                       - x86-64
                   Windows:
+                    runtime-version:
+                      - Rust 1.65.0+
                     minimum-os-version:
                       - Windows Vista Ultimate
                     maximum-os-version:
                       - Windows 10 Home
                     target-architecture:
                       - x86-64
-              requires: []
-changelog: []
 features:
-  access: []
-  channel-groups: []
-  notify: []
-  push: []
-  presence: []
-  publish: []
-  storage: []
-  time: []
-  subscribe: []
-  signal: []
-  objects: []
-  files: []
-  unsubscribe: []
-  message-actions: []
-  others: []
+  access:
+    - ACCESS-GRANT-TOKEN
+    - ACCESS-PARSE-TOKEN
+    - ACCESS-SET-TOKEN
+  publish: 
+    - PUBLISH-STORE-FLAG
+    - PUBLISH-RAW-JSON
+    - PUBLISH-WITH-METADATA
+    - PUBLISH-GET
+    - PUBLISH-POST
+    - PUBLISH-ASYNC
+    - PUBLISH-REPLICATION-FLAG
+    - PUBLISH-MESSAGE-TTL
 supported-platforms:
   - version: PubNub Rust SDK
     platforms:
-      - Windows 10 (8u51 and above)
-      - Windows 8.x (Desktop)
-      - Windows 7 SP1
-      - Windows Vista SP2
-      - Windows Server 2008 R2 SP1 (64-bit)
-      - Windows Server 2012 and 2012 R2 (64-bit)
-      - Intel-based Mac running Mac OS X 10.8.3+, 10.9+
-      - Oracle Linux 5.5+
-      - Oracle Linux 6.x
-      - Oracle Linux 7.x (64-bit) (8u20 and above)
-      - Red Hat Enterprise Linux 5.5+, 6.x
-      - Red Hat Enterprise Linux 7.x (64-bit) (8u20 and above)
-      - Suse Linux Enterprise Server 10 SP2+, 11.x
-      - Suse Linux Enterprise Server 12.x (64-bit) (8u31 and above)
-      - Ubuntu Linux 12.04 LTS, 13.x
-      - Ubuntu Linux 14.x (8u25 and above)
-      - Ubuntu Linux 15.04 (8u45 and above)
-      - Ubuntu Linux 15.10 (8u65 and above)
-
+      - Windows
+      - Mac OS 
+      - Unix 
+      - WebAssembly
+      - Embedded systems
+      - More information: https://doc.rust-lang.org/nightly/rustc/platform-support.html
+      - and https://github.com/pubnub/rust#limitations

@@ -27,7 +27,7 @@ use crate::{
         Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
         TransportResponse,
     },
-    dx::PubNubClient,
+    dx::pubnub_client::PubNubClientInstance,
     lib::{
         alloc::{
             format,
@@ -40,7 +40,7 @@ use crate::{
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
 
-impl<T> PubNubClient<T> {
+impl<T> PubNubClientInstance<T> {
     /// Create a new publish message builder.
     /// This method is used to publish a message to a channel.
     ///
@@ -174,7 +174,7 @@ where
     }
 
     async fn send_request(
-        client: PubNubClient<T>,
+        client: PubNubClientInstance<T>,
         request: TransportRequest,
     ) -> Result<TransportResponse, PubNubError> {
         client.transport.send(request).await
@@ -316,7 +316,7 @@ where
 }
 
 struct PublishMessageContext<T, D, X> {
-    client: PubNubClient<T>,
+    client: PubNubClientInstance<T>,
     deserializer: D,
     data: X,
 }
@@ -353,7 +353,7 @@ where
 {
     fn map_data<F, Y>(self, f: F) -> PublishMessageContext<T, D, Y>
     where
-        F: FnOnce(&PubNubClient<T>, &D, X) -> Y,
+        F: FnOnce(&PubNubClientInstance<T>, &D, X) -> Y,
     {
         let client = self.client;
         let deserializer = self.deserializer;
@@ -435,10 +435,7 @@ mod should {
     use crate::lib::alloc::{boxed::Box, sync::Arc, vec};
     use crate::{
         core::TransportResponse,
-        dx::{
-            pubnub_client::{PubNubClientRef, PubNubConfig},
-            PubNubClient,
-        },
+        dx::pubnub_client::{PubNubClientInstance, PubNubClientRef, PubNubConfig},
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };
@@ -447,7 +444,7 @@ mod should {
     #[derive(Default, Debug)]
     struct MockTransport;
 
-    fn client() -> PubNubClient<PubNubMiddleware<MockTransport>> {
+    fn client() -> PubNubClientInstance<PubNubMiddleware<MockTransport>> {
         #[async_trait::async_trait]
         impl Transport for MockTransport {
             async fn send(
@@ -462,7 +459,7 @@ mod should {
             }
         }
 
-        PubNubClient::with_transport(MockTransport::default())
+        PubNubClientBuilder::with_transport(MockTransport::default())
             .with_keyset(Keyset {
                 publish_key: Some(""),
                 subscribe_key: "",
@@ -549,7 +546,7 @@ mod should {
 
             let ref_client = Arc::try_unwrap(default_client.inner).unwrap();
 
-            PubNubClient {
+            PubNubClientInstance {
                 inner: Arc::new(PubNubClientRef {
                     config: PubNubConfig {
                         publish_key: None,
@@ -699,8 +696,7 @@ mod should {
             }
         }
 
-        let client = PubNubClientBuilder::<MockTransport>::new()
-            .with_transport(MockTransport::default())
+        let client = PubNubClientBuilder::with_transport(MockTransport::default())
             .with_keyset(Keyset {
                 publish_key: Some(""),
                 subscribe_key: "",
