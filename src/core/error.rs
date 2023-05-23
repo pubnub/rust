@@ -28,7 +28,7 @@ use snafu::Snafu;
 /// ```
 ///
 /// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
-#[derive(Snafu, Debug, Clone)]
+#[derive(Snafu, Debug, Clone, PartialEq)]
 pub enum PubNubError {
     /// this error is returned when the transport layer fails
     #[snafu(display("Transport error: {details}"))]

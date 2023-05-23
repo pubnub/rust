@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// States of subscribe state machine.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub(crate) enum SubscribeState {
     /// Unsubscribed state.
@@ -699,6 +699,1527 @@ impl State for SubscribeState {
                 .chain(state.enter().unwrap_or(vec![]).into_iter())
                 .collect(),
             state,
+        }
+    }
+}
+
+#[cfg(test)]
+mod should {
+    use super::*;
+    use crate::core::event_engine::EventEngine;
+    use crate::dx::subscribe::event_engine::{SubscribeEffect, SubscribeEffectHandler};
+
+    fn handshake_function(
+        _channels: Option<Vec<String>>,
+        _channel_groups: Option<Vec<String>>,
+        _attempt: u8,
+        _reason: Option<PubNubError>,
+    ) {
+        // Do nothing.
+    }
+
+    fn receive_function(
+        _channels: Option<Vec<String>>,
+        _channel_groups: Option<Vec<String>>,
+        _cursor: SubscribeCursor,
+        _attempt: u8,
+        _reason: Option<PubNubError>,
+    ) {
+        // Do nothing.
+    }
+
+    fn event_engine(
+        start_state: SubscribeState,
+    ) -> EventEngine<
+        SubscribeState,
+        SubscribeEffectHandler,
+        SubscribeEffect,
+        SubscribeEffectInvocation,
+    > {
+        EventEngine::new(
+            SubscribeEffectHandler::new(handshake_function, receive_function),
+            start_state,
+        )
+    }
+
+    #[test]
+    fn make_transition_unsubscribe_handshake_on_subscription_changed() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::Unsubscribed);
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Unsubscribed
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionChanged {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+
+        if let SubscribeState::Handshaking {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::Handshaking")
+        }
+    }
+
+    #[test]
+    fn make_transition_unsubscribe_receiving_on_subscription_restored() {
+        let engine = event_engine(SubscribeState::Unsubscribed);
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Unsubscribed
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionRestored {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_unsubscribe_on_unknown_event() {
+        let engine = event_engine(SubscribeState::Unsubscribed);
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Unsubscribed
+        ));
+
+        engine.process(&SubscribeEvent::ReceiveFailure {
+            reason: PubNubError::Transport {
+                details: "Test".to_string(),
+            },
+        });
+
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Unsubscribed
+        ));
+    }
+
+    #[test]
+    fn make_transition_handshaking_handshaking_on_subscription_changed() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::Handshaking {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Handshaking { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionChanged {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+
+        if let SubscribeState::Handshaking {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::Handshaking")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_handshake_reconnecting_on_handshake_failure() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test reason".to_string(),
+        };
+        let engine = event_engine(SubscribeState::Handshaking {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Handshaking { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeFailure {
+            reason: expected_error.clone(),
+        });
+
+        if let SubscribeState::HandshakeReconnecting {
+            channels,
+            channel_groups,
+            attempts,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(attempts, 0);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::HandshakeReconnecting")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_handshake_stopped_on_disconnect() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::Handshaking {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Handshaking { .. }
+        ));
+
+        engine.process(&SubscribeEvent::Disconnect);
+
+        if let SubscribeState::HandshakeStopped {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::HandshakeStopped")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_receiving_on_handshake_success() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::Handshaking {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Handshaking { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeSuccess {
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_receiving_on_subscription_restored() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::Handshaking {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Handshaking { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionRestored {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_handshaking_on_unknown_event() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::Handshaking {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Handshaking { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeReconnectGiveUp {
+            reason: PubNubError::Transport {
+                details: "Test reason".to_string(),
+            },
+        });
+
+        if let SubscribeState::Handshaking {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::Handshaking")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_reconnecting_receiving_on_reconnect_failure() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test reason on error".to_string(),
+        };
+        let engine = event_engine(SubscribeState::HandshakeReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test reason".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeReconnectFailure {
+            reason: expected_error.clone(),
+        });
+
+        if let SubscribeState::HandshakeReconnecting {
+            channels,
+            channel_groups,
+            attempts,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(attempts, 1);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::HandshakeReconnecting")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_reconnecting_handshaking_on_subscription_changed() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test reason".to_string(),
+        };
+        let engine = event_engine(SubscribeState::HandshakeReconnecting {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            attempts: 0,
+            reason: expected_error,
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionChanged {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+
+        if let SubscribeState::Handshaking {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::Handshaking")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshake_reconnecting_handshake_stopped_on_disconnect() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::HandshakeReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test reason".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::Disconnect);
+
+        if let SubscribeState::HandshakeStopped {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::HandshakeStopped")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_reconnecting_handshaking_failed_on_give_up() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test reason".to_string(),
+        };
+        let engine = event_engine(SubscribeState::HandshakeReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            attempts: 0,
+            reason: expected_error.clone(),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeReconnectGiveUp {
+            reason: expected_error.clone(),
+        });
+
+        if let SubscribeState::HandshakeFailed {
+            channels,
+            channel_groups,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::HandshakeFailed")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_reconnecting_receiving_on_reconnect_success() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::HandshakeReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test reason".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeReconnectSuccess {
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshaking_reconnecting_receiving_on_subscription_restored() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::HandshakeReconnecting {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test reason".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionRestored {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_handshaking_reconnecting_on_unknown_event() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test reason".to_string(),
+        };
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::HandshakeReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            attempts: 0,
+            reason: expected_error.clone(),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::ReceiveSuccess {
+            cursor: expected_cursor,
+            messages: vec![],
+        });
+
+        if let SubscribeState::HandshakeReconnecting {
+            channels,
+            channel_groups,
+            attempts,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(attempts, 0);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::HandshakeReconnecting")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshake_failed_handshaking_on_subscription_changed() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::HandshakeFailed {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            reason: PubNubError::Transport {
+                details: "Test reason".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeFailed { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionChanged {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+
+        if let SubscribeState::Handshaking {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::Handshaking")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshake_failed_handshaking_on_reconnect() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::HandshakeFailed {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            reason: PubNubError::Transport {
+                details: "Test reason".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeFailed { .. }
+        ));
+
+        engine.process(&SubscribeEvent::Reconnect);
+
+        if let SubscribeState::Handshaking {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::Handshaking")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshake_failed_handshaking_on_subscription_restored() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::HandshakeFailed {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            reason: PubNubError::Transport {
+                details: "Test reason".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeFailed { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionRestored {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_handshake_failed_on_unknown_event() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test reason".to_string(),
+        };
+        let engine = event_engine(SubscribeState::HandshakeFailed {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            reason: expected_error.clone(),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeFailed { .. }
+        ));
+
+        engine.process(&SubscribeEvent::ReceiveSuccess {
+            cursor: SubscribeCursor {
+                timetoken: 10,
+                region: 1,
+            },
+            messages: vec![],
+        });
+
+        if let SubscribeState::HandshakeFailed {
+            channels,
+            channel_groups,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::HandshakeFailed")
+        }
+    }
+
+    #[test]
+    fn make_transition_handshake_stopped_handshaking_on_reconnect() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::HandshakeStopped {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeStopped { .. }
+        ));
+
+        engine.process(&SubscribeEvent::Reconnect);
+
+        if let SubscribeState::Handshaking {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::Handshaking")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_handshake_stopped_on_unknown_event() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let engine = event_engine(SubscribeState::HandshakeStopped {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::HandshakeStopped { .. }
+        ));
+
+        engine.process(&SubscribeEvent::ReceiveSuccess {
+            cursor: SubscribeCursor {
+                timetoken: 10,
+                region: 1,
+            },
+            messages: vec![],
+        });
+
+        if let SubscribeState::HandshakeStopped {
+            channels,
+            channel_groups,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+        } else {
+            panic!("Current state should be set to SubscribeState::HandshakeStopped")
+        }
+    }
+
+    #[test]
+    fn make_transition_receiving_receiving_on_subscription_changed() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::Receiving {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            cursor: expected_cursor,
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Receiving { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionChanged {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_receiving_receiving_on_subscription_restored() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::Receiving {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            cursor: SubscribeCursor {
+                timetoken: 10,
+                region: 1,
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Receiving { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionRestored {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_receiving_receiving_on_receive_success() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::Receiving {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: SubscribeCursor {
+                timetoken: 10,
+                region: 1,
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Receiving { .. }
+        ));
+
+        engine.process(&SubscribeEvent::ReceiveSuccess {
+            messages: vec![],
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_receiving_receive_reconnecting_on_receive_failure() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test reason".to_string(),
+        };
+        let expected_cursor = SubscribeCursor {
+            timetoken: 10,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::Receiving {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Receiving { .. }
+        ));
+
+        engine.process(&SubscribeEvent::ReceiveFailure {
+            reason: expected_error.clone(),
+        });
+
+        if let SubscribeState::ReceiveReconnecting {
+            channels,
+            channel_groups,
+            cursor,
+            attempts,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+            assert_eq!(attempts, 0);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::ReceiveReconnecting")
+        }
+    }
+
+    #[test]
+    fn make_transition_receiving_receive_stopped_on_disconnect() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::Receiving {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Receiving { .. }
+        ));
+
+        engine.process(&SubscribeEvent::Disconnect);
+
+        if let SubscribeState::ReceiveStopped {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::ReceiveStopped")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_receiving_on_unknown_event() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::Receiving {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::Receiving { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeSuccess {
+            cursor: SubscribeCursor {
+                timetoken: 100,
+                region: 1,
+            },
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_reconnecting_receive_reconnecting_on_reconnect_failure() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test reason on error".to_string(),
+        };
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test error".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::ReceiveReconnectFailure {
+            reason: expected_error.clone(),
+        });
+
+        if let SubscribeState::ReceiveReconnecting {
+            channels,
+            channel_groups,
+            cursor,
+            attempts,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+            assert_eq!(attempts, 1);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::ReceiveReconnecting")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_reconnecting_receiving_on_subscription_changed() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveReconnecting {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            cursor: expected_cursor,
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test error".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionChanged {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_reconnecting_receiving_on_subscription_restored() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveReconnecting {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            cursor: SubscribeCursor {
+                timetoken: 10,
+                region: 1,
+            },
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test error".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionRestored {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_reconnecting_receive_stopped_on_disconnect() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test error".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::Disconnect);
+
+        if let SubscribeState::ReceiveStopped {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::ReceiveStopped")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_reconnecting_receive_failed_on_give_up() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test give up error".to_string(),
+        };
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+            attempts: 0,
+            reason: PubNubError::Transport {
+                details: "Test error".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::ReceiveReconnectGiveUp {
+            reason: expected_error.clone(),
+        });
+
+        if let SubscribeState::ReceiveFailed {
+            channels,
+            channel_groups,
+            cursor,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::ReceiveFailed")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_receive_reconnecting_on_unknown_event() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test error".to_string(),
+        };
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveReconnecting {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+            attempts: 0,
+            reason: expected_error.clone(),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveReconnecting { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeSuccess {
+            cursor: SubscribeCursor {
+                timetoken: 200,
+                region: 1,
+            },
+        });
+
+        if let SubscribeState::ReceiveReconnecting {
+            channels,
+            channel_groups,
+            cursor,
+            attempts,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+            assert_eq!(attempts, 0);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::ReceiveReconnecting")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_failed_receiving_on_subscription_changed() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveFailed {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            cursor: expected_cursor,
+            reason: PubNubError::Transport {
+                details: "Test error".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveFailed { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionChanged {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_failed_receiving_on_subscription_restored() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveFailed {
+            channels: Some(vec![]),
+            channel_groups: Some(vec![]),
+            cursor: SubscribeCursor {
+                timetoken: 10,
+                region: 1,
+            },
+            reason: PubNubError::Transport {
+                details: "Test error".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveFailed { .. }
+        ));
+
+        engine.process(&SubscribeEvent::SubscriptionRestored {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_failed_receiving_on_reconnect() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveFailed {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+            reason: PubNubError::Transport {
+                details: "Test error".to_string(),
+            },
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveFailed { .. }
+        ));
+
+        engine.process(&SubscribeEvent::Reconnect);
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_receive_failed_on_unknown_event() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_error = PubNubError::Transport {
+            details: "Test error".to_string(),
+        };
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveFailed {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+            reason: expected_error.clone(),
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveFailed { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeSuccess {
+            cursor: SubscribeCursor {
+                timetoken: 200,
+                region: 1,
+            },
+        });
+
+        if let SubscribeState::ReceiveFailed {
+            channels,
+            channel_groups,
+            cursor,
+            reason,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+            assert_eq!(reason, expected_error);
+        } else {
+            panic!("Current state should be set to SubscribeState::ReceiveFailed")
+        }
+    }
+
+    #[test]
+    fn make_transition_receive_stopped_receiving_on_reconnect() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveStopped {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveStopped { .. }
+        ));
+
+        engine.process(&SubscribeEvent::Reconnect);
+
+        if let SubscribeState::Receiving {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::Receiving")
+        }
+    }
+
+    #[test]
+    fn dont_make_transition_receive_stopped_on_unknown_event() {
+        let expected_channel_groups = vec!["chgr1".to_string(), "chgr2".to_string()];
+        let expected_channels = vec!["ch1".to_string(), "ch2".to_string()];
+        let expected_cursor = SubscribeCursor {
+            timetoken: 100,
+            region: 1,
+        };
+        let engine = event_engine(SubscribeState::ReceiveStopped {
+            channels: Some(expected_channels.clone()),
+            channel_groups: Some(expected_channel_groups.clone()),
+            cursor: expected_cursor,
+        });
+        assert!(matches!(
+            engine.current_state(),
+            SubscribeState::ReceiveStopped { .. }
+        ));
+
+        engine.process(&SubscribeEvent::HandshakeSuccess {
+            cursor: SubscribeCursor {
+                timetoken: 200,
+                region: 1,
+            },
+        });
+
+        if let SubscribeState::ReceiveStopped {
+            channels,
+            channel_groups,
+            cursor,
+        } = engine.current_state()
+        {
+            assert_eq!(channels.unwrap(), expected_channels);
+            assert_eq!(channel_groups.unwrap(), expected_channel_groups);
+            assert_eq!(cursor, expected_cursor);
+        } else {
+            panic!("Current state should be set to SubscribeState::ReceiveStopped")
         }
     }
 }

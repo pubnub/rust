@@ -46,16 +46,54 @@ impl SubscribeEffectHandler {
 impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffectHandler {
     fn create(&self, invocation: &SubscribeEffectInvocation) -> Option<SubscribeEffect> {
         match invocation {
-            SubscribeEffectInvocation::Handshake { .. } => todo!("Provide handshake effect"),
-            SubscribeEffectInvocation::HandshakeReconnect { .. } => {
-                todo!("Provide handshake reconnect effect")
+            SubscribeEffectInvocation::Handshake {
+                channels,
+                channel_groups,
+            } => Some(SubscribeEffect::Handshake {
+                channels: channels.clone(),
+                channel_groups: channel_groups.clone(),
+            }),
+            SubscribeEffectInvocation::HandshakeReconnect {
+                channels,
+                channel_groups,
+                attempts,
+                reason,
+            } => Some(SubscribeEffect::HandshakeReconnect {
+                channels: channels.clone(),
+                channel_groups: channel_groups.clone(),
+                attempts: *attempts,
+                reason: reason.clone(),
+            }),
+            SubscribeEffectInvocation::Receive {
+                channels,
+                channel_groups,
+                cursor,
+            } => Some(SubscribeEffect::Receive {
+                channels: channels.clone(),
+                channel_groups: channel_groups.clone(),
+                cursor: *cursor,
+            }),
+            SubscribeEffectInvocation::ReceiveReconnect {
+                channels,
+                channel_groups,
+                cursor,
+                attempts,
+                reason,
+            } => Some(SubscribeEffect::ReceiveReconnect {
+                channels: channels.clone(),
+                channel_groups: channel_groups.clone(),
+                cursor: *cursor,
+                attempts: *attempts,
+                reason: reason.clone(),
+            }),
+            SubscribeEffectInvocation::EmitStatus(status) => {
+                // TODO: Provide emit status effect
+                Some(SubscribeEffect::EmitStatus(*status))
             }
-            SubscribeEffectInvocation::Receive { .. } => todo!("Provide receive effect"),
-            SubscribeEffectInvocation::ReceiveReconnect { .. } => {
-                todo!("Provide receive reconnect effect")
+            SubscribeEffectInvocation::EmitMessages(messages) => {
+                // TODO: Provide emit messages effect
+                Some(SubscribeEffect::EmitMessages(messages.clone()))
             }
-            SubscribeEffectInvocation::EmitStatus(_) => todo!("Provide emit status effect"),
-            SubscribeEffectInvocation::EmitMessages(_) => todo!("Provide emit messages effect"),
             _ => None,
         }
     }

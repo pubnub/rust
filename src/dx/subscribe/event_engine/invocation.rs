@@ -1,3 +1,4 @@
+use crate::dx::subscribe::event_engine::SubscribeEvent;
 use crate::{
     core::{event_engine::EffectInvocation, PubNubError},
     dx::subscribe::{event_engine::SubscribeEffect, SubscribeCursor, SubscribeStatus},
@@ -122,6 +123,7 @@ pub(crate) enum SubscribeEffectInvocation {
 
 impl EffectInvocation for SubscribeEffectInvocation {
     type Effect = SubscribeEffect;
+    type Event = SubscribeEvent;
 
     fn id(&self) -> &str {
         match self {

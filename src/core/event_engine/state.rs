@@ -10,7 +10,7 @@ use crate::{
 /// event.
 ///
 /// Types which are expected to be used as states should implement the trait.
-pub(crate) trait State {
+pub(crate) trait State: Clone + PartialEq {
     type State: State;
     type Invocation: EffectInvocation;
     type Event: Event;
@@ -32,7 +32,10 @@ pub(crate) trait State {
     /// State has information about the next state into which the state machine
     /// should switch and a list of effects invocations which should be
     /// scheduled.
-    fn transition(&self, event: &Self::Event) -> Option<Transition<Self::State, Self::Invocation>>;
+    fn transition(
+        &self,
+        event: &<<Self as State>::Invocation as EffectInvocation>::Event,
+    ) -> Option<Transition<Self::State, Self::Invocation>>;
 
     /// [`Transition`] build helper.
     ///

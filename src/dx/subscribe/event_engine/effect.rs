@@ -1,3 +1,4 @@
+use crate::dx::subscribe::event_engine::{SubscribeEffectInvocation, SubscribeEvent};
 use crate::{
     core::{event_engine::Effect, PubNubError},
     dx::subscribe::{SubscribeCursor, SubscribeStatus},
@@ -102,18 +103,28 @@ pub(crate) enum SubscribeEffect {
 }
 
 impl Effect for SubscribeEffect {
+    type Invocation = SubscribeEffectInvocation;
+
     fn id(&self) -> String {
-        todo!("Identifiers need to be unique, so we won't cancel wrong effect")
+        // TODO: Identifiers need to be unique, so we won't cancel wrong effect
+        match self {
+            SubscribeEffect::Handshake { .. } => "HANDSHAKE_EFFECT".into(),
+            SubscribeEffect::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT".into(),
+            SubscribeEffect::Receive { .. } => "RECEIVE_EFFECT".into(),
+            SubscribeEffect::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT".into(),
+            SubscribeEffect::EmitStatus(_) => "EMIT_STATUS_EFFECT".into(),
+            SubscribeEffect::EmitMessages(_) => "EMIT_MESSAGES_EFFECT".into(),
+        }
     }
-    fn run<F>(&self, f: F)
+    fn run<F>(&self, mut f: F)
     where
-        F: Fn(),
+        F: FnMut(Option<Vec<SubscribeEvent>>),
     {
-        f();
-        todo!()
+        // TODO: Run actual effect implementation. Maybe Effect.run function need change something in arguments.
+        f(None);
     }
 
     fn cancel(&self) {
-        todo!()
+        // TODO: Cancellation required for corresponding SubscribeEffect variants.
     }
 }

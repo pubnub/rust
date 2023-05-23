@@ -1,4 +1,4 @@
-use crate::core::event_engine::Effect;
+use crate::core::event_engine::{Effect, Event};
 
 /// Effect invocation trait.
 ///
@@ -6,6 +6,7 @@ use crate::core::event_engine::Effect;
 /// to schedule actual effect invocation.
 pub(crate) trait EffectInvocation {
     type Effect: Effect;
+    type Event: Event;
 
     /// Unique effect invocation identifier.
     fn id(&self) -> &str;

@@ -6,11 +6,17 @@ use crate::lib::core::fmt::{Formatter, Result};
 ///
 /// Cursor used by subscription loop to identify point in time after
 /// which updates will be delivered.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[allow(dead_code)]
 pub struct SubscribeCursor {
-    timetoken: u64,
-    region: u32,
+    /// PubNub high-precision timestamp.
+    ///
+    /// Aside of specifying exact time of receiving data / event this token used
+    /// to catchup / follow on real-time updates.
+    pub timetoken: u64,
+
+    /// Data center region for which `timetoken` has been generated.
+    pub region: u32,
 }
 
 /// Subscription statuses.

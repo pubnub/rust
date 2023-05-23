@@ -1,10 +1,10 @@
 use crate::core::event_engine::{Effect, EffectInvocation};
 
-pub(crate) trait EffectHandler<I, E>
+pub(crate) trait EffectHandler<I, EF>
 where
     I: EffectInvocation,
-    E: Effect,
+    EF: Effect,
 {
     /// Create effect using information of effect `invocation`.
-    fn create(&self, invocation: &I) -> Option<E>;
+    fn create(&self, invocation: &I) -> Option<EF>;
 }
