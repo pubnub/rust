@@ -12,6 +12,8 @@ pub mod access;
 #[cfg(feature = "publish")]
 pub mod publish;
 
+pub mod subscribe;
+
 #[cfg(all(feature = "parse_token", feature = "serde"))]
 pub use parse_token::parse_token;
 #[cfg(feature = "parse_token")]
