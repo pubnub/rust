@@ -100,7 +100,17 @@ where
         transition.invocations.iter().for_each(|invocation| {
             self.effect_dispatcher.dispatch(invocation, |events| {
                 if let Some(events) = events {
-                    events.iter().for_each(|event| self.process(event));
+                    events.iter().for_each(|event| self.process(event)); // this recursion may be
+                                                                         // problematic because of
+                                                                         // tests. Writting tests
+                                                                         // for transition is
+                                                                         // difficult because of
+                                                                         // recursion.
+                                                                         //
+                                                                         // Additionally, this
+                                                                         // recursion may be
+                                                                         // problematic because of
+                                                                         // asynchronous effects.
                 }
             });
         });

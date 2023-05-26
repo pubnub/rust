@@ -711,12 +711,18 @@ mod should {
     use test_case::test_case;
 
     fn handshake_function(
-        _channels: Option<Vec<String>>,
-        _channel_groups: Option<Vec<String>>,
+        _channels: &Option<Vec<String>>,
+        _channel_groups: &Option<Vec<String>>,
         _attempt: u8,
         _reason: Option<PubNubError>,
-    ) {
+    ) -> SubscribeEvent {
         // Do nothing.
+        SubscribeEvent::HandshakeSuccess {
+            cursor: SubscribeCursor {
+                timetoken: 0,
+                region: 0,
+            },
+        }
     }
 
     fn receive_function(

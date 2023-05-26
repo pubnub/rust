@@ -7,12 +7,14 @@ use crate::{
     lib::alloc::{string::String, vec::Vec},
 };
 
+use super::SubscribeEvent;
+
 pub(crate) type HandshakeFunction = fn(
-    channels: Option<Vec<String>>,
-    channel_groups: Option<Vec<String>>,
+    channels: &Option<Vec<String>>,
+    channel_groups: &Option<Vec<String>>,
     attempt: u8,
     reason: Option<PubNubError>,
-);
+) -> SubscribeEvent;
 
 pub(crate) type ReceiveFunction = fn(
     channels: Option<Vec<String>>,
@@ -52,6 +54,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             } => Some(SubscribeEffect::Handshake {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
+                executor: self.handshake,
             }),
             SubscribeEffectInvocation::HandshakeReconnect {
                 channels,

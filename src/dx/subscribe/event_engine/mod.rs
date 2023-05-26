@@ -1,8 +1,8 @@
 //! Subscribe Event Engine module
 
 #[doc(inline)]
-pub(crate) use effect::SubscribeEffect;
-pub(crate) mod effect;
+pub(crate) use effects::SubscribeEffect;
+pub(crate) mod effects;
 
 #[doc(inline)]
 #[allow(unused_imports)]
