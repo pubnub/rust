@@ -6,7 +6,7 @@ pub(crate) mod effects;
 
 #[doc(inline)]
 #[allow(unused_imports)]
-pub(crate) use effect_handler::SubscribeEffectHandler;
+pub(crate) use effect_handler::{HandshakeFunction, ReceiveFunction, SubscribeEffectHandler};
 pub(crate) mod effect_handler;
 
 #[doc(inline)]

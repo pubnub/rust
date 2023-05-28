@@ -715,24 +715,20 @@ mod should {
         _channel_groups: &Option<Vec<String>>,
         _attempt: u8,
         _reason: Option<PubNubError>,
-    ) -> SubscribeEvent {
+    ) -> Vec<SubscribeEvent> {
         // Do nothing.
-        SubscribeEvent::HandshakeSuccess {
-            cursor: SubscribeCursor {
-                timetoken: 0,
-                region: 0,
-            },
-        }
+        vec![]
     }
 
     fn receive_function(
-        _channels: Option<Vec<String>>,
-        _channel_groups: Option<Vec<String>>,
-        _cursor: SubscribeCursor,
+        _channels: &Option<Vec<String>>,
+        _channel_groups: &Option<Vec<String>>,
+        _cursor: &SubscribeCursor,
         _attempt: u8,
         _reason: Option<PubNubError>,
-    ) {
+    ) -> Vec<SubscribeEvent> {
         // Do nothing.
+        vec![]
     }
 
     fn event_engine(

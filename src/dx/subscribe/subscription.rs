@@ -1,9 +1,12 @@
 use crate::{
-    core::{blocking::Transport, event_engine::EventEngine},
+    core::blocking::Transport,
+    dx::subscribe::event_engine::{
+        effect_handler::{HandshakeFunction, ReceiveFunction, SubscribeEffectHandler},
+        SubscribeEvent, SubscribeState,
+    },
+    lib::alloc::vec,
     PubNubGenericClient,
 };
-
-use super::event_engine::{SubscribeEffectHandler, SubscribeEvent, SubscribeState};
 
 pub(crate) struct Subscription {
     current_state: SubscribeState,
@@ -15,16 +18,17 @@ impl Subscription {
     where
         T: Transport,
     {
-        let handshake =
-            |channels: &_, channel_groups: &_, attempt, reason| SubscribeEvent::HandshakeSuccess {
+        let handshake: HandshakeFunction = |channels: &_, channel_groups: &_, attempt, reason| {
+            vec![SubscribeEvent::HandshakeSuccess {
                 cursor: super::SubscribeCursor {
                     timetoken: 0,
                     region: 0,
                 },
-            };
+            }]
+        };
 
         // TODO: implement
-        let receive = |_, _, _, _, _| {};
+        let receive: ReceiveFunction = |&_, &_, &_, _, _| vec![];
 
         Self {
             current_state: SubscribeState::Unsubscribed,

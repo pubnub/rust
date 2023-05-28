@@ -14,15 +14,15 @@ pub(crate) type HandshakeFunction = fn(
     channel_groups: &Option<Vec<String>>,
     attempt: u8,
     reason: Option<PubNubError>,
-) -> SubscribeEvent;
+) -> Vec<SubscribeEvent>;
 
 pub(crate) type ReceiveFunction = fn(
-    channels: Option<Vec<String>>,
-    channel_groups: Option<Vec<String>>,
-    cursor: SubscribeCursor,
+    channels: &Option<Vec<String>>,
+    channel_groups: &Option<Vec<String>>,
+    cursor: &SubscribeCursor,
     attempt: u8,
     reason: Option<PubNubError>,
-);
+) -> Vec<SubscribeEvent>;
 
 /// Subscription effect handler.
 ///

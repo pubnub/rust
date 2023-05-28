@@ -5,7 +5,7 @@ pub(super) fn execute(
     channel_groups: &Option<Vec<String>>,
     executor: HandshakeFunction,
 ) -> Option<Vec<SubscribeEvent>> {
-    Some(vec![executor(channels, channel_groups, 0, None)])
+    Some(executor(channels, channel_groups, 0, None))
 }
 
 #[cfg(test)]
@@ -20,18 +20,18 @@ mod should {
             channel_groups: &Option<Vec<String>>,
             attempt: u8,
             reason: Option<PubNubError>,
-        ) -> SubscribeEvent {
+        ) -> Vec<SubscribeEvent> {
             assert_eq!(channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
             assert_eq!(attempt, 0);
             assert_eq!(reason, None);
 
-            SubscribeEvent::HandshakeSuccess {
+            vec![SubscribeEvent::HandshakeSuccess {
                 cursor: SubscribeCursor {
                     timetoken: 0,
                     region: 0,
                 },
-            }
+            }]
         }
 
         let result = execute(
