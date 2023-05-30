@@ -8,6 +8,7 @@ use crate::{
 use super::effect_handler::HandshakeFunction;
 
 mod handshake;
+mod handshake_reconnection;
 
 /// Subscription state machine effects.
 #[allow(dead_code)]
@@ -53,6 +54,11 @@ pub(crate) enum SubscribeEffect {
 
         /// Initial subscribe attempt failure reason.
         reason: PubNubError,
+
+        /// Executor function.
+        ///
+        /// Function which will be used to execute initial subscription.
+        executor: HandshakeFunction,
     },
 
     /// Receive updates effect invocation.
@@ -136,6 +142,19 @@ impl Effect for SubscribeEffect {
                 channel_groups,
                 executor,
             } => handshake::execute(channels, channel_groups, *executor),
+            SubscribeEffect::HandshakeReconnect {
+                channels,
+                channel_groups,
+                attempts,
+                reason,
+                executor,
+            } => handshake_reconnection::execute(
+                channels,
+                channel_groups,
+                *attempts,
+                reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                *executor,
+            ),
             _ => {
                 /* TODO: Implement other effects */
                 None
