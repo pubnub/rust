@@ -7,12 +7,8 @@ pub(super) fn execute(
     executor: HandshakeFunction,
 ) -> Option<Vec<SubscribeEvent>> {
     Some(
-        executor(channels, channel_groups, 0, None).unwrap_or_else(|err| {
-            vec![SubscribeEvent::HandshakeFailure {
-                reason: err,
-                attempts: 1,
-            }]
-        }),
+        executor(channels, channel_groups, 0, None)
+            .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeFailure { reason: err }]),
     )
 }
 
@@ -77,11 +73,5 @@ mod should {
         let result = &binding[0];
 
         assert!(matches!(result, &SubscribeEvent::HandshakeFailure { .. }));
-        match result {
-            SubscribeEvent::HandshakeFailure { attempts, .. } => {
-                assert_eq!(*attempts, 1);
-            }
-            _ => panic!("Wrong event type"),
-        }
     }
 }

@@ -43,7 +43,7 @@ pub(crate) enum SubscribeEvent {
     /// [`PubNub`] network (network issues or permissions).
     ///
     /// [`PubNub`]: https://www.pubnub.com/
-    HandshakeFailure { reason: PubNubError, attempts: u8 },
+    HandshakeFailure { reason: PubNubError },
 
     /// Handshake reconnect completed successfully.
     ///
@@ -60,7 +60,7 @@ pub(crate) enum SubscribeEvent {
     /// response from [`PubNub`] network (network issues or permissions).
     ///
     /// [`PubNub`]: https://www.pubnub.com/
-    HandshakeReconnectFailure { reason: PubNubError },
+    HandshakeReconnectFailure { reason: PubNubError, attempts: u8 },
 
     /// All handshake attempts was unsuccessful.
     ///

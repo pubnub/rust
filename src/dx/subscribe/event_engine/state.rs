@@ -310,7 +310,6 @@ impl SubscribeState {
     fn handshake_failure_transition(
         &self,
         reason: &PubNubError,
-        attempts: u8,
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
             Self::Handshaking {
@@ -320,7 +319,7 @@ impl SubscribeState {
                 Self::HandshakeReconnecting {
                     channels: channels.clone(),
                     channel_groups: channel_groups.clone(),
-                    attempts,
+                    attempts: 1,
                     reason: reason.clone(),
                 },
                 None,
@@ -661,10 +660,10 @@ impl State for SubscribeState {
             | SubscribeEvent::HandshakeReconnectSuccess { cursor } => {
                 self.handshake_success_transition(cursor)
             }
-            SubscribeEvent::HandshakeFailure { reason, attempts } => {
-                self.handshake_failure_transition(reason, *attempts)
+            SubscribeEvent::HandshakeFailure { reason } => {
+                self.handshake_failure_transition(reason)
             }
-            SubscribeEvent::HandshakeReconnectFailure { reason } => {
+            SubscribeEvent::HandshakeReconnectFailure { reason, .. } => {
                 self.handshake_reconnect_failure_transition(reason)
             }
             SubscribeEvent::HandshakeReconnectGiveUp { reason } => {
@@ -816,12 +815,11 @@ mod should {
         },
         SubscribeEvent::HandshakeFailure {
             reason: PubNubError::Transport { details: "Test reason".to_string() },
-            attempts: 0,
         },
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts:  0,
+            attempts:  1,
             reason: PubNubError::Transport { details: "Test reason".to_string() },
         };
         "to handshake reconnect on handshake failure"
@@ -904,6 +902,7 @@ mod should {
         },
         SubscribeEvent::HandshakeReconnectFailure {
             reason: PubNubError::Transport { details: "Test reason on error".to_string() },
+            attempts: 1,
         },
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
