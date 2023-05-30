@@ -5,6 +5,10 @@ use crate::{
     lib::alloc::{string::String, vec::Vec},
 };
 
+use super::effect_handler::HandshakeFunction;
+
+mod handshake;
+
 /// Subscription state machine effects.
 #[allow(dead_code)]
 pub(crate) enum SubscribeEffect {
@@ -21,6 +25,11 @@ pub(crate) enum SubscribeEffect {
         /// List of channel groups which will be source of real-time updates
         /// after initial subscription completion.
         channel_groups: Option<Vec<String>>,
+
+        /// Executor function.
+        ///
+        /// Function which will be used to execute initial subscription.
+        executor: HandshakeFunction,
     },
 
     /// Retry initial subscribe effect invocation.
@@ -121,7 +130,19 @@ impl Effect for SubscribeEffect {
         F: FnMut(Option<Vec<SubscribeEvent>>),
     {
         // TODO: Run actual effect implementation. Maybe Effect.run function need change something in arguments.
-        f(None);
+        let events = match self {
+            SubscribeEffect::Handshake {
+                channels,
+                channel_groups,
+                executor,
+            } => handshake::execute(channels, channel_groups, *executor),
+            _ => {
+                /* TODO: Implement other effects */
+                None
+            }
+        };
+
+        f(events);
     }
 
     fn cancel(&self) {

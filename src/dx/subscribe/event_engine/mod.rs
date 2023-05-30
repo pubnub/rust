@@ -1,12 +1,12 @@
 //! Subscribe Event Engine module
 
 #[doc(inline)]
-pub(crate) use effect::SubscribeEffect;
-pub(crate) mod effect;
+pub(crate) use effects::SubscribeEffect;
+pub(crate) mod effects;
 
 #[doc(inline)]
 #[allow(unused_imports)]
-pub(crate) use effect_handler::SubscribeEffectHandler;
+pub(crate) use effect_handler::{HandshakeFunction, ReceiveFunction, SubscribeEffectHandler};
 pub(crate) mod effect_handler;
 
 #[doc(inline)]
