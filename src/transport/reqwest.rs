@@ -89,6 +89,7 @@ impl Transport for TransportReqwest {
                 details: e.to_string(),
             })?;
 
+        let headers = result.headers().clone();
         let status = result.status();
         result
             .bytes()
@@ -96,7 +97,7 @@ impl Transport for TransportReqwest {
             .map_err(|e| PubNubError::Transport {
                 details: e.to_string(),
             })
-            .and_then(|bytes| create_result(status, bytes))
+            .and_then(|bytes| create_result(status, bytes, &headers))
     }
 }
 
@@ -204,11 +205,25 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
     qp
 }
 
-fn create_result(status: StatusCode, body: Bytes) -> Result<TransportResponse, PubNubError> {
+fn create_result(
+    status: StatusCode,
+    body: Bytes,
+    headers: &HeaderMap,
+) -> Result<TransportResponse, PubNubError> {
+    let headers: HashMap<String, String> =
+        headers
+            .iter()
+            .fold(HashMap::new(), |mut acc, (name, value)| {
+                if let Ok(value) = value.to_str() {
+                    acc.insert(name.to_string(), value.to_string());
+                }
+                acc
+            });
+
     Ok(TransportResponse {
         status: status.as_u16(),
         body: (!body.is_empty()).then(|| body.to_vec()),
-        ..Default::default()
+        headers,
     })
 }
 
@@ -324,13 +339,14 @@ pub mod blocking {
                     details: e.to_string(),
                 })?;
 
+            let headers = result.headers().clone();
             let status = result.status();
             result
                 .bytes()
                 .map_err(|e| PubNubError::Transport {
                     details: e.to_string(),
                 })
-                .and_then(|bytes| create_result(status, bytes))
+                .and_then(|bytes| create_result(status, bytes, &headers))
         }
     }
 

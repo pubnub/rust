@@ -37,6 +37,10 @@ pub mod transport_response;
 #[doc(inline)]
 pub use serialize::Serialize;
 
+#[doc(inline)]
+pub use retry_policy::RequestRetryPolicy;
+pub mod retry_policy;
+
 #[cfg(any(feature = "publish", feature = "access"))]
 pub mod headers;
 
