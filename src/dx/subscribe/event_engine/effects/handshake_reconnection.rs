@@ -1,4 +1,4 @@
-use crate::lib::alloc::{string::String, vec::Vec};
+use crate::lib::alloc::{string::String, vec, vec::Vec};
 use crate::{
     core::PubNubError,
     dx::subscribe::event_engine::{effect_handler::HandshakeFunction, SubscribeEvent},
