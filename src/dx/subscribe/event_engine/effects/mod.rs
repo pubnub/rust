@@ -9,6 +9,7 @@ use super::effect_handler::HandshakeFunction;
 
 mod handshake;
 mod handshake_reconnection;
+mod receive_messages;
 
 /// Subscription state machine effects.
 #[allow(dead_code)]

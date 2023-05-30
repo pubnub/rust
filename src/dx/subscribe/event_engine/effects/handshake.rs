@@ -68,16 +68,20 @@ mod should {
             })
         }
 
-        let result = execute(
+        let binding = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
             mock_handshake_function,
-        );
+        )
+        .unwrap();
+        let result = &binding[0];
 
-        assert!(result.is_some());
-        assert!(matches!(
-            result.unwrap().first().unwrap(),
-            &SubscribeEvent::HandshakeFailure { attempts: 1, .. }
-        ))
+        assert!(matches!(result, &SubscribeEvent::HandshakeFailure { .. }));
+        match result {
+            SubscribeEvent::HandshakeFailure { attempts, .. } => {
+                assert_eq!(*attempts, 1);
+            }
+            _ => panic!("Wrong event type"),
+        }
     }
 }
