@@ -1,38 +1,43 @@
 use crate::{
-    core::blocking::Transport,
+    core::{blocking::Transport, event_engine::EventEngine},
     dx::subscribe::event_engine::{
         effect_handler::{HandshakeFunction, ReceiveFunction, SubscribeEffectHandler},
-        SubscribeEvent, SubscribeState,
+        SubscribeState,
     },
     lib::alloc::vec,
     PubNubGenericClient,
 };
 
-pub(crate) struct Subscription {
-    current_state: SubscribeState,
-    handler: SubscribeEffectHandler,
+use super::event_engine::{SubscribeEffect, SubscribeEffectInvocation};
+
+type SubscribeEngine =
+    EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>;
+
+/// Subscription that is responsible for getting messages from PubNub.
+///
+/// Subscription provides a way to get messages from PubNub. It is responsible
+/// for handshake and receiving messages.
+///
+/// TODO: more description and examples
+pub struct Subscription {
+    engine: SubscribeEngine,
 }
 
 impl Subscription {
-    pub(crate) fn new<T>(client: PubNubGenericClient<T>) -> Self
+    pub(crate) fn subscribe<T>(_client: PubNubGenericClient<T>) -> Self
     where
         T: Transport,
     {
-        let handshake: HandshakeFunction = |channels: &_, channel_groups: &_, attempt, reason| {
-            vec![SubscribeEvent::HandshakeSuccess {
-                cursor: super::SubscribeCursor {
-                    timetoken: 0,
-                    region: 0,
-                },
-            }]
-        };
+        // TODO: implementation is a part of the different task
+        let handshake: HandshakeFunction = |_, _, _, _| vec![];
 
-        // TODO: implement
         let receive: ReceiveFunction = |&_, &_, &_, _, _| vec![];
 
         Self {
-            current_state: SubscribeState::Unsubscribed,
-            handler: SubscribeEffectHandler::new(handshake, receive),
+            engine: SubscribeEngine::new(
+                SubscribeEffectHandler::new(handshake, receive),
+                SubscribeState::Unsubscribed,
+            ),
         }
     }
 }

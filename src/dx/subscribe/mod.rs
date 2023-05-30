@@ -10,6 +10,5 @@ pub use types::{SubscribeCursor, SubscribeStatus};
 use self::event_engine::SubscribeState;
 pub mod types;
 
-pub(crate) mod executors;
-
+#[allow(dead_code)]
 pub(crate) mod subscription;
