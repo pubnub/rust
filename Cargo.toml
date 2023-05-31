@@ -65,6 +65,9 @@ full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish
 full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access"]
 pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access"]
 mock_getrandom = ["getrandom/custom"]
+event_engine = []
+# TODO: temporary treated as internal until we officially release it
+subscribe = ["event_engine"]
 
 [dependencies]
 async-trait = "0.1"

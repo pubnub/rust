@@ -58,5 +58,7 @@ pub mod serializer;
 pub use cryptor::Cryptor;
 pub mod cryptor;
 
+#[cfg(feature = "event_engine")]
 pub(crate) mod event_engine;
+
 pub(crate) mod metadata;
