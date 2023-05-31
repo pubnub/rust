@@ -902,7 +902,6 @@ mod should {
         },
         SubscribeEvent::HandshakeReconnectFailure {
             reason: PubNubError::Transport { details: "Test reason on error".to_string() },
-            attempts: 1,
         },
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),

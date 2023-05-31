@@ -60,7 +60,7 @@ pub(crate) enum SubscribeEvent {
     /// response from [`PubNub`] network (network issues or permissions).
     ///
     /// [`PubNub`]: https://www.pubnub.com/
-    HandshakeReconnectFailure { reason: PubNubError, attempts: u8 },
+    HandshakeReconnectFailure { reason: PubNubError },
 
     /// All handshake attempts was unsuccessful.
     ///

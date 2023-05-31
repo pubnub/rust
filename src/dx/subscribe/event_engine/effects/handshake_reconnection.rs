@@ -12,12 +12,8 @@ pub(super) fn execute(
     executor: HandshakeFunction,
 ) -> Option<Vec<SubscribeEvent>> {
     Some(
-        executor(channels, channel_groups, attempt, Some(reason)).unwrap_or_else(|err| {
-            vec![SubscribeEvent::HandshakeReconnectFailure {
-                reason: err,
-                attempts: attempt + 1,
-            }]
-        }),
+        executor(channels, channel_groups, attempt, Some(reason))
+            .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeReconnectFailure { reason: err }]),
     )
 }
 
@@ -79,13 +75,10 @@ mod should {
             })
         }
 
-        let attempt = 10;
-        let expected_attempts = attempt + 1;
-
         let binding = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
-            attempt,
+            1,
             PubNubError::Transport {
                 details: "test".into(),
             },
@@ -98,11 +91,5 @@ mod should {
             result,
             &SubscribeEvent::HandshakeReconnectFailure { .. }
         ));
-        match result {
-            SubscribeEvent::HandshakeReconnectFailure { attempts, .. } => {
-                assert_eq!(*attempts, expected_attempts);
-            }
-            _ => panic!("Wrong event type"),
-        }
     }
 }
