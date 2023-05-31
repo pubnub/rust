@@ -319,7 +319,7 @@ impl SubscribeState {
                 Self::HandshakeReconnecting {
                     channels: channels.clone(),
                     channel_groups: channel_groups.clone(),
-                    attempts: 0,
+                    attempts: 1,
                     reason: reason.clone(),
                 },
                 None,
@@ -663,7 +663,7 @@ impl State for SubscribeState {
             SubscribeEvent::HandshakeFailure { reason } => {
                 self.handshake_failure_transition(reason)
             }
-            SubscribeEvent::HandshakeReconnectFailure { reason } => {
+            SubscribeEvent::HandshakeReconnectFailure { reason, .. } => {
                 self.handshake_reconnect_failure_transition(reason)
             }
             SubscribeEvent::HandshakeReconnectGiveUp { reason } => {
@@ -715,9 +715,9 @@ mod should {
         _channel_groups: &Option<Vec<String>>,
         _attempt: u8,
         _reason: Option<PubNubError>,
-    ) -> Vec<SubscribeEvent> {
+    ) -> Result<Vec<SubscribeEvent>, PubNubError> {
         // Do nothing.
-        vec![]
+        Ok(vec![])
     }
 
     fn receive_function(
@@ -819,7 +819,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts:  0,
+            attempts:  1,
             reason: PubNubError::Transport { details: "Test reason".to_string() },
         };
         "to handshake reconnect on handshake failure"

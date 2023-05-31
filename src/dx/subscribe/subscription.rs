@@ -29,7 +29,7 @@ impl Subscription {
         T: Transport,
     {
         // TODO: implementation is a part of the different task
-        let handshake: HandshakeFunction = |_, _, _, _| vec![];
+        let handshake: HandshakeFunction = |_, _, _, _| Ok(vec![]);
 
         let receive: ReceiveFunction = |&_, &_, &_, _, _| vec![];
 

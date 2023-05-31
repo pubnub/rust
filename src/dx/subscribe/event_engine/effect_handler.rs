@@ -14,7 +14,7 @@ pub(crate) type HandshakeFunction = fn(
     channel_groups: &Option<Vec<String>>,
     attempt: u8,
     reason: Option<PubNubError>,
-) -> Vec<SubscribeEvent>;
+) -> Result<Vec<SubscribeEvent>, PubNubError>;
 
 pub(crate) type ReceiveFunction = fn(
     channels: &Option<Vec<String>>,
@@ -66,6 +66,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channel_groups: channel_groups.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
+                executor: self.handshake,
             }),
             SubscribeEffectInvocation::Receive {
                 channels,

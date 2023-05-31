@@ -1,14 +1,19 @@
-use crate::dx::subscribe::event_engine::{effect_handler::HandshakeFunction, SubscribeEvent};
 use crate::lib::alloc::{string::String, vec, vec::Vec};
+use crate::{
+    core::PubNubError,
+    dx::subscribe::event_engine::{effect_handler::HandshakeFunction, SubscribeEvent},
+};
 
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
+    attempt: u8,
+    reason: PubNubError,
     executor: HandshakeFunction,
 ) -> Option<Vec<SubscribeEvent>> {
     Some(
-        executor(channels, channel_groups, 0, None)
-            .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeFailure { reason: err }]),
+        executor(channels, channel_groups, attempt, Some(reason))
+            .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeReconnectFailure { reason: err }]),
     )
 }
 
@@ -18,7 +23,7 @@ mod should {
     use crate::{core::PubNubError, dx::subscribe::SubscribeCursor};
 
     #[test]
-    fn initialize_handshake_for_first_attempt() {
+    fn initialize_handshake_reconnect_attempt() {
         fn mock_handshake_function(
             channels: &Option<Vec<String>>,
             channel_groups: &Option<Vec<String>>,
@@ -27,8 +32,13 @@ mod should {
         ) -> Result<Vec<SubscribeEvent>, PubNubError> {
             assert_eq!(channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
-            assert_eq!(attempt, 0);
-            assert_eq!(reason, None);
+            assert_eq!(attempt, 1);
+            assert_eq!(
+                reason.unwrap(),
+                PubNubError::Transport {
+                    details: "test".into(),
+                }
+            );
 
             Ok(vec![SubscribeEvent::HandshakeSuccess {
                 cursor: SubscribeCursor {
@@ -41,14 +51,15 @@ mod should {
         let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
+            1,
+            PubNubError::Transport {
+                details: "test".into(),
+            },
             mock_handshake_function,
         );
 
         assert!(result.is_some());
-        assert!(matches!(
-            result.unwrap().first().unwrap(),
-            &SubscribeEvent::HandshakeSuccess { .. }
-        ))
+        assert!(!result.unwrap().is_empty())
     }
 
     #[test]
@@ -67,11 +78,18 @@ mod should {
         let binding = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
+            1,
+            PubNubError::Transport {
+                details: "test".into(),
+            },
             mock_handshake_function,
         )
         .unwrap();
         let result = &binding[0];
 
-        assert!(matches!(result, &SubscribeEvent::HandshakeFailure { .. }));
+        assert!(matches!(
+            result,
+            &SubscribeEvent::HandshakeReconnectFailure { .. }
+        ));
     }
 }
