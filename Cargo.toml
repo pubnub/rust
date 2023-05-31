@@ -61,9 +61,9 @@ extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"]
 
 # [Internal features] (not intended for use outside of the library)
 contract_test = ["parse_token", "publish", "access"]
-full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access"]
-full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access"]
-pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access"]
+full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
+full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
+pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
 mock_getrandom = ["getrandom/custom"]
 event_engine = []
 # TODO: temporary treated as internal until we officially release it
