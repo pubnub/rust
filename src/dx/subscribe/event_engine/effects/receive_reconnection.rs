@@ -1,3 +1,4 @@
+use crate::lib::alloc::{string::String, vec, vec::Vec};
 use crate::{
     core::PubNubError,
     dx::subscribe::{
