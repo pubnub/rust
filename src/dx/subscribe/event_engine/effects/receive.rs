@@ -11,7 +11,7 @@ pub(crate) fn execute(
     executor: ReceiveFunction,
 ) -> Option<Vec<SubscribeEvent>> {
     Some(
-        executor(channels, channel_groups, &cursor, 0, None)
+        executor(channels, channel_groups, cursor, 0, None)
             .unwrap_or_else(|err| vec![SubscribeEvent::ReceiveFailure { reason: err }]),
     )
 }
