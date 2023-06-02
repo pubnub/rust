@@ -2,6 +2,7 @@ use crate::dx::subscribe::{
     event_engine::{ReceiveFunction, SubscribeEvent},
     SubscribeCursor,
 };
+use crate::lib::alloc::{string::String, vec, vec::Vec};
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
