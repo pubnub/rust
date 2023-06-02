@@ -69,11 +69,11 @@ mod should {
     #[test]
     fn return_handskahe_failure_event_on_err() {
         fn mock_receive_function(
-            channels: &Option<Vec<String>>,
-            channel_groups: &Option<Vec<String>>,
-            cursor: &SubscribeCursor,
-            attempt: u8,
-            reason: Option<PubNubError>,
+            _channels: &Option<Vec<String>>,
+            _channel_groups: &Option<Vec<String>>,
+            _cursor: &SubscribeCursor,
+            _attempt: u8,
+            _reason: Option<PubNubError>,
         ) -> Result<Vec<SubscribeEvent>, PubNubError> {
             Err(PubNubError::Transport {
                 details: "test".into(),

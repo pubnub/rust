@@ -10,7 +10,7 @@ use super::ReceiveFunction;
 
 mod handshake;
 mod handshake_reconnection;
-mod receive_messages;
+mod receive;
 
 /// Subscription state machine effects.
 #[allow(dead_code)]
@@ -167,7 +167,7 @@ impl Effect for SubscribeEffect {
                 channel_groups,
                 cursor,
                 executor,
-            } => receive_messages::execute(channels, channel_groups, cursor, *executor),
+            } => receive::execute(channels, channel_groups, cursor, *executor),
             _ => {
                 /* TODO: Implement other effects */
                 None
