@@ -16,7 +16,7 @@ pub(crate) fn execute(
     executor: ReceiveFunction,
 ) -> Option<Vec<SubscribeEvent>> {
     Some(
-        executor(channels, channel_groups, &cursor, attempt, Some(reason))
+        executor(channels, channel_groups, cursor, attempt, Some(reason))
             .unwrap_or_else(|err| vec![SubscribeEvent::ReceiveReconnectFailure { reason: err }]),
     )
 }
