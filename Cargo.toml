@@ -74,7 +74,7 @@ async-trait = "0.1"
 log = "0.4"
 hashbrown = "0.13"
 spin = "0.9"
-phantom-type = { vestion = "0.4.2", default-features = false }
+phantom-type = { version = "0.4.2", default-features = false }
 percent-encoding = { version = "2.1", default-features = false }
 base64 = { version = "0.21", features = ["alloc"], default-features = false }
 derive_builder = {version = "0.12", default-features = false }
