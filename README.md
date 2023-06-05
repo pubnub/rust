@@ -103,6 +103,7 @@ pubnub = { version = "0.0.0", features = ["parse_token"] }
 | `reqwest`     | Uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer | n/a |
 | `blocking`    | Enables blocking executions of APIs | n/a |
 | `aescbc`      | Enables AES-CBC encryption | n/a |
+| `std`         | Enables `std` library | n/a |
 
 ## Documentation
 
