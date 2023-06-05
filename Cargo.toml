@@ -1,6 +1,6 @@
 [package]
 name = "pubnub"
-version = "0.0.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 authors = ["PubNub <support@pubnub.com>"]
