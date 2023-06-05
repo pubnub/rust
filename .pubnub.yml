@@ -13,13 +13,6 @@ changelog:
         text: "PubNub `publish` API implemented."
       - type: feature
         text: "PubNub `access manager` API implemented." 
-  - date: 2022-12-12
-    version: 0.0.0
-    changes:
-      - type: feature
-        text: "Add `publish` endpoint support."
-      - type: feature
-        text: "Add `pam` endpoints support."
       - type: feature
         text: "Add `parse_token` for authorization token debug."
 sdks:
