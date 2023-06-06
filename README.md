@@ -121,7 +121,7 @@ features and enable the ones you need, for example:
 
 ```toml
 [dependencies]
-pubnub = { version = "0.0.0", default-features = false, features = ["serde", "publish",
+pubnub = { version = "0.2.0", default-features = false, features = ["serde", "publish",
 "blocking"] }
 ```
 
