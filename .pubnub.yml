@@ -1,9 +1,18 @@
 name: rust
-version: 0.2.0
+version: 0.2.1
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2023-06-07
+    version: 0.2.1
+    changes:
+      - type: bug
+        text: "Fixed versions in the docs."
+      - type: bug
+        text: "Fixed broken links for `docs.rs` page."
+      - type: bug
+        text: "Fixed logo image."
   - date: 2023-06-05
     version: 0.2.0
     changes:

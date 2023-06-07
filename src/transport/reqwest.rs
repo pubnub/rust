@@ -10,7 +10,6 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`reqwest`]: https://docs.rs/reqwest
 //! [`pubnub`]: ../index.html
-//! [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 //! [`reqwest` feature]: ../index.html#features
 
 use crate::{
@@ -40,10 +39,10 @@ use reqwest::{
 /// It is used as the transport type for the [`PubNubClient`].
 /// It is intended to be used by the [`pubnub`] crate.
 ///
+/// [`PubNubClient`]: ../../dx/pubnub_client/struct.PubNubClientInstance.html
 /// [`PubNub API`]: https://www.pubnub.com/docs
 /// [`reqwest`]: https://docs.rs/reqwest
 /// [`pubnub`]: ../index.html
-/// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
 #[derive(Clone, Debug)]
 pub struct TransportReqwest {
     reqwest_client: reqwest::Client,
@@ -127,10 +126,9 @@ impl TransportReqwest {
     ///
     /// ```
     ///
+    /// [`PubNubClient`]: ../../dx/pubnub_client/struct.PubNubClientInstance.html
     /// [`TransportReqwest`]: ./struct.TransportReqwest.html
-    /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
     /// [`pubnub`]: ../index.html
-    /// [`PubNubClientBuilder`]: ../pubnub_client/struct.PubNubClientBuilder.html
     /// [`reqwest`]: https://docs.rs/reqwest
     pub fn new() -> Self {
         Self::default()
@@ -247,11 +245,9 @@ impl PubNubClientBuilder<TransportReqwest> {
     ///     .build();
     /// ```
     ///
-    /// [`PubNubClientBuilder`]: ../pubnub_client/struct.PubNubClientBuilder.html
     /// [`TransportReqwest`]: ./struct.TransportReqwest.html
     /// [`reqwest`]: https://docs.rs/reqwest
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
     pub fn with_reqwest_transport() -> PubNubClientBuilder<TransportReqwest> {
         PubNubClientBuilder {
             transport: Some(TransportReqwest::new()),
@@ -274,7 +270,6 @@ pub mod blocking {
     //! [`PubNub API`]: https://www.pubnub.com/docs
     //! [`reqwest`]: https://docs.rs/reqwest
     //! [`pubnub`]: ../index.html
-    //! [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
     //! [`reqwest` feature]: ../index.html#features
 
     use log::info;
@@ -295,10 +290,10 @@ pub mod blocking {
     ///
     /// It requires the [`reqwest` and `blocking` feature] to be enabled.
     ///
+    /// [`PubNubClient`]: ../../dx/pubnub_client/struct.PubNubClientInstance.html
     /// [`PubNub API`]: https://www.pubnub.com/docs
     /// [`reqwest`]: https://docs.rs/reqwest
     /// [`pubnub`]: ../index.html
-    /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
     pub struct TransportReqwest {
         reqwest_client: reqwest::blocking::Client,
         /// The hostname to use for requests.
@@ -375,10 +370,9 @@ pub mod blocking {
         /// let transport = TransportReqwest::new();
         /// ```
         ///
+        /// [`PubNubClient`]: ../../dx/pubnub_client/struct.PubNubClientInstance.html
         /// [`TransportReqwest`]: ./struct.TransportReqwest.html
-        /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
         /// [`pubnub`]: ../index.html
-        /// [`PubNubClientBuilder`]: ../pubnub_client/struct.PubNubClientBuilder.html
         /// [`reqwest`]: https://docs.rs/reqwest
         pub fn new() -> Self {
             Self::default()
@@ -435,11 +429,9 @@ pub mod blocking {
         ///     .build();
         /// ```
         ///
-        /// [`PubNubClientBuilder`]: ../pubnub_client/struct.PubNubClientBuilder.html
         /// [`TransportReqwest`]: ./struct.TransportReqwest.html
         /// [`reqwest`]: https://docs.rs/reqwest
         /// [`PubNub API`]: https://www.pubnub.com/docs
-        /// [`PubNubClient`]: ../pubnub_client/struct.PubNubClient.html
         pub fn with_reqwest_blocking_transport() -> PubNubClientBuilder<TransportReqwest> {
             PubNubClientBuilder {
                 transport: Some(TransportReqwest::new()),

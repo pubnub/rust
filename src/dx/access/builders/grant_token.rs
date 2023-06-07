@@ -24,6 +24,7 @@ use derive_builder::Builder;
 /// The [`grant_token`] method is used to generate access token.
 ///
 /// [`PubNub`]:https://www.pubnub.com/
+/// [`PubNubClient`]: crate::PubNubClient
 #[derive(Builder)]
 #[builder(
     pattern = "owned",

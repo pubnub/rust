@@ -71,7 +71,7 @@ impl<T> PubNubClientInstance<T> {
     /// # }
     /// ```
     ///
-    /// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
+    /// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder
     pub fn publish_message<M>(&self, message: M) -> PublishMessageBuilder<T, M>
     where
         M: Serialize,

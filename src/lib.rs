@@ -5,7 +5,7 @@
 //!
 //! <div align = "center">
 //!
-//! ![PubNub](https://raw.githubusercontent.com/pubnub/rust/phoenix/logo.svg)
+//! ![PubNub](https://raw.githubusercontent.com/pubnub/rust/master/logo.svg)
 //!
 //! ![Tests](https://github.com/pubnub/rust/actions/workflows/run-tests.yml/badge.svg)
 //! ![Validations](https://github.com/pubnub/rust/actions/workflows/run-validations.yml/badge.svg)
@@ -38,11 +38,11 @@
 //! ```toml
 //! # default features
 //! [dependencies]
-//! pubnub = "0.0.0"
+//! pubnub = "0.2.1"
 //!
 //! # all features
 //! [dependencies]
-//! pubnub = { version = "0.0.0", features = ["full"] }
+//! pubnub = { version = "0.2.1", features = ["full"] }
 //! ```
 //!
 //! ### Example
@@ -77,7 +77,7 @@
 //! }
 //! ```
 //!
-//! You can find more examples in our [examples](examples/) directory!
+//! You can find more examples in our [examples](https://github.com/pubnub/rust/tree/master/examples) directory!
 //!
 //! ## Features
 //!
@@ -86,11 +86,11 @@
 //! ```toml
 //! # only blocking and access + default features
 //! [dependencies]
-//! pubnub = { version = "0.0.0", features = ["blocking", "access"] }
+//! pubnub = { version = "0.2.1", features = ["blocking", "access"] }
 //!
 //! # only parse_token + default features
 //! [dependencies]
-//! pubnub = { version = "0.0.0", features = ["parse_token"] }
+//! pubnub = { version = "0.2.1", features = ["parse_token"] }
 //! ```
 //!
 //! ### Available features
@@ -124,7 +124,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pubnub = { version = "0.0.0", default-features = false, features = ["serde", "publish",
+//! pubnub = { version = "0.2.1", default-features = false, features = ["serde", "publish",
 //! "blocking"] }
 //! ```
 //!
@@ -154,7 +154,7 @@
 //! If you're having problems compiling this crate for more exotic targets, you can try to use the
 //! `extra_platforms` feature. Be aware that this feature is **not supported** and we do not recommend using it.
 //!
-//! For more information about this feature. refer to [Cargo.toml](Cargo.toml) in the `[features]` section.
+//! For more information about this feature. refer to [Cargo.toml](https://github.com/pubnub/rust/blob/master/Cargo.toml) in the `[features]` section.
 //!
 //! ## Support
 //!
@@ -162,10 +162,7 @@
 //!
 //! ## License
 //!
-//! This project is licensed under the [MIT license].
-//!
-//! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
-//!
+//! This project is licensed under the [MIT license](https://github.com/pubnub/rust/blob/master/LICENSE).
 
 #[cfg(feature = "access")]
 #[doc(inline)]
@@ -183,6 +180,7 @@ pub use dx::publish;
 pub use dx::{Keyset, PubNubClientBuilder, PubNubGenericClient};
 
 #[cfg(feature = "reqwest")]
+#[doc(inline)]
 pub use dx::PubNubClient;
 
 pub mod core;
