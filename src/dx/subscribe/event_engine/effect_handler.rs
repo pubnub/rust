@@ -90,6 +90,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 cursor: *cursor,
                 attempts: *attempts,
                 reason: reason.clone(),
+                executor: self.receive,
             }),
             SubscribeEffectInvocation::EmitStatus(status) => {
                 // TODO: Provide emit status effect

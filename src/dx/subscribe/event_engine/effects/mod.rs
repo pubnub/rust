@@ -10,6 +10,7 @@ use super::{HandshakeFunction, ReceiveFunction};
 mod handshake;
 mod handshake_reconnection;
 mod receive;
+mod receive_reconnection;
 
 /// Subscription state machine effects.
 #[allow(dead_code)]
@@ -114,6 +115,11 @@ pub(crate) enum SubscribeEffect {
 
         /// Receive updates attempt failure reason.
         reason: PubNubError,
+
+        /// Executor function.
+        ///
+        /// Function which will be used to execute receive updates.
+        executor: ReceiveFunction,
     },
 
     /// Status change notification effect invocation.
@@ -167,6 +173,21 @@ impl Effect for SubscribeEffect {
                 cursor,
                 executor,
             } => receive::execute(channels, channel_groups, cursor, *executor),
+            SubscribeEffect::ReceiveReconnect {
+                channels,
+                channel_groups,
+                cursor,
+                attempts,
+                reason,
+                executor,
+            } => receive_reconnection::execute(
+                channels,
+                channel_groups,
+                cursor,
+                *attempts,
+                reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                *executor,
+            ),
             _ => {
                 /* TODO: Implement other effects */
                 None
