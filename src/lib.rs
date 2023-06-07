@@ -77,7 +77,7 @@
 //! }
 //! ```
 //!
-//! You can find more examples in our [examples](examples/) directory!
+//! You can find more examples in our [examples](https://github.com/pubnub/rust/tree/master/examples) directory!
 //!
 //! ## Features
 //!
@@ -154,7 +154,7 @@
 //! If you're having problems compiling this crate for more exotic targets, you can try to use the
 //! `extra_platforms` feature. Be aware that this feature is **not supported** and we do not recommend using it.
 //!
-//! For more information about this feature. refer to [Cargo.toml](Cargo.toml) in the `[features]` section.
+//! For more information about this feature. refer to [Cargo.toml](https://github.com/pubnub/rust/blob/master/Cargo.toml) in the `[features]` section.
 //!
 //! ## Support
 //!
@@ -162,10 +162,7 @@
 //!
 //! ## License
 //!
-//! This project is licensed under the [MIT license].
-//!
-//! [MIT license]: https://github.com/pubnub/LICENSE/blob/master/LICENSE
-//!
+//! This project is licensed under the [MIT license](https://github.com/rust/blob/master/LICENSE).
 
 #[cfg(feature = "access")]
 #[doc(inline)]
