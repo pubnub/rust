@@ -110,8 +110,6 @@
 //!
 //! ## Documentation
 //!
-//! :warning: This SDK is a work in progress! **The links below may not work** :warning:
-//!
 //! * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 //! * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
 //!

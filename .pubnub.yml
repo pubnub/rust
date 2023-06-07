@@ -1,16 +1,18 @@
 name: rust
-version: 0.0.0
+version: 0.2.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
-changelog: 
-  - date: 2022-12-12
-    version: 0.0.0
+changelog:
+  - date: 2023-06-05
+    version: 0.2.0
     changes:
       - type: feature
-        text: "Add `publish` endpoint support."
+        text: "New SDK implementation."
       - type: feature
-        text: "Add `pam` endpoints support."
+        text: "PubNub `publish` API implemented."
+      - type: feature
+        text: "PubNub `access manager` API implemented." 
       - type: feature
         text: "Add `parse_token` for authorization token debug."
 sdks:

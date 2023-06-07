@@ -1,12 +1,12 @@
 [package]
 name = "pubnub"
-version = "0.0.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 authors = ["PubNub <support@pubnub.com>"]
 description = "PubNub SDK for Rust"
 repository = "https://github.com/pubnub/rust"
-documentation = "https://docs.rs/pubnub" # TODO: add docs and connect with pubnub docs
+documentation = "https://docs.rs/pubnub/latest/pubnub" 
 homepage = "https://www.pubnub.com"
 categories = ["api-bindings", "asynchronous", "network-programming", "wasm"]
 build = "build.rs"
@@ -74,7 +74,7 @@ async-trait = "0.1"
 log = "0.4"
 hashbrown = "0.13"
 spin = "0.9"
-phantom-type = { vestion = "0.4.2", default-features = false }
+phantom-type = { version = "0.4.2", default-features = false }
 percent-encoding = { version = "2.1", default-features = false }
 base64 = { version = "0.21", features = ["alloc"], default-features = false }
 derive_builder = {version = "0.12", default-features = false }

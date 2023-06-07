@@ -35,11 +35,11 @@ Add `pubnub` to your Rust project in the `Cargo.toml` file:
 ```toml
 # default features
 [dependencies]
-pubnub = "0.0.0"
+pubnub = "0.2.0"
 
 # all features
 [dependencies]
-pubnub = { version = "0.0.0", features = ["full"] }
+pubnub = { version = "0.2.0", features = ["full"] }
 ```
 
 ### Example
@@ -83,11 +83,11 @@ The `pubnub` crate is split into multiple features. You can enable or disable th
 ```toml
 # only blocking and access + default features
 [dependencies]
-pubnub = { version = "0.0.0", features = ["blocking", "access"] }
+pubnub = { version = "0.2.0", features = ["blocking", "access"] }
 
 # only parse_token + default features
 [dependencies]
-pubnub = { version = "0.0.0", features = ["parse_token"] }
+pubnub = { version = "0.2.0", features = ["parse_token"] }
 ```
 
 ### Available features
@@ -107,8 +107,6 @@ pubnub = { version = "0.0.0", features = ["parse_token"] }
 
 ## Documentation
 
-:warning: This SDK is a work in progress! **The links below may not work** :warning:
-
 * [API reference for Rust](https://www.pubnub.com/docs/sdks/rust)
 * [Rust docs](https://www.docs.rs/pubnub/latest/pubnub)
 
@@ -123,7 +121,7 @@ features and enable the ones you need, for example:
 
 ```toml
 [dependencies]
-pubnub = { version = "0.0.0", default-features = false, features = ["serde", "publish",
+pubnub = { version = "0.2.0", default-features = false, features = ["serde", "publish",
 "blocking"] }
 ```
 
