@@ -31,6 +31,7 @@ use derive_builder::Builder;
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 /// [`revoke_token`]: crate::dx::PubNubClient::revoke_token
+/// [`PubNubClient`]: crate::PubNubClient
 pub struct RevokeTokenRequest<T, D>
 where
     D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
