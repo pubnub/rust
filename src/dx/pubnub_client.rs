@@ -99,9 +99,8 @@ use spin::Mutex;
 /// [`Transport`]
 ///
 /// [`selected`]: ../index.html#features
-/// [`Transport`]: ../core/trait.Transport.html
 /// [`Keyset`]: ../core/struct.Keyset.html
-/// [`PubNubClient::with_transport`]: struct.PubNubClientInstance.html#method.with_transport`]
+/// [`PubNubClient::with_transport`]: struct.PubNubClientBuilder.html#method.with_transport`]
 pub type PubNubGenericClient<T> = PubNubClientInstance<PubNubMiddleware<T>>;
 
 /// PubNub client
@@ -184,7 +183,7 @@ pub type PubNubGenericClient<T> = PubNubClientInstance<PubNubMiddleware<T>>;
 /// [`Transport`]: ../core/trait.Transport.html
 /// [`Keyset`]: ../core/struct.Keyset.html
 /// [`reqwest`]: https://crates.io/crates/reqwest
-/// [`PubNubClient::with_reqwest_transport`]: struct.PubNubClientInstance.html#method.with_reqwest_transport
+/// [`PubNubClient::with_reqwest_transport`]: struct.PubNubClientBuilder.html#method.with_reqwest_transport
 #[cfg(feature = "reqwest")]
 pub type PubNubClient = PubNubGenericClient<crate::transport::TransportReqwest>;
 
