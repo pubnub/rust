@@ -5,7 +5,7 @@
 //!
 //! <div align = "center">
 //!
-//! ![PubNub](https://raw.githubusercontent.com/pubnub/rust/phoenix/logo.svg)
+//! ![PubNub](https://raw.githubusercontent.com/pubnub/rust/master/logo.svg)
 //!
 //! ![Tests](https://github.com/pubnub/rust/actions/workflows/run-tests.yml/badge.svg)
 //! ![Validations](https://github.com/pubnub/rust/actions/workflows/run-validations.yml/badge.svg)
