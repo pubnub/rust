@@ -180,6 +180,7 @@ pub use dx::publish;
 pub use dx::{Keyset, PubNubClientBuilder, PubNubGenericClient};
 
 #[cfg(feature = "reqwest")]
+#[doc(inline)]
 pub use dx::PubNubClient;
 
 pub mod core;
