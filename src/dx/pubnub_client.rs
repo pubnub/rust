@@ -4,7 +4,6 @@
 //! It's used to send requests to [`PubNub API`].
 //! It's intended to be used by the [`pubnub`] crate.
 //!
-//! [`PubNubClient`]: ./struct.PubNubClient.html]
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
@@ -28,7 +27,7 @@ use spin::Mutex;
 /// The client is transport-layer-agnostic, so you can use any transport layer
 /// that implements the [`Transport`] trait.
 ///
-/// You can create clients using the [`PubNubClient::builder`] method.
+/// You can create clients using the [`PubNubClient::with_transport`]
 /// You must provide a valid [`Keyset`] with pub/sub keys and a string User ID to identify the client.
 ///
 /// # Examples
@@ -94,13 +93,13 @@ use spin::Mutex;
 /// interior mutability for its internal state.
 ///
 /// # See also
-/// [Keyset](struct.Keyset.html)
-/// [Transport](../core/trait.Transport.html)
+/// [`Keyset`]
+/// [`Transport`]
 ///
 /// [`selected`]: ../index.html#features
 /// [`Transport`]: ../core/trait.Transport.html
 /// [`Keyset`]: ../core/struct.Keyset.html
-/// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
+/// [`PubNubClient::with_transport`]: struct.PubNubClientInstance.html#method.with_transport`]
 pub type PubNubGenericClient<T> = PubNubClientInstance<PubNubMiddleware<T>>;
 
 /// PubNub client
@@ -108,7 +107,7 @@ pub type PubNubGenericClient<T> = PubNubClientInstance<PubNubMiddleware<T>>;
 /// Client for PubNub API with support for all [`selected`] PubNub features.
 /// The client uses [`reqwest`] as a transport layer.
 ///
-/// You can create clients using the [`PubNubClient::builder`] method.
+/// You can create clients using the [`PubNubClient::with_reqwest_transport`] method.
 /// You must provide a valid [`Keyset`] with pub/sub keys and a string User ID to identify the client.
 ///
 /// # Examples
@@ -181,7 +180,7 @@ pub type PubNubGenericClient<T> = PubNubClientInstance<PubNubMiddleware<T>>;
 /// [`Transport`]: ../core/trait.Transport.html
 /// [`Keyset`]: ../core/struct.Keyset.html
 /// [`reqwest`]: https://crates.io/crates/reqwest
-/// [`PubNubClient::builder`]: ./struct.PubNubClient.html#method.builder
+/// [`PubNubClient::with_reqwest_transport`]: struct.PubNubClientInstance.html#method.with_reqwest_transport
 #[cfg(feature = "reqwest")]
 pub type PubNubClient = PubNubGenericClient<crate::transport::TransportReqwest>;
 
@@ -216,8 +215,6 @@ impl<T> Clone for PubNubClientInstance<T> {
 /// It's wrapped in `Arc` by [`PubNubClient`] and uses interior mutability for its internal state.
 ///
 /// Not intended to be used directly. Use [`PubNubClient`] instead.
-///
-/// [`PubNubClient`]: ./struct.PubNubClient.html
 #[derive(Debug, Builder)]
 #[builder(
     pattern = "owned",
@@ -291,8 +288,6 @@ impl<T> PubNubClientInstance<T> {
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// [`PubNubClient`]: struct.PubNubClient.html
     #[cfg(feature = "blocking")]
     pub fn with_blocking_transport(transport: T) -> PubNubClientBuilder<T>
     where
@@ -382,8 +377,6 @@ impl<T> PubNubClientConfigBuilder<T> {
     }
 
     /// Build a [`PubNubClient`] from the builder
-    ///
-    /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn build(self) -> Result<PubNubClientInstance<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
             .map_err(|err| PubNubError::ClientInitialization {
@@ -417,8 +410,6 @@ impl<T> PubNubClientConfigBuilder<T> {
 ///
 /// Configuration for [`PubNubClient`].
 /// This struct separates the configuration from the actual client.
-///
-/// [`PubNubClient`]: struct.PubNubClient.html
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubConfig {
     /// Subscribe key
@@ -472,8 +463,6 @@ impl PubNubConfig {
 /// of the builder with the remaining parameters.
 ///
 /// See [`PubNubClient`] for more information.
-///
-/// [`PubNubClient`]: struct.PubNubClient.html
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubClientBuilder<T> {
     pub(crate) transport: Option<T>,
@@ -628,11 +617,10 @@ impl<T> PubNubClientBuilder<T> {
 /// ```
 ///
 /// # See also
-/// [Keyset](struct.Keyset.html)
-/// [PubNubClientBuilder](struct.PubNubClientBuilder.html)
-/// [PubNubClient](struct.PubNubClient.html)
+/// [`Keyset`]
+/// [`PubNubClientBuilder`]
+/// [`PubNubClient`]
 ///
-/// [`PubNubClient`]: struct.PubNubClient.html
 /// [`PubNubClientBuilder::with_keyset`]: struct.PubNubClientBuilder.html#method.with_keyset
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PubNubClientUserIdBuilder<T, S>
@@ -653,7 +641,6 @@ where
     /// the PubNubClientConfigBuilder.
     ///
     /// [`PubNubClientConfigBuilder`]: struct.PubNubClientConfigBuilder.html
-    /// [`PubNubClient`]: struct.PubNubClient.html
     pub fn with_user_id<U>(self, user_id: U) -> PubNubClientConfigBuilder<T>
     where
         U: Into<String>,
