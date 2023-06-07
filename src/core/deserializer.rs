@@ -17,7 +17,8 @@ use super::PubNubError;
 /// trait over the [`dx`] selected by you in the Cargo.toml file.
 ///
 /// Features and their results:
-/// - `publish` - [`PublishResponse`]
+/// - `publish` - [`PublishResponseBody`]
+/// - `access` - [`GrantTokenResponseBody`] and [`RevokeTokenResponseBody`]
 ///
 /// More information about the response of the PubNub API can be found in the
 /// [PubNub API Reference](https://www.pubnub.com/docs).
@@ -38,7 +39,9 @@ use super::PubNubError;
 /// ```
 ///
 /// [`dx`]: ../dx/index.html
-/// [`PublishResponse`]: ../publish/struct.PublishResponse.html
+/// [`PublishResponseBody`]: ../../dx/publish/result/enum.PublishResponseBody.html
+/// [`GrantTokenResponseBody`]: ../../dx/access/result/enum.GrantTokenResponseBody.html
+/// [`RevokeTokenResponseBody`]: ../../dx/access/result/enum.RevokeTokenResponseBody.html
 pub trait Deserializer<'de, T> {
     /// Deserialize a `&[u8]` into a `Result<T, PubNubError>`.
     ///
