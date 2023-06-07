@@ -8,12 +8,12 @@
   ],
   "src/lib.rs": [
     {
-      "pattern": "^pubnub\\s=\\s\\\"((\\d+\\.?){2,}([a-zA-Z0-9-]+(\\.?\\d+)?)?)\\\"$",
+      "pattern": "^\/\/!\\spubnub\\s=\\s\"((\\d+.?){2,}([a-zA-Z0-9-]+(.?\\d+)?)?)\"$",
       "clearedPrefix": true,
       "clearedSuffix": false
     },
     {
-      "pattern": "^version\\s=\\s\\\"((\\d+\\.?){2,}([a-zA-Z0-9-]+(\\.?\\d+)?)?)\\\"$",
+      "pattern": "^\/\/!\\spubnub\\s?=\\s?{\\s?version\\s?=\\s?\"((\\d+.?){2,}([a-zA-Z0-9-]+(.?\\d+)?)?)\",",
       "clearedPrefix": true,
       "clearedSuffix": false
     }
