@@ -30,6 +30,8 @@ use spin::Mutex;
 /// You can create clients using the [`PubNubClient::with_transport`]
 /// You must provide a valid [`Keyset`] with pub/sub keys and a string User ID to identify the client.
 ///
+/// To see available methods, please refer to the [`PubNubClientInstance`] documentation.
+///
 /// # Examples
 /// ```
 /// use pubnub::{PubNubClientBuilder, Keyset};
@@ -109,6 +111,8 @@ pub type PubNubGenericClient<T> = PubNubClientInstance<PubNubMiddleware<T>>;
 ///
 /// You can create clients using the [`PubNubClient::with_reqwest_transport`] method.
 /// You must provide a valid [`Keyset`] with pub/sub keys and a string User ID to identify the client.
+///
+/// To see available methods, please refer to the [`PubNubClientInstance`] documentation.
 ///
 /// # Examples
 /// ```
