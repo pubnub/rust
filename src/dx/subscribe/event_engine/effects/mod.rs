@@ -5,10 +5,11 @@ use crate::{
     lib::alloc::{string::String, vec::Vec},
 };
 
-use super::effect_handler::HandshakeFunction;
+use super::{HandshakeFunction, ReceiveFunction};
 
 mod handshake;
 mod handshake_reconnection;
+mod receive;
 
 /// Subscription state machine effects.
 #[allow(dead_code)]
@@ -79,6 +80,11 @@ pub(crate) enum SubscribeEffect {
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
         cursor: SubscribeCursor,
+
+        /// Executor function.
+        ///
+        /// Function which will be used to execute receive updates.
+        executor: ReceiveFunction,
     },
 
     /// Retry receive updates effect invocation.
@@ -155,6 +161,12 @@ impl Effect for SubscribeEffect {
                 reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
                 *executor,
             ),
+            SubscribeEffect::Receive {
+                channels,
+                channel_groups,
+                cursor,
+                executor,
+            } => receive::execute(channels, channel_groups, cursor, *executor),
             _ => {
                 /* TODO: Implement other effects */
                 None

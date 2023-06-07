@@ -22,7 +22,7 @@ pub(crate) type ReceiveFunction = fn(
     cursor: &SubscribeCursor,
     attempt: u8,
     reason: Option<PubNubError>,
-) -> Vec<SubscribeEvent>;
+) -> Result<Vec<SubscribeEvent>, PubNubError>;
 
 /// Subscription effect handler.
 ///
@@ -76,6 +76,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
                 cursor: *cursor,
+                executor: self.receive,
             }),
             SubscribeEffectInvocation::ReceiveReconnect {
                 channels,

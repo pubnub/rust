@@ -726,9 +726,9 @@ mod should {
         _cursor: &SubscribeCursor,
         _attempt: u8,
         _reason: Option<PubNubError>,
-    ) -> Vec<SubscribeEvent> {
+    ) -> Result<Vec<SubscribeEvent>, PubNubError> {
         // Do nothing.
-        vec![]
+        Ok(vec![])
     }
 
     fn event_engine(
