@@ -43,7 +43,6 @@ use derive_builder::Builder;
 /// # }
 /// ```
 ///
-/// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
 /// [`publish_message`]: crate::dx::PubNubClient::publish_message`
 /// [`PubNubClient`]: crate::dx::PubNubClient
 /// [`PubNub`]:https://www.pubnub.com/
@@ -145,7 +144,6 @@ where
 /// [`PublishMessageDeserializer`]: crate::dx::publish::PublishMessageDeserializer
 /// [`publish_message`]: crate::dx::PubNubClient::publish_message`
 /// [`PubNubClient`]: crate::dx::PubNubClient
-/// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder
 /// [`Deserializer`]: crate::core::Deserializer
 #[cfg(not(feature = "serde"))]
 pub struct PublishMessageDeserializerBuilder<T, M>
@@ -214,7 +212,6 @@ where
 /// # }
 /// ```
 ///
-/// [`PublishMessageViaChannelBuilder`]: struct.PublishMessageViaChannelBuilder
 /// [`publish_message`]: crate::dx::PubNubClient::publish_message
 /// [`PubNub`]:https://www.pubnub.com/
 /// [`PubNubClient`]: crate::dx::PubNubClient
