@@ -44,7 +44,7 @@ jobs:
           ref: v1
           token: ${{ secrets.GH_TOKEN }}
           path: .github/.release/actions
-      - name: Publish to CocoaPods Trunk
+      - name: Publish to crates
         uses: ./.github/.release/actions/actions/services/crates
         with:
           token: ${{ secrets.GH_TOKEN }}
