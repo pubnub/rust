@@ -130,7 +130,7 @@ jobs:
   all-validations:
     name: Validations
     runs-on: ubuntu-latest
-    needs: [linters, cargo-deny]
+    needs: [linters, cargo-deny, wasm-target, no_std-target]
     steps:
       - name: Validations summary
         run: echo -e "\033[38;2;95;215;0m\033[1mAll validations passed"
