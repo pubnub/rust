@@ -5,8 +5,7 @@ use crate::{
     lib::alloc::{string::String, vec::Vec},
 };
 
-use super::effect_handler::HandshakeFunction;
-use super::ReceiveFunction;
+use super::{HandshakeFunction, ReceiveFunction};
 
 mod handshake;
 mod handshake_reconnection;
