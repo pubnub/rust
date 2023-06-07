@@ -162,7 +162,7 @@
 //!
 //! ## License
 //!
-//! This project is licensed under the [MIT license](https://github.com/rust/blob/master/LICENSE).
+//! This project is licensed under the [MIT license](https://github.com/pubnub/rust/blob/master/LICENSE).
 
 #[cfg(feature = "access")]
 #[doc(inline)]
