@@ -5,6 +5,7 @@ use crate::{
     lib::alloc::{string::String, vec::Vec},
 };
 
+use super::effect_handler::EmitFunction;
 use super::{HandshakeFunction, ReceiveFunction};
 
 mod handshake;
@@ -132,7 +133,7 @@ pub(crate) enum SubscribeEffect {
         /// Emiting function.
         ///
         /// Function which will be used to emit subscription status changes.
-        executor: EmitStatusFunction,
+        executor: EmitFunction,
     },
 
     /// Received updates notification effect invocation.
@@ -145,7 +146,7 @@ pub(crate) enum SubscribeEffect {
         /// Emiting function.
         ///
         /// Function which will be used to emit subscription status changes.
-        executor: EmitStatusFunction,
+        executor: EmitFunction,
     },
 }
 
@@ -159,8 +160,8 @@ impl Effect for SubscribeEffect {
             SubscribeEffect::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT".into(),
             SubscribeEffect::Receive { .. } => "RECEIVE_EFFECT".into(),
             SubscribeEffect::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT".into(),
-            SubscribeEffect::EmitStatus(_) => "EMIT_STATUS_EFFECT".into(),
-            SubscribeEffect::EmitMessages(_) => "EMIT_MESSAGES_EFFECT".into(),
+            SubscribeEffect::EmitStatus { .. } => "EMIT_STATUS_EFFECT".into(),
+            SubscribeEffect::EmitMessages { .. } => "EMIT_MESSAGES_EFFECT".into(),
         }
     }
     fn run<F>(&self, mut f: F)

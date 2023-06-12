@@ -707,6 +707,7 @@ impl State for SubscribeState {
 mod should {
     use super::*;
     use crate::core::event_engine::EventEngine;
+    use crate::dx::subscribe::event_engine::effect_handler::EmitData;
     use crate::dx::subscribe::event_engine::{SubscribeEffect, SubscribeEffectHandler};
     use test_case::test_case;
 
@@ -731,6 +732,11 @@ mod should {
         Ok(vec![])
     }
 
+    fn emit_function(_data: EmitData) -> Result<(), PubNubError> {
+        // Do nothing.
+        Ok(())
+    }
+
     fn event_engine(
         start_state: SubscribeState,
     ) -> EventEngine<
@@ -740,7 +746,7 @@ mod should {
         SubscribeEffectInvocation,
     > {
         EventEngine::new(
-            SubscribeEffectHandler::new(handshake_function, receive_function),
+            SubscribeEffectHandler::new(handshake_function, receive_function, emit_function),
             start_state,
         )
     }

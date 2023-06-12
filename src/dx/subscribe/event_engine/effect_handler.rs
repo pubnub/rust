@@ -2,7 +2,7 @@ use crate::{
     core::{event_engine::EffectHandler, PubNubError},
     dx::subscribe::{
         event_engine::{SubscribeEffect, SubscribeEffectInvocation},
-        SubscribeCursor,
+        SubscribeCursor, SubscribeStatus,
     },
     lib::alloc::{string::String, vec::Vec},
 };
@@ -50,13 +50,20 @@ pub(crate) struct SubscribeEffectHandler {
 
     /// Receive updates function pointer.
     receive: ReceiveFunction,
+
+    /// Emit data function pointer.
+    emit: EmitFunction,
 }
 
 impl SubscribeEffectHandler {
     /// Create subscribe event handler.
     #[allow(dead_code)]
-    pub fn new(handshake: HandshakeFunction, receive: ReceiveFunction) -> Self {
-        SubscribeEffectHandler { handshake, receive }
+    pub fn new(handshake: HandshakeFunction, receive: ReceiveFunction, emit: EmitFunction) -> Self {
+        SubscribeEffectHandler {
+            handshake,
+            receive,
+            emit,
+        }
     }
 }
 
@@ -109,11 +116,17 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             }),
             SubscribeEffectInvocation::EmitStatus(status) => {
                 // TODO: Provide emit status effect
-                Some(SubscribeEffect::EmitStatus(*status))
+                Some(SubscribeEffect::EmitStatus {
+                    status: *status,
+                    executor: self.emit,
+                })
             }
             SubscribeEffectInvocation::EmitMessages(messages) => {
                 // TODO: Provide emit messages effect
-                Some(SubscribeEffect::EmitMessages(messages.clone()))
+                Some(SubscribeEffect::EmitMessages {
+                    messages: messages.clone(),
+                    executor: self.emit,
+                })
             }
             _ => None,
         }
