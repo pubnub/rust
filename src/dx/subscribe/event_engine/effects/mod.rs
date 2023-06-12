@@ -123,10 +123,30 @@ pub(crate) enum SubscribeEffect {
     },
 
     /// Status change notification effect invocation.
-    EmitStatus(SubscribeStatus),
+    EmitStatus {
+        /// Current subscription status.
+        ///
+        /// Used to notify about subscription status changes.
+        status: SubscribeStatus,
+
+        /// Emiting function.
+        ///
+        /// Function which will be used to emit subscription status changes.
+        executor: EmitStatusFunction,
+    },
 
     /// Received updates notification effect invocation.
-    EmitMessages(Vec<String>),
+    EmitMessages {
+        /// Received Messages
+        ///
+        /// Messages ready to be emitted to the user.
+        messages: Vec<String>,
+
+        /// Emiting function.
+        ///
+        /// Function which will be used to emit subscription status changes.
+        executor: EmitStatusFunction,
+    },
 }
 
 impl Effect for SubscribeEffect {
