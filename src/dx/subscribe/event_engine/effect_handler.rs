@@ -24,6 +24,21 @@ pub(crate) type ReceiveFunction = fn(
     reason: Option<PubNubError>,
 ) -> Result<Vec<SubscribeEvent>, PubNubError>;
 
+pub(crate) type EmitFunction = fn(data: EmitData) -> Result<(), PubNubError>;
+
+/// Data emitted by subscription.
+///
+/// This data is emitted by subscription and is used to create subscription
+/// events.
+pub(crate) enum EmitData {
+    /// Status emitted by subscription.
+    SubscribeStatus(SubscribeStatus),
+
+    /// Messages emitted by subscription.
+    /// TODO: Replace String with Message type
+    Messages(Vec<String>),
+}
+
 /// Subscription effect handler.
 ///
 /// Handler responsible for effects implementation and creation in response on
