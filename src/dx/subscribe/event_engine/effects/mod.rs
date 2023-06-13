@@ -8,6 +8,7 @@ use crate::{
 use super::effect_handler::EmitFunction;
 use super::{HandshakeFunction, ReceiveFunction};
 
+mod emit_messages;
 mod emit_status;
 mod handshake;
 mod handshake_reconnection;
@@ -213,9 +214,8 @@ impl Effect for SubscribeEffect {
             SubscribeEffect::EmitStatus { status, executor } => {
                 emit_status::execute(*status, *executor)
             }
-            _ => {
-                /* TODO: Implement other effects */
-                None
+            SubscribeEffect::EmitMessages { messages, executor } => {
+                emit_messages::execute(messages, *executor)
             }
         };
 
