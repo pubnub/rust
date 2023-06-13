@@ -8,6 +8,7 @@ use crate::{
 use super::effect_handler::EmitFunction;
 use super::{HandshakeFunction, ReceiveFunction};
 
+mod emit_status;
 mod handshake;
 mod handshake_reconnection;
 mod receive;
@@ -209,6 +210,9 @@ impl Effect for SubscribeEffect {
                 reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
                 *executor,
             ),
+            SubscribeEffect::EmitStatus { status, executor } => {
+                emit_status::execute(*status, *executor)
+            }
             _ => {
                 /* TODO: Implement other effects */
                 None
