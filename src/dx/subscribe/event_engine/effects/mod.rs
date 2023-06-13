@@ -5,8 +5,11 @@ use crate::{
     lib::alloc::{string::String, vec::Vec},
 };
 
+use super::effect_handler::EmitFunction;
 use super::{HandshakeFunction, ReceiveFunction};
 
+mod emit_messages;
+mod emit_status;
 mod handshake;
 mod handshake_reconnection;
 mod receive;
@@ -123,10 +126,30 @@ pub(crate) enum SubscribeEffect {
     },
 
     /// Status change notification effect invocation.
-    EmitStatus(SubscribeStatus),
+    EmitStatus {
+        /// Current subscription status.
+        ///
+        /// Used to notify about subscription status changes.
+        status: SubscribeStatus,
+
+        /// Emiting function.
+        ///
+        /// Function which will be used to emit subscription status changes.
+        executor: EmitFunction,
+    },
 
     /// Received updates notification effect invocation.
-    EmitMessages(Vec<String>),
+    EmitMessages {
+        /// Received Messages
+        ///
+        /// Messages ready to be emitted to the user.
+        messages: Vec<String>,
+
+        /// Emiting function.
+        ///
+        /// Function which will be used to emit subscription status changes.
+        executor: EmitFunction,
+    },
 }
 
 impl Effect for SubscribeEffect {
@@ -139,8 +162,8 @@ impl Effect for SubscribeEffect {
             SubscribeEffect::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT".into(),
             SubscribeEffect::Receive { .. } => "RECEIVE_EFFECT".into(),
             SubscribeEffect::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT".into(),
-            SubscribeEffect::EmitStatus(_) => "EMIT_STATUS_EFFECT".into(),
-            SubscribeEffect::EmitMessages(_) => "EMIT_MESSAGES_EFFECT".into(),
+            SubscribeEffect::EmitStatus { .. } => "EMIT_STATUS_EFFECT".into(),
+            SubscribeEffect::EmitMessages { .. } => "EMIT_MESSAGES_EFFECT".into(),
         }
     }
     fn run<F>(&self, mut f: F)
@@ -188,9 +211,11 @@ impl Effect for SubscribeEffect {
                 reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
                 *executor,
             ),
-            _ => {
-                /* TODO: Implement other effects */
-                None
+            SubscribeEffect::EmitStatus { status, executor } => {
+                emit_status::execute(*status, *executor)
+            }
+            SubscribeEffect::EmitMessages { messages, executor } => {
+                emit_messages::execute(messages, *executor)
             }
         };
 

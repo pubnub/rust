@@ -8,7 +8,9 @@ use crate::{
     PubNubGenericClient,
 };
 
-use super::event_engine::{SubscribeEffect, SubscribeEffectInvocation};
+use super::event_engine::{
+    effect_handler::EmitFunction, SubscribeEffect, SubscribeEffectInvocation,
+};
 
 type SubscribeEngine =
     EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>;
@@ -33,9 +35,11 @@ impl Subscription {
 
         let receive: ReceiveFunction = |&_, &_, &_, _, _| Ok(vec![]);
 
+        let emit: EmitFunction = |_| Ok(());
+
         Self {
             engine: SubscribeEngine::new(
-                SubscribeEffectHandler::new(handshake, receive),
+                SubscribeEffectHandler::new(handshake, receive, emit),
                 SubscribeState::Unsubscribed,
             ),
         }
