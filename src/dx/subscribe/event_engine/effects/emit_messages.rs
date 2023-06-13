@@ -1,6 +1,6 @@
 use crate::dx::subscribe::event_engine::effect_handler::EmitData;
 use crate::dx::subscribe::event_engine::{effect_handler::EmitFunction, SubscribeEvent};
-use crate::lib::alloc::{vec, vec::Vec};
+use crate::lib::alloc::{borrow::ToOwned, string::String, vec, vec::Vec};
 
 pub(super) fn execute(messages: &[String], executor: EmitFunction) -> Option<Vec<SubscribeEvent>> {
     // TODO: is this clone needed?
