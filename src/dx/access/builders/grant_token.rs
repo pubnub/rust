@@ -5,7 +5,7 @@
 use crate::{
     core::{
         error::PubNubError,
-        headers::{APPLICATION_JSON, CONTENT_TYPE},
+        utils::headers::{APPLICATION_JSON, CONTENT_TYPE},
         Deserializer, Serializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, pubnub_client::PubNubClientInstance},

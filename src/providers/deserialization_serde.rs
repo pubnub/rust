@@ -45,6 +45,17 @@ where
     }
 }
 
+impl<'de, D> crate::core::Deserialize<'de, D> for D
+where
+    D: serde::Deserialize<'de>,
+{
+    fn deserialize(bytes: &'de [u8]) -> Result<D, PubNubError> {
+        serde_json::from_slice(bytes).map_err(|e| PubNubError::Deserialization {
+            details: e.to_string(),
+        })
+    }
+}
+
 #[cfg(test)]
 mod should {
     use super::*;

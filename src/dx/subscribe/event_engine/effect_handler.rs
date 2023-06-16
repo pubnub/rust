@@ -75,7 +75,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             } => Some(SubscribeEffect::Receive {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
-                cursor: *cursor,
+                cursor: cursor.clone(),
                 executor: self.receive,
             }),
             SubscribeEffectInvocation::ReceiveReconnect {
@@ -87,7 +87,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             } => Some(SubscribeEffect::ReceiveReconnect {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
-                cursor: *cursor,
+                cursor: cursor.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
                 executor: self.receive,

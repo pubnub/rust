@@ -35,24 +35,22 @@ pub use transport_response::TransportResponse;
 pub mod transport_response;
 
 #[doc(inline)]
-pub use serialize::Serialize;
-
-#[doc(inline)]
 pub use retry_policy::RequestRetryPolicy;
 pub mod retry_policy;
-
-#[cfg(any(feature = "publish", feature = "access"))]
-pub mod headers;
-
-pub mod serialize;
 
 #[doc(inline)]
 pub use deserializer::Deserializer;
 pub mod deserializer;
+#[doc(inline)]
+pub use deserialize::Deserialize;
+pub mod deserialize;
 
 #[doc(inline)]
 pub use serializer::Serializer;
 pub mod serializer;
+#[doc(inline)]
+pub use serialize::Serialize;
+pub mod serialize;
 
 #[doc(inline)]
 pub use cryptor::Cryptor;
@@ -61,4 +59,8 @@ pub mod cryptor;
 #[cfg(feature = "event_engine")]
 pub(crate) mod event_engine;
 
-pub(crate) mod metadata;
+pub(crate) mod utils;
+
+#[doc(inline)]
+pub use types::{AnyValue, ScalarValue};
+pub mod types;

@@ -5,12 +5,12 @@
 
 #[cfg(feature = "std")]
 use crate::{
-    core::TransportMethod,
-    lib::{alloc::vec::Vec, collections::HashMap, encoding::url_encode},
+    core::{utils::encoding::url_encode, TransportMethod},
+    lib::{alloc::vec::Vec, collections::HashMap},
 };
 use crate::{
     core::{
-        metadata::{PKG_VERSION, RUSTC_VERSION, SDK_ID, TARGET},
+        utils::metadata::{PKG_VERSION, RUSTC_VERSION, SDK_ID, TARGET},
         PubNubError, Transport, TransportRequest, TransportResponse,
     },
     lib::{

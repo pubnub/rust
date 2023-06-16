@@ -14,8 +14,8 @@
 
 use crate::{
     core::{
-        error::PubNubError, transport::PUBNUB_DEFAULT_BASE_URL, Transport, TransportMethod,
-        TransportRequest, TransportResponse,
+        error::PubNubError, transport::PUBNUB_DEFAULT_BASE_URL, utils::encoding::url_encode,
+        Transport, TransportMethod, TransportRequest, TransportResponse,
     },
     lib::{
         alloc::{
@@ -24,7 +24,6 @@ use crate::{
             string::{String, ToString},
         },
         collections::HashMap,
-        encoding::url_encode,
     },
     PubNubClientBuilder,
 };

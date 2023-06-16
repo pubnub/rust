@@ -5,14 +5,14 @@
 use crate::{
     core::{
         error::PubNubError,
-        headers::{APPLICATION_JSON, CONTENT_TYPE},
+        utils::{
+            encoding::url_encode,
+            headers::{APPLICATION_JSON, CONTENT_TYPE},
+        },
         Deserializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, pubnub_client::PubNubClientInstance},
-    lib::{
-        alloc::{format, string::ToString},
-        encoding::url_encode,
-    },
+    lib::alloc::{format, string::ToString},
 };
 use derive_builder::Builder;
 

@@ -23,7 +23,10 @@ use self::result::body_to_result;
 use super::pubnub_client::PubNubConfig;
 use crate::{
     core::{
-        headers::{APPLICATION_JSON, CONTENT_TYPE},
+        utils::{
+            encoding::url_encode,
+            headers::{APPLICATION_JSON, CONTENT_TYPE},
+        },
         Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
         TransportResponse,
     },
@@ -35,7 +38,6 @@ use crate::{
         },
         collections::HashMap,
         core::ops::Not,
-        encoding::url_encode,
     },
 };
 use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};

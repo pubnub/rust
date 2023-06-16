@@ -44,19 +44,10 @@ mod should {
                     details: "test".into(),
                 })
             );
-            assert_eq!(
-                cursor,
-                &SubscribeCursor {
-                    timetoken: 0,
-                    region: 0
-                }
-            );
+            assert_eq!(cursor, &Default::default());
 
             Ok(vec![SubscribeEvent::ReceiveSuccess {
-                cursor: SubscribeCursor {
-                    timetoken: 0,
-                    region: 0,
-                },
+                cursor: Default::default(),
                 messages: vec![],
             }])
         }
@@ -64,10 +55,7 @@ mod should {
         let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
-            &SubscribeCursor {
-                timetoken: 0,
-                region: 0,
-            },
+            &Default::default(),
             10,
             PubNubError::Transport {
                 details: "test".into(),
@@ -98,10 +86,7 @@ mod should {
         let binding = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
-            &SubscribeCursor {
-                timetoken: 0,
-                region: 0,
-            },
+            &Default::default(),
             10,
             PubNubError::Transport {
                 details: "test".into(),

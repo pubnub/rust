@@ -15,7 +15,7 @@ pub(super) fn execute(
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{core::PubNubError, dx::subscribe::SubscribeCursor};
+    use crate::core::PubNubError;
 
     #[test]
     fn initialize_handshake_for_first_attempt() {
@@ -31,10 +31,7 @@ mod should {
             assert_eq!(reason, None);
 
             Ok(vec![SubscribeEvent::HandshakeSuccess {
-                cursor: SubscribeCursor {
-                    timetoken: 0,
-                    region: 0,
-                },
+                cursor: Default::default(),
             }])
         }
 
