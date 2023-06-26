@@ -1,16 +1,40 @@
-use crate::dx::subscribe::event_engine::{SubscribeEffectInvocation, SubscribeEvent};
+use crate::dx::subscribe::result::{SubscribeResult, Update};
 use crate::{
     core::{event_engine::Effect, PubNubError},
-    dx::subscribe::{SubscribeCursor, SubscribeStatus},
-    lib::alloc::{string::String, vec::Vec},
+    dx::subscribe::{
+        event_engine::{SubscribeEffectInvocation, SubscribeEvent},
+        SubscribeCursor, SubscribeStatus,
+    },
+    lib::{
+        alloc::{string::String, vec::Vec},
+        core::fmt::Debug,
+    },
 };
-
-use super::{HandshakeFunction, ReceiveFunction};
+use futures::future::BoxFuture;
+use std::fmt::Formatter;
 
 mod handshake;
 mod handshake_reconnection;
 mod receive;
 mod receive_reconnection;
+
+pub(in crate::dx::subscribe) type HandshakeEffectExecutor = Box<
+    dyn Fn(
+        &Option<Vec<String>>,
+        &Option<Vec<String>>,
+        u8,
+        Option<PubNubError>,
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>,
+>;
+pub(in crate::dx::subscribe) type ReceiveEffectExecutor = Box<
+    dyn Fn(
+        &Option<Vec<String>>,
+        &Option<Vec<String>>,
+        &SubscribeCursor,
+        u8,
+        Option<PubNubError>,
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>,
+>;
 
 /// Subscription state machine effects.
 #[allow(dead_code)]
@@ -32,7 +56,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
-        executor: HandshakeFunction,
+        executor: HandshakeEffectExecutor,
     },
 
     /// Retry initial subscribe effect invocation.
@@ -60,7 +84,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
-        executor: HandshakeFunction,
+        executor: HandshakeEffectExecutor,
     },
 
     /// Receive updates effect invocation.
@@ -85,7 +109,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute receive updates.
-        executor: ReceiveFunction,
+        executor: ReceiveEffectExecutor,
     },
 
     /// Retry receive updates effect invocation.
@@ -119,14 +143,71 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute receive updates.
-        executor: ReceiveFunction,
+        executor: ReceiveEffectExecutor,
     },
 
     /// Status change notification effect invocation.
     EmitStatus(SubscribeStatus),
 
     /// Received updates notification effect invocation.
-    EmitMessages(Vec<String>),
+    EmitMessages(Vec<Update>),
+}
+
+impl Debug for SubscribeEffect {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SubscribeEffect::Handshake {
+                channels,
+                channel_groups,
+                ..
+            } => write!(
+                f,
+                "SubscribeEffect::Handshake {{ channels: {channels:?}, channel groups: \
+                {channel_groups:?} }}"
+            ),
+            SubscribeEffect::HandshakeReconnect {
+                channels,
+                channel_groups,
+                attempts,
+                reason,
+                ..
+            } => write!(
+                f,
+                "SubscribeEffect::HandshakeReconnect {{ channels: {channels:?}, channel groups: \
+                {channel_groups:?}, attempts: {attempts:?}, reason: {reason:?} }}"
+            ),
+            SubscribeEffect::Receive {
+                channels,
+                channel_groups,
+                cursor,
+                ..
+            } => write!(
+                f,
+                "SubscribeEffect::Receive {{ channels: {channels:?}, channel groups: \
+                {channel_groups:?}, cursor: {cursor:?} }}"
+            ),
+            SubscribeEffect::ReceiveReconnect {
+                channels,
+                channel_groups,
+                attempts,
+                reason,
+                ..
+            } => write!(
+                f,
+                "SubscribeEffect::ReceiveReconnect {{ channels: {channels:?}, channel groups: \
+                {channel_groups:?}, attempts: {attempts:?}, reason: {reason:?} }}"
+            ),
+            SubscribeEffect::EmitStatus(status) => {
+                write!(f, "SubscribeEffect::EmitStatus {{ status: {status:?} }}")
+            }
+            SubscribeEffect::EmitMessages(messages) => {
+                write!(
+                    f,
+                    "SubscribeEffect::EmitMessages {{ messages: {messages:?} }}"
+                )
+            }
+        }
+    }
 }
 
 impl Effect for SubscribeEffect {
@@ -153,7 +234,7 @@ impl Effect for SubscribeEffect {
                 channels,
                 channel_groups,
                 executor,
-            } => handshake::execute(channels, channel_groups, *executor),
+            } => handshake::execute(channels, channel_groups, executor),
             SubscribeEffect::HandshakeReconnect {
                 channels,
                 channel_groups,
@@ -165,14 +246,14 @@ impl Effect for SubscribeEffect {
                 channel_groups,
                 *attempts,
                 reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
-                *executor,
+                executor,
             ),
             SubscribeEffect::Receive {
                 channels,
                 channel_groups,
                 cursor,
                 executor,
-            } => receive::execute(channels, channel_groups, cursor, *executor),
+            } => receive::execute(channels, channel_groups, cursor, executor),
             SubscribeEffect::ReceiveReconnect {
                 channels,
                 channel_groups,
@@ -186,7 +267,7 @@ impl Effect for SubscribeEffect {
                 cursor,
                 *attempts,
                 reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
-                *executor,
+                executor,
             ),
             _ => {
                 /* TODO: Implement other effects */

@@ -34,6 +34,7 @@ pub(crate) mod transition;
 ///
 /// [`EventEngine`] is the core of state machines used in PubNub client and
 /// manages current system state and handles external events.
+#[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct EventEngine<S, EH, EF, EI>
 where
@@ -53,10 +54,10 @@ where
 
 impl<S, EH, EF, EI> EventEngine<S, EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF>,
+    S: State<State = S, Invocation = EI>,
     EH: EffectHandler<EI, EF>,
     EF: Effect<Invocation = EI>,
-    S: State<State = S, Invocation = EI>,
+    EI: EffectInvocation<Effect = EF>,
 {
     /// Create [`EventEngine`] with initial state for state machine.
     #[allow(dead_code)]

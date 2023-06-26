@@ -1,17 +1,25 @@
 //! Subscription types module.
 
-use crate::core::{AnyValue, Deserialize, PubNubError, ScalarValue};
-use crate::dx::subscribe::result::{Envelope, EnvelopePayload, ObjectDataBody};
-use crate::lib::{
-    alloc::{
-        boxed::Box,
-        string::{String, ToString},
-        vec::Vec,
+use crate::dx::subscribe::result::Update;
+use crate::{
+    core::{PubNubError, ScalarValue},
+    dx::subscribe::result::{Envelope, EnvelopePayload, ObjectDataBody},
+    lib::{
+        alloc::{
+            boxed::Box,
+            string::{String, ToString},
+            vec::Vec,
+        },
+        collections::HashMap,
+        core::{fmt::Formatter, result::Result},
     },
-    collections::HashMap,
-    core::fmt::Formatter,
-    core::result::Result,
 };
+
+#[derive(Debug)]
+pub enum SubscribeStreamEvent {
+    Status(SubscribeStatus),
+    Update(Update),
+}
 
 /// Known types of events / messages received from subscribe.
 ///
@@ -93,7 +101,7 @@ pub enum SubscribeStatus {
 /// [`Presence::Interval`] and [`Presence::StateChange`] variants for updates
 /// listener. These variants allow listener understand how presence changes on
 /// channel.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Presence {
     /// Remote user `join` update.
     ///
@@ -197,7 +205,7 @@ pub enum Presence {
 /// Enum provides [`Object::Channel`], [`Object::Uuid`] and
 /// [`Object::Membership`] variants for updates listener. These variants allow
 /// listener understand how objects and their relationship changes.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Object {
     /// `Channel` object update.
     Channel {
@@ -303,11 +311,41 @@ pub enum Object {
     },
 }
 
+/// Message information.
+///
+/// [`Message`] type provides to the updates listener message's information.
+#[derive(Debug, Clone)]
+pub struct Message {
+    /// Identifier of client which sent message / signal.
+    pub sender: Option<String>,
+
+    /// Time when message / signal has been published.
+    pub timestamp: usize,
+
+    /// Name of channel where message / signal received.
+    pub channel: String,
+
+    /// Actual name of subscription through which update has been delivered.
+    pub subscription: String,
+
+    /// User provided message type (set only when [`publish`] called with
+    /// `r#type`).
+    ///
+    /// [`publish`]: crate::dx::publish
+    pub r#type: Option<String>,
+
+    /// Identifier of space into which message has been published (set only when
+    /// [`publish`] called with `space_id`).
+    ///
+    /// [`publish`]: crate::dx::publish
+    pub space_id: Option<String>,
+}
+
 /// Message's action update information.
 ///
 /// [`MessageAction`] type provides to the updates listener message's action
 /// changes information.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MessageAction {
     /// The type of event that happened during the message action update.
     pub event: MessageActionEvent,
@@ -341,7 +379,7 @@ pub struct MessageAction {
 ///
 /// [`File`] type provides to the updates listener information about shared
 /// files.
-#[derive(Debug)]
+#[derive(Debug. Clone)]
 #[allow(dead_code)]
 pub struct File {
     /// Identifier of client which sent shared file.
@@ -364,24 +402,6 @@ pub struct File {
 
     /// Actual name with which file has been stored.
     name: String,
-}
-
-/// Published message / signal information.
-///
-/// [`Message`] type provides access to the published message / signal actual
-/// payload to the updates listener.
-#[derive(Debug)]
-pub enum Message<D> {
-    /// Custom user-provided type.
-    ///
-    /// This type (preferable `enum`) used to match against received real-time
-    /// update and deserialize as user-type if match.
-    Custom(D),
-
-    /// General payload type.
-    ///
-    /// [`AnyValue`] type covers basic data types including nested collections.
-    General(AnyValue),
 }
 
 /// Object update event types.
@@ -464,13 +484,41 @@ impl core::fmt::Display for SubscribeStatus {
     }
 }
 
-impl<D> TryFrom<Envelope<D>> for Presence
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+impl Presence {
+    /// Presence update channel.
+    ///
+    /// Name of channel at which presence update has been triggered.
+    pub(crate) fn channel(&self) -> &String {
+        match self {
+            Presence::Join { channel, .. }
+            | Presence::Leave { channel, .. }
+            | Presence::Timeout { channel, .. }
+            | Presence::Interval { channel, .. }
+            | Presence::StateChange { channel, .. } => channel
+                .split('-')
+                .last()
+                .map(|name| &name.to_string())
+                .unwrap_or(channel),
+        }
+    }
+}
+
+impl Object {
+    /// Object channel name.
+    ///
+    /// Name of channel (object id) at which object update has been triggered.
+    pub(crate) fn channel(&self) -> &String {
+        match self {
+            Object::Channel { id, .. } | Object::Uuid { id, .. } => id,
+            Object::Membership { uuid, .. } => uuid,
+        }
+    }
+}
+
+impl TryFrom<Envelope> for Presence {
     type Error = PubNubError;
 
-    fn try_from(value: Envelope<D>) -> Result<Self, Self::Error> {
+    fn try_from(value: Envelope) -> Result<Self, Self::Error> {
         if let EnvelopePayload::Presence {
             action,
             timestamp,
@@ -533,13 +581,10 @@ where
     }
 }
 
-impl<D> TryFrom<Envelope<D>> for Object
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+impl TryFrom<Envelope> for Object {
     type Error = PubNubError;
 
-    fn try_from(value: Envelope<D>) -> Result<Self, Self::Error> {
+    fn try_from(value: Envelope) -> Result<Self, Self::Error> {
         let timestamp = value.published.timetoken.parse::<usize>();
         if let EnvelopePayload::Object {
             event,
@@ -654,13 +699,35 @@ where
     }
 }
 
-impl<D> TryFrom<Envelope<D>> for MessageAction
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+impl TryFrom<Envelope> for Message {
     type Error = PubNubError;
 
-    fn try_from(value: Envelope<D>) -> Result<Self, Self::Error> {
+    fn try_from(value: Envelope) -> Result<Self, Self::Error> {
+        // `Message` / `signal` always has `timetoken` and unwrap_or default
+        // value won't be actually used.
+        let timestamp = value.published.timetoken.parse::<usize>().ok().unwrap_or(0);
+
+        if let EnvelopePayload::Message(data) = value.payload {
+            Ok(Self {
+                sender: value.sender,
+                timestamp,
+                channel: value.channel,
+                subscription: value.subscription,
+                r#type: value.r#type,
+                space_id: value.space_id,
+            })
+        } else {
+            Err(PubNubError::Deserialization {
+                details: "Unable deserialize: unexpected payload for message.".to_string(),
+            })
+        }
+    }
+}
+
+impl TryFrom<Envelope> for MessageAction {
+    type Error = PubNubError;
+
+    fn try_from(value: Envelope) -> Result<Self, Self::Error> {
         // `Message action` event always has `timetoken` and unwrap_or default
         // value won't be actually used.
         let timestamp = value.published.timetoken.parse::<usize>().ok().unwrap_or(0);
@@ -687,13 +754,10 @@ where
     }
 }
 
-impl<D> TryFrom<Envelope<D>> for File
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+impl TryFrom<Envelope> for File {
     type Error = PubNubError;
 
-    fn try_from(value: Envelope<D>) -> Result<Self, Self::Error> {
+    fn try_from(value: Envelope) -> Result<Self, Self::Error> {
         // `File` event always has `timetoken` and unwrap_or default
         // value won't be actually used.
         let timestamp = value.published.timetoken.parse::<usize>().ok().unwrap_or(0);
@@ -713,25 +777,6 @@ where
         } else {
             Err(PubNubError::Deserialization {
                 details: "Unable deserialize: unexpected payload for file.".to_string(),
-            })
-        }
-    }
-}
-
-impl<D> TryFrom<Envelope<D>> for Message<D>
-where
-    D: for<'response> Deserialize<'response, D>,
-{
-    type Error = PubNubError;
-
-    fn try_from(value: Envelope<D>) -> Result<Self, Self::Error> {
-        if let EnvelopePayload::Custom(data) = value.payload {
-            Ok(Self::Custom(data))
-        } else if let EnvelopePayload::General(data) = value.payload {
-            Ok(Self::General(data))
-        } else {
-            Err(PubNubError::Deserialization {
-                details: "Unable deserialize: unexpected payload for message / signal.".to_string(),
             })
         }
     }

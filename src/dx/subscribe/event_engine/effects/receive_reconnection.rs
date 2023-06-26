@@ -1,11 +1,10 @@
+use crate::dx::subscribe::event_engine::effects::ReceiveEffectExecutor;
 use crate::lib::alloc::{string::String, vec, vec::Vec};
 use crate::{
     core::PubNubError,
-    dx::subscribe::{
-        event_engine::{ReceiveFunction, SubscribeEvent},
-        SubscribeCursor,
-    },
+    dx::subscribe::{event_engine::SubscribeEvent, SubscribeCursor},
 };
+use log::info;
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
@@ -13,12 +12,18 @@ pub(crate) fn execute(
     cursor: &SubscribeCursor,
     attempt: u8,
     reason: PubNubError,
-    executor: ReceiveFunction,
+    executor: &ReceiveEffectExecutor,
 ) -> Option<Vec<SubscribeEvent>> {
-    Some(
-        executor(channels, channel_groups, cursor, attempt, Some(reason))
-            .unwrap_or_else(|err| vec![SubscribeEvent::ReceiveReconnectFailure { reason: err }]),
-    )
+    info!(
+        "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
+        cursor.timetoken,
+        channels.as_ref().unwrap_or(&Vec::new()),
+        channel_groups.as_ref().unwrap_or(&Vec::new()),
+    );
+
+    let result: Result<Vec<SubscribeEvent>, PubNubError> =
+        executor(channels, channel_groups, cursor, attempt, Some(reason));
+    Some(result.unwrap_or_else(|err| vec![SubscribeEvent::ReceiveReconnectFailure { reason: err }]))
 }
 
 #[cfg(test)]

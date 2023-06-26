@@ -7,19 +7,22 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use crate::transport::middleware::SignatureKeySet;
+#[cfg(feature = "subscribe")]
+use crate::dx::subscribe::subscription_manager::SubscriptionManager;
 use crate::{
     core::{PubNubError, Transport},
-    lib::alloc::{
-        string::{String, ToString},
-        sync::Arc,
+    lib::{
+        alloc::{
+            string::{String, ToString},
+            sync::Arc,
+        },
+        core::ops::{Deref, DerefMut},
     },
-    lib::core::ops::Deref,
-    transport::middleware::PubNubMiddleware,
+    transport::middleware::{PubNubMiddleware, SignatureKeySet},
 };
 use derive_builder::Builder;
 use log::info;
-use spin::Mutex;
+use spin::{Mutex, RwLock};
 
 /// PubNub client
 ///
@@ -204,6 +207,13 @@ impl<T> Deref for PubNubClientInstance<T> {
     }
 }
 
+impl<T> DerefMut for PubNubClientInstance<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.inner)
+            .expect("Multiple mutable references to PubNubClientInstance are not allowed")
+    }
+}
+
 impl<T> Clone for PubNubClientInstance<T> {
     fn clone(&self) -> Self {
         Self {
@@ -250,7 +260,14 @@ pub struct PubNubClientRef<T> {
         field(vis = "pub(crate)"),
         default = "Arc::new(spin::RwLock::new(String::new()))"
     )]
-    pub(crate) auth_token: Arc<spin::RwLock<String>>,
+    pub(crate) auth_token: Arc<RwLock<String>>,
+
+    #[cfg_attr(
+        feature = "subscribe",
+        builder(setter(custom), field(vis = "pub(crate)"), default = "None")
+    )]
+    #[cfg(feature = "subscribe")]
+    pub(crate) subscription_manager: Option<Arc<RwLock<SubscriptionManager<T>>>>,
 }
 
 impl<T> PubNubClientInstance<T> {
@@ -360,6 +377,12 @@ impl<T> PubNubClientInstance<T> {
         let token = self.auth_token.read().deref().clone();
         token.is_empty().then_some(token)
     }
+
+    #[cfg(not(feature = "subscribe"))]
+    pub(crate) fn setup_event_engines(&mut self) {
+        // This is placeholder which can be removed when attributes on
+        // expressions won't be experimental.
+    }
 }
 
 impl<T> PubNubClientConfigBuilder<T> {
@@ -397,14 +420,21 @@ impl<T> PubNubClientConfigBuilder<T> {
                         transport: pre_build.transport,
                         auth_token: token.clone(),
                     },
+                    subscription_manager: None,
                     instance_id: pre_build.instance_id,
                     next_seqn: pre_build.next_seqn,
                     auth_token: token,
                     config: pre_build.config,
                 })
             })
-            .map(|client| PubNubClientInstance {
-                inner: Arc::new(client),
+            .map(|mut client| {
+                let mut instance = PubNubClientInstance {
+                    inner: Arc::new(client),
+                };
+
+                // Setup event engines if "subscribe" feature enabled.
+                instance.setup_event_engines();
+                instance
             })
     }
 }

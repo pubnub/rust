@@ -1,19 +1,25 @@
-use crate::dx::subscribe::{
-    event_engine::{ReceiveFunction, SubscribeEvent},
-    SubscribeCursor,
-};
+use crate::core::PubNubError;
+use crate::dx::subscribe::event_engine::effects::ReceiveEffectExecutor;
+use crate::dx::subscribe::{event_engine::SubscribeEvent, SubscribeCursor};
 use crate::lib::alloc::{string::String, vec, vec::Vec};
+use log::info;
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    executor: ReceiveFunction,
+    executor: &ReceiveEffectExecutor,
 ) -> Option<Vec<SubscribeEvent>> {
-    Some(
-        executor(channels, channel_groups, cursor, 0, None)
-            .unwrap_or_else(|err| vec![SubscribeEvent::ReceiveFailure { reason: err }]),
-    )
+    info!(
+        "Receive at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
+        cursor.timetoken,
+        channels.as_ref().unwrap_or(&Vec::new()),
+        channel_groups.as_ref().unwrap_or(&Vec::new()),
+    );
+
+    let result: Result<Vec<SubscribeEvent>, PubNubError> =
+        executor(channels, channel_groups, cursor, 0, None);
+    Some(result.unwrap_or_else(|err| vec![SubscribeEvent::ReceiveFailure { reason: err }]))
 }
 
 #[cfg(test)]
@@ -23,7 +29,7 @@ mod should {
 
     #[test]
     fn receive_messages() {
-        fn mock_receive_function(
+        fn mock_receive_function<T>(
             channels: &Option<Vec<String>>,
             channel_groups: &Option<Vec<String>>,
             cursor: &SubscribeCursor,

@@ -707,10 +707,13 @@ impl State for SubscribeState {
 mod should {
     use super::*;
     use crate::core::event_engine::EventEngine;
+    use crate::dx::pubnub_client::PubNubClientInstance;
     use crate::dx::subscribe::event_engine::{SubscribeEffect, SubscribeEffectHandler};
+    use crate::{Keyset, PubNubClientBuilder};
     use test_case::test_case;
 
-    fn handshake_function(
+    fn handshake_function<T>(
+        _client: PubNubClientInstance<T>,
         _channels: &Option<Vec<String>>,
         _channel_groups: &Option<Vec<String>>,
         _attempt: u8,
@@ -720,7 +723,8 @@ mod should {
         Ok(vec![])
     }
 
-    fn receive_function(
+    fn receive_function<T>(
+        _client: PubNubClientInstance<T>,
         _channels: &Option<Vec<String>>,
         _channel_groups: &Option<Vec<String>>,
         _cursor: &SubscribeCursor,
@@ -731,16 +735,26 @@ mod should {
         Ok(vec![])
     }
 
-    fn event_engine(
+    fn event_engine<T>(
         start_state: SubscribeState,
     ) -> EventEngine<
         SubscribeState,
-        SubscribeEffectHandler,
+        SubscribeEffectHandler<T>,
         SubscribeEffect,
         SubscribeEffectInvocation,
     > {
+        let client = PubNubClientBuilder::with_reqwest_transport()
+            .with_keyset(Keyset {
+                publish_key: Some(""),
+                subscribe_key: "",
+                secret_key: None,
+            })
+            .with_user_id("user_id")
+            .build()
+            .unwrap();
+
         EventEngine::new(
-            SubscribeEffectHandler::new(handshake_function, receive_function),
+            SubscribeEffectHandler::new(client, handshake_function, receive_function),
             start_state,
         )
     }

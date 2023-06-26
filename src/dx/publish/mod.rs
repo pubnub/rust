@@ -545,7 +545,6 @@ mod should {
     async fn return_err_if_publish_key_is_not_provided() {
         let client = {
             let default_client = client();
-
             let ref_client = Arc::try_unwrap(default_client.inner).unwrap();
 
             PubNubClientInstance {

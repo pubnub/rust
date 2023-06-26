@@ -1,15 +1,24 @@
-use crate::dx::subscribe::event_engine::{effect_handler::HandshakeFunction, SubscribeEvent};
+use crate::core::PubNubError;
+use crate::dx::subscribe::event_engine::effects::HandshakeEffectExecutor;
+use crate::dx::subscribe::event_engine::SubscribeEvent;
+use crate::dx::subscribe::result::SubscribeResult;
 use crate::lib::alloc::{string::String, vec, vec::Vec};
+use log::info;
 
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
-    executor: HandshakeFunction,
+    executor: &HandshakeEffectExecutor,
 ) -> Option<Vec<SubscribeEvent>> {
-    Some(
-        executor(channels, channel_groups, 0, None)
-            .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeFailure { reason: err }]),
-    )
+    info!(
+        "Handshake for\nchannels: {:?}\nchannel groups: {:?}",
+        channels.as_ref().unwrap_or(&Vec::new()),
+        channel_groups.as_ref().unwrap_or(&Vec::new())
+    );
+
+    let result: Result<SubscribeResult, PubNubError> = executor(channels, channel_groups, 0, None);
+
+    Some(result.unwrap_or_else(|err| vec![SubscribeEvent::HandshakeFailure { reason: err }]))
 }
 
 #[cfg(test)]

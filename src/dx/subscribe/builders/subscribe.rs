@@ -20,12 +20,12 @@ use crate::{
         alloc::{
             format,
             string::{String, ToString},
+            vec::Vec,
         },
         collections::HashMap,
     },
 };
 use derive_builder::Builder;
-use phantom_type::PhantomType;
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -38,17 +38,13 @@ use phantom_type::PhantomType;
 #[derive(Builder)]
 #[builder(
     pattern = "owned",
-    build_fn(
-        vis = "pub(in crate::dx::subscribe)",
-        validate = "SubscribeRequestBuilder::validate"
-    ),
+    build_fn(vis = "pub(in crate::dx::subscribe)", validate = "Self::validate"),
     no_std
 )]
 #[allow(dead_code, missing_docs)]
-pub struct SubscribeRequest<'rq, T, Data, D>
+pub struct SubscribeRequest<T, D>
 where
-    Data: for<'data> Deserialize<'data, Data>,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody<Data>>,
+    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
@@ -62,8 +58,8 @@ where
     ///
     /// List of channels on which [`PubNubClient`] will subscribe and notify
     /// about received real-time updates.
-    #[builder(field(vis = "pub(in crate::dx::subscribe)"), default = "&[]")]
-    pub(in crate::dx::subscribe) channels: &'rq [&'rq str],
+    #[builder(field(vis = "pub(in crate::dx::subscribe)"), default = "Vec::new()")]
+    pub(in crate::dx::subscribe) channels: Vec<String>,
 
     /// Channel groups from which real-time updates should be received.
     ///
@@ -72,9 +68,9 @@ where
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
-        default = "&[]"
+        default = "Vec::new()"
     )]
-    pub(in crate::dx::subscribe) channel_groups: &'rq [&'rq str],
+    pub(in crate::dx::subscribe) channel_groups: Vec<String>,
 
     /// Time cursor.
     ///
@@ -100,17 +96,6 @@ where
         default = "None"
     )]
     pub(in crate::dx::subscribe) filter_expression: Option<String>,
-
-    /// Message data type.
-    ///
-    /// Along with service messages (presence, objects, message actions, files)
-    /// there is actual data sent between clients at real-time. This payload
-    /// type should be provided by user and used for response deserialization.
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        default = "Default::default()"
-    )]
-    pub(in crate::dx::subscribe) _payload: PhantomType<Data>,
 }
 
 /// The [`SubscribeRequestWithDeserializerBuilder`] is used to build subscribe
@@ -130,22 +115,36 @@ pub struct SubscribeRequestWithDeserializerBuilder<T> {
     pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T>,
 }
 
-impl<'rq, T, Data, D> SubscribeRequest<'rq, T, Data, D>
+impl<T, D> SubscribeRequest<T, D>
 where
-    Data: for<'response> Deserialize<'response, Data>,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody<Data>>,
+    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::subscribe) fn transport_request(&self) -> TransportRequest {
         let sub_key = &self.pubnub_client.config.subscribe_key;
-        let channels = join_url_encoded(self.channels, ",").unwrap_or(",".into());
+        let channels = join_url_encoded(
+            self.channels
+                .iter()
+                .map(|v| v.as_str())
+                .collect::<Vec<&str>>()
+                .as_slice(),
+            ",",
+        )
+        .unwrap_or(",".into());
         let mut query: HashMap<String, String> = HashMap::new();
         query.extend::<HashMap<String, String>>(self.cursor.clone().into());
 
         // Serialize list of channel groups and add into query parameters list.
-        join_url_encoded(self.channel_groups, ",")
-            .filter(|string| !string.is_empty())
-            .and_then(|channel_groups| query.insert("channel-group".into(), channel_groups));
+        join_url_encoded(
+            self.channel_groups
+                .iter()
+                .map(|v| v.as_str())
+                .collect::<Vec<&str>>()
+                .as_slice(),
+            ",",
+        )
+        .filter(|string| !string.is_empty())
+        .and_then(|channel_groups| query.insert("channel-group".into(), channel_groups));
 
         self.filter_expression
             .as_ref()
@@ -161,18 +160,17 @@ where
     }
 }
 
-impl<'rq, T, Data, D> SubscribeRequestBuilder<'rq, T, Data, D>
+impl<T, D> SubscribeRequestBuilder<T, D>
 where
-    Data: for<'response> Deserialize<'response, Data>,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody<Data>>,
+    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
     /// request instance.
     fn validate(&self) -> Result<(), String> {
-        let groups_len = self.channel_groups.map_or_else(|| 0, |v| v.len());
-        let channels_len = self.channels.map_or_else(|| 0, |v| v.len());
+        let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
+        let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());
 
         builders::validate_configuration(&self.pubnub_client).and_then(|_| {
             if channels_len == groups_len && channels_len == 0 {
@@ -184,14 +182,17 @@ where
     }
 }
 
-impl<'rq, T, Data, D> SubscribeRequestBuilder<'rq, T, Data, D>
+impl<T, D> SubscribeRequestBuilder<T, D>
 where
     T: Transport,
-    Data: for<'response> Deserialize<'response, Data>,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody<Data>>,
+    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
+    pub async fn exec_second(self) -> Result<(), String> {
+        Ok(())
+    }
+
     /// Build and call request.
-    pub async fn execute(self) -> Result<SubscribeResult<Data>, PubNubError> {
+    pub async fn execute(self) -> Result<SubscribeResult, PubNubError> {
         // Build request instance and report errors if any.
         let request = self
             .build()
@@ -213,24 +214,42 @@ where
                     None,
                 )),
                 |response_body| {
-                    response_body.and_then::<SubscribeResult<Data>, _>(|body| body.try_into())
+                    response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
                 },
             )
         // TODO: Handle decryption (when provider will be exposed).
     }
 }
 
+unsafe impl<T, D> Sync for SubscribeRequestBuilder<T, D>
+where
+    T: Transport,
+    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
+{
+}
+
+unsafe impl<T, D> Send for SubscribeRequestBuilder<T, D>
+where
+    T: Transport,
+    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
+{
+}
+
+impl<T, D> Unpin for SubscribeRequestBuilder<T, D>
+where
+    T: Transport,
+    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
+{
+}
+
 #[cfg(not(feature = "serde"))]
-impl<'rq, T> SubscribeRequestWithDeserializerBuilder<T> {
+impl<T> SubscribeRequestWithDeserializerBuilder<T> {
     /// Add custom deserializer.
     ///
     /// Adds the deserializer to the [`SubscribeRequestBuilder`],
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub fn deserialize_with<Data, D>(
-        self,
-        deserializer: D,
-    ) -> SubscribeRequestBuilder<'rq, T, Data, D>
+    pub fn deserialize_with<Data, D>(self, deserializer: D) -> SubscribeRequestBuilder<T, Data, D>
     where
         Data: for<'data> Deserialize<'data, Data>,
         D: for<'ds> Deserializer<'ds, SubscribeResponseBody<Data>>,

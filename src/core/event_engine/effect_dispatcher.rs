@@ -6,6 +6,7 @@ use phantom_type::PhantomType;
 use spin::rwlock::RwLock;
 
 /// State machine effects dispatcher.
+#[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct EffectDispatcher<EH, EF, EI>
 where

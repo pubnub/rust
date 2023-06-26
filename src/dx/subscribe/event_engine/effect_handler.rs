@@ -1,51 +1,90 @@
+use crate::dx::subscribe::result::Update;
+use crate::dx::subscribe::SubscribeStatus;
 use crate::{
     core::{event_engine::EffectHandler, PubNubError},
-    dx::subscribe::{
-        event_engine::{SubscribeEffect, SubscribeEffectInvocation},
-        SubscribeCursor,
+    dx::{
+        pubnub_client::PubNubClientInstance,
+        subscribe::{
+            event_engine::{SubscribeEffect, SubscribeEffectInvocation},
+            result::SubscribeResult,
+            SubscribeCursor,
+        },
     },
     lib::alloc::{string::String, vec::Vec},
+    PubNubGenericClient,
 };
+use futures::future::BoxFuture;
 
-use super::SubscribeEvent;
+pub(crate) type HandshakeFunction<Transport> =
+    fn(
+        client: PubNubClientInstance<Transport>,
+        channels: &Option<Vec<String>>,
+        channel_groups: &Option<Vec<String>>,
+        attempt: u8,
+        reason: Option<PubNubError>,
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>;
 
-pub(crate) type HandshakeFunction = fn(
-    channels: &Option<Vec<String>>,
-    channel_groups: &Option<Vec<String>>,
-    attempt: u8,
-    reason: Option<PubNubError>,
-) -> Result<Vec<SubscribeEvent>, PubNubError>;
+pub(crate) type ReceiveFunction<Transport> =
+    fn(
+        client: PubNubClientInstance<Transport>,
+        channels: &Option<Vec<String>>,
+        channel_groups: &Option<Vec<String>>,
+        cursor: &SubscribeCursor,
+        attempt: u8,
+        reason: Option<PubNubError>,
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>;
 
-pub(crate) type ReceiveFunction = fn(
-    channels: &Option<Vec<String>>,
-    channel_groups: &Option<Vec<String>>,
-    cursor: &SubscribeCursor,
-    attempt: u8,
-    reason: Option<PubNubError>,
-) -> Result<Vec<SubscribeEvent>, PubNubError>;
+pub(crate) type EmitStatus<Transport> =
+    fn(client: PubNubClientInstance<Transport>, status: &SubscribeStatus);
+
+pub(crate) type EmitMessages<Transport> =
+    fn(client: PubNubClientInstance<Transport>, messages: Vec<Update>);
 
 /// Subscription effect handler.
 ///
 /// Handler responsible for effects implementation and creation in response on
 /// effect invocation.
+#[derive(Debug)]
 #[allow(dead_code)]
-pub(crate) struct SubscribeEffectHandler {
+pub(crate) struct SubscribeEffectHandler<Transport> {
+    client: PubNubClientInstance<Transport>,
+
     /// Handshake function pointer.
-    handshake: HandshakeFunction,
+    handshake: HandshakeFunction<Transport>,
 
     /// Receive updates function pointer.
-    receive: ReceiveFunction,
+    receive: ReceiveFunction<Transport>,
+
+    /// Emit status function pointer.
+    emit_status: EmitStatus<Transport>,
+
+    /// Emit messages function pointer.
+    emit_messages: EmitMessages<Transport>,
 }
 
-impl SubscribeEffectHandler {
+impl<Transport> SubscribeEffectHandler<Transport> {
     /// Create subscribe event handler.
     #[allow(dead_code)]
-    pub fn new(handshake: HandshakeFunction, receive: ReceiveFunction) -> Self {
-        SubscribeEffectHandler { handshake, receive }
+    pub fn new(
+        client: PubNubClientInstance<Transport>,
+        handshake: HandshakeFunction<Transport>,
+        receive: ReceiveFunction<Transport>,
+        emit_status: EmitStatus<Transport>,
+        emit_messages: EmitMessages<Transport>,
+    ) -> Self {
+        SubscribeEffectHandler {
+            client,
+            handshake,
+            receive,
+            emit_status,
+            emit_messages,
+        }
     }
 }
 
-impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffectHandler {
+impl<Transport> EffectHandler<SubscribeEffectInvocation, SubscribeEffect>
+    for SubscribeEffectHandler<Transport>
+{
     fn create(&self, invocation: &SubscribeEffectInvocation) -> Option<SubscribeEffect> {
         match invocation {
             SubscribeEffectInvocation::Handshake {
@@ -54,7 +93,9 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             } => Some(SubscribeEffect::Handshake {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
-                executor: self.handshake,
+                executor: Box::new(|channels, groups, retry, reason| {
+                    (self.handshake)(self.client.clone(), channels, channel_groups, retry, reason)
+                }),
             }),
             SubscribeEffectInvocation::HandshakeReconnect {
                 channels,
@@ -66,7 +107,15 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channel_groups: channel_groups.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
-                executor: self.handshake,
+                executor: Box::new(|channels, groups, retry, reason| {
+                    let s = (self.handshake)(
+                        self.client.clone(),
+                        channels,
+                        channel_groups,
+                        retry,
+                        reason,
+                    );
+                }),
             }),
             SubscribeEffectInvocation::Receive {
                 channels,
@@ -76,7 +125,16 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
                 cursor: cursor.clone(),
-                executor: self.receive,
+                executor: Box::new(|channels, groups, cursor, retry, reason| {
+                    (self.receive)(
+                        self.client.clone(),
+                        channels,
+                        channel_groups,
+                        cursor,
+                        retry,
+                        reason,
+                    )
+                }),
             }),
             SubscribeEffectInvocation::ReceiveReconnect {
                 channels,
@@ -90,7 +148,16 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 cursor: cursor.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
-                executor: self.receive,
+                executor: Box::new(|channels, groups, cursor, retry, reason| {
+                    (self.receive)(
+                        self.client.clone(),
+                        channels,
+                        channel_groups,
+                        cursor,
+                        retry,
+                        reason,
+                    )
+                }),
             }),
             SubscribeEffectInvocation::EmitStatus(status) => {
                 // TODO: Provide emit status effect

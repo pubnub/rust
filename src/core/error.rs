@@ -140,3 +140,6 @@ impl PubNubError {
         }
     }
 }
+
+unsafe impl Sync for PubNubError {}
+unsafe impl Send for PubNubError {}

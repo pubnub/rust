@@ -1,18 +1,27 @@
-use crate::lib::alloc::{string::String, vec, vec::Vec};
 use crate::{
     core::PubNubError,
-    dx::subscribe::event_engine::{effect_handler::HandshakeFunction, SubscribeEvent},
+    dx::subscribe::event_engine::{effects::HandshakeEffectExecutor, SubscribeEvent},
+    lib::alloc::{string::String, vec, vec::Vec},
 };
+use log::info;
 
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     attempt: u8,
     reason: PubNubError,
-    executor: HandshakeFunction,
+    executor: &HandshakeEffectExecutor,
 ) -> Option<Vec<SubscribeEvent>> {
+    info!(
+        "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
+        channels.as_ref().unwrap_or(&Vec::new()),
+        channel_groups.as_ref().unwrap_or(&Vec::new()),
+    );
+
+    let result: Result<Vec<SubscribeEvent>, PubNubError> =
+        executor(channels, channel_groups, attempt, Some(reason));
     Some(
-        executor(channels, channel_groups, attempt, Some(reason))
+        result
             .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeReconnectFailure { reason: err }]),
     )
 }

@@ -4,10 +4,11 @@
 //! The [`SubscribeResult`] type is used to represent results of subscribe
 //! operation.
 
+use crate::dx::subscribe::types::Message;
 use crate::{
-    core::{deserialize::Deserialize, APIErrorBody, AnyValue, PubNubError, ScalarValue},
+    core::{APIErrorBody, PubNubError, ScalarValue},
     dx::subscribe::{
-        File, Message, MessageAction, Object, Presence, {SubscribeCursor, SubscribeMessageType},
+        File, MessageAction, Object, Presence, {SubscribeCursor, SubscribeMessageType},
     },
     lib::{
         alloc::{
@@ -23,7 +24,7 @@ use crate::{
 /// The result of a subscribe operation.
 /// It contains next subscription cursor and list of real-time updates.
 #[derive(Debug)]
-pub struct SubscribeResult<Data> {
+pub struct SubscribeResult {
     /// Time cursor for subscription loop.
     ///
     /// Next time cursor which can be used to fetch newer updates or
@@ -41,15 +42,15 @@ pub struct SubscribeResult<Data> {
     /// * `file` – file sharing updates
     ///
     /// [`PubNub`]:https://www.pubnub.com/
-    pub messages: Vec<Update<Data>>,
+    pub messages: Vec<Update>,
 }
 
 /// Real-time update object.
 ///
 /// Each object represent specific real-time event and provide sufficient
 /// information about it.
-#[derive(Debug)]
-pub enum Update<D> {
+#[derive(Debug, Clone)]
+pub enum Update {
     /// Presence change real-time update.
     ///
     /// Payload represents one of the presence types:
@@ -70,10 +71,10 @@ pub enum Update<D> {
     File(File),
 
     /// Real-time message update.
-    Message(Message<D>),
+    Message(Message),
 
     /// Real-time signal update.
-    Signal(Message<D>),
+    Signal(Message),
 }
 
 /// [`PubNub API`] raw response for subscribe request.
@@ -81,10 +82,7 @@ pub enum Update<D> {
 ///
 /// [`PubNub API`]: https://www.pubnub.com/docs
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
-pub enum SubscribeResponseBody<D>
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+pub enum SubscribeResponseBody {
     /// This is success response body for subscribe operation in the Subscriber
     /// service.
     /// It contains information about next time cursor and list of updates which
@@ -145,7 +143,7 @@ where
     ///     ]
     /// }
     /// ```
-    SuccessResponse(APISuccessBody<D>),
+    SuccessResponse(APISuccessBody),
 
     /// This is an error response body for a subscribe operation in the
     /// Subscribe service.
@@ -178,10 +176,7 @@ where
 /// updates.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-pub struct APISuccessBody<D>
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+pub struct APISuccessBody {
     /// Next subscription cursor.
     ///
     /// The cursor contains information about the start of the next real-time
@@ -194,17 +189,14 @@ where
     /// Contains list of real-time updates received using previous subscription
     /// cursor.
     #[cfg_attr(feature = "serde", serde(rename = "m"))]
-    messages: Vec<Envelope<D>>,
+    messages: Vec<Envelope>,
 }
 
 /// Single entry from subscribe response
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[allow(dead_code)]
-pub(in crate::dx::subscribe) struct Envelope<D>
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+pub(in crate::dx::subscribe) struct Envelope {
     /// Shard number on which the event has been stored.
     #[cfg_attr(feature = "serde", serde(rename = "a"))]
     pub shard: String,
@@ -217,7 +209,7 @@ where
     #[cfg_attr(
         feature = "serde",
         serde(rename = "f"),
-        serde(default = "Envelope::<D>::default_message_type")
+        serde(default = "Envelope::default_message_type")
     )]
     pub message_type: SubscribeMessageType,
 
@@ -250,7 +242,7 @@ where
     ///
     /// Depending from
     #[cfg_attr(feature = "serde", serde(rename = "d"))]
-    pub payload: EnvelopePayload<D>,
+    pub payload: EnvelopePayload,
 
     /// Actual name of subscription through which event has been delivered.
     ///
@@ -281,7 +273,7 @@ where
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
 #[allow(dead_code)]
-pub(in crate::dx::subscribe) enum EnvelopePayload<D> {
+pub(in crate::dx::subscribe) enum EnvelopePayload {
     /// Presence change real-time update.
     ///
     /// Payload represents one of the presence types:
@@ -345,6 +337,10 @@ pub(in crate::dx::subscribe) enum EnvelopePayload<D> {
         /// Version of service which generated update for object.
         version: String,
     },
+
+    /// Real-time message update.
+    Message(Vec<u8>),
+
     MessageAction {
         /// The type of event that happened during the message action update.
         ///
@@ -370,17 +366,6 @@ pub(in crate::dx::subscribe) enum EnvelopePayload<D> {
         /// Information about uploaded file.
         file: FileDataBody,
     },
-
-    /// Custom user-provided type.
-    ///
-    /// This type (preferable `enum`) used to match against received real-time
-    /// update and deserialize as user-type if match.
-    Custom(D),
-
-    /// General payload type.
-    ///
-    /// [`AnyValue`] type covers basic data types including nested collections.
-    General(AnyValue),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -506,13 +491,10 @@ pub(in crate::dx::subscribe) struct FileDataBody {
     pub name: String,
 }
 
-impl<Data> TryFrom<SubscribeResponseBody<Data>> for SubscribeResult<Data>
-where
-    Data: for<'response> Deserialize<'response, Data>,
-{
+impl TryFrom<SubscribeResponseBody> for SubscribeResult {
     type Error = PubNubError;
 
-    fn try_from(value: SubscribeResponseBody<Data>) -> Result<Self, Self::Error> {
+    fn try_from(value: SubscribeResponseBody) -> Result<Self, Self::Error> {
         match value {
             SubscribeResponseBody::SuccessResponse(resp) => {
                 let mut messages = Vec::new();
@@ -530,10 +512,10 @@ where
     }
 }
 
-impl<D> Envelope<D>
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+unsafe impl Sync for SubscribeResult {}
+unsafe impl Send for SubscribeResult {}
+
+impl Envelope {
     /// Default message type.
     #[allow(dead_code)]
     fn default_message_type() -> SubscribeMessageType {
@@ -541,13 +523,25 @@ where
     }
 }
 
-impl<D> TryFrom<Envelope<D>> for Update<D>
-where
-    D: for<'response> Deserialize<'response, D>,
-{
+impl Update {
+    /// Name of channel.
+    ///
+    /// Name of channel at which update has been received.
+    pub(crate) fn channel(&self) -> &String {
+        match self {
+            Update::Presence(presence) => presence.channel(),
+            Update::Object(object) => object.channel(),
+            Update::MessageAction(action) => &action.channel,
+            Update::File(file) => &file.channel,
+            Update::Message(message) | Update::Signal(message) => &message.channel,
+        }
+    }
+}
+
+impl TryFrom<Envelope> for Update {
     type Error = PubNubError;
 
-    fn try_from(value: Envelope<D>) -> Result<Self, Self::Error> {
+    fn try_from(value: Envelope) -> Result<Self, Self::Error> {
         match value.payload {
             EnvelopePayload::Presence { .. } => Ok(Update::Presence(value.try_into()?)),
             EnvelopePayload::Object { .. }
@@ -565,11 +559,11 @@ where
             {
                 Ok(Update::File(value.try_into()?))
             }
-            EnvelopePayload::General(_) | EnvelopePayload::Custom(_) => {
+            EnvelopePayload::Custom(data) => {
                 if matches!(value.message_type, SubscribeMessageType::Message) {
-                    Ok(Update::Message(value.try_into()?))
+                    Ok(Update::Message(data))
                 } else {
-                    Ok(Update::Signal(value.try_into()?))
+                    Ok(Update::Signal(data))
                 }
             }
             _ => Err(PubNubError::Deserialization {

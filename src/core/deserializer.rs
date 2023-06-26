@@ -42,7 +42,7 @@ use super::PubNubError;
 /// [`PublishResponseBody`]: ../../dx/publish/result/enum.PublishResponseBody.html
 /// [`GrantTokenResponseBody`]: ../../dx/access/result/enum.GrantTokenResponseBody.html
 /// [`RevokeTokenResponseBody`]: ../../dx/access/result/enum.RevokeTokenResponseBody.html
-pub trait Deserializer<'de, T> {
+pub trait Deserializer<'de, T>: Send + Sync {
     /// Deserialize a `&[u8]` into a `Result<T, PubNubError>`.
     ///
     /// # Errors

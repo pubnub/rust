@@ -45,11 +45,14 @@ where
     }
 }
 
-impl<'de, D> crate::core::Deserialize<'de, D> for D
+impl<'de, D> crate::core::Deserialize<'de> for D
 where
+    D: Send + Sync,
     D: serde::Deserialize<'de>,
 {
-    fn deserialize(bytes: &'de [u8]) -> Result<D, PubNubError> {
+    type Type = D;
+
+    fn deserialize(bytes: &'de [u8]) -> Result<Self::Type, PubNubError> {
         serde_json::from_slice(bytes).map_err(|e| PubNubError::Deserialization {
             details: e.to_string(),
         })

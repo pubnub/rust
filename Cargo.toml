@@ -71,8 +71,9 @@ subscribe = ["event_engine"]
 
 [dependencies]
 async-trait = "0.1"
+futures = "0.3.28"
 log = "0.4"
-hashbrown = "0.13"
+hashbrown = "0.14.0"
 spin = "0.9"
 phantom-type = { version = "0.4.2", default-features = false }
 percent-encoding = { version = "2.1", default-features = false }
@@ -115,7 +116,6 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 wiremock = "0.5"
 env_logger = "0.10"
 cucumber = { version = "0.19", features = ["output-junit"] }
-futures = "0.3"
 reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
 hashbrown = { version = "0.13", features = ["serde"] }

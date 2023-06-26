@@ -17,10 +17,10 @@ use crate::core::PubNubError;
 /// implementations for [`Into<Vec<u8>>`].
 ///
 /// [`deserialize`]: #tymethod.deserialize
-pub trait Deserialize<'de, T>
-where
-    T: Deserialize<'de, T>,
-{
+pub trait Deserialize<'de>: Send + Sync {
+    /// Type to which binary data should be mapped.
+    type Type;
+
     /// Deserialize the value
-    fn deserialize(bytes: &'de [u8]) -> Result<T, PubNubError>;
+    fn deserialize(bytes: &'de [u8]) -> Result<Self::Type, PubNubError>;
 }

@@ -8,8 +8,10 @@ pub use subscribe::SubscribeRequestWithDeserializerBuilder;
 
 #[doc(inline)]
 pub use subscribe::{SubscribeRequest, SubscribeRequestBuilder};
-
 pub mod subscribe;
+
+pub use subscription::{SubscriptionBuilder, SubscriptionBuilderError};
+pub mod subscription;
 
 /// Validate [`PubNubClientInstance`] configuration.
 ///
