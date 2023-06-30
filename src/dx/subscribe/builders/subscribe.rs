@@ -184,7 +184,7 @@ where
 
 impl<T, D> SubscribeRequestBuilder<T, D>
 where
-    T: Transport,
+    T: Transport + Send + Sync,
     D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     pub async fn exec_second(self) -> Result<(), String> {
@@ -219,27 +219,6 @@ where
             )
         // TODO: Handle decryption (when provider will be exposed).
     }
-}
-
-unsafe impl<T, D> Sync for SubscribeRequestBuilder<T, D>
-where
-    T: Transport,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
-{
-}
-
-unsafe impl<T, D> Send for SubscribeRequestBuilder<T, D>
-where
-    T: Transport,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
-{
-}
-
-impl<T, D> Unpin for SubscribeRequestBuilder<T, D>
-where
-    T: Transport,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
-{
 }
 
 #[cfg(not(feature = "serde"))]

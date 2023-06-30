@@ -38,7 +38,10 @@ pub use builders::*;
 
 pub mod builders;
 
-impl<Transport> PubNubClientInstance<Transport> {
+impl<Transport> PubNubClientInstance<Transport>
+where
+    Transport: Send + Sync,
+{
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
     /// passed list of channels and groups.
@@ -124,7 +127,7 @@ impl<Transport> PubNubClientInstance<Transport> {
         cursor: &SubscribeCursor,
         attempt: u8,
         reason: Option<PubNubError>,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
+    ) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
         let mut request = client.subscribe_request().cursor(cursor.clone());
 
@@ -137,7 +140,8 @@ impl<Transport> PubNubClientInstance<Transport> {
         }
 
         // BoxFuture::new(request.build())
-        Box::pin(request.exec_second())
+        // Box::pin(request.exec_second())
+        request.exec_second()
     }
 
     #[allow(dead_code)]

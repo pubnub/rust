@@ -379,7 +379,7 @@ pub struct MessageAction {
 ///
 /// [`File`] type provides to the updates listener information about shared
 /// files.
-#[derive(Debug. Clone)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct File {
     /// Identifier of client which sent shared file.

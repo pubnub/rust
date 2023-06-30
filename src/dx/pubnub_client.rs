@@ -311,7 +311,7 @@ impl<T> PubNubClientInstance<T> {
     #[cfg(feature = "blocking")]
     pub fn with_blocking_transport(transport: T) -> PubNubClientBuilder<T>
     where
-        T: crate::core::blocking::Transport,
+        T: crate::core::blocking::Transport + Send + Sync,
     {
         PubNubClientBuilder {
             transport: Some(transport),
@@ -589,7 +589,7 @@ impl<T> PubNubClientBuilder<T> {
     #[cfg(feature = "blocking")]
     pub fn with_blocking_transport(transport: T) -> PubNubClientBuilder<T>
     where
-        T: crate::core::blocking::Transport,
+        T: crate::core::blocking::Transport + Send + Sync,
     {
         PubNubClientBuilder {
             transport: Some(transport),

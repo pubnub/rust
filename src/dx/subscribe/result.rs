@@ -512,9 +512,6 @@ impl TryFrom<SubscribeResponseBody> for SubscribeResult {
     }
 }
 
-unsafe impl Sync for SubscribeResult {}
-unsafe impl Send for SubscribeResult {}
-
 impl Envelope {
     /// Default message type.
     #[allow(dead_code)]

@@ -20,20 +20,24 @@ mod receive_reconnection;
 
 pub(in crate::dx::subscribe) type HandshakeEffectExecutor = Box<
     dyn Fn(
-        &Option<Vec<String>>,
-        &Option<Vec<String>>,
-        u8,
-        Option<PubNubError>,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>,
+            &Option<Vec<String>>,
+            &Option<Vec<String>>,
+            u8,
+            Option<PubNubError>,
+        ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
+        + Send
+        + Sync,
 >;
 pub(in crate::dx::subscribe) type ReceiveEffectExecutor = Box<
     dyn Fn(
-        &Option<Vec<String>>,
-        &Option<Vec<String>>,
-        &SubscribeCursor,
-        u8,
-        Option<PubNubError>,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>,
+            &Option<Vec<String>>,
+            &Option<Vec<String>>,
+            &SubscribeCursor,
+            u8,
+            Option<PubNubError>,
+        ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
+        + Send
+        + Sync,
 >;
 
 /// Subscription state machine effects.
