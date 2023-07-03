@@ -1,4 +1,5 @@
 use crate::dx::subscribe::event_engine::SubscribeEvent;
+use crate::dx::subscribe::result::Update;
 use crate::{
     core::{event_engine::EffectInvocation, PubNubError},
     dx::subscribe::{event_engine::SubscribeEffect, SubscribeCursor, SubscribeStatus},
@@ -118,7 +119,7 @@ pub(crate) enum SubscribeEffectInvocation {
     EmitStatus(SubscribeStatus),
 
     /// Received updates notification effect invocation.
-    EmitMessages(Vec<String>),
+    EmitMessages(Vec<Update>),
 }
 
 impl EffectInvocation for SubscribeEffectInvocation {

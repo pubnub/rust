@@ -1,44 +1,44 @@
-use crate::dx::subscribe::result::{SubscribeResult, Update};
 use crate::{
     core::{event_engine::Effect, PubNubError},
     dx::subscribe::{
         event_engine::{SubscribeEffectInvocation, SubscribeEvent},
+        result::{SubscribeResult, Update},
         SubscribeCursor, SubscribeStatus,
     },
     lib::{
-        alloc::{string::String, vec::Vec},
+        alloc::{boxed::Box, string::String, sync::Arc, vec::Vec},
         core::fmt::Debug,
     },
 };
 use futures::future::BoxFuture;
 use std::fmt::Formatter;
+use std::future::Future;
 
 mod handshake;
 mod handshake_reconnection;
 mod receive;
 mod receive_reconnection;
 
-pub(in crate::dx::subscribe) type HandshakeEffectExecutor = Box<
-    dyn Fn(
-            &Option<Vec<String>>,
-            &Option<Vec<String>>,
-            u8,
-            Option<PubNubError>,
-        ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
-        + Send
-        + Sync,
->;
-pub(in crate::dx::subscribe) type ReceiveEffectExecutor = Box<
-    dyn Fn(
-            &Option<Vec<String>>,
-            &Option<Vec<String>>,
-            &SubscribeCursor,
-            u8,
-            Option<PubNubError>,
-        ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
-        + Send
-        + Sync,
->;
+pub(in crate::dx::subscribe) type HandshakeEffectExecutor = dyn Fn(
+        &Option<Vec<String>>,
+        &Option<Vec<String>>,
+        u8,
+        Option<PubNubError>,
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
+    + Send
+    + Sync;
+pub(in crate::dx::subscribe) type ReceiveEffectExecutor = dyn Fn(
+        &Option<Vec<String>>,
+        &Option<Vec<String>>,
+        &SubscribeCursor,
+        u8,
+        Option<PubNubError>,
+    ) -> Box<dyn Future<Output = Result<SubscribeResult, PubNubError>>>
+    + Send
+    + Sync;
+
+pub(in crate::dx::subscribe) type EmitStatusEffectExecutor = dyn Fn() + Send + Sync;
+pub(in crate::dx::subscribe) type EmitMessagesEffectExecutor = dyn Fn() + Send + Sync;
 
 /// Subscription state machine effects.
 #[allow(dead_code)]
@@ -60,7 +60,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
-        executor: HandshakeEffectExecutor,
+        executor: Arc<Box<HandshakeEffectExecutor>>,
     },
 
     /// Retry initial subscribe effect invocation.
@@ -88,7 +88,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
-        executor: HandshakeEffectExecutor,
+        executor: Arc<Box<HandshakeEffectExecutor>>,
     },
 
     /// Receive updates effect invocation.
@@ -113,7 +113,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute receive updates.
-        executor: ReceiveEffectExecutor,
+        executor: Arc<Box<ReceiveEffectExecutor>>,
     },
 
     /// Retry receive updates effect invocation.
@@ -147,7 +147,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute receive updates.
-        executor: ReceiveEffectExecutor,
+        executor: Arc<Box<ReceiveEffectExecutor>>,
     },
 
     /// Status change notification effect invocation.

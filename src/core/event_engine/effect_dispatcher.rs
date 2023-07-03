@@ -1,6 +1,6 @@
 use crate::{
     core::event_engine::{Effect, EffectHandler, EffectInvocation},
-    lib::alloc::{rc::Rc, vec, vec::Vec},
+    lib::alloc::{sync::Arc, vec, vec::Vec},
 };
 use phantom_type::PhantomType;
 use spin::rwlock::RwLock;
@@ -25,7 +25,7 @@ where
     /// State machines may have some effects that are exclusive and can only run
     /// one type of them at once. The dispatcher handles such effects
     /// and cancels them when required.
-    managed: RwLock<Vec<Rc<EF>>>,
+    managed: RwLock<Vec<Arc<EF>>>,
 
     _invocation: PhantomType<EI>,
 }
@@ -51,7 +51,7 @@ where
         F: FnMut(Option<Vec<EI::Event>>),
     {
         if let Some(effect) = self.handler.create(invocation) {
-            let effect = Rc::new(effect);
+            let effect = Arc::new(effect);
 
             if invocation.managed() {
                 let mut managed = self.managed.write();

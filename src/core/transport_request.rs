@@ -7,13 +7,11 @@
 //!
 //! [`pubnub`]: ../index.html
 
-use crate::core::{PubNubError, TransportResponse};
 use crate::lib::{
     alloc::{string::String, vec::Vec},
     collections::HashMap,
     core::fmt::{Display, Formatter, Result},
 };
-use std::future::Future;
 
 /// The method to use for a request.
 ///

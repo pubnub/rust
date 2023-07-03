@@ -3,9 +3,10 @@
 //! Allows subscribe to real-time updates from channels and groups.
 
 pub(crate) mod event_engine;
-
 use event_engine::{SubscribeEffectHandler, SubscribeState};
+
 use futures::future::BoxFuture;
+use futures::FutureExt;
 use spin::rwlock::RwLock;
 use std::future::Future;
 
@@ -31,6 +32,8 @@ use crate::{
 
 pub(crate) mod subscription_manager;
 
+use crate::core::Transport;
+use crate::dx::subscribe::event_engine::SubscribeEventEngine;
 use crate::dx::subscribe::result::Update;
 use crate::dx::subscribe::subscription_manager::SubscriptionManager;
 #[doc(inline)]
@@ -38,18 +41,26 @@ pub use builders::*;
 
 pub mod builders;
 
-impl<Transport> PubNubClientInstance<Transport>
+impl<T> PubNubClientInstance<T>
 where
-    Transport: Send + Sync,
+    T: Transport,
 {
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
     /// passed list of channels and groups.
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub fn subscribe(&self) -> SubscriptionBuilder<Transport> {
+    pub fn subscribe(&mut self) -> SubscriptionBuilder {
+        {
+            // Initialize manager when it will be first required.
+            let mut manager_slot = self.subscription_manager.write();
+            if manager_slot.is_none() {
+                *manager_slot = Some(self.clone().subscription_manager());
+            }
+        }
+
         SubscriptionBuilder {
-            pubnub_client: Some(self.clone()),
+            subscription_manager: Some(self.subscription_manager.clone()),
             ..Default::default()
         }
     }
@@ -60,9 +71,7 @@ where
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
     #[cfg(feature = "serde")]
-    pub(crate) fn subscribe_request(
-        &self,
-    ) -> SubscribeRequestBuilder<Transport, SerdeDeserializer> {
+    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T, SerdeDeserializer> {
         SubscribeRequestBuilder {
             pubnub_client: Some(self.clone()),
             deserializer: Some(SerdeDeserializer),
@@ -76,40 +85,48 @@ where
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
     #[cfg(not(feature = "serde"))]
-    pub fn subscribe(&self) -> SubscribeRequestWithDeserializerBuilder<Transport> {
+    pub fn subscribe(&self) -> SubscribeRequestWithDeserializerBuilder<T> {
         SubscribeRequestWithDeserializerBuilder {
             pubnub_client: self.clone(),
         }
     }
 
-    #[cfg(feature = "subscribe")]
-    pub(crate) fn setup_event_engines(&mut self) {
+    pub(crate) fn subscription_manager(&mut self) -> SubscriptionManager {
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
-                self.clone(),
-                Self::handshake,
-                Self::receive,
-                Self::emit_status,
-                Self::emit_messages,
+                Arc::new(Box::new(|channels, channel_groups, attempt, reason| {
+                    self.handshake(channels, channel_groups, attempt, reason)
+                        .boxed()
+                })),
+                Arc::new(Box::new(
+                    |channels, channel_groups, cursor, attempt, reason| {
+                        Box::new(self.receive(channels, channel_groups, cursor, attempt, reason))
+                    },
+                )),
+                Arc::new(Box::new(|| {
+                    // Do nothing yet
+                })),
+                Arc::new(Box::new(|| {
+                    // Do nothing yet
+                })),
             ),
             SubscribeState::Unsubscribed,
         );
 
-        self.subscription_manager = Some(Arc::new(RwLock::new(SubscriptionManager::new(engine))));
+        // self.subscription_manager = Some(Arc::new(RwLock::new(SubscriptionManager::new(engine))));
+        SubscriptionManager::new(engine)
     }
 
-    #[cfg(feature = "serde")]
     #[allow(dead_code)]
-    fn handshake(
-        client: PubNubClientInstance<Transport>,
+    pub(crate) fn handshake(
+        &self,
         channels: &Option<Vec<String>>,
         channel_groups: &Option<Vec<String>>,
         attempt: u8,
         reason: Option<PubNubError>,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
+    ) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
-        Self::receive(
-            client,
+        self.receive(
             channels,
             channel_groups,
             &SubscribeCursor::default(),
@@ -118,18 +135,17 @@ where
         )
     }
 
-    #[cfg(feature = "serde")]
     #[allow(dead_code)]
-    fn receive(
-        client: PubNubClientInstance<Transport>,
+    pub(crate) fn receive<'client>(
+        &self,
         channels: &Option<Vec<String>>,
         channel_groups: &Option<Vec<String>>,
         cursor: &SubscribeCursor,
         attempt: u8,
         reason: Option<PubNubError>,
-    ) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
+    ) -> BoxFuture<'client, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
-        let mut request = client.subscribe_request().cursor(cursor.clone());
+        let mut request = self.subscribe_request().cursor(cursor.clone());
 
         if let Some(channels) = channels.clone() {
             request = request.channels(channels);
@@ -139,23 +155,23 @@ where
             request = request.channel_groups(channel_groups);
         }
 
-        // BoxFuture::new(request.build())
-        // Box::pin(request.exec_second())
-        request.exec_second()
+        request.execute().boxed()
     }
 
     #[allow(dead_code)]
-    fn emit_status(client: PubNubClientInstance<Transport>, status: &SubscribeStatus) {
-        client
-            .subscription_manager
-            .map(|manager| manager.read().notify_new_status(status));
+    fn emit_status(&self, status: &SubscribeStatus) {
+        self.subscription_manager
+            .read()
+            .as_ref()
+            .map(|manager| manager.notify_new_status(status));
     }
 
     #[allow(dead_code)]
-    fn emit_messages(client: PubNubClientInstance<Transport>, messages: Vec<Update>) {
-        client
-            .subscription_manager
-            .map(|manager| manager.read().notify_new_messages(messages));
+    fn emit_messages(&self, messages: Vec<Update>) {
+        self.subscription_manager
+            .read()
+            .as_ref()
+            .map(|manager| manager.notify_new_messages(messages));
     }
 
     // #[cfg(feature = "serde")]
@@ -206,6 +222,9 @@ where
     //     // .execute();
     // }
 }
+
+#[cfg(feature = "blocking")]
+impl<T> PubNubClientInstance<T> where T: crate::core::blocking::Transport {}
 
 #[cfg(test)]
 mod should {

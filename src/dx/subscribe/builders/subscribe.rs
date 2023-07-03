@@ -6,7 +6,7 @@
 use crate::{
     core::{
         utils::encoding::join_url_encoded,
-        Deserialize, Deserializer, PubNubError, Transport, {TransportMethod, TransportRequest},
+        Deserializer, PubNubError, Transport, {TransportMethod, TransportRequest},
     },
     dx::{
         pubnub_client::PubNubClientInstance,
@@ -26,6 +26,9 @@ use crate::{
     },
 };
 use derive_builder::Builder;
+use futures::future::BoxFuture;
+use futures::FutureExt;
+use std::future::Future;
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -44,7 +47,8 @@ use derive_builder::Builder;
 #[allow(dead_code, missing_docs)]
 pub struct SubscribeRequest<T, D>
 where
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
+    T: Transport + Send,
+    D: for<'ds> Deserializer<'ds, SubscribeResponseBody> + Send,
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
@@ -117,6 +121,7 @@ pub struct SubscribeRequestWithDeserializerBuilder<T> {
 
 impl<T, D> SubscribeRequest<T, D>
 where
+    T: Transport,
     D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Create transport request from the request builder.
@@ -162,6 +167,7 @@ where
 
 impl<T, D> SubscribeRequestBuilder<T, D>
 where
+    T: Transport,
     D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Validate user-provided data for request builder.
@@ -184,7 +190,7 @@ where
 
 impl<T, D> SubscribeRequestBuilder<T, D>
 where
-    T: Transport + Send + Sync,
+    T: Transport,
     D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     pub async fn exec_second(self) -> Result<(), String> {
@@ -192,31 +198,33 @@ where
     }
 
     /// Build and call request.
-    pub async fn execute(self) -> Result<SubscribeResult, PubNubError> {
-        // Build request instance and report errors if any.
-        let request = self
-            .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+    pub fn execute(self) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
+        async move {
+            // Build request instance and report errors if any.
+            let request = self
+                .build()
+                .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
 
-        let transport_request = request.transport_request();
-        let client = request.pubnub_client.clone();
-        let deserializer = request.deserializer;
+            let transport_request = request.transport_request();
+            let client = request.pubnub_client.clone();
+            let deserializer = request.deserializer;
 
-        client
-            .transport
-            .send(transport_request)
-            .await?
-            .body
-            .map(|bytes| deserializer.deserialize(&bytes))
-            .map_or(
-                Err(PubNubError::general_api_error(
-                    "No body in the response!",
-                    None,
-                )),
-                |response_body| {
-                    response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
-                },
-            )
+            client
+                .transport
+                .send(transport_request)
+                .await?
+                .body
+                .map(|bytes| deserializer.deserialize(&bytes))
+                .map_or(
+                    Err(PubNubError::general_api_error(
+                        "No body in the response!",
+                        None,
+                    )),
+                    |response_body| {
+                        response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
+                    },
+                )
+        }
         // TODO: Handle decryption (when provider will be exposed).
     }
 }

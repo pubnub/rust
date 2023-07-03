@@ -194,7 +194,6 @@ pub type PubNubClient = PubNubGenericClient<crate::transport::TransportReqwest>;
 ///
 /// This struct contains the actual client state.
 /// It shouldn't be used directly. Use [`PubNubGenericClient`] or [`PubNubClient`] instead.
-#[derive(Debug)]
 pub struct PubNubClientInstance<T> {
     pub(crate) inner: Arc<PubNubClientRef<T>>,
 }
@@ -228,7 +227,7 @@ impl<T> Clone for PubNubClientInstance<T> {
 /// It's wrapped in `Arc` by [`PubNubClient`] and uses interior mutability for its internal state.
 ///
 /// Not intended to be used directly. Use [`PubNubClient`] instead.
-#[derive(Debug, Builder)]
+#[derive(Builder)]
 #[builder(
     pattern = "owned",
     name = "PubNubClientConfigBuilder",
@@ -264,10 +263,14 @@ pub struct PubNubClientRef<T> {
 
     #[cfg_attr(
         feature = "subscribe",
-        builder(setter(custom), field(vis = "pub(crate)"), default = "None")
+        builder(
+            setter(custom),
+            field(vis = "pub(crate)"),
+            default = "Arc::new(RwLock::new(None))"
+        )
     )]
     #[cfg(feature = "subscribe")]
-    pub(crate) subscription_manager: Option<Arc<RwLock<SubscriptionManager<T>>>>,
+    pub(crate) subscription_manager: Arc<RwLock<Option<SubscriptionManager>>>,
 }
 
 impl<T> PubNubClientInstance<T> {
@@ -377,12 +380,6 @@ impl<T> PubNubClientInstance<T> {
         let token = self.auth_token.read().deref().clone();
         token.is_empty().then_some(token)
     }
-
-    #[cfg(not(feature = "subscribe"))]
-    pub(crate) fn setup_event_engines(&mut self) {
-        // This is placeholder which can be removed when attributes on
-        // expressions won't be experimental.
-    }
 }
 
 impl<T> PubNubClientConfigBuilder<T> {
@@ -420,21 +417,17 @@ impl<T> PubNubClientConfigBuilder<T> {
                         transport: pre_build.transport,
                         auth_token: token.clone(),
                     },
-                    subscription_manager: None,
+                    subscription_manager: Arc::new(RwLock::new(None)),
                     instance_id: pre_build.instance_id,
                     next_seqn: pre_build.next_seqn,
                     auth_token: token,
                     config: pre_build.config,
                 })
             })
-            .map(|mut client| {
-                let mut instance = PubNubClientInstance {
+            .map(|client| {
+                PubNubClientInstance {
                     inner: Arc::new(client),
-                };
-
-                // Setup event engines if "subscribe" feature enabled.
-                instance.setup_event_engines();
-                instance
+                }
             })
     }
 }

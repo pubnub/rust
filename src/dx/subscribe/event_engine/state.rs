@@ -1,3 +1,4 @@
+use crate::dx::subscribe::result::Update;
 use crate::{
     core::{
         event_engine::{State, Transition},
@@ -387,7 +388,7 @@ impl SubscribeState {
     fn receive_success_transition(
         &self,
         cursor: &SubscribeCursor,
-        messages: &[String],
+        messages: &[Update],
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
             Self::Receiving {

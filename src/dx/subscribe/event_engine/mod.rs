@@ -6,7 +6,7 @@ pub(crate) mod effects;
 
 #[doc(inline)]
 #[allow(unused_imports)]
-pub(crate) use effect_handler::{HandshakeFunction, ReceiveFunction, SubscribeEffectHandler};
+pub(crate) use effect_handler::SubscribeEffectHandler;
 pub(crate) mod effect_handler;
 
 #[doc(inline)]
@@ -23,20 +23,11 @@ pub(crate) use state::SubscribeState;
 pub(crate) mod state;
 
 use crate::core::event_engine::EventEngine;
-pub(crate) type SubscribeEventEngine<Transport> = EventEngine<
-    SubscribeState,
-    SubscribeEffectHandler<Transport>,
-    SubscribeEffect,
-    SubscribeEffectInvocation,
->;
+pub(crate) type SubscribeEventEngine =
+    EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>;
 
-impl<Transport>
-    EventEngine<
-        SubscribeState,
-        SubscribeEffectHandler<Transport>,
-        SubscribeEffect,
-        SubscribeEffectInvocation,
-    >
+impl
+    EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>
 {
     pub(in crate::dx::subscribe) fn current_subscription(
         &self,

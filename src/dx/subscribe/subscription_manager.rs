@@ -2,16 +2,14 @@
 //!
 //! This module contains manager which is responsible for tracking and updating
 //! active subscription streams.
-use crate::dx::subscribe::event_engine::SubscribeEventEngine;
-use crate::dx::subscribe::result::Update;
-use crate::dx::subscribe::types::SubscribeStreamEvent;
-use crate::dx::subscribe::SubscribeStatus;
 use crate::{
-    dx::subscribe::subscription::Subscription,
+    dx::subscribe::{
+        event_engine::SubscribeEventEngine, result::Update, subscription::Subscription,
+        types::SubscribeStreamEvent, SubscribeStatus,
+    },
     lib::alloc::{sync::Arc, vec::Vec},
 };
 use spin::RwLock;
-use std::sync::mpsc::{channel, Sender};
 
 /// Active subscriptions manager.
 ///
@@ -21,21 +19,20 @@ use std::sync::mpsc::{channel, Sender};
 ///
 /// [`subscription`]: crate::Subscription
 /// [`PubNubClient`]: crate::PubNubClient
-#[derive(Debug)]
-pub(crate) struct SubscriptionManager<Transport> {
+pub(crate) struct SubscriptionManager {
     /// Subscription event engine.
     ///
     /// State machine which is responsible for subscription loop maintenance.
-    subscribe_event_engine: RwLock<SubscribeEventEngine<Transport>>,
+    subscribe_event_engine: RwLock<SubscribeEventEngine>,
 
     /// List of registered subscribers.
     ///
     /// List of subscribers which will receive real-time updates.
-    pub subscribers: RwLock<Vec<Arc<Subscription<Transport>>>>,
+    pub subscribers: RwLock<Vec<Arc<Subscription>>>,
 }
 
-impl<Transport> SubscriptionManager<Transport> {
-    pub fn new(subscribe_event_engine: SubscribeEventEngine<Transport>) -> Self {
+impl SubscriptionManager {
+    pub fn new(subscribe_event_engine: SubscribeEventEngine) -> Self {
         Self {
             subscribe_event_engine: RwLock::new(subscribe_event_engine),
             subscribers: Default::default(),
@@ -52,19 +49,19 @@ impl<Transport> SubscriptionManager<Transport> {
         messages.iter().for_each(|update| {
             let channel = update.channel();
             self.subscribers.read().iter().for_each(|subscription| {
-                if subscription.channels.contains(channel) {
+                if subscription.channels.contains(&channel) {
                     subscription.notify_update(SubscribeStreamEvent::Update(update.clone()));
                 }
             });
         });
     }
 
-    pub fn register(&self, subscription: Arc<Subscription<Transport>>) {
+    pub fn register(&self, subscription: Arc<Subscription>) {
         let mut subscribers_slot = self.subscribers.write();
         subscribers_slot.push(subscription);
     }
 
-    pub fn unregister(&self, subscription: Arc<Subscription<Transport>>) {
+    pub fn unregister(&self, subscription: Arc<Subscription>) {
         let mut subscribers_slot = self.subscribers.write();
         if let Some(position) = subscribers_slot
             .iter()

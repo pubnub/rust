@@ -3,12 +3,13 @@ use crate::dx::subscribe::event_engine::effects::ReceiveEffectExecutor;
 use crate::dx::subscribe::{event_engine::SubscribeEvent, SubscribeCursor};
 use crate::lib::alloc::{string::String, vec, vec::Vec};
 use log::info;
+use std::sync::Arc;
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    executor: &ReceiveEffectExecutor,
+    executor: &Arc<Box<ReceiveEffectExecutor>>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Receive at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
@@ -17,9 +18,10 @@ pub(crate) fn execute(
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
 
-    let result: Result<Vec<SubscribeEvent>, PubNubError> =
-        executor(channels, channel_groups, cursor, 0, None);
-    Some(result.unwrap_or_else(|err| vec![SubscribeEvent::ReceiveFailure { reason: err }]))
+    // let result: Result<Vec<SubscribeEvent>, PubNubError> =
+    //     executor(channels, channel_groups, cursor, 0, None);
+    // Some(result.unwrap_or_else(|err| vec![SubscribeEvent::ReceiveFailure { reason: err }]))
+    None
 }
 
 #[cfg(test)]

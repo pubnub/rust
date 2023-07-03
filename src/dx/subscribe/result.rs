@@ -524,13 +524,13 @@ impl Update {
     /// Name of channel.
     ///
     /// Name of channel at which update has been received.
-    pub(crate) fn channel(&self) -> &String {
+    pub(crate) fn channel(&self) -> String {
         match self {
             Update::Presence(presence) => presence.channel(),
             Update::Object(object) => object.channel(),
-            Update::MessageAction(action) => &action.channel,
-            Update::File(file) => &file.channel,
-            Update::Message(message) | Update::Signal(message) => &message.channel,
+            Update::MessageAction(action) => action.channel.to_string(),
+            Update::File(file) => file.channel.to_string(),
+            Update::Message(message) | Update::Signal(message) => message.channel.to_string(),
         }
     }
 }
@@ -556,11 +556,11 @@ impl TryFrom<Envelope> for Update {
             {
                 Ok(Update::File(value.try_into()?))
             }
-            EnvelopePayload::Custom(data) => {
+            EnvelopePayload::Message(_) => {
                 if matches!(value.message_type, SubscribeMessageType::Message) {
-                    Ok(Update::Message(data))
+                    Ok(Update::Message(value.try_into()?))
                 } else {
-                    Ok(Update::Signal(data))
+                    Ok(Update::Signal(value.try_into()?))
                 }
             }
             _ => Err(PubNubError::Deserialization {

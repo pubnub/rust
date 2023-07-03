@@ -14,3 +14,6 @@ pub mod deserialization_serde;
 
 #[cfg(feature = "aescbc")]
 pub mod crypto_aescbc;
+
+#[cfg(feature = "futures_tokio")]
+pub mod futures_tokio;

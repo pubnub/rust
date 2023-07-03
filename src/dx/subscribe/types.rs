@@ -328,6 +328,9 @@ pub struct Message {
     /// Actual name of subscription through which update has been delivered.
     pub subscription: String,
 
+    /// Data published along with message / signal.
+    pub data: Vec<u8>,
+
     /// User provided message type (set only when [`publish`] called with
     /// `r#type`).
     ///
@@ -488,7 +491,7 @@ impl Presence {
     /// Presence update channel.
     ///
     /// Name of channel at which presence update has been triggered.
-    pub(crate) fn channel(&self) -> &String {
+    pub(crate) fn channel(&self) -> String {
         match self {
             Presence::Join { channel, .. }
             | Presence::Leave { channel, .. }
@@ -497,8 +500,8 @@ impl Presence {
             | Presence::StateChange { channel, .. } => channel
                 .split('-')
                 .last()
-                .map(|name| &name.to_string())
-                .unwrap_or(channel),
+                .map(|name| name.to_string())
+                .unwrap_or(channel.to_string()),
         }
     }
 }
@@ -507,10 +510,10 @@ impl Object {
     /// Object channel name.
     ///
     /// Name of channel (object id) at which object update has been triggered.
-    pub(crate) fn channel(&self) -> &String {
+    pub(crate) fn channel(&self) -> String {
         match self {
-            Object::Channel { id, .. } | Object::Uuid { id, .. } => id,
-            Object::Membership { uuid, .. } => uuid,
+            Object::Channel { id, .. } | Object::Uuid { id, .. } => id.to_string(),
+            Object::Membership { uuid, .. } => uuid.to_string(),
         }
     }
 }
@@ -713,6 +716,7 @@ impl TryFrom<Envelope> for Message {
                 timestamp,
                 channel: value.channel,
                 subscription: value.subscription,
+                data,
                 r#type: value.r#type,
                 space_id: value.space_id,
             })

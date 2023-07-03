@@ -5,6 +5,7 @@ use crate::{
     dx::subscribe::{event_engine::SubscribeEvent, SubscribeCursor},
 };
 use log::info;
+use std::sync::Arc;
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
@@ -12,7 +13,7 @@ pub(crate) fn execute(
     cursor: &SubscribeCursor,
     attempt: u8,
     reason: PubNubError,
-    executor: &ReceiveEffectExecutor,
+    executor: &Arc<Box<ReceiveEffectExecutor>>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
@@ -21,9 +22,10 @@ pub(crate) fn execute(
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
 
-    let result: Result<Vec<SubscribeEvent>, PubNubError> =
-        executor(channels, channel_groups, cursor, attempt, Some(reason));
-    Some(result.unwrap_or_else(|err| vec![SubscribeEvent::ReceiveReconnectFailure { reason: err }]))
+    // let result: Result<Vec<SubscribeEvent>, PubNubError> =
+    //     executor(channels, channel_groups, cursor, attempt, Some(reason));
+    // Some(result.unwrap_or_else(|err| vec![SubscribeEvent::ReceiveReconnectFailure { reason: err }]))
+    None
 }
 
 #[cfg(test)]

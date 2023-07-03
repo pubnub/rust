@@ -1,3 +1,4 @@
+use crate::dx::subscribe::result::Update;
 use crate::{
     core::{event_engine::Event, PubNubError},
     dx::subscribe::SubscribeCursor,
@@ -77,7 +78,7 @@ pub(crate) enum SubscribeEvent {
     /// [`PubNub`]: https://www.pubnub.com/
     ReceiveSuccess {
         cursor: SubscribeCursor,
-        messages: Vec<String>,
+        messages: Vec<Update>,
     },
 
     /// Receive updates completed with error.
@@ -97,7 +98,7 @@ pub(crate) enum SubscribeEvent {
     /// [`PubNub`]: https://www.pubnub.com/
     ReceiveReconnectSuccess {
         cursor: SubscribeCursor,
-        messages: Vec<String>,
+        messages: Vec<Update>,
     },
 
     /// Receive updates reconnect completed with error.

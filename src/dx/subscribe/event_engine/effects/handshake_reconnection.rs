@@ -4,13 +4,14 @@ use crate::{
     lib::alloc::{string::String, vec, vec::Vec},
 };
 use log::info;
+use std::sync::Arc;
 
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     attempt: u8,
     reason: PubNubError,
-    executor: &HandshakeEffectExecutor,
+    executor: &Arc<Box<HandshakeEffectExecutor>>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
@@ -18,12 +19,13 @@ pub(super) fn execute(
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
 
-    let result: Result<Vec<SubscribeEvent>, PubNubError> =
-        executor(channels, channel_groups, attempt, Some(reason));
-    Some(
-        result
-            .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeReconnectFailure { reason: err }]),
-    )
+    // let result: Result<Vec<SubscribeEvent>, PubNubError> =
+    //     executor(channels, channel_groups, attempt, Some(reason));
+    // Some(
+    //     result
+    //         .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeReconnectFailure { reason: err }]),
+    // )
+    None
 }
 
 #[cfg(test)]
