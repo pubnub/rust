@@ -13,7 +13,7 @@ pub(crate) fn execute(
     cursor: &SubscribeCursor,
     attempt: u8,
     reason: PubNubError,
-    executor: &Arc<Box<ReceiveEffectExecutor>>,
+    executor: &Arc<ReceiveEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",

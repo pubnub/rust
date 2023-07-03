@@ -11,7 +11,7 @@ pub(super) fn execute(
     channel_groups: &Option<Vec<String>>,
     attempt: u8,
     reason: PubNubError,
-    executor: &Arc<Box<HandshakeEffectExecutor>>,
+    executor: &Arc<HandshakeEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",

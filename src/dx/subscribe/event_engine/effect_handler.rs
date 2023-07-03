@@ -17,26 +17,26 @@ use crate::{
 #[allow(dead_code)]
 pub(crate) struct SubscribeEffectHandler {
     /// Handshake function pointer.
-    handshake: Arc<Box<HandshakeEffectExecutor>>,
+    handshake: Arc<HandshakeEffectExecutor>,
 
     /// Receive updates function pointer.
-    receive: Arc<Box<ReceiveEffectExecutor>>,
+    receive: Arc<ReceiveEffectExecutor>,
 
     /// Emit status function pointer.
-    emit_status: Arc<Box<EmitStatusEffectExecutor>>,
+    emit_status: Arc<EmitStatusEffectExecutor>,
 
     /// Emit messages function pointer.
-    emit_messages: Arc<Box<EmitMessagesEffectExecutor>>,
+    emit_messages: Arc<EmitMessagesEffectExecutor>,
 }
 
 impl<'client> SubscribeEffectHandler {
     /// Create subscribe event handler.
     #[allow(dead_code)]
     pub fn new(
-        handshake: Arc<Box<HandshakeEffectExecutor>>,
-        receive: Arc<Box<ReceiveEffectExecutor>>,
-        emit_status: Arc<Box<EmitStatusEffectExecutor>>,
-        emit_messages: Arc<Box<EmitMessagesEffectExecutor>>,
+        handshake: Arc<HandshakeEffectExecutor>,
+        receive: Arc<ReceiveEffectExecutor>,
+        emit_status: Arc<EmitStatusEffectExecutor>,
+        emit_messages: Arc<EmitMessagesEffectExecutor>,
     ) -> Self {
         SubscribeEffectHandler {
             handshake,

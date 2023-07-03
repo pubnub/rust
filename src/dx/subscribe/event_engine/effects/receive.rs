@@ -9,7 +9,7 @@ pub(crate) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    executor: &Arc<Box<ReceiveEffectExecutor>>,
+    executor: &Arc<ReceiveEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Receive at {:?} for\nchannels: {:?}\nchannel groups: {:?}",

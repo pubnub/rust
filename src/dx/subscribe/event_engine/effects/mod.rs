@@ -33,7 +33,7 @@ pub(in crate::dx::subscribe) type ReceiveEffectExecutor = dyn Fn(
         &SubscribeCursor,
         u8,
         Option<PubNubError>,
-    ) -> Box<dyn Future<Output = Result<SubscribeResult, PubNubError>>>
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
     + Send
     + Sync;
 
@@ -60,7 +60,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
-        executor: Arc<Box<HandshakeEffectExecutor>>,
+        executor: Arc<HandshakeEffectExecutor>,
     },
 
     /// Retry initial subscribe effect invocation.
@@ -88,7 +88,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
-        executor: Arc<Box<HandshakeEffectExecutor>>,
+        executor: Arc<HandshakeEffectExecutor>,
     },
 
     /// Receive updates effect invocation.
@@ -113,7 +113,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute receive updates.
-        executor: Arc<Box<ReceiveEffectExecutor>>,
+        executor: Arc<ReceiveEffectExecutor>,
     },
 
     /// Retry receive updates effect invocation.
@@ -147,7 +147,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute receive updates.
-        executor: Arc<Box<ReceiveEffectExecutor>>,
+        executor: Arc<ReceiveEffectExecutor>,
     },
 
     /// Status change notification effect invocation.

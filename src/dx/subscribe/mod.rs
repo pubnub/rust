@@ -43,7 +43,7 @@ pub mod builders;
 
 impl<T> PubNubClientInstance<T>
 where
-    T: Transport,
+    T: Transport + 'static,
 {
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
@@ -92,20 +92,35 @@ where
     }
 
     pub(crate) fn subscription_manager(&mut self) -> SubscriptionManager {
+        let handshake_client = self.clone();
+        let receive_client = self.clone();
+
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
-                Arc::new(Box::new(|channels, channel_groups, attempt, reason| {
-                    self.handshake(channels, channel_groups, attempt, reason)
-                        .boxed()
-                })),
-                Arc::new(Box::new(
-                    |channels, channel_groups, cursor, attempt, reason| {
-                        Box::new(self.receive(channels, channel_groups, cursor, attempt, reason))
-                    },
-                )),
-                Arc::new(Box::new(|| {
+                Arc::new(move |channels, channel_groups, attempt, reason| {
+                    Self::handshake(
+                        handshake_client.clone(),
+                        channels,
+                        channel_groups,
+                        attempt,
+                        reason,
+                    )
+                    .boxed()
+                }),
+                Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
+                    Self::receive(
+                        receive_client.clone(),
+                        channels,
+                        channel_groups,
+                        cursor,
+                        attempt,
+                        reason,
+                    )
+                    .boxed()
+                }),
+                Arc::new(|| {
                     // Do nothing yet
-                })),
+                }),
                 Arc::new(Box::new(|| {
                     // Do nothing yet
                 })),
@@ -119,14 +134,15 @@ where
 
     #[allow(dead_code)]
     pub(crate) fn handshake(
-        &self,
+        client: Self,
         channels: &Option<Vec<String>>,
         channel_groups: &Option<Vec<String>>,
         attempt: u8,
         reason: Option<PubNubError>,
     ) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
-        self.receive(
+        Self::receive(
+            client,
             channels,
             channel_groups,
             &SubscribeCursor::default(),
@@ -136,16 +152,16 @@ where
     }
 
     #[allow(dead_code)]
-    pub(crate) fn receive<'client>(
-        &self,
+    pub(crate) fn receive(
+        client: Self,
         channels: &Option<Vec<String>>,
         channel_groups: &Option<Vec<String>>,
         cursor: &SubscribeCursor,
         attempt: u8,
         reason: Option<PubNubError>,
-    ) -> BoxFuture<'client, Result<SubscribeResult, PubNubError>> {
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
-        let mut request = self.subscribe_request().cursor(cursor.clone());
+        let mut request = client.subscribe_request().cursor(cursor.clone());
 
         if let Some(channels) = channels.clone() {
             request = request.channels(channels);

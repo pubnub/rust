@@ -12,7 +12,7 @@ use std::sync::Arc;
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
-    executor: &Arc<Box<HandshakeEffectExecutor>>,
+    executor: &Arc<HandshakeEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Handshake for\nchannels: {:?}\nchannel groups: {:?}",

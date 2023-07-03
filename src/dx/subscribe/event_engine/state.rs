@@ -740,7 +740,7 @@ mod should {
         start_state: SubscribeState,
     ) -> EventEngine<
         SubscribeState,
-        SubscribeEffectHandler<T>,
+        SubscribeEffectHandler,
         SubscribeEffect,
         SubscribeEffectInvocation,
     > {
