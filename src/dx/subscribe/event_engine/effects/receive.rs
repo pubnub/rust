@@ -1,15 +1,17 @@
-use crate::core::PubNubError;
-use crate::dx::subscribe::event_engine::effects::ReceiveEffectExecutor;
-use crate::dx::subscribe::{event_engine::SubscribeEvent, SubscribeCursor};
-use crate::lib::alloc::{string::String, vec, vec::Vec};
+use crate::{
+    dx::subscribe::{
+        event_engine::{effects::ReceiveEffectExecutor, SubscribeEvent},
+        SubscribeCursor,
+    },
+    lib::alloc::{string::String, sync::Arc, vec::Vec},
+};
 use log::info;
-use std::sync::Arc;
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    executor: &Arc<ReceiveEffectExecutor>,
+    _executor: &Arc<ReceiveEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Receive at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
@@ -27,34 +29,33 @@ pub(crate) fn execute(
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{core::PubNubError, dx::subscribe::SubscribeCursor};
+    use crate::{core::PubNubError, dx::subscribe::result::SubscribeResult};
+    use futures::FutureExt;
 
     #[test]
     fn receive_messages() {
-        fn mock_receive_function<T>(
-            channels: &Option<Vec<String>>,
-            channel_groups: &Option<Vec<String>>,
-            cursor: &SubscribeCursor,
-            attempt: u8,
-            reason: Option<PubNubError>,
-        ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-            assert_eq!(channels, &Some(vec!["ch1".to_string()]));
-            assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
-            assert_eq!(attempt, 0);
-            assert_eq!(reason, None);
-            assert_eq!(cursor, &Default::default());
+        let mock_receive_function: Arc<ReceiveEffectExecutor> =
+            Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
+                assert_eq!(channels, &Some(vec!["ch1".to_string()]));
+                assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
+                assert_eq!(attempt, 0);
+                assert_eq!(reason, None);
+                assert_eq!(cursor, &Default::default());
 
-            Ok(vec![SubscribeEvent::ReceiveSuccess {
-                cursor: Default::default(),
-                messages: vec![],
-            }])
-        }
+                async move {
+                    Ok(SubscribeResult {
+                        cursor: Default::default(),
+                        messages: vec![],
+                    })
+                }
+                .boxed()
+            });
 
         let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
             &Default::default(),
-            mock_receive_function,
+            &mock_receive_function,
         );
 
         assert!(matches!(
@@ -64,24 +65,21 @@ mod should {
     }
 
     #[test]
-    fn return_handskahe_failure_event_on_err() {
-        fn mock_receive_function(
-            _channels: &Option<Vec<String>>,
-            _channel_groups: &Option<Vec<String>>,
-            _cursor: &SubscribeCursor,
-            _attempt: u8,
-            _reason: Option<PubNubError>,
-        ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-            Err(PubNubError::Transport {
-                details: "test".into(),
-            })
-        }
+    fn return_handshake_failure_event_on_err() {
+        let mock_receive_function: Arc<ReceiveEffectExecutor> = Arc::new(move |_, _, _, _, _| {
+            async move {
+                Err(PubNubError::Transport {
+                    details: "test".into(),
+                })
+            }
+            .boxed()
+        });
 
         let binding = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
             &Default::default(),
-            mock_receive_function,
+            &mock_receive_function,
         )
         .unwrap();
         let result = &binding[0];

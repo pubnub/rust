@@ -6,13 +6,11 @@ use crate::{
         SubscribeCursor, SubscribeStatus,
     },
     lib::{
-        alloc::{boxed::Box, string::String, sync::Arc, vec::Vec},
-        core::fmt::Debug,
+        alloc::{string::String, sync::Arc, vec::Vec},
+        core::fmt::{Debug, Formatter},
     },
 };
 use futures::future::BoxFuture;
-use std::fmt::Formatter;
-use std::future::Future;
 
 mod handshake;
 mod handshake_reconnection;
@@ -158,7 +156,7 @@ pub(crate) enum SubscribeEffect {
 }
 
 impl Debug for SubscribeEffect {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             SubscribeEffect::Handshake {
                 channels,
@@ -228,11 +226,11 @@ impl Effect for SubscribeEffect {
             SubscribeEffect::EmitMessages(_) => "EMIT_MESSAGES_EFFECT".into(),
         }
     }
+
     fn run<F>(&self, mut f: F)
     where
-        F: FnMut(Option<Vec<SubscribeEvent>>),
+        F: FnMut(Option<Vec<SubscribeEvent>>) + Send + Sync,
     {
-        // TODO: Run actual effect implementation. Maybe Effect.run function need change something in arguments.
         let events = match self {
             SubscribeEffect::Handshake {
                 channels,

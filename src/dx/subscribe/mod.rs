@@ -5,13 +5,8 @@
 pub(crate) mod event_engine;
 use event_engine::{SubscribeEffectHandler, SubscribeState};
 
-use futures::future::BoxFuture;
-use futures::FutureExt;
-use spin::rwlock::RwLock;
-use std::future::Future;
+use futures::{future::BoxFuture, FutureExt};
 
-#[cfg(not(feature = "serde"))]
-use crate::core::{Deserialize, Deserializer};
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
 
@@ -25,25 +20,24 @@ pub use types::{
 pub mod types;
 
 use crate::{
-    core::{event_engine::EventEngine, PubNubError},
-    dx::{pubnub_client::PubNubClientInstance, subscribe::result::SubscribeResult},
-    lib::core::sync::Arc,
+    core::{event_engine::EventEngine, PubNubError, Transport},
+    dx::{
+        pubnub_client::PubNubClientInstance,
+        subscribe::result::{SubscribeResult, Update},
+    },
+    lib::alloc::{boxed::Box, string::String, sync::Arc, vec::Vec},
 };
 
+pub(crate) use subscription_manager::SubscriptionManager;
 pub(crate) mod subscription_manager;
 
-use crate::core::Transport;
-use crate::dx::subscribe::event_engine::SubscribeEventEngine;
-use crate::dx::subscribe::result::Update;
-use crate::dx::subscribe::subscription_manager::SubscriptionManager;
 #[doc(inline)]
 pub use builders::*;
-
 pub mod builders;
 
 impl<T> PubNubClientInstance<T>
 where
-    T: Transport + 'static,
+    T: Transport + Send + 'static,
 {
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
@@ -65,6 +59,18 @@ where
         }
     }
 
+    // /// Create subscribe request builder.
+    // /// This method is used to create events stream for real-time updates on
+    // /// passed list of channels and groups.
+    // ///
+    // /// Instance of [`SubscribeRequestBuilder`] returned.
+    // #[cfg(not(feature = "serde"))]
+    // pub fn subscribe(&self) -> SubscribeRequestWithDeserializerBuilder<T> {
+    //     SubscribeRequestWithDeserializerBuilder {
+    //         pubnub_client: self.clone(),
+    //     }
+    // }
+
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
     /// passed list of channels and groups.
@@ -76,18 +82,6 @@ where
             pubnub_client: Some(self.clone()),
             deserializer: Some(SerdeDeserializer),
             ..Default::default()
-        }
-    }
-
-    /// Create subscribe request builder.
-    /// This method is used to create events stream for real-time updates on
-    /// passed list of channels and groups.
-    ///
-    /// Instance of [`SubscribeRequestBuilder`] returned.
-    #[cfg(not(feature = "serde"))]
-    pub fn subscribe(&self) -> SubscribeRequestWithDeserializerBuilder<T> {
-        SubscribeRequestWithDeserializerBuilder {
-            pubnub_client: self.clone(),
         }
     }
 
@@ -105,7 +99,6 @@ where
                         attempt,
                         reason,
                     )
-                    .boxed()
                 }),
                 Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
                     Self::receive(
@@ -116,7 +109,6 @@ where
                         attempt,
                         reason,
                     )
-                    .boxed()
                 }),
                 Arc::new(|| {
                     // Do nothing yet
@@ -139,7 +131,7 @@ where
         channel_groups: &Option<Vec<String>>,
         attempt: u8,
         reason: Option<PubNubError>,
-    ) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
         Self::receive(
             client,
@@ -157,8 +149,8 @@ where
         channels: &Option<Vec<String>>,
         channel_groups: &Option<Vec<String>>,
         cursor: &SubscribeCursor,
-        attempt: u8,
-        reason: Option<PubNubError>,
+        _attempt: u8,
+        _reason: Option<PubNubError>,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
         let mut request = client.subscribe_request().cursor(cursor.clone());
@@ -189,54 +181,6 @@ where
             .as_ref()
             .map(|manager| manager.notify_new_messages(messages));
     }
-
-    // #[cfg(feature = "serde")]
-    // #[allow(dead_code)]
-    // pub(in crate::dx::subscribe) fn receive2<Data>(
-    //     &self,
-    //     channels: &Option<Vec<String>>,
-    //     channel_groups: &Option<Vec<String>>,
-    //     cursor: &SubscribeCursor,
-    //     attempt: u8,
-    //     reason: Option<PubNubError>,
-    // ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-    //     // TODO: Add retry policy check and error if failed.
-    //     let mut request = self.subscribe::<Data>().cursor(cursor.clone());
-    //
-    //     if let Some(channels) = channels.clone() {
-    //         request = request.channels(channels);
-    //     }
-    //
-    //     if let Some(channel_groups) = channel_groups.clone() {
-    //         request = request.channel_groups(channel_groups);
-    //     }
-    //
-    //     Ok(Vec::new())
-    // }
-
-    //
-    // #[cfg(not(feature = "serde"))]
-    // #[allow(dead_code)]
-    // pub(in crate::dx::subscribe) fn receive<D, Data>(
-    //     &self,
-    //     channels: Option<&[&str]>,
-    //     channel_groups: Option<&[&str]>,
-    //     cursor: SubscribeCursor,
-    //     deserializer: D,
-    // ) where
-    //     Data: for<'data> Deserialize<'data, Data>,
-    //     D: for<'ds> Deserializer<'ds, SubscribeResponseBody<Data>>,
-    // {
-    //     let channel_groups = channel_groups.unwrap_or(&[]);
-    //     let channels = channels.unwrap_or(&[]);
-    //     let _ = self
-    //         .subscribe::<AnyValue>()
-    //         .deserialize_with(deserializer)
-    //         .channels(channels)
-    //         .channel_groups(channel_groups)
-    //         .cursor(cursor);
-    //     // .execute();
-    // }
 }
 
 #[cfg(feature = "blocking")]
@@ -249,7 +193,6 @@ mod should {
         transport::{middleware::PubNubMiddleware, TransportReqwest},
         Keyset, PubNubClientBuilder,
     };
-    use futures::stream::StreamExt;
 
     fn client() -> PubNubClientInstance<PubNubMiddleware<TransportReqwest>> {
         PubNubClientBuilder::with_reqwest_transport()
@@ -270,21 +213,21 @@ mod should {
 
     #[tokio::test]
     async fn make_handshake() {
-        let subscription = client()
+        let _subscription = client()
             .subscribe()
             .channels(["hello".into(), "world".into()].to_vec())
             .build();
 
-        if let Ok(subscription) = subscription {
-            subscription
-                .for_each(|data| async {
-                    match data {
-                        Ok(update) => println!("~~~> Update: {:?}", update),
-                        Err(err) => println!("~~~> Error:P{}", err),
-                    };
-                })
-                .await
-        }
+        // if let Ok(subscription) = subscription {
+        //     subscription
+        //         .for_each(|data| async {
+        //             match data {
+        //                 Ok(update) => println!("~~~> Update: {:?}", update),
+        //                 Err(err) => println!("~~~> Error:P{}", err),
+        //             };
+        //         })
+        //         .await
+        // }
         // let response = client()
         //     .subscribe()
         //     .channels(["hello".into(), "world".into()].to_vec())

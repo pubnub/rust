@@ -1,5 +1,6 @@
 //! Event Engine module
 
+use crate::lib::alloc::{sync::Arc, vec::Vec};
 use spin::rwlock::RwLock;
 
 #[doc(inline)]
@@ -38,15 +39,15 @@ pub(crate) mod transition;
 #[allow(dead_code)]
 pub(crate) struct EventEngine<S, EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF>,
+    EI: EffectInvocation<Effect = EF> + Send + Sync,
     EH: EffectHandler<EI, EF>,
     EF: Effect<Invocation = EI>,
-    S: State<State = S, Invocation = EI>,
+    S: State<State = S, Invocation = EI> + Send + Sync,
 {
     /// Effects dispatcher.
     ///
     /// Dispatcher responsible for effects invocation processing.
-    effect_dispatcher: EffectDispatcher<EH, EF, EI>,
+    effect_dispatcher: Arc<EffectDispatcher<EH, EF, EI>>,
 
     /// Current event engine state.
     current_state: RwLock<S>,
@@ -54,16 +55,16 @@ where
 
 impl<S, EH, EF, EI> EventEngine<S, EH, EF, EI>
 where
-    S: State<State = S, Invocation = EI>,
-    EH: EffectHandler<EI, EF>,
+    S: State<State = S, Invocation = EI> + Send + Sync,
+    EH: EffectHandler<EI, EF> + Send + Sync,
     EF: Effect<Invocation = EI>,
-    EI: EffectInvocation<Effect = EF>,
+    EI: EffectInvocation<Effect = EF> + Send + Sync,
 {
     /// Create [`EventEngine`] with initial state for state machine.
     #[allow(dead_code)]
     pub fn new(handler: EH, state: S) -> Self {
         EventEngine {
-            effect_dispatcher: EffectDispatcher::new(handler),
+            effect_dispatcher: Arc::new(EffectDispatcher::new(handler)),
             current_state: RwLock::new(state),
         }
     }
@@ -99,11 +100,12 @@ where
         }
 
         transition.invocations.iter().for_each(|invocation| {
-            self.effect_dispatcher.dispatch(invocation, |events| {
-                if let Some(events) = events {
-                    events.iter().for_each(|event| self.process(event));
-                }
-            });
+            self.effect_dispatcher
+                .dispatch(invocation, |events: Option<Vec<EI::Event>>| {
+                    if let Some(events) = events {
+                        events.iter().for_each(|event| self.process(event));
+                    }
+                });
         });
     }
 }

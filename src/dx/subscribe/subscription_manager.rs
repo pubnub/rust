@@ -19,6 +19,8 @@ use spin::RwLock;
 ///
 /// [`subscription`]: crate::Subscription
 /// [`PubNubClient`]: crate::PubNubClient
+#[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) struct SubscriptionManager {
     /// Subscription event engine.
     ///
@@ -31,6 +33,7 @@ pub(crate) struct SubscriptionManager {
     pub subscribers: RwLock<Vec<Arc<Subscription>>>,
 }
 
+#[allow(dead_code)]
 impl SubscriptionManager {
     pub fn new(subscribe_event_engine: SubscribeEventEngine) -> Self {
         Self {

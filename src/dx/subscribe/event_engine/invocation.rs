@@ -1,11 +1,13 @@
-use crate::dx::subscribe::event_engine::SubscribeEvent;
-use crate::dx::subscribe::result::Update;
 use crate::{
     core::{event_engine::EffectInvocation, PubNubError},
-    dx::subscribe::{event_engine::SubscribeEffect, SubscribeCursor, SubscribeStatus},
+    dx::subscribe::{
+        event_engine::{SubscribeEffect, SubscribeEvent},
+        result::Update,
+        SubscribeCursor, SubscribeStatus,
+    },
     lib::{
         alloc::{string::String, vec::Vec},
-        core::fmt::{Formatter, Result},
+        core::fmt::{Display, Formatter, Result},
     },
 };
 
@@ -173,7 +175,7 @@ impl EffectInvocation for SubscribeEffectInvocation {
     }
 }
 
-impl core::fmt::Display for SubscribeEffectInvocation {
+impl Display for SubscribeEffectInvocation {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Handshake { .. } => write!(f, "Handshake"),

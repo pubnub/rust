@@ -3,7 +3,7 @@ use crate::{
     lib::alloc::{string::String, vec::Vec},
 };
 
-pub(crate) trait Effect {
+pub(crate) trait Effect: Send + Sync {
     type Invocation: EffectInvocation;
 
     /// Unique effect identifier.
@@ -12,7 +12,7 @@ pub(crate) trait Effect {
     /// Run work associated with effect.
     fn run<F>(&self, f: F)
     where
-        F: FnMut(Option<Vec<<Self::Invocation as EffectInvocation>::Event>>);
+        F: FnMut(Option<Vec<<Self::Invocation as EffectInvocation>::Event>>) + Send + Sync;
 
     /// Cancel any ongoing effect's work.
     fn cancel(&self);

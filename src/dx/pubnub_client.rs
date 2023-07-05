@@ -227,7 +227,7 @@ impl<T> Clone for PubNubClientInstance<T> {
 /// It's wrapped in `Arc` by [`PubNubClient`] and uses interior mutability for its internal state.
 ///
 /// Not intended to be used directly. Use [`PubNubClient`] instead.
-#[derive(Builder)]
+#[derive(Builder, Debug)]
 #[builder(
     pattern = "owned",
     name = "PubNubClientConfigBuilder",

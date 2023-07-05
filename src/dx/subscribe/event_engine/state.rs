@@ -1,4 +1,3 @@
-use crate::dx::subscribe::result::Update;
 use crate::{
     core::{
         event_engine::{State, Transition},
@@ -13,6 +12,7 @@ use crate::{
             },
             SubscribeEvent,
         },
+        result::Update,
         SubscribeCursor, SubscribeStatus,
     },
     lib::alloc::{string::String, vec, vec::Vec},
@@ -707,36 +707,24 @@ impl State for SubscribeState {
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::core::event_engine::EventEngine;
-    use crate::dx::pubnub_client::PubNubClientInstance;
-    use crate::dx::subscribe::event_engine::{SubscribeEffect, SubscribeEffectHandler};
-    use crate::{Keyset, PubNubClientBuilder};
+    use crate::{
+        core::event_engine::EventEngine,
+        dx::subscribe::{
+            event_engine::{
+                effects::{
+                    EmitMessagesEffectExecutor, EmitStatusEffectExecutor, HandshakeEffectExecutor,
+                    ReceiveEffectExecutor,
+                },
+                SubscribeEffect, SubscribeEffectHandler,
+            },
+            result::SubscribeResult,
+        },
+        lib::core::sync::Arc,
+    };
+    use futures::FutureExt;
     use test_case::test_case;
 
-    fn handshake_function<T>(
-        _client: PubNubClientInstance<T>,
-        _channels: &Option<Vec<String>>,
-        _channel_groups: &Option<Vec<String>>,
-        _attempt: u8,
-        _reason: Option<PubNubError>,
-    ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-        // Do nothing.
-        Ok(vec![])
-    }
-
-    fn receive_function<T>(
-        _client: PubNubClientInstance<T>,
-        _channels: &Option<Vec<String>>,
-        _channel_groups: &Option<Vec<String>>,
-        _cursor: &SubscribeCursor,
-        _attempt: u8,
-        _reason: Option<PubNubError>,
-    ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-        // Do nothing.
-        Ok(vec![])
-    }
-
-    fn event_engine<T>(
+    fn event_engine(
         start_state: SubscribeState,
     ) -> EventEngine<
         SubscribeState,
@@ -744,18 +732,31 @@ mod should {
         SubscribeEffect,
         SubscribeEffectInvocation,
     > {
-        let client = PubNubClientBuilder::with_reqwest_transport()
-            .with_keyset(Keyset {
-                publish_key: Some(""),
-                subscribe_key: "",
-                secret_key: None,
-            })
-            .with_user_id("user_id")
-            .build()
-            .unwrap();
+        let handshake: Arc<HandshakeEffectExecutor> = Arc::new(|_, _, _, _| {
+            async move {
+                Ok(SubscribeResult {
+                    cursor: Default::default(),
+                    messages: vec![],
+                })
+            }
+            .boxed()
+        });
+
+        let receive: Arc<ReceiveEffectExecutor> = Arc::new(|_, _, _, _, _| {
+            async move {
+                Ok(SubscribeResult {
+                    cursor: Default::default(),
+                    messages: vec![],
+                })
+            }
+            .boxed()
+        });
+
+        let emit_status: Arc<EmitStatusEffectExecutor> = Arc::new(|| {});
+        let emit_message: Arc<EmitMessagesEffectExecutor> = Arc::new(|| {});
 
         EventEngine::new(
-            SubscribeEffectHandler::new(client, handshake_function, receive_function),
+            SubscribeEffectHandler::new(handshake, receive, emit_status, emit_message),
             start_state,
         )
     }

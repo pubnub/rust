@@ -16,6 +16,7 @@ use crate::{
 };
 
 #[derive(Debug)]
+#[allow(dead_code, missing_docs)]
 pub enum SubscribeStreamEvent {
     Status(SubscribeStatus),
     Update(Update),

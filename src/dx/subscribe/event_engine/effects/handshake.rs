@@ -1,18 +1,13 @@
 use crate::{
-    core::PubNubError,
-    dx::subscribe::{
-        event_engine::{effects::HandshakeEffectExecutor, SubscribeEvent},
-        SubscribeResult,
-    },
-    lib::alloc::{string::String, vec, vec::Vec},
+    dx::subscribe::event_engine::{effects::HandshakeEffectExecutor, SubscribeEvent},
+    lib::alloc::{string::String, sync::Arc, vec::Vec},
 };
 use log::info;
-use std::sync::Arc;
 
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
-    executor: &Arc<HandshakeEffectExecutor>,
+    _executor: &Arc<HandshakeEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Handshake for\nchannels: {:?}\nchannel groups: {:?}",
@@ -29,30 +24,31 @@ pub(super) fn execute(
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::core::PubNubError;
+    use crate::{core::PubNubError, dx::subscribe::SubscribeResult};
+    use futures::FutureExt;
 
-    #[test]
-    fn initialize_handshake_for_first_attempt() {
-        fn mock_handshake_function(
-            channels: &Option<Vec<String>>,
-            channel_groups: &Option<Vec<String>>,
-            attempt: u8,
-            reason: Option<PubNubError>,
-        ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-            assert_eq!(channels, &Some(vec!["ch1".to_string()]));
-            assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
-            assert_eq!(attempt, 0);
-            assert_eq!(reason, None);
+    #[tokio::test]
+    async fn initialize_handshake_for_first_attempt() {
+        let mock_handshake_function: Arc<HandshakeEffectExecutor> =
+            Arc::new(move |channels, channel_groups, attempt, reason| {
+                assert_eq!(channels, &Some(vec!["ch1".to_string()]));
+                assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
+                assert_eq!(attempt, 0);
+                assert_eq!(reason, None);
 
-            Ok(vec![SubscribeEvent::HandshakeSuccess {
-                cursor: Default::default(),
-            }])
-        }
+                async move {
+                    Ok(SubscribeResult {
+                        cursor: Default::default(),
+                        messages: vec![],
+                    })
+                }
+                .boxed()
+            });
 
         let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
-            mock_handshake_function,
+            &mock_handshake_function,
         );
 
         assert!(result.is_some());
@@ -62,23 +58,21 @@ mod should {
         ))
     }
 
-    #[test]
-    fn return_handskahe_failure_event_on_err() {
-        fn mock_handshake_function(
-            _channels: &Option<Vec<String>>,
-            _channel_groups: &Option<Vec<String>>,
-            _attempt: u8,
-            _reason: Option<PubNubError>,
-        ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-            Err(PubNubError::Transport {
-                details: "test".into(),
-            })
-        }
+    #[tokio::test]
+    async fn return_handshake_failure_event_on_err() {
+        let mock_handshake_function: Arc<HandshakeEffectExecutor> = Arc::new(move |_, _, _, _| {
+            async move {
+                Err(PubNubError::Transport {
+                    details: "test".into(),
+                })
+            }
+            .boxed()
+        });
 
         let binding = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
-            mock_handshake_function,
+            &mock_handshake_function,
         )
         .unwrap();
         let result = &binding[0];

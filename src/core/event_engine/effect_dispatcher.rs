@@ -10,7 +10,7 @@ use spin::rwlock::RwLock;
 #[allow(dead_code)]
 pub(crate) struct EffectDispatcher<EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF>,
+    EI: EffectInvocation<Effect = EF> + Send + Sync,
     EH: EffectHandler<EI, EF>,
     EF: Effect<Invocation = EI>,
 {
@@ -32,8 +32,8 @@ where
 
 impl<EH, EF, EI> EffectDispatcher<EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF>,
-    EH: EffectHandler<EI, EF>,
+    EI: EffectInvocation<Effect = EF> + Send + Sync,
+    EH: EffectHandler<EI, EF> + Send + Sync,
     EF: Effect<Invocation = EI>,
 {
     /// Create new effects dispatcher.
@@ -46,9 +46,9 @@ where
     }
 
     /// Dispatch effect associated with `invocation`.
-    pub fn dispatch<F>(&self, invocation: &EI, mut f: F)
+    pub fn dispatch<F>(self: &Arc<Self>, invocation: &EI, mut f: F)
     where
-        F: FnMut(Option<Vec<EI::Event>>),
+        F: FnMut(Option<Vec<EI::Event>>) + Send + Sync,
     {
         if let Some(effect) = self.handler.create(invocation) {
             let effect = Arc::new(effect);
@@ -58,18 +58,23 @@ where
                 managed.push(effect.clone());
             }
 
+            let dispatcher = self.clone();
+
             // Placeholder for effect invocation.
             effect.run(|events| {
                 // Try remove effect from list of managed.
-                self.remove_managed_effect(&effect);
+                dispatcher.remove_managed_effect(&effect);
 
                 // Notify about effect run completion.
                 // Placeholder for effect events processing (pass to effects handler).
+                // let t = f.deref();
+                // t(vec![]);
+                // let tt = f;
+                // f.deref().get_mut();
                 f(events);
             });
         } else if invocation.cancelling() {
             self.cancel_effect(invocation);
-
             // Placeholder for effect events processing (pass to effects handler).
             f(None);
         }
@@ -127,7 +132,7 @@ mod should {
 
         fn run<F>(&self, mut f: F)
         where
-            F: FnMut(Option<Vec<TestEvent>>),
+            F: FnMut(Option<Vec<TestEvent>>) + Send + Sync,
         {
             match self {
                 Self::Three => {}
@@ -192,7 +197,7 @@ mod should {
     #[test]
     fn run_not_managed_effect() {
         let mut called = false;
-        let dispatcher = EffectDispatcher::new(TestEffectHandler {});
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
         dispatcher.dispatch(&TestInvocation::One, |_| {
             called = true;
         });
@@ -208,7 +213,7 @@ mod should {
     #[test]
     fn run_managed_effect() {
         let mut called = false;
-        let dispatcher = EffectDispatcher::new(TestEffectHandler {});
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
         dispatcher.dispatch(&TestInvocation::Two, |_| {
             called = true;
         });
@@ -225,7 +230,7 @@ mod should {
     fn cancel_managed_effect() {
         let mut called_managed = false;
         let mut cancelled_managed = false;
-        let dispatcher = EffectDispatcher::new(TestEffectHandler {});
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
         dispatcher.dispatch(&TestInvocation::Three, |_| {
             called_managed = true;
         });

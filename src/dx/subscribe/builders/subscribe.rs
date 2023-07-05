@@ -26,9 +26,7 @@ use crate::{
     },
 };
 use derive_builder::Builder;
-use futures::future::BoxFuture;
-use futures::FutureExt;
-use std::future::Future;
+use futures::Future;
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -193,10 +191,6 @@ where
     T: Transport,
     D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
-    pub async fn exec_second(self) -> Result<(), String> {
-        Ok(())
-    }
-
     /// Build and call request.
     pub fn execute(self) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
         async move {
@@ -236,10 +230,10 @@ impl<T> SubscribeRequestWithDeserializerBuilder<T> {
     /// Adds the deserializer to the [`SubscribeRequestBuilder`],
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub fn deserialize_with<Data, D>(self, deserializer: D) -> SubscribeRequestBuilder<T, Data, D>
+    pub fn deserialize_with<D>(self, deserializer: D) -> SubscribeRequestBuilder<T, D>
     where
-        Data: for<'data> Deserialize<'data, Data>,
-        D: for<'ds> Deserializer<'ds, SubscribeResponseBody<Data>>,
+        T: Transport,
+        D: for<'ds> Deserializer<'ds, SubscribeResponseBody> + Send,
     {
         SubscribeRequestBuilder {
             pubnub_client: Some(self.pubnub_client),

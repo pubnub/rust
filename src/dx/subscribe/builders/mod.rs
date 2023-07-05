@@ -11,6 +11,7 @@ pub use subscribe::{SubscribeRequest, SubscribeRequestBuilder};
 pub mod subscribe;
 
 pub use subscription::{SubscriptionBuilder, SubscriptionBuilderError};
+#[allow(missing_docs)]
 pub mod subscription;
 
 /// Validate [`PubNubClientInstance`] configuration.

@@ -7,7 +7,10 @@ use crate::{
         },
         SubscribeEffect, SubscribeEffectInvocation,
     },
-    lib::core::sync::Arc,
+    lib::{
+        alloc::sync::Arc,
+        core::fmt::{Debug, Formatter, Result},
+    },
 };
 
 /// Subscription effect handler.
@@ -104,5 +107,11 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             }
             _ => None,
         }
+    }
+}
+
+impl Debug for SubscribeEffectHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "SubscribeEffectHandler {{}}")
     }
 }

@@ -2,7 +2,11 @@ use crate::{
     dx::subscribe::{
         subscription_manager::SubscriptionManager, types::SubscribeStreamEvent, SubscribeCursor,
     },
-    lib::alloc::{string::String, sync::Arc, vec::Vec},
+    lib::alloc::{
+        string::{String, ToString},
+        sync::Arc,
+        vec::Vec,
+    },
 };
 use derive_builder::Builder;
 use spin::RwLock;
@@ -13,12 +17,13 @@ use uuid::Uuid;
 /// Subscription provides a way to get messages from PubNub. It is responsible
 /// for handshake and receiving messages.
 ///
-#[derive(Builder)]
+#[derive(Builder, Debug)]
 #[builder(
     pattern = "owned",
     build_fn(private, name = "build_internal", validate = "Self::validate"),
     no_std
 )]
+#[allow(dead_code)]
 pub struct Subscription {
     /// Manager of active subscriptions.
     #[builder(
@@ -116,9 +121,7 @@ impl SubscriptionBuilder {
 }
 
 impl Subscription {
-    pub(crate) fn notify_update(&self, update: SubscribeStreamEvent) {
-        println!("Report listeners about new update: {update:?}")
-    }
+    pub(crate) fn notify_update(&self, update: SubscribeStreamEvent) {}
 }
 
 //

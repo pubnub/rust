@@ -434,10 +434,10 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::lib::alloc::{boxed::Box, sync::Arc, vec};
     use crate::{
         core::TransportResponse,
         dx::pubnub_client::{PubNubClientInstance, PubNubClientRef, PubNubConfig},
+        lib::alloc::{boxed::Box, sync::Arc, vec},
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };

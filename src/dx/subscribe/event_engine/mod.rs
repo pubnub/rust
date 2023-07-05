@@ -22,13 +22,18 @@ pub(crate) mod event;
 pub(crate) use state::SubscribeState;
 pub(crate) mod state;
 
-use crate::core::event_engine::EventEngine;
+use crate::{
+    core::event_engine::EventEngine,
+    lib::alloc::{string::String, vec::Vec},
+};
+
 pub(crate) type SubscribeEventEngine =
     EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>;
 
 impl
     EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>
 {
+    #[allow(dead_code)]
     pub(in crate::dx::subscribe) fn current_subscription(
         &self,
     ) -> (Option<Vec<String>>, Option<Vec<String>>) {
