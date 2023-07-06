@@ -33,7 +33,11 @@ pub(crate) mod subscription_manager;
 
 #[doc(inline)]
 pub use builders::*;
+
+use self::cancel::CancelationTask;
 pub mod builders;
+
+mod cancel;
 
 impl<T> PubNubClientInstance<T>
 where
@@ -86,14 +90,20 @@ where
     }
 
     pub(crate) fn subscription_manager(&mut self) -> SubscriptionManager {
+        let channel_bound = 10; // TODO: Think about this value
+
         let handshake_client = self.clone();
         let receive_client = self.clone();
+
+        let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
+        let cancel_rx_clone = cancel_rx.clone();
 
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
                 Arc::new(move |channels, channel_groups, attempt, reason| {
                     Self::handshake(
                         handshake_client.clone(),
+                        cancel_rx.clone(),
                         SubscriptionParams {
                             channels,
                             channel_groups,
@@ -106,6 +116,7 @@ where
                     Self::receive(
                         receive_client.clone(),
                         cursor,
+                        cancel_rx_clone.clone(),
                         SubscriptionParams {
                             channels,
                             channel_groups,
@@ -131,16 +142,18 @@ where
     #[allow(dead_code)]
     pub(crate) fn handshake(
         client: Self,
+        cancel_rx: async_channel::Receiver<String>,
         params: SubscriptionParams,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
-        Self::receive(client, &SubscribeCursor::default(), params)
+        Self::receive(client, &SubscribeCursor::default(), cancel_rx, params)
     }
 
     #[allow(dead_code)]
     pub(crate) fn receive(
         client: Self,
         cursor: &SubscribeCursor,
+        cancel_rx: async_channel::Receiver<String>,
         params: SubscriptionParams,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
@@ -154,7 +167,9 @@ where
             request = request.channel_groups(channel_groups);
         }
 
-        request.execute().boxed()
+        let cancel_task = CancelationTask::new(cancel_rx, "".into());
+
+        request.execute(cancel_task).boxed()
     }
 
     #[allow(dead_code)]

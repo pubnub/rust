@@ -12,6 +12,7 @@ use crate::{
         pubnub_client::PubNubClientInstance,
         subscribe::{
             builders,
+            cancel::CancelationTask,
             result::{SubscribeResponseBody, SubscribeResult},
             SubscribeCursor,
         },
@@ -26,7 +27,7 @@ use crate::{
     },
 };
 use derive_builder::Builder;
-use futures::Future;
+use futures::{select, Future, FutureExt};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -192,7 +193,10 @@ where
     D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Build and call request.
-    pub fn execute(self) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
+    pub fn execute(
+        self,
+        cancel_task: CancelationTask,
+    ) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
         async move {
             // Build request instance and report errors if any.
             let request = self
@@ -203,22 +207,30 @@ where
             let client = request.pubnub_client.clone();
             let deserializer = request.deserializer;
 
-            client
-                .transport
-                .send(transport_request)
-                .await?
-                .body
-                .map(|bytes| deserializer.deserialize(&bytes))
-                .map_or(
-                    Err(PubNubError::general_api_error(
-                        "No body in the response!",
-                        None,
-                    )),
-                    |response_body| {
-                        response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
-                    },
-                )
+            select! {
+                _ = cancel_task.wait_for_cancel().fuse() => {
+                    Err(PubNubError::EffectCanceled)
+                },
+                result = client
+                    .transport
+                    .send(transport_request)
+                    .fuse() => {
+                        result?
+                            .body
+                            .map(|bytes| deserializer.deserialize(&bytes))
+                            .map_or(
+                                Err(PubNubError::general_api_error(
+                                    "No body in the response!",
+                                    None,
+                                )),
+                                |response_body| {
+                                    response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
+                                },
+                            )
+                    }
+            }
         }
+
         // TODO: Handle decryption (when provider will be exposed).
     }
 }
@@ -240,5 +252,48 @@ impl<T> SubscribeRequestWithDeserializerBuilder<T> {
             deserializer: Some(deserializer),
             ..Default::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod should {
+    use crate::{core::TransportResponse, PubNubClientBuilder};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn be_able_to_cancel_subscribe_call() {
+        struct MockTransport;
+
+        #[async_trait::async_trait]
+        impl Transport for MockTransport {
+            async fn send(&self, _req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await; // Simulate long request.
+
+                Ok(TransportResponse::default())
+            }
+        }
+
+        let (tx, rx) = async_channel::bounded(1);
+
+        let cancel_task = CancelationTask::new(rx, "test".into());
+
+        tx.send("test".into()).await.unwrap();
+
+        let result = PubNubClientBuilder::with_transport(MockTransport)
+            .with_keyset(crate::Keyset {
+                subscribe_key: "test",
+                publish_key: Some("test"),
+                secret_key: None,
+            })
+            .with_user_id("test")
+            .build()
+            .unwrap()
+            .subscribe_request()
+            .channels(vec!["test".into()])
+            .execute(cancel_task)
+            .await;
+
+        assert!(matches!(result, Err(PubNubError::EffectCanceled)));
     }
 }

@@ -101,6 +101,10 @@ pub enum PubNubError {
         details: String,
     },
 
+    /// this error is returned when the event engine effect is canceled
+    #[snafu(display("Event engine effect has been canceled"))]
+    EffectCanceled,
+
     ///this error is returned when REST API request can't be handled by service.
     #[snafu(display("REST API error: {message}"))]
     API {
