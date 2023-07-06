@@ -712,8 +712,7 @@ mod should {
         dx::subscribe::{
             event_engine::{
                 effects::{
-                    EmitMessagesEffectExecutor, EmitStatusEffectExecutor, HandshakeEffectExecutor,
-                    ReceiveEffectExecutor,
+                    EmitMessagesEffectExecutor, EmitStatusEffectExecutor, SubscribeEffectExecutor,
                 },
                 SubscribeEffect, SubscribeEffectHandler,
             },
@@ -732,17 +731,7 @@ mod should {
         SubscribeEffect,
         SubscribeEffectInvocation,
     > {
-        let handshake: Arc<HandshakeEffectExecutor> = Arc::new(|_, _, _, _| {
-            async move {
-                Ok(SubscribeResult {
-                    cursor: Default::default(),
-                    messages: vec![],
-                })
-            }
-            .boxed()
-        });
-
-        let receive: Arc<ReceiveEffectExecutor> = Arc::new(|_, _, _, _, _| {
+        let call: Arc<SubscribeEffectExecutor> = Arc::new(|_, _, _, _, _| {
             async move {
                 Ok(SubscribeResult {
                     cursor: Default::default(),
@@ -755,8 +744,10 @@ mod should {
         let emit_status: Arc<EmitStatusEffectExecutor> = Arc::new(|| {});
         let emit_message: Arc<EmitMessagesEffectExecutor> = Arc::new(|| {});
 
+        let (tx, _) = async_channel::bounded(1);
+
         EventEngine::new(
-            SubscribeEffectHandler::new(handshake, receive, emit_status, emit_message),
+            SubscribeEffectHandler::new(call, emit_status, emit_message, tx),
             start_state,
         )
     }

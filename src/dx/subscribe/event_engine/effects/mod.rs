@@ -17,18 +17,10 @@ mod handshake_reconnection;
 mod receive;
 mod receive_reconnection;
 
-pub(in crate::dx::subscribe) type HandshakeEffectExecutor = dyn Fn(
+pub(in crate::dx::subscribe) type SubscribeEffectExecutor = dyn Fn(
         &Option<Vec<String>>,
         &Option<Vec<String>>,
-        u8,
-        Option<PubNubError>,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
-    + Send
-    + Sync;
-pub(in crate::dx::subscribe) type ReceiveEffectExecutor = dyn Fn(
-        &Option<Vec<String>>,
-        &Option<Vec<String>>,
-        &SubscribeCursor,
+        Option<&SubscribeCursor>,
         u8,
         Option<PubNubError>,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
@@ -58,7 +50,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
-        executor: Arc<HandshakeEffectExecutor>,
+        executor: Arc<SubscribeEffectExecutor>,
     },
 
     /// Retry initial subscribe effect invocation.
@@ -86,7 +78,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
-        executor: Arc<HandshakeEffectExecutor>,
+        executor: Arc<SubscribeEffectExecutor>,
     },
 
     /// Receive updates effect invocation.
@@ -111,7 +103,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute receive updates.
-        executor: Arc<ReceiveEffectExecutor>,
+        executor: Arc<SubscribeEffectExecutor>,
     },
 
     /// Retry receive updates effect invocation.
@@ -145,7 +137,7 @@ pub(crate) enum SubscribeEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute receive updates.
-        executor: Arc<ReceiveEffectExecutor>,
+        executor: Arc<SubscribeEffectExecutor>,
     },
 
     /// Status change notification effect invocation.
@@ -284,3 +276,6 @@ impl Effect for SubscribeEffect {
         // TODO: Cancellation required for corresponding SubscribeEffect variants.
     }
 }
+
+#[cfg(test)]
+mod should {}

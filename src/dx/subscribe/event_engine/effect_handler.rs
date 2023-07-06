@@ -3,10 +3,7 @@ use async_channel::Sender;
 use crate::{
     core::event_engine::EffectHandler,
     dx::subscribe::event_engine::{
-        effects::{
-            EmitMessagesEffectExecutor, EmitStatusEffectExecutor, HandshakeEffectExecutor,
-            ReceiveEffectExecutor,
-        },
+        effects::{EmitMessagesEffectExecutor, EmitStatusEffectExecutor, SubscribeEffectExecutor},
         SubscribeEffect, SubscribeEffectInvocation,
     },
     lib::{
@@ -21,11 +18,8 @@ use crate::{
 /// effect invocation.
 #[allow(dead_code)]
 pub(crate) struct SubscribeEffectHandler {
-    /// Handshake function pointer.
-    handshake: Arc<HandshakeEffectExecutor>,
-
-    /// Receive updates function pointer.
-    receive: Arc<ReceiveEffectExecutor>,
+    /// Subscribe call function pointer.
+    subscribe_call: Arc<SubscribeEffectExecutor>,
 
     /// Emit status function pointer.
     emit_status: Arc<EmitStatusEffectExecutor>,
@@ -41,15 +35,13 @@ impl<'client> SubscribeEffectHandler {
     /// Create subscribe event handler.
     #[allow(dead_code)]
     pub fn new(
-        handshake: Arc<HandshakeEffectExecutor>,
-        receive: Arc<ReceiveEffectExecutor>,
+        subscribe_call: Arc<SubscribeEffectExecutor>,
         emit_status: Arc<EmitStatusEffectExecutor>,
         emit_messages: Arc<EmitMessagesEffectExecutor>,
         cancellation_channel: Sender<String>,
     ) -> Self {
         SubscribeEffectHandler {
-            handshake,
-            receive,
+            subscribe_call,
             emit_status,
             emit_messages,
             cancellation_channel,
@@ -66,7 +58,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             } => Some(SubscribeEffect::Handshake {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
-                executor: self.handshake.clone(),
+                executor: self.subscribe_call.clone(),
             }),
             SubscribeEffectInvocation::HandshakeReconnect {
                 channels,
@@ -78,7 +70,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channel_groups: channel_groups.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
-                executor: self.handshake.clone(),
+                executor: self.subscribe_call.clone(),
             }),
             SubscribeEffectInvocation::Receive {
                 channels,
@@ -88,7 +80,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
                 cursor: cursor.clone(),
-                executor: self.receive.clone(),
+                executor: self.subscribe_call.clone(),
             }),
             SubscribeEffectInvocation::ReceiveReconnect {
                 channels,
@@ -102,7 +94,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 cursor: cursor.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
-                executor: self.receive.clone(),
+                executor: self.subscribe_call.clone(),
             }),
             SubscribeEffectInvocation::EmitStatus(status) => {
                 // TODO: Provide emit status effect

@@ -1,7 +1,7 @@
 use crate::{
     core::PubNubError,
     dx::subscribe::{
-        event_engine::{effects::ReceiveEffectExecutor, SubscribeEvent},
+        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
         SubscribeCursor,
     },
     lib::alloc::{string::String, sync::Arc, vec::Vec},
@@ -14,7 +14,7 @@ pub(crate) fn execute(
     cursor: &SubscribeCursor,
     _attempt: u8,
     _reason: PubNubError,
-    _executor: &Arc<ReceiveEffectExecutor>,
+    _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
@@ -37,7 +37,7 @@ mod should {
 
     #[test]
     fn receive_messages() {
-        let mock_receive_function: Arc<ReceiveEffectExecutor> =
+        let mock_receive_function: Arc<SubscribeEffectExecutor> =
             Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
                 assert_eq!(channels, &Some(vec!["ch1".to_string()]));
                 assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
@@ -48,7 +48,7 @@ mod should {
                         details: "test".into(),
                     })
                 );
-                assert_eq!(cursor, &Default::default());
+                assert_eq!(cursor, Some(&Default::default()));
 
                 async move {
                     Ok(SubscribeResult {
@@ -78,7 +78,7 @@ mod should {
 
     #[test]
     fn return_handshake_failure_event_on_err() {
-        let mock_receive_function: Arc<ReceiveEffectExecutor> = Arc::new(move |_, _, _, _, _| {
+        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_, _, _, _, _| {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),

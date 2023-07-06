@@ -92,31 +92,17 @@ where
     pub(crate) fn subscription_manager(&mut self) -> SubscriptionManager {
         let channel_bound = 10; // TODO: Think about this value
 
-        let handshake_client = self.clone();
-        let receive_client = self.clone();
+        let client = self.clone();
 
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
-        let cancel_rx_clone = cancel_rx.clone();
 
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
-                Arc::new(move |channels, channel_groups, attempt, reason| {
-                    Self::handshake(
-                        handshake_client.clone(),
-                        cancel_rx.clone(),
-                        SubscriptionParams {
-                            channels,
-                            channel_groups,
-                            _attempt: attempt,
-                            _reason: reason,
-                        },
-                    )
-                }),
                 Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
-                    Self::receive(
-                        receive_client.clone(),
+                    Self::subscribe_call(
+                        client.clone(),
                         cursor,
-                        cancel_rx_clone.clone(),
+                        cancel_rx.clone(),
                         SubscriptionParams {
                             channels,
                             channel_groups,
@@ -141,24 +127,16 @@ where
     }
 
     #[allow(dead_code)]
-    pub(crate) fn handshake(
+    pub(crate) fn subscribe_call(
         client: Self,
+        cursor: Option<&SubscribeCursor>,
         cancel_rx: async_channel::Receiver<String>,
         params: SubscriptionParams,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
-        Self::receive(client, &SubscribeCursor::default(), cancel_rx, params)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn receive(
-        client: Self,
-        cursor: &SubscribeCursor,
-        cancel_rx: async_channel::Receiver<String>,
-        params: SubscriptionParams,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
-        // TODO: Add retry policy check and error if failed.
-        let mut request = client.subscribe_request().cursor(cursor.clone());
+        let mut request = client
+            .subscribe_request()
+            .cursor(cursor.cloned().unwrap_or_default()); // TODO: is this clone required?
 
         if let Some(channels) = params.channels.clone() {
             request = request.channels(channels);

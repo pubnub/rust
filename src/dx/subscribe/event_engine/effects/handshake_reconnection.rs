@@ -1,6 +1,6 @@
 use crate::{
     core::PubNubError,
-    dx::subscribe::event_engine::{effects::HandshakeEffectExecutor, SubscribeEvent},
+    dx::subscribe::event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
     lib::alloc::{string::String, sync::Arc, vec::Vec},
 };
 use log::info;
@@ -10,7 +10,7 @@ pub(super) fn execute(
     channel_groups: &Option<Vec<String>>,
     _attempt: u8,
     _reason: PubNubError,
-    _executor: &Arc<HandshakeEffectExecutor>,
+    _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
@@ -35,11 +35,12 @@ mod should {
 
     #[test]
     fn initialize_handshake_reconnect_attempt() {
-        let mock_handshake_function: Arc<HandshakeEffectExecutor> =
-            Arc::new(move |channels, channel_groups, attempt, reason| {
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> =
+            Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
                 assert_eq!(channels, &Some(vec!["ch1".to_string()]));
                 assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
                 assert_eq!(attempt, 1);
+                assert_eq!(cursor, None);
                 assert_eq!(
                     reason.unwrap(),
                     PubNubError::Transport {
@@ -72,14 +73,15 @@ mod should {
 
     #[test]
     fn return_handskahe_failure_event_on_err() {
-        let mock_handshake_function: Arc<HandshakeEffectExecutor> = Arc::new(move |_, _, _, _| {
-            async move {
-                Err(PubNubError::Transport {
-                    details: "test".into(),
-                })
-            }
-            .boxed()
-        });
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> =
+            Arc::new(move |_, _, _, _, _| {
+                async move {
+                    Err(PubNubError::Transport {
+                        details: "test".into(),
+                    })
+                }
+                .boxed()
+            });
 
         let binding = execute(
             &Some(vec!["ch1".to_string()]),
