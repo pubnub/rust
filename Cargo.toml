@@ -69,7 +69,7 @@ event_engine = []
 # TODO: temporary treated as internal until we officially release it
 futures = ["dep:futures"]
 futures_tokio = ["dep:tokio"]
-subscribe = ["event_engine", "futures", "futures_tokio"]
+subscribe = ["event_engine", "futures", "futures_tokio", "dep:async-channel"]
 
 [dependencies]
 async-trait = "0.1"
@@ -108,6 +108,7 @@ ciborium = { version = "0.2.1", default-features = false, optional = true }
 # subscribe
 tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros"] }
 futures = { version = "0.3.28", optional = true }
+async-channel = { version = "1.8", optional = true }
 
 # extra_platforms
 portable-atomic = { version = "1.3", optional = true, default-features = false, features = ["require-cas", "critical-section"] }

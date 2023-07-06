@@ -94,20 +94,24 @@ where
                 Arc::new(move |channels, channel_groups, attempt, reason| {
                     Self::handshake(
                         handshake_client.clone(),
-                        channels,
-                        channel_groups,
-                        attempt,
-                        reason,
+                        SubscriptionParams {
+                            channels,
+                            channel_groups,
+                            _attempt: attempt,
+                            _reason: reason,
+                        },
                     )
                 }),
                 Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
                     Self::receive(
                         receive_client.clone(),
-                        channels,
-                        channel_groups,
                         cursor,
-                        attempt,
-                        reason,
+                        SubscriptionParams {
+                            channels,
+                            channel_groups,
+                            _attempt: attempt,
+                            _reason: reason,
+                        },
                     )
                 }),
                 Arc::new(|| {
@@ -127,39 +131,26 @@ where
     #[allow(dead_code)]
     pub(crate) fn handshake(
         client: Self,
-        channels: &Option<Vec<String>>,
-        channel_groups: &Option<Vec<String>>,
-        attempt: u8,
-        reason: Option<PubNubError>,
+        params: SubscriptionParams,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
-        Self::receive(
-            client,
-            channels,
-            channel_groups,
-            &SubscribeCursor::default(),
-            attempt,
-            reason,
-        )
+        Self::receive(client, &SubscribeCursor::default(), params)
     }
 
     #[allow(dead_code)]
     pub(crate) fn receive(
         client: Self,
-        channels: &Option<Vec<String>>,
-        channel_groups: &Option<Vec<String>>,
         cursor: &SubscribeCursor,
-        _attempt: u8,
-        _reason: Option<PubNubError>,
+        params: SubscriptionParams,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         // TODO: Add retry policy check and error if failed.
         let mut request = client.subscribe_request().cursor(cursor.clone());
 
-        if let Some(channels) = channels.clone() {
+        if let Some(channels) = params.channels.clone() {
             request = request.channels(channels);
         }
 
-        if let Some(channel_groups) = channel_groups.clone() {
+        if let Some(channel_groups) = params.channel_groups.clone() {
             request = request.channel_groups(channel_groups);
         }
 
@@ -181,6 +172,13 @@ where
             .as_ref()
             .map(|manager| manager.notify_new_messages(messages));
     }
+}
+
+pub(crate) struct SubscriptionParams<'execution> {
+    channels: &'execution Option<Vec<String>>,
+    channel_groups: &'execution Option<Vec<String>>,
+    _attempt: u8,
+    _reason: Option<PubNubError>,
 }
 
 #[cfg(feature = "blocking")]
