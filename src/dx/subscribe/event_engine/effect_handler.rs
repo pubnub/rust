@@ -59,6 +59,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
                 executor: self.subscribe_call.clone(),
+                cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::HandshakeReconnect {
                 channels,
@@ -71,6 +72,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 attempts: *attempts,
                 reason: reason.clone(),
                 executor: self.subscribe_call.clone(),
+                cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::Receive {
                 channels,
@@ -81,6 +83,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channel_groups: channel_groups.clone(),
                 cursor: cursor.clone(),
                 executor: self.subscribe_call.clone(),
+                cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::ReceiveReconnect {
                 channels,
@@ -95,6 +98,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 attempts: *attempts,
                 reason: reason.clone(),
                 executor: self.subscribe_call.clone(),
+                cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::EmitStatus(status) => {
                 // TODO: Provide emit status effect

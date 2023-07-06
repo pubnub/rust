@@ -10,6 +10,7 @@ use crate::{
         core::fmt::{Debug, Formatter},
     },
 };
+use async_channel::Sender;
 use futures::future::BoxFuture;
 
 mod handshake;
@@ -30,6 +31,7 @@ pub(in crate::dx::subscribe) type SubscribeEffectExecutor = dyn Fn(
 pub(in crate::dx::subscribe) type EmitStatusEffectExecutor = dyn Fn() + Send + Sync;
 pub(in crate::dx::subscribe) type EmitMessagesEffectExecutor = dyn Fn() + Send + Sync;
 
+// TODO: maybe move executor and cancellation_channel to super struct?
 /// Subscription state machine effects.
 #[allow(dead_code)]
 pub(crate) enum SubscribeEffect {
@@ -51,6 +53,11 @@ pub(crate) enum SubscribeEffect {
         ///
         /// Function which will be used to execute initial subscription.
         executor: Arc<SubscribeEffectExecutor>,
+
+        /// Cancelation channel.
+        ///
+        /// Channel which will be used to cancel effect execution.
+        cancellation_channel: Sender<String>,
     },
 
     /// Retry initial subscribe effect invocation.
@@ -79,6 +86,11 @@ pub(crate) enum SubscribeEffect {
         ///
         /// Function which will be used to execute initial subscription.
         executor: Arc<SubscribeEffectExecutor>,
+
+        /// Cancelation channel.
+        ///
+        /// Channel which will be used to cancel effect execution.
+        cancellation_channel: Sender<String>,
     },
 
     /// Receive updates effect invocation.
@@ -104,6 +116,11 @@ pub(crate) enum SubscribeEffect {
         ///
         /// Function which will be used to execute receive updates.
         executor: Arc<SubscribeEffectExecutor>,
+
+        /// Cancelation channel.
+        ///
+        /// Channel which will be used to cancel effect execution.
+        cancellation_channel: Sender<String>,
     },
 
     /// Retry receive updates effect invocation.
@@ -138,6 +155,11 @@ pub(crate) enum SubscribeEffect {
         ///
         /// Function which will be used to execute receive updates.
         executor: Arc<SubscribeEffectExecutor>,
+
+        /// Cancelation channel.
+        ///
+        /// Channel which will be used to cancel effect execution.
+        cancellation_channel: Sender<String>,
     },
 
     /// Status change notification effect invocation.
@@ -228,6 +250,7 @@ impl Effect for SubscribeEffect {
                 channels,
                 channel_groups,
                 executor,
+                ..
             } => handshake::execute(channels, channel_groups, executor),
             SubscribeEffect::HandshakeReconnect {
                 channels,
@@ -235,6 +258,7 @@ impl Effect for SubscribeEffect {
                 attempts,
                 reason,
                 executor,
+                ..
             } => handshake_reconnection::execute(
                 channels,
                 channel_groups,
@@ -247,6 +271,7 @@ impl Effect for SubscribeEffect {
                 channel_groups,
                 cursor,
                 executor,
+                ..
             } => receive::execute(channels, channel_groups, cursor, executor),
             SubscribeEffect::ReceiveReconnect {
                 channels,
@@ -255,6 +280,7 @@ impl Effect for SubscribeEffect {
                 attempts,
                 reason,
                 executor,
+                ..
             } => receive_reconnection::execute(
                 channels,
                 channel_groups,
@@ -273,9 +299,54 @@ impl Effect for SubscribeEffect {
     }
 
     fn cancel(&self) {
-        // TODO: Cancellation required for corresponding SubscribeEffect variants.
+        match self {
+            SubscribeEffect::Handshake {
+                cancellation_channel,
+                ..
+            }
+            | SubscribeEffect::HandshakeReconnect {
+                cancellation_channel,
+                ..
+            }
+            | SubscribeEffect::Receive {
+                cancellation_channel,
+                ..
+            }
+            | SubscribeEffect::ReceiveReconnect {
+                cancellation_channel,
+                ..
+            } => {
+                cancellation_channel.send_blocking(self.id()).unwrap(); // TODO: result ;/
+            }
+            _ => { /* cannot cancel other effects */ }
+        }
     }
 }
 
 #[cfg(test)]
-mod should {}
+mod should {
+    use super::*;
+
+    #[tokio::test]
+    async fn send_cancelation_notification() {
+        let (tx, rx) = async_channel::bounded(1);
+
+        let effect = SubscribeEffect::Handshake {
+            channels: None,
+            channel_groups: None,
+            executor: Arc::new(|_, _, _, _, _| {
+                Box::pin(async move {
+                    Ok(SubscribeResult {
+                        cursor: SubscribeCursor::default(),
+                        messages: vec![],
+                    })
+                })
+            }),
+            cancellation_channel: tx,
+        };
+
+        effect.cancel();
+
+        assert_eq!(rx.recv().await.unwrap(), effect.id())
+    }
+}
