@@ -7,11 +7,10 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use crate::core::RequestRetryPolicy;
 #[cfg(feature = "subscribe")]
 use crate::dx::subscribe::subscription_manager::SubscriptionManager;
 use crate::{
-    core::{PubNubError, Transport},
+    core::{PubNubError, RequestRetryPolicy, Transport},
     lib::{
         alloc::{
             string::{String, ToString},
@@ -262,14 +261,6 @@ pub struct PubNubClientRef<T> {
     )]
     pub(crate) auth_token: Arc<RwLock<String>>,
 
-    /// Request retry policy
-    #[builder(
-        setter(custom),
-        field(vis = "pub(crate)"),
-        default = "Arc::new(RwLock::new(RequestRetryPolicy::None))"
-    )]
-    pub(crate) retry_policy: Arc<RwLock<RequestRetryPolicy>>,
-
     /// Subscription manager
     #[cfg(feature = "subscribe")]
     #[builder(setter(skip), field(vis = "pub(crate)"))]
@@ -407,7 +398,9 @@ impl<T> PubNubClientConfigBuilder<T> {
     /// The retry policy regulates the frequency of request retry attempts and the number of failed
     /// attempts that should be retried.
     pub fn with_retry_policy(mut self, policy: RequestRetryPolicy) -> Self {
-        self.retry_policy = Some(Arc::new(RwLock::new(policy)));
+        if let Some(configuration) = self.config.as_mut() {
+            configuration.retry_policy = Arc::new(policy);
+        }
 
         self
     }
@@ -430,12 +423,13 @@ impl<T> PubNubClientConfigBuilder<T> {
                         transport: pre_build.transport,
                         auth_token: token.clone(),
                     },
-                    subscription_manager: Arc::new(RwLock::new(None)),
                     instance_id: pre_build.instance_id,
                     next_seqn: pre_build.next_seqn,
                     auth_token: token,
                     config: pre_build.config,
-                    retry_policy: pre_build.retry_policy.clone()
+
+                    #[cfg(feature = "subscribe")]
+                    subscription_manager: Arc::new(RwLock::new(None)),
                 })
             })
             .map(|client| {
@@ -466,6 +460,9 @@ pub struct PubNubConfig {
 
     /// Authorization key
     pub(crate) auth_key: Option<Arc<String>>,
+
+    /// Request retry policy
+    pub(crate) retry_policy: Arc<RequestRetryPolicy>,
 }
 
 impl PubNubConfig {
@@ -696,6 +693,7 @@ where
                 secret_key,
                 user_id: Arc::new(user_id.into()),
                 auth_key: None,
+                retry_policy: Arc::new(RequestRetryPolicy::None),
             }),
             ..Default::default()
         }
@@ -780,6 +778,7 @@ mod should {
             secret_key: Some("sec_key".into()),
             user_id: Arc::new("".into()),
             auth_key: None,
+            retry_policy: Arc::new(Default::default()),
         };
 
         assert!(config.signature_key_set().is_err());
