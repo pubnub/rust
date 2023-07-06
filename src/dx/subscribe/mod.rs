@@ -146,7 +146,8 @@ where
             request = request.channel_groups(channel_groups);
         }
 
-        let cancel_task = CancelationTask::new(cancel_rx, "".into());
+        let cancel_task = CancelationTask::new(cancel_rx, "".into()); // TODO: PASS NAME FROM
+                                                                      // EFFECT!
 
         request.execute(cancel_task).boxed()
     }
