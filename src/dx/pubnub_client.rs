@@ -241,9 +241,12 @@ pub struct PubNubClientRef<T> {
     pub(crate) transport: T,
 
     /// Data cryptor / decryptor
-    #[cfg(feature = "aescbc")]
-    #[cfg_attr(feature = "aescbc", builder(setter(custom), field(vis = "pub(crate)")))]
-    pub(crate) cryptor: Arc<dyn Cryptor + Send + Sync>,
+    #[builder(
+        setter(custom, strip_option),
+        field(vis = "pub(crate)"),
+        default = "None"
+    )]
+    pub(crate) cryptor: Option<Arc<dyn Cryptor + Send + Sync>>,
 
     /// Instance ID
     #[builder(
@@ -428,7 +431,7 @@ impl<T> PubNubClientConfigBuilder<T> {
     where
         C: Cryptor + Send + Sync + 'static,
     {
-        self.cryptor = Some(Arc::new(cryptor));
+        self.cryptor = Some(Some(Arc::new(cryptor)));
 
         self
     }
@@ -455,9 +458,7 @@ impl<T> PubNubClientConfigBuilder<T> {
                     next_seqn: pre_build.next_seqn,
                     auth_token: token,
                     config: pre_build.config,
-
-                    #[cfg(feature = "aescbc")]
-                    cryptor: pre_build.cryptor,
+                    cryptor: pre_build.cryptor.clone(),
 
                     #[cfg(feature = "subscribe")]
                     subscription_manager: Arc::new(RwLock::new(None)),

@@ -121,7 +121,7 @@ impl SubscriptionBuilder {
 }
 
 impl Subscription {
-    pub(crate) fn notify_update(&self, update: SubscribeStreamEvent) {}
+    pub(crate) fn notify_update(&self, _update: SubscribeStreamEvent) {}
 }
 
 //
