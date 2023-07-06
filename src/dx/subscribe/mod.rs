@@ -189,10 +189,12 @@ impl<T> PubNubClientInstance<T> where T: crate::core::blocking::Transport {}
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::core::RequestRetryPolicy;
     use crate::{
         transport::{middleware::PubNubMiddleware, TransportReqwest},
         Keyset, PubNubClientBuilder,
     };
+    use spin::rwlock::RwLock;
 
     fn client() -> PubNubClientInstance<PubNubMiddleware<TransportReqwest>> {
         PubNubClientBuilder::with_reqwest_transport()

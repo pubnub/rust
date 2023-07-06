@@ -13,6 +13,7 @@ use crate::core::TransportResponse;
 /// Request retry policy.
 ///
 ///
+#[derive(Debug)]
 pub enum RequestRetryPolicy {
     /// Requests shouldn't be tried again.
     None,

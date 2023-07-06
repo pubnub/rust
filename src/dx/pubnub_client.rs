@@ -7,6 +7,7 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
+use crate::core::RequestRetryPolicy;
 #[cfg(feature = "subscribe")]
 use crate::dx::subscribe::subscription_manager::SubscriptionManager;
 use crate::{
@@ -74,7 +75,7 @@ use spin::{Mutex, RwLock};
 /// #     }
 /// # }
 ///
-/// # fn main() -> Result<(), pubnub::core::PubNubError> {
+/// # fn main() -> Result<(), PubNubError> {
 /// // note that MyTransport must implement the `Transport` trait
 /// let transport = MyTransport::new();
 ///
@@ -155,7 +156,7 @@ pub type PubNubGenericClient<T> = PubNubClientInstance<PubNubMiddleware<T>>;
 /// #     }
 /// # }
 ///
-/// # fn main() -> Result<(), pubnub::core::PubNubError> {
+/// # fn main() -> Result<(), PubNubError> {
 /// // note that MyTransport must implement the `Transport` trait
 /// let transport = MyTransport::new();
 ///
@@ -261,15 +262,17 @@ pub struct PubNubClientRef<T> {
     )]
     pub(crate) auth_token: Arc<RwLock<String>>,
 
-    #[cfg_attr(
-        feature = "subscribe",
-        builder(
-            setter(custom),
-            field(vis = "pub(crate)"),
-            default = "Arc::new(RwLock::new(None))"
-        )
+    /// Request retry policy
+    #[builder(
+        setter(custom),
+        field(vis = "pub(crate)"),
+        default = "Arc::new(RwLock::new(RequestRetryPolicy::None))"
     )]
+    pub(crate) retry_policy: Arc<RwLock<RequestRetryPolicy>>,
+
+    /// Subscription manager
     #[cfg(feature = "subscribe")]
+    #[builder(setter(skip), field(vis = "pub(crate)"))]
     pub(crate) subscription_manager: Arc<RwLock<Option<SubscriptionManager>>>,
 }
 
@@ -295,7 +298,7 @@ impl<T> PubNubClientInstance<T> {
     /// #     }
     /// # }
     ///
-    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// # fn main() -> Result<(), PubNubError> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
@@ -399,6 +402,16 @@ impl<T> PubNubClientConfigBuilder<T> {
         self
     }
 
+    /// Requests retry policy.
+    ///
+    /// The retry policy regulates the frequency of request retry attempts and the number of failed
+    /// attempts that should be retried.
+    pub fn with_retry_policy(mut self, policy: RequestRetryPolicy) -> Self {
+        self.retry_policy = Some(Arc::new(RwLock::new(policy)));
+
+        self
+    }
+
     /// Build a [`PubNubClient`] from the builder
     pub fn build(self) -> Result<PubNubClientInstance<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
@@ -406,7 +419,7 @@ impl<T> PubNubClientConfigBuilder<T> {
                 details: err.to_string(),
             })
             .and_then(|pre_build| {
-                let token = Arc::new(spin::RwLock::new(String::new()));
+                let token = Arc::new(RwLock::new(String::new()));
                 info!("Client Configuration: \n publish_key: {:?}\n subscribe_key: {}\n user_id: {}\n instance_id: {:?}", pre_build.config.publish_key, pre_build.config.subscribe_key, pre_build.config.user_id, pre_build.instance_id);
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
@@ -422,6 +435,7 @@ impl<T> PubNubClientConfigBuilder<T> {
                     next_seqn: pre_build.next_seqn,
                     auth_token: token,
                     config: pre_build.config,
+                    retry_policy: pre_build.retry_policy.clone()
                 })
             })
             .map(|client| {
@@ -564,7 +578,7 @@ impl<T> PubNubClientBuilder<T> {
     /// #     }
     /// # }
     ///
-    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// # fn main() -> Result<(), PubNubError> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///

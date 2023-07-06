@@ -1,6 +1,8 @@
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Serialize;
+use spin::rwlock::RwLock;
 use std::env;
+use std::sync::Arc;
 
 #[derive(Serialize)]
 struct Message {
