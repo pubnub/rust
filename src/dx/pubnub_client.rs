@@ -7,6 +7,7 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
+use crate::core::Cryptor;
 #[cfg(feature = "subscribe")]
 use crate::dx::subscribe::subscription_manager::SubscriptionManager;
 use crate::{
@@ -239,6 +240,11 @@ pub struct PubNubClientRef<T> {
     /// Transport layer
     pub(crate) transport: T,
 
+    /// Data cryptor / decryptor
+    #[cfg(feature = "aescbc")]
+    #[cfg_attr(feature = "aescbc", builder(setter(custom), field(vis = "pub(crate)")))]
+    pub(crate) cryptor: Arc<dyn Cryptor + Send + Sync>,
+
     /// Instance ID
     #[builder(
         setter(into),
@@ -397,10 +403,32 @@ impl<T> PubNubClientConfigBuilder<T> {
     ///
     /// The retry policy regulates the frequency of request retry attempts and the number of failed
     /// attempts that should be retried.
+    ///
+    /// It returns [`PubNubClientConfigBuilder`] that you can use to set the
+    /// configuration for the client. This is a part the
+    /// [`PubNubClientConfigBuilder`].
     pub fn with_retry_policy(mut self, policy: RequestRetryPolicy) -> Self {
         if let Some(configuration) = self.config.as_mut() {
             configuration.retry_policy = Arc::new(policy);
         }
+
+        self
+    }
+
+    #[cfg(feature = "aescbc")]
+    /// Data encryption / decryption
+    ///
+    /// Cryptor used by client when publish messages / signals and receive them as real-time updates
+    /// from subscription module.
+    ///
+    /// It returns [`PubNubClientConfigBuilder`] that you can use to set the
+    /// configuration for the client. This is a part the
+    /// [`PubNubClientConfigBuilder`].
+    pub fn with_cryptor<C>(mut self, cryptor: C) -> Self
+    where
+        C: Cryptor + Send + Sync + 'static,
+    {
+        self.cryptor = Some(Arc::new(cryptor));
 
         self
     }
@@ -427,6 +455,9 @@ impl<T> PubNubClientConfigBuilder<T> {
                     next_seqn: pre_build.next_seqn,
                     auth_token: token,
                     config: pre_build.config,
+
+                    #[cfg(feature = "aescbc")]
+                    cryptor: pre_build.cryptor,
 
                     #[cfg(feature = "subscribe")]
                     subscription_manager: Arc::new(RwLock::new(None)),
