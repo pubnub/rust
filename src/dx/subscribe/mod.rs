@@ -131,6 +131,7 @@ where
                 Arc::new(Box::new(|| {
                     // Do nothing yet
                 })),
+                cancel_tx,
             ),
             SubscribeState::Unsubscribed,
         );

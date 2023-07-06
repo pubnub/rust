@@ -1,3 +1,5 @@
+use async_channel::Sender;
+
 use crate::{
     core::event_engine::EffectHandler,
     dx::subscribe::event_engine::{
@@ -30,6 +32,9 @@ pub(crate) struct SubscribeEffectHandler {
 
     /// Emit messages function pointer.
     emit_messages: Arc<EmitMessagesEffectExecutor>,
+
+    /// Cancellation channel.
+    cancellation_channel: Sender<String>,
 }
 
 impl<'client> SubscribeEffectHandler {
@@ -40,12 +45,14 @@ impl<'client> SubscribeEffectHandler {
         receive: Arc<ReceiveEffectExecutor>,
         emit_status: Arc<EmitStatusEffectExecutor>,
         emit_messages: Arc<EmitMessagesEffectExecutor>,
+        cancellation_channel: Sender<String>,
     ) -> Self {
         SubscribeEffectHandler {
             handshake,
             receive,
             emit_status,
             emit_messages,
+            cancellation_channel,
         }
     }
 }
