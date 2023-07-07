@@ -10,6 +10,7 @@ pub(super) fn execute(
     channel_groups: &Option<Vec<String>>,
     _attempt: u8,
     _reason: PubNubError,
+    effect_id: &str,
     _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
@@ -65,6 +66,7 @@ mod should {
             PubNubError::Transport {
                 details: "test".into(),
             },
+            "id",
             &mock_handshake_function,
         );
 
@@ -90,6 +92,7 @@ mod should {
             PubNubError::Transport {
                 details: "test".into(),
             },
+            "id",
             &mock_handshake_function,
         )
         .unwrap();

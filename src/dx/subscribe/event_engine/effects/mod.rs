@@ -248,7 +248,7 @@ impl Effect for SubscribeEffect {
                 channel_groups,
                 executor,
                 ..
-            } => handshake::execute(channels, channel_groups, executor),
+            } => handshake::execute(channels, channel_groups, &self.id(), executor),
             SubscribeEffect::HandshakeReconnect {
                 channels,
                 channel_groups,
@@ -261,6 +261,7 @@ impl Effect for SubscribeEffect {
                 channel_groups,
                 *attempts,
                 reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                &self.id(),
                 executor,
             ),
             SubscribeEffect::Receive {
@@ -269,7 +270,7 @@ impl Effect for SubscribeEffect {
                 cursor,
                 executor,
                 ..
-            } => receive::execute(channels, channel_groups, cursor, executor),
+            } => receive::execute(channels, channel_groups, cursor, &self.id(), executor),
             SubscribeEffect::ReceiveReconnect {
                 channels,
                 channel_groups,
@@ -284,6 +285,7 @@ impl Effect for SubscribeEffect {
                 cursor,
                 *attempts,
                 reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                &self.id(),
                 executor,
             ),
             _ => {

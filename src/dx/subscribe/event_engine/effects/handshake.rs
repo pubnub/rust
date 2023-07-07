@@ -7,6 +7,7 @@ use log::info;
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
+    effect_id: &str,
     _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
@@ -50,6 +51,7 @@ mod should {
         let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
+            "id",
             &mock_handshake_function,
         );
 
@@ -74,6 +76,7 @@ mod should {
         let binding = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
+            "id",
             &mock_handshake_function,
         )
         .unwrap();

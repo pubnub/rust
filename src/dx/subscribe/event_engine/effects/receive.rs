@@ -11,6 +11,7 @@ pub(crate) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
+    effect_id: &str,
     _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Option<Vec<SubscribeEvent>> {
     info!(
@@ -56,6 +57,7 @@ mod should {
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
             &Default::default(),
+            "id",
             &mock_receive_function,
         );
 
@@ -80,6 +82,7 @@ mod should {
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
             &Default::default(),
+            "id",
             &mock_receive_function,
         )
         .unwrap();
