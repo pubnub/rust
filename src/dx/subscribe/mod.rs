@@ -226,4 +226,22 @@ mod should {
         //     panic!("Handshake request did fail.");
         // }
     }
+
+    // TODO: add posibility to cancel subscription
+    //    #[tokio::test]
+    //    async fn cancel_effect() {
+    //        let mut client = client();
+    //
+    //        let subscription = client
+    //            .subscribe()
+    //            .channels(["hello".into(), "world".into()].to_vec())
+    //            .build()
+    //            .unwrap();
+    //
+    //        subscription.cancel().await;
+    //
+    //        let error = subscription.stream().await.unwrap_err();
+    //
+    //        assert!(matches!(error, PubNubError::EffectCanceled));
+    //    }
 }
