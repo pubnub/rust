@@ -47,6 +47,7 @@ mod should {
                         details: "test".into(),
                     }
                 );
+                assert_eq!(params.effect_id, "id");
 
                 async move {
                     Ok(SubscribeResult {

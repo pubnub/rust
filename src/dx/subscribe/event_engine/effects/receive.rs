@@ -41,6 +41,7 @@ mod should {
                 assert_eq!(params._attempt, 0);
                 assert_eq!(params._reason, None);
                 assert_eq!(cursor, Some(&Default::default()));
+                assert_eq!(params.effect_id, "id");
 
                 async move {
                     Ok(SubscribeResult {

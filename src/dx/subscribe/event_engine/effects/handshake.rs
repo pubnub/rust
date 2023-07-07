@@ -36,6 +36,7 @@ mod should {
                 assert_eq!(params._attempt, 0);
                 assert_eq!(cursor, None);
                 assert_eq!(params._reason, None);
+                assert_eq!(params.effect_id, "id");
 
                 async move {
                     Ok(SubscribeResult {
