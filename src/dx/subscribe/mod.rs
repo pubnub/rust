@@ -144,8 +144,7 @@ where
             request = request.channel_groups(channel_groups);
         }
 
-        let cancel_task = CancelationTask::new(cancel_rx, "".into()); // TODO: PASS NAME FROM
-                                                                      // EFFECT!
+        let cancel_task = CancelationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
 
         request.execute(cancel_task).boxed()
     }
