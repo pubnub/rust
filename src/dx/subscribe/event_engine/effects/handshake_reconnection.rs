@@ -36,13 +36,13 @@ mod should {
     #[test]
     fn initialize_handshake_reconnect_attempt() {
         let mock_handshake_function: Arc<SubscribeEffectExecutor> =
-            Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
-                assert_eq!(channels, &Some(vec!["ch1".to_string()]));
-                assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
-                assert_eq!(attempt, 1);
+            Arc::new(move |cursor, params| {
+                assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
+                assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
+                assert_eq!(params._attempt, 1);
                 assert_eq!(cursor, None);
                 assert_eq!(
-                    reason.unwrap(),
+                    params._reason.unwrap(),
                     PubNubError::Transport {
                         details: "test".into(),
                     }
@@ -73,15 +73,14 @@ mod should {
 
     #[test]
     fn return_handskahe_failure_event_on_err() {
-        let mock_handshake_function: Arc<SubscribeEffectExecutor> =
-            Arc::new(move |_, _, _, _, _| {
-                async move {
-                    Err(PubNubError::Transport {
-                        details: "test".into(),
-                    })
-                }
-                .boxed()
-            });
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_, _| {
+            async move {
+                Err(PubNubError::Transport {
+                    details: "test".into(),
+                })
+            }
+            .boxed()
+        });
 
         let binding = execute(
             &Some(vec!["ch1".to_string()]),

@@ -38,12 +38,12 @@ mod should {
     #[test]
     fn receive_messages() {
         let mock_receive_function: Arc<SubscribeEffectExecutor> =
-            Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
-                assert_eq!(channels, &Some(vec!["ch1".to_string()]));
-                assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
-                assert_eq!(attempt, 10);
+            Arc::new(move |cursor, params| {
+                assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
+                assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
+                assert_eq!(params._attempt, 10);
                 assert_eq!(
-                    reason,
+                    params._reason,
                     Some(PubNubError::Transport {
                         details: "test".into(),
                     })
@@ -78,7 +78,7 @@ mod should {
 
     #[test]
     fn return_handshake_failure_event_on_err() {
-        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_, _, _, _, _| {
+        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_, _| {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),

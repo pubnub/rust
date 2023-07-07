@@ -39,6 +39,14 @@ pub mod builders;
 
 mod cancel;
 
+pub(crate) struct SubscriptionParams<'execution> {
+    channels: &'execution Option<Vec<String>>,
+    channel_groups: &'execution Option<Vec<String>>,
+    _attempt: u8,
+    _reason: Option<PubNubError>,
+    effect_id: &'execution str,
+}
+
 impl<T> PubNubClientInstance<T>
 where
     T: Transport + Send + 'static,
@@ -98,18 +106,8 @@ where
 
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
-                Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
-                    Self::subscribe_call(
-                        client.clone(),
-                        cursor,
-                        cancel_rx.clone(),
-                        SubscriptionParams {
-                            channels,
-                            channel_groups,
-                            _attempt: attempt,
-                            _reason: reason,
-                        },
-                    )
+                Arc::new(move |cursor, params| {
+                    Self::subscribe_call(client.clone(), cursor, cancel_rx.clone(), params)
                 }),
                 Arc::new(|| {
                     // Do nothing yet
@@ -167,13 +165,6 @@ where
             .as_ref()
             .map(|manager| manager.notify_new_messages(messages));
     }
-}
-
-pub(crate) struct SubscriptionParams<'execution> {
-    channels: &'execution Option<Vec<String>>,
-    channel_groups: &'execution Option<Vec<String>>,
-    _attempt: u8,
-    _reason: Option<PubNubError>,
 }
 
 #[cfg(feature = "blocking")]

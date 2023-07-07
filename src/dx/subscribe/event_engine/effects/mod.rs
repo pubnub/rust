@@ -3,7 +3,7 @@ use crate::{
     dx::subscribe::{
         event_engine::{SubscribeEffectInvocation, SubscribeEvent},
         result::{SubscribeResult, Update},
-        SubscribeCursor, SubscribeStatus,
+        SubscribeCursor, SubscribeStatus, SubscriptionParams,
     },
     lib::{
         alloc::{string::String, sync::Arc, vec::Vec},
@@ -19,11 +19,8 @@ mod receive;
 mod receive_reconnection;
 
 pub(in crate::dx::subscribe) type SubscribeEffectExecutor = dyn Fn(
-        &Option<Vec<String>>,
-        &Option<Vec<String>>,
-        Option<&SubscribeCursor>,
-        u8,
-        Option<PubNubError>,
+        Option<&SubscribeCursor>, // TODO: move cursor to params
+        SubscriptionParams,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
     + Send
     + Sync;
@@ -334,7 +331,7 @@ mod should {
         let effect = SubscribeEffect::Handshake {
             channels: None,
             channel_groups: None,
-            executor: Arc::new(|_, _, _, _, _| {
+            executor: Arc::new(|_, _| {
                 Box::pin(async move {
                     Ok(SubscribeResult {
                         cursor: SubscribeCursor::default(),

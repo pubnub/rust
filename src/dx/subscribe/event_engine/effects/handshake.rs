@@ -30,12 +30,12 @@ mod should {
     #[tokio::test]
     async fn initialize_handshake_for_first_attempt() {
         let mock_handshake_function: Arc<SubscribeEffectExecutor> =
-            Arc::new(move |channels, channel_groups, cursor, attempt, reason| {
-                assert_eq!(channels, &Some(vec!["ch1".to_string()]));
-                assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
-                assert_eq!(attempt, 0);
+            Arc::new(move |cursor, params| {
+                assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
+                assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
+                assert_eq!(params._attempt, 0);
                 assert_eq!(cursor, None);
-                assert_eq!(reason, None);
+                assert_eq!(params._reason, None);
 
                 async move {
                     Ok(SubscribeResult {
@@ -61,15 +61,14 @@ mod should {
 
     #[tokio::test]
     async fn return_handshake_failure_event_on_err() {
-        let mock_handshake_function: Arc<SubscribeEffectExecutor> =
-            Arc::new(move |_, _, _, _, _| {
-                async move {
-                    Err(PubNubError::Transport {
-                        details: "test".into(),
-                    })
-                }
-                .boxed()
-            });
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_, _| {
+            async move {
+                Err(PubNubError::Transport {
+                    details: "test".into(),
+                })
+            }
+            .boxed()
+        });
 
         let binding = execute(
             &Some(vec!["ch1".to_string()]),

@@ -731,7 +731,7 @@ mod should {
         SubscribeEffect,
         SubscribeEffectInvocation,
     > {
-        let call: Arc<SubscribeEffectExecutor> = Arc::new(|_, _, _, _, _| {
+        let call: Arc<SubscribeEffectExecutor> = Arc::new(|_, _| {
             async move {
                 Ok(SubscribeResult {
                     cursor: Default::default(),
