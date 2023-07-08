@@ -51,7 +51,7 @@ pub(crate) enum SubscribeEffect {
         /// Function which will be used to execute initial subscription.
         executor: Arc<SubscribeEffectExecutor>,
 
-        /// Cancelation channel.
+        /// Cancellation channel.
         ///
         /// Channel which will be used to cancel effect execution.
         cancellation_channel: Sender<String>,
@@ -84,7 +84,7 @@ pub(crate) enum SubscribeEffect {
         /// Function which will be used to execute initial subscription.
         executor: Arc<SubscribeEffectExecutor>,
 
-        /// Cancelation channel.
+        /// Cancellation channel.
         ///
         /// Channel which will be used to cancel effect execution.
         cancellation_channel: Sender<String>,
@@ -114,7 +114,7 @@ pub(crate) enum SubscribeEffect {
         /// Function which will be used to execute receive updates.
         executor: Arc<SubscribeEffectExecutor>,
 
-        /// Cancelation channel.
+        /// Cancellation channel.
         ///
         /// Channel which will be used to cancel effect execution.
         cancellation_channel: Sender<String>,
@@ -153,7 +153,7 @@ pub(crate) enum SubscribeEffect {
         /// Function which will be used to execute receive updates.
         executor: Arc<SubscribeEffectExecutor>,
 
-        /// Cancelation channel.
+        /// Cancellation channel.
         ///
         /// Channel which will be used to cancel effect execution.
         cancellation_channel: Sender<String>,

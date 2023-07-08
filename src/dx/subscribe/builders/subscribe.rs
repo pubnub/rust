@@ -12,7 +12,7 @@ use crate::{
         pubnub_client::PubNubClientInstance,
         subscribe::{
             builders,
-            cancel::CancelationTask,
+            cancel::CancellationTask,
             result::{SubscribeResponseBody, SubscribeResult},
             SubscribeCursor,
         },
@@ -195,7 +195,7 @@ where
     /// Build and call request.
     pub fn execute(
         self,
-        cancel_task: CancelationTask,
+        cancel_task: CancellationTask,
     ) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
         async move {
             // Build request instance and report errors if any.
@@ -276,7 +276,7 @@ mod should {
 
         let (tx, rx) = async_channel::bounded(1);
 
-        let cancel_task = CancelationTask::new(rx, "test".into());
+        let cancel_task = CancellationTask::new(rx, "test".into());
 
         tx.send("test".into()).await.unwrap();
 

@@ -412,7 +412,7 @@ impl<T> PubNubClientConfigBuilder<T> {
     /// [`PubNubClientConfigBuilder`].
     pub fn with_retry_policy(mut self, policy: RequestRetryPolicy) -> Self {
         if let Some(configuration) = self.config.as_mut() {
-            configuration.retry_policy = Arc::new(policy);
+            configuration.retry_policy = policy;
         }
 
         self
@@ -493,7 +493,7 @@ pub struct PubNubConfig {
     pub(crate) auth_key: Option<Arc<String>>,
 
     /// Request retry policy
-    pub(crate) retry_policy: Arc<RequestRetryPolicy>,
+    pub(crate) retry_policy: RequestRetryPolicy,
 }
 
 impl PubNubConfig {
@@ -724,7 +724,7 @@ where
                 secret_key,
                 user_id: Arc::new(user_id.into()),
                 auth_key: None,
-                retry_policy: Arc::new(RequestRetryPolicy::None),
+                retry_policy: Default::default(),
             }),
             ..Default::default()
         }
@@ -809,7 +809,7 @@ mod should {
             secret_key: Some("sec_key".into()),
             user_id: Arc::new("".into()),
             auth_key: None,
-            retry_policy: Arc::new(Default::default()),
+            retry_policy: Default::default(),
         };
 
         assert!(config.signature_key_set().is_err());

@@ -33,10 +33,9 @@ pub(crate) mod subscription_manager;
 
 #[doc(inline)]
 pub use builders::*;
-
-use self::cancel::CancelationTask;
 pub mod builders;
 
+use cancel::CancellationTask;
 mod cancel;
 
 pub(crate) struct SubscriptionParams<'execution> {
@@ -99,7 +98,6 @@ where
 
     pub(crate) fn subscription_manager(&mut self) -> SubscriptionManager {
         let channel_bound = 10; // TODO: Think about this value
-
         let client = self.clone();
 
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
@@ -120,7 +118,6 @@ where
             SubscribeState::Unsubscribed,
         );
 
-        // self.subscription_manager = Some(Arc::new(RwLock::new(SubscriptionManager::new(engine))));
         SubscriptionManager::new(engine)
     }
 
@@ -144,7 +141,7 @@ where
             request = request.channel_groups(channel_groups);
         }
 
-        let cancel_task = CancelationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
+        let cancel_task = CancellationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
 
         request.execute(cancel_task).boxed()
     }

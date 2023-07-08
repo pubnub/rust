@@ -13,7 +13,7 @@ use crate::core::TransportResponse;
 /// Request retry policy.
 ///
 ///
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RequestRetryPolicy {
     /// Requests shouldn't be tried again.
     None,
@@ -69,11 +69,7 @@ impl RequestRetryPolicy {
 
 impl Default for RequestRetryPolicy {
     fn default() -> Self {
-        Self::Exponential {
-            min_delay: 2,
-            max_delay: 300,
-            max_retry: 2,
-        }
+        Self::None
     }
 }
 

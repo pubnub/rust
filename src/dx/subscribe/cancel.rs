@@ -4,12 +4,12 @@ use crate::core::PubNubError;
 
 /// TODO: why is it public needed for request?
 #[derive(Debug)]
-pub struct CancelationTask {
+pub struct CancellationTask {
     cancel_rx: Receiver<String>,
     id: String,
 }
 
-impl CancelationTask {
+impl CancellationTask {
     pub(super) fn new(cancel_rx: Receiver<String>, id: String) -> Self {
         Self { cancel_rx, id }
     }
@@ -21,7 +21,7 @@ impl CancelationTask {
                 .recv()
                 .await
                 .map_err(|err| PubNubError::Transport {
-                    details: format!("Cancelation pipe failed: {err}"),
+                    details: format!("Cancellation pipe failed: {err}"),
                 })?
                 .eq(&self.id)
             {
@@ -41,7 +41,7 @@ mod should {
     async fn wait_for_cancel() {
         let (cancel_tx, cancel_rx) = async_channel::bounded(2);
 
-        let cancel_task = CancelationTask::new(cancel_rx, "id".into());
+        let cancel_task = CancellationTask::new(cancel_rx, "id".into());
 
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
