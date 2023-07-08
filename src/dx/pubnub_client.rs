@@ -418,7 +418,6 @@ impl<T> PubNubClientConfigBuilder<T> {
         self
     }
 
-    #[cfg(feature = "aescbc")]
     /// Data encryption / decryption
     ///
     /// Cryptor used by client when publish messages / signals and receive them as real-time updates

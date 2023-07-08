@@ -15,32 +15,35 @@ pub use result::{PublishResponseBody, PublishResult};
 pub mod result;
 
 #[doc(inline)]
-pub use builders::PublishMessageBuilder;
+pub use builders::{
+    PublishMessageBuilder, PublishMessageViaChannel, PublishMessageViaChannelBuilder,
+};
 pub mod builders;
 
 use self::result::body_to_result;
 
-use super::pubnub_client::PubNubConfig;
 use crate::{
     core::{
         utils::{
             encoding::url_encode,
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
-        Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
-        TransportResponse,
+        Cryptor, Deserializer, PubNubError, Serialize, Transport, TransportMethod,
+        TransportRequest, TransportResponse,
     },
-    dx::pubnub_client::PubNubClientInstance,
+    dx::pubnub_client::{PubNubClientInstance, PubNubConfig},
     lib::{
         alloc::{
             format,
             string::{String, ToString},
+            sync::Arc,
         },
         collections::HashMap,
         core::ops::Not,
     },
 };
-use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
+
+use base64::{engine::general_purpose, Engine as _};
 
 impl<T> PubNubClientInstance<T> {
     /// Create a new publish message builder.
@@ -112,7 +115,9 @@ where
             .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
 
         PublishMessageContext::from(instance)
-            .map_data(|client, _, params| params.create_transport_request(&client.config))
+            .map_data(|client, _, params| {
+                params.create_transport_request(&client.config, &client.cryptor.clone())
+            })
             .map(|ctx| {
                 Ok(PublishMessageContext {
                     client: ctx.client,
@@ -273,6 +278,7 @@ where
     fn create_transport_request(
         self,
         config: &PubNubConfig,
+        cryptor: &Option<Arc<dyn Cryptor + Send + Sync>>,
     ) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
 
@@ -282,8 +288,15 @@ where
             .ok_or_else(|| PubNubError::general_api_error("Publish key is not set", None))?;
         let sub_key = &config.subscribe_key;
 
+        let mut m_vec = self.message.serialize()?;
+        if let Some(cryptor) = cryptor {
+            if let Ok(encrypted) = cryptor.encrypt(m_vec.to_vec()) {
+                m_vec = format!("\"{}\"", general_purpose::STANDARD.encode(encrypted)).into_bytes();
+            }
+        }
+
         if self.use_post {
-            self.message.serialize().map(|m_vec| TransportRequest {
+            Ok(TransportRequest {
                 path: format!(
                     "/publish/{pub_key}/{sub_key}/0/{}/0",
                     url_encode(self.channel.as_bytes())
@@ -294,12 +307,9 @@ where
                 headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             })
         } else {
-            self.message
-                .serialize()
-                .and_then(|m_vec| {
-                    String::from_utf8(m_vec).map_err(|e| PubNubError::Serialization {
-                        details: e.to_string(),
-                    })
+            String::from_utf8(m_vec)
+                .map_err(|e| PubNubError::Serialization {
+                    details: e.to_string(),
                 })
                 .map(|m_str| TransportRequest {
                     path: format!(

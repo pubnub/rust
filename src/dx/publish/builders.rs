@@ -107,7 +107,7 @@ where
 /// ```rust
 /// # use pubnub::{PubNubClientBuilder, Keyset};
 /// use pubnub::{
-///     dx::publish::PublishResponse,
+///     dx::publish::{PublishResponse, PublishResponseBody},
 ///     core::{Deserializer, PubNubError}
 /// };
 /// # #[tokio::main]

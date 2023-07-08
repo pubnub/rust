@@ -118,7 +118,7 @@ impl AesCbcCrypto {
     fn estimated_enc_buffer_size(&self, source: &[u8]) -> usize {
         // Adding padding which include additional AES cipher block size.
         let padding = (AES_BLOCK_SIZE - source.len() % AES_BLOCK_SIZE) + AES_BLOCK_SIZE;
-        if !self.iv_constant {
+        if !&self.iv_constant {
             // Reserve more space to store random initialization vector.
             source.len() + padding + AES_BLOCK_SIZE
         } else {
@@ -132,7 +132,12 @@ impl AesCbcCrypto {
     /// type of used initialization vector.
     fn estimated_dec_buffer_size(&self, source: &[u8]) -> usize {
         // Subtract size of random initialization vector (if used).
-        source.len() - if !self.iv_constant { AES_BLOCK_SIZE } else { 0 }
+        source.len()
+            - if !&self.iv_constant {
+                AES_BLOCK_SIZE
+            } else {
+                0
+            }
     }
 
     /// Data encryption initialization vector.
@@ -214,7 +219,11 @@ impl Cryptor for AesCbcCrypto {
         let iv = self.encryption_iv();
         let data = source.as_slice();
         let mut buffer = vec![0u8; self.estimated_enc_buffer_size(data)];
-        let data_offset = if !self.iv_constant { AES_BLOCK_SIZE } else { 0 };
+        let data_offset = if !&self.iv_constant {
+            AES_BLOCK_SIZE
+        } else {
+            0
+        };
         let data_slice = &mut buffer[data_offset..];
 
         let result = Encryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
@@ -269,7 +278,11 @@ impl Cryptor for AesCbcCrypto {
         let data = source.as_slice();
         let iv = self.decryption_iv(data);
         let mut buffer = vec![0u8; self.estimated_dec_buffer_size(data)];
-        let data_offset = if !self.iv_constant { AES_BLOCK_SIZE } else { 0 };
+        let data_offset = if !&self.iv_constant {
+            AES_BLOCK_SIZE
+        } else {
+            0
+        };
         let data_slice = &data[data_offset..];
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
