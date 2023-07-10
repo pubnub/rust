@@ -27,7 +27,7 @@ where
     /// State machines may have some effects that are exclusive and can only run
     /// one type of them at once. The dispatcher handles such effects
     /// and cancels them when required.
-    managed: RwLock<Vec<Arc<EF>>>,
+    managed: Arc<RwLock<Vec<Arc<EF>>>>,
 
     _invocation: PhantomType<EI>,
 }
@@ -36,13 +36,13 @@ impl<EH, EF, EI> EffectDispatcher<EH, EF, EI>
 where
     EI: EffectInvocation<Effect = EF> + Send + Sync,
     EH: EffectHandler<EI, EF> + Send + Sync,
-    EF: Effect<Invocation = EI>,
+    EF: Effect<Invocation = EI> + 'static,
 {
     /// Create new effects dispatcher.
     pub fn new(handler: EH) -> Self {
         EffectDispatcher {
             handler,
-            managed: RwLock::new(vec![]),
+            managed: Arc::new(RwLock::new(vec![])),
             _invocation: Default::default(),
         }
     }
@@ -57,12 +57,14 @@ where
                 managed.push(effect.clone());
             }
 
-            let dispatcher = self.clone();
+            let managed = self.managed.clone();
 
             // Placeholder for effect invocation.
-            let execution = effect.run();
-            // Try remove effect from list of managed.
-            dispatcher.remove_managed_effect(&effect);
+            let effect_id = effect.id();
+            let execution = effect.run(move || {
+                // Try remove effect from list of managed.
+                Self::remove_managed_effect(managed, effect_id);
+            });
 
             // Notify about effect run completion.
             // Placeholder for effect events processing (pass to effects handler).
@@ -94,9 +96,9 @@ where
     }
 
     /// Remove managed effect.
-    fn remove_managed_effect(&self, effect: &EF) {
-        let mut managed = self.managed.write();
-        if let Some(position) = managed.iter().position(|ef| ef.id() == effect.id()) {
+    fn remove_managed_effect(list: Arc<RwLock<Vec<Arc<EF>>>>, effect_id: String) {
+        let mut managed = list.write();
+        if let Some(position) = managed.iter().position(|ef| ef.id() == effect_id) {
             managed.remove(position);
         }
     }
@@ -104,10 +106,12 @@ where
 
 #[cfg(test)]
 mod should {
+    use futures::FutureExt;
+
     use super::*;
     use crate::core::event_engine::Event;
 
-    enum TestEvent {}
+    struct TestEvent;
 
     impl Event for TestEvent {
         fn id(&self) -> &str {
@@ -132,8 +136,14 @@ mod should {
             }
         }
 
-        fn run(&self) -> EffectExecution<TestEvent> {
-            EffectExecution::None
+        fn run<F>(&self, f: F) -> EffectExecution<TestEvent>
+        where
+            F: FnOnce() + 'static,
+        {
+            EffectExecution::Async {
+                future: Box::pin(async { Ok(vec![TestEvent]) }),
+                then: Box::new(f),
+            }
         }
 
         fn cancel(&self) {
@@ -202,11 +212,13 @@ mod should {
         );
     }
 
-    #[test]
-    fn run_managed_effect() {
+    #[tokio::test]
+    async fn run_managed_effect() {
         // TODO: now we remove it right away!
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
-        dispatcher.dispatch(&TestInvocation::Two);
+        let execution = dispatcher.dispatch(&TestInvocation::Two);
+
+        execution.execute_async().await.unwrap();
 
         assert_eq!(
             dispatcher.managed.read().len(),

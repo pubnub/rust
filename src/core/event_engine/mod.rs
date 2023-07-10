@@ -61,7 +61,7 @@ impl<S, EH, EF, EI> EventEngine<S, EH, EF, EI>
 where
     S: State<State = S, Invocation = EI> + Send + Sync,
     EH: EffectHandler<EI, EF> + Send + Sync,
-    EF: Effect<Invocation = EI>,
+    EF: Effect<Invocation = EI> + 'static,
     EI: EffectInvocation<Effect = EF> + Send + Sync,
 {
     /// Create [`EventEngine`] with initial state for state machine.
@@ -218,7 +218,7 @@ mod should {
             }
         }
 
-        fn run(&self) -> EffectExecution<TestEvent> {
+        fn run<F>(&self, _: F) -> EffectExecution<TestEvent> {
             EffectExecution::None
         }
 

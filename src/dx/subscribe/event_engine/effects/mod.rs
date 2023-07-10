@@ -241,19 +241,20 @@ impl Effect for SubscribeEffect {
         }
     }
 
-    fn run(&self) -> EffectExecution<SubscribeEvent> {
+    fn run<F>(&self, f: F) -> EffectExecution<SubscribeEvent>
+    where
+        F: FnOnce() + 'static,
+    {
         match self {
             SubscribeEffect::Handshake {
                 channels,
                 channel_groups,
                 executor,
                 ..
-            } => EffectExecution::Async(handshake::execute(
-                channels,
-                channel_groups,
-                &self.id(),
-                executor,
-            )),
+            } => EffectExecution::Async {
+                future: handshake::execute(channels, channel_groups, &self.id(), executor),
+                then: Box::new(f),
+            },
             SubscribeEffect::HandshakeReconnect {
                 channels,
                 channel_groups,
@@ -261,27 +262,27 @@ impl Effect for SubscribeEffect {
                 reason,
                 executor,
                 ..
-            } => EffectExecution::Async(handshake_reconnection::execute(
-                channels,
-                channel_groups,
-                *attempts,
-                reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
-                &self.id(),
-                executor,
-            )),
+            } => EffectExecution::Async {
+                future: handshake_reconnection::execute(
+                    channels,
+                    channel_groups,
+                    *attempts,
+                    reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                    &self.id(),
+                    executor,
+                ),
+                then: Box::new(f),
+            },
             SubscribeEffect::Receive {
                 channels,
                 channel_groups,
                 cursor,
                 executor,
                 ..
-            } => EffectExecution::Async(receive::execute(
-                channels,
-                channel_groups,
-                cursor,
-                &self.id(),
-                executor,
-            )),
+            } => EffectExecution::Async {
+                future: receive::execute(channels, channel_groups, cursor, &self.id(), executor),
+                then: Box::new(f),
+            },
             SubscribeEffect::ReceiveReconnect {
                 channels,
                 channel_groups,
@@ -290,15 +291,18 @@ impl Effect for SubscribeEffect {
                 reason,
                 executor,
                 ..
-            } => EffectExecution::Async(receive_reconnection::execute(
-                channels,
-                channel_groups,
-                cursor,
-                *attempts,
-                reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
-                &self.id(),
-                executor,
-            )),
+            } => EffectExecution::Async {
+                future: receive_reconnection::execute(
+                    channels,
+                    channel_groups,
+                    cursor,
+                    *attempts,
+                    reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                    &self.id(),
+                    executor,
+                ),
+                then: Box::new(f),
+            },
             _ => {
                 /* TODO: Implement other effects */
                 EffectExecution::None
