@@ -55,7 +55,7 @@ where
     /// passed list of channels and groups.
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub fn subscribe(&mut self) -> SubscriptionBuilder {
+    pub fn subscribe(&self) -> SubscriptionBuilder {
         {
             // Initialize manager when it will be first required.
             let mut manager_slot = self.subscription_manager.write();

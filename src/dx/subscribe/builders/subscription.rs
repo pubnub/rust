@@ -1,4 +1,5 @@
 use crate::{
+    core::PubNubError,
     dx::subscribe::{
         subscription_manager::SubscriptionManager, types::SubscribeStreamEvent, SubscribeCursor,
     },
@@ -106,7 +107,7 @@ impl SubscriptionBuilder {
 
 impl SubscriptionBuilder {
     /// Construct subscription object.
-    pub fn build(self) -> Result<Arc<Subscription>, SubscriptionBuilderError> {
+    pub fn build(self) -> Result<Arc<Subscription>, PubNubError> {
         self.build_internal()
             .map(|subscription| Arc::new(subscription))
             .map(|subscription| {
@@ -116,6 +117,9 @@ impl SubscriptionBuilder {
                     .as_ref()
                     .map(|manager| manager.register(subscription.clone()));
                 subscription
+            })
+            .map_err(|e| PubNubError::SubscribeInitialization {
+                details: e.to_string(),
             })
     }
 }

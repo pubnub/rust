@@ -105,6 +105,13 @@ pub enum PubNubError {
     #[snafu(display("Event engine effect has been canceled"))]
     EffectCanceled,
 
+    /// this error is returned when the subscription initialization fails
+    #[snafu(display("Subscription initialization error: {details}"))]
+    SubscribeInitialization {
+        ///docs
+        details: String,
+    },
+
     ///this error is returned when REST API request can't be handled by service.
     #[snafu(display("REST API error: {message}"))]
     API {
