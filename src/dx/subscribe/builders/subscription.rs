@@ -241,11 +241,10 @@ impl Stream for Subscription {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut updates_slot = self.updates.write();
+        let mut waker_slot = self.waker.write();
+        *waker_slot = Some(cx.waker().clone());
 
         if updates_slot.is_empty() {
-            let mut waker_slot = self.waker.write();
-            *waker_slot = Some(cx.waker().clone());
-
             Poll::Pending
         } else {
             let updates = updates_slot.to_vec();
