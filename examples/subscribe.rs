@@ -1,3 +1,5 @@
+use futures::{Stream, StreamExt};
+use pubnub::dx::subscribe::types::SubscribeStreamEvent;
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Deserialize;
 use spin::rwlock::RwLock;
@@ -40,7 +42,15 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // };
     // let mut subscription = client.subscribe().build().unwrap();
 
-    subscription.unsubscribe().await;
+    //subscription.unsubscribe().await;
+    subscription
+        .for_each(|updates| async move {
+            updates.iter().for_each(|update| match update {
+                SubscribeStreamEvent::Status(status) => println!("Status changed: {status:?}"),
+                SubscribeStreamEvent::Update(update) => println!("Received update: {update:?}"),
+            })
+        })
+        .await;
 
     Ok(())
 }

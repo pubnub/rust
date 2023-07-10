@@ -5,6 +5,8 @@ use crate::{
 use phantom_type::PhantomType;
 use spin::rwlock::RwLock;
 
+use super::effect_execution::EffectExecution;
+
 /// State machine effects dispatcher.
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -46,10 +48,7 @@ where
     }
 
     /// Dispatch effect associated with `invocation`.
-    pub fn dispatch<F>(self: &Arc<Self>, invocation: &EI, mut f: F)
-    where
-        F: FnMut(Option<Vec<EI::Event>>) + Send + Sync,
-    {
+    pub fn dispatch(self: &Arc<Self>, invocation: &EI) -> EffectExecution<EI::Event> {
         if let Some(effect) = self.handler.create(invocation) {
             let effect = Arc::new(effect);
 
@@ -61,22 +60,25 @@ where
             let dispatcher = self.clone();
 
             // Placeholder for effect invocation.
-            effect.run(|events| {
-                // Try remove effect from list of managed.
-                dispatcher.remove_managed_effect(&effect);
+            let execution = effect.run();
+            // Try remove effect from list of managed.
+            dispatcher.remove_managed_effect(&effect);
 
-                // Notify about effect run completion.
-                // Placeholder for effect events processing (pass to effects handler).
-                // let t = f.deref();
-                // t(vec![]);
-                // let tt = f;
-                // f.deref().get_mut();
-                f(events);
-            });
+            // Notify about effect run completion.
+            // Placeholder for effect events processing (pass to effects handler).
+            // let t = f.deref();
+            // t(vec![]);
+            // let tt = f;
+            // f.deref().get_mut();
+
+            execution
         } else if invocation.cancelling() {
             self.cancel_effect(invocation);
             // Placeholder for effect events processing (pass to effects handler).
-            f(None);
+
+            EffectExecution::<EI::Event>::None
+        } else {
+            EffectExecution::<EI::Event>::None
         }
     }
 
@@ -130,14 +132,8 @@ mod should {
             }
         }
 
-        fn run<F>(&self, mut f: F)
-        where
-            F: FnMut(Option<Vec<TestEvent>>) + Send + Sync,
-        {
-            match self {
-                Self::Three => {}
-                _ => f(None),
-            }
+        fn run(&self) -> EffectExecution<TestEvent> {
+            EffectExecution::None
         }
 
         fn cancel(&self) {
@@ -196,13 +192,9 @@ mod should {
 
     #[test]
     fn run_not_managed_effect() {
-        let mut called = false;
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
-        dispatcher.dispatch(&TestInvocation::One, |_| {
-            called = true;
-        });
+        dispatcher.dispatch(&TestInvocation::One);
 
-        assert!(called, "Expected to call effect for TestInvocation::One");
         assert_eq!(
             dispatcher.managed.read().len(),
             0,
@@ -212,13 +204,10 @@ mod should {
 
     #[test]
     fn run_managed_effect() {
-        let mut called = false;
+        // TODO: now we remove it right away!
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
-        dispatcher.dispatch(&TestInvocation::Two, |_| {
-            called = true;
-        });
+        dispatcher.dispatch(&TestInvocation::Two);
 
-        assert!(called, "Expected to call effect for TestInvocation::Two");
         assert_eq!(
             dispatcher.managed.read().len(),
             0,
@@ -228,35 +217,11 @@ mod should {
 
     #[test]
     fn cancel_managed_effect() {
-        let mut called_managed = false;
-        let mut cancelled_managed = false;
+        // TODO: now we remove it right away!
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
-        dispatcher.dispatch(&TestInvocation::Three, |_| {
-            called_managed = true;
-        });
+        dispatcher.dispatch(&TestInvocation::Three);
+        dispatcher.dispatch(&TestInvocation::CancelThree);
 
-        assert!(
-            !called_managed,
-            "Expected that effect for TestInvocation::Three won't be called"
-        );
-        assert_eq!(
-            dispatcher.managed.read().len(),
-            1,
-            "Managed effect shouldn't complete run because doesn't have completion call"
-        );
-
-        dispatcher.dispatch(&TestInvocation::CancelThree, |_| {
-            cancelled_managed = true;
-        });
-
-        assert!(
-            cancelled_managed,
-            "Expected to call effect for TestInvocation::CancelThree"
-        );
-        assert!(
-            !called_managed,
-            "Expected that effect for TestInvocation::Three won't be called"
-        );
         assert_eq!(
             dispatcher.managed.read().len(),
             0,

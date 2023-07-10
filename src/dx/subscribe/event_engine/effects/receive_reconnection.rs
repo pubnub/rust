@@ -2,21 +2,22 @@ use crate::{
     core::PubNubError,
     dx::subscribe::{
         event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscribeCursor,
+        SubscribeCursor, SubscriptionParams,
     },
     lib::alloc::{string::String, sync::Arc, vec::Vec},
 };
+use futures::{future::BoxFuture, FutureExt};
 use log::info;
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    _attempt: u8,
-    _reason: PubNubError,
+    attempt: u8,
+    reason: PubNubError,
     effect_id: &str,
-    _executor: &Arc<SubscribeEffectExecutor>,
-) -> Option<Vec<SubscribeEvent>> {
+    executor: &Arc<SubscribeEffectExecutor>,
+) -> BoxFuture<'static, Result<Vec<SubscribeEvent>, PubNubError>> {
     info!(
         "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
         cursor.timetoken,
@@ -24,10 +25,31 @@ pub(crate) fn execute(
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
 
-    // let result: Result<Vec<SubscribeEvent>, PubNubError> =
-    //     executor(channels, channel_groups, cursor, attempt, Some(reason));
-    // Some(result.unwrap_or_else(|err| vec![SubscribeEvent::ReceiveReconnectFailure { reason: err }]))
-    None
+    executor(
+        Some(&cursor),
+        SubscriptionParams {
+            channels: &channels,
+            channel_groups: &channel_groups,
+            attempt,
+            reason: Some(reason),
+            effect_id: &effect_id,
+        },
+    )
+    .map(|result| {
+        result
+            .map(|subscribe_result| {
+                vec![SubscribeEvent::ReceiveSuccess {
+                    cursor: subscribe_result.cursor,
+                    messages: subscribe_result.messages,
+                }]
+            })
+            .or_else(|error| {
+                Ok(vec![SubscribeEvent::ReceiveFailure {
+                    reason: error.into(),
+                }])
+            })
+    })
+    .boxed()
 }
 
 #[cfg(test)]
@@ -36,15 +58,15 @@ mod should {
     use crate::{core::PubNubError, dx::subscribe::result::SubscribeResult};
     use futures::FutureExt;
 
-    #[test]
-    fn receive_messages() {
+    #[tokio::test]
+    async fn receive_messages() {
         let mock_receive_function: Arc<SubscribeEffectExecutor> =
             Arc::new(move |cursor, params| {
                 assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
                 assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
-                assert_eq!(params._attempt, 10);
+                assert_eq!(params.attempt, 10);
                 assert_eq!(
-                    params._reason,
+                    params.reason,
                     Some(PubNubError::Transport {
                         details: "test".into(),
                     })
@@ -71,16 +93,18 @@ mod should {
             },
             "id",
             &mock_receive_function,
-        );
+        )
+        .await;
 
+        assert!(result.is_ok());
         assert!(matches!(
             result.unwrap().first().unwrap(),
-            &SubscribeEvent::ReceiveSuccess { .. }
-        ))
+            SubscribeEvent::ReceiveSuccess { .. }
+        ));
     }
 
-    #[test]
-    fn return_handshake_failure_event_on_err() {
+    #[tokio::test]
+    async fn return_handshake_failure_event_on_err() {
         let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_, _| {
             async move {
                 Err(PubNubError::Transport {
@@ -90,7 +114,7 @@ mod should {
             .boxed()
         });
 
-        let binding = execute(
+        let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
             &Default::default(),
@@ -101,12 +125,12 @@ mod should {
             "id",
             &mock_receive_function,
         )
-        .unwrap();
-        let result = &binding[0];
+        .await;
 
+        assert!(result.is_ok());
         assert!(matches!(
-            result,
-            &SubscribeEvent::ReceiveReconnectFailure { .. }
+            result.unwrap().first().unwrap(),
+            SubscribeEvent::ReceiveFailure { .. }
         ));
     }
 }

@@ -41,8 +41,8 @@ mod cancel;
 pub(crate) struct SubscriptionParams<'execution> {
     channels: &'execution Option<Vec<String>>,
     channel_groups: &'execution Option<Vec<String>>,
-    _attempt: u8,
-    _reason: Option<PubNubError>,
+    attempt: u8,
+    reason: Option<PubNubError>,
     effect_id: &'execution str,
 }
 

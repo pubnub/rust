@@ -29,7 +29,11 @@ pub(crate) mod state;
 
 #[doc(inline)]
 pub(crate) use transition::Transition;
+
+use self::effect_execution::EffectExecution;
 pub(crate) mod transition;
+
+pub(crate) mod effect_execution;
 
 /// State machine's event engine.
 ///
@@ -80,12 +84,16 @@ where
     /// Process event passed to the system and perform required transitions to
     /// new state if required.
     #[allow(dead_code)]
-    pub fn process(&self, event: &EI::Event) {
+    pub fn process(&self, event: &EI::Event) -> Vec<EffectExecution<EI::Event>> {
         let state = self.current_state.read();
-        if let Some(transition) = state.transition(event) {
-            drop(state);
-            self.process_transition(transition);
-        }
+
+        let transition = state.transition(event);
+
+        drop(state);
+
+        transition
+            .map(|transition| self.process_transition(transition))
+            .unwrap_or_default()
     }
 
     /// Process transition.
@@ -93,20 +101,20 @@ where
     /// This method is responsible for transition maintenance:
     /// * update current state
     /// * call effects dispatcher to process effect invocation
-    fn process_transition(&self, transition: Transition<S::State, S::Invocation>) {
+    fn process_transition(
+        &self,
+        transition: Transition<S::State, S::Invocation>,
+    ) -> Vec<EffectExecution<EI::Event>> {
         {
             let mut writable_state = self.current_state.write();
             *writable_state = transition.state;
         }
 
-        transition.invocations.iter().for_each(|invocation| {
-            self.effect_dispatcher
-                .dispatch(invocation, |events: Option<Vec<EI::Event>>| {
-                    if let Some(events) = events {
-                        events.iter().for_each(|event| self.process(event));
-                    }
-                });
-        });
+        transition
+            .invocations
+            .iter()
+            .map(|invocation| self.effect_dispatcher.dispatch(invocation))
+            .collect()
     }
 }
 
@@ -210,11 +218,8 @@ mod should {
             }
         }
 
-        fn run<F>(&self, mut f: F)
-        where
-            F: FnMut(Option<Vec<TestEvent>>),
-        {
-            f(None)
+        fn run(&self) -> EffectExecution<TestEvent> {
+            EffectExecution::None
         }
 
         fn cancel(&self) {
