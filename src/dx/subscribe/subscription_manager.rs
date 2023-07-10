@@ -30,7 +30,7 @@ pub(crate) struct SubscriptionManager {
     /// List of registered subscribers.
     ///
     /// List of subscribers which will receive real-time updates.
-    pub subscribers: RwLock<Vec<Arc<Subscription>>>,
+    pub subscribers: RwLock<Vec<Subscription>>,
 }
 
 #[allow(dead_code)]
@@ -59,12 +59,12 @@ impl SubscriptionManager {
         });
     }
 
-    pub fn register(&self, subscription: Arc<Subscription>) {
+    pub fn register(&self, subscription: Subscription) {
         let mut subscribers_slot = self.subscribers.write();
         subscribers_slot.push(subscription);
     }
 
-    pub fn unregister(&self, subscription: Arc<Subscription>) {
+    pub fn unregister(&self, subscription: Subscription) {
         let mut subscribers_slot = self.subscribers.write();
         if let Some(position) = subscribers_slot
             .iter()

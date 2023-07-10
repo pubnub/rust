@@ -1,3 +1,5 @@
+use core::ops::{Deref, DerefMut};
+
 use crate::{
     core::PubNubError,
     dx::subscribe::{
@@ -17,15 +19,49 @@ use uuid::Uuid;
 ///
 /// Subscription provides a way to get messages from PubNub. It is responsible
 /// for handshake and receiving messages.
+#[derive(Debug)]
+pub struct Subscription {
+    inner: Arc<SubscriptionRef>,
+}
+
+impl Deref for Subscription {
+    type Target = SubscriptionRef;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for Subscription {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.inner).expect("Subscription is not unique")
+    }
+}
+
+impl Clone for Subscription {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+/// Subscription that is responsible for getting messages from PubNub.
 ///
+/// Subscription provides a way to get messages from PubNub. It is responsible
+/// for handshake and receiving messages.
+///
+/// It should not be created directly, but via [`PubNubClient::subscribe`]
+/// and wrapped in [`Subscription`] struct.
 #[derive(Builder, Debug)]
 #[builder(
     pattern = "owned",
+    name = "SubscriptionBuilder",
     build_fn(private, name = "build_internal", validate = "Self::validate"),
     no_std
 )]
 #[allow(dead_code)]
-pub struct Subscription {
+pub struct SubscriptionRef {
     /// Manager of active subscriptions.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
@@ -107,9 +143,11 @@ impl SubscriptionBuilder {
 
 impl SubscriptionBuilder {
     /// Construct subscription object.
-    pub fn build(self) -> Result<Arc<Subscription>, PubNubError> {
+    pub fn build(self) -> Result<Subscription, PubNubError> {
         self.build_internal()
-            .map(|subscription| Arc::new(subscription))
+            .map(|subscription| Subscription {
+                inner: Arc::new(subscription),
+            })
             .map(|subscription| {
                 subscription
                     .subscription_manager
@@ -125,6 +163,21 @@ impl SubscriptionBuilder {
 }
 
 impl Subscription {
+    /// Cancel current subscription.
+    ///
+    /// Cancel current subscription and remove it from the list of active
+    /// subscriptions.
+    ///
+    /// # Examples
+    /// ```
+    /// ```
+    pub async fn cancel(&self) {
+        self.subscription_manager
+            .write()
+            .as_ref()
+            .map(|manager| manager.unregister(self.clone()));
+    }
+
     pub(crate) fn notify_update(&self, _update: SubscribeStreamEvent) {}
 }
 

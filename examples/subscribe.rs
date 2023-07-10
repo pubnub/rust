@@ -29,5 +29,17 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .channels(vec!["hello_world".to_string()])
         .build()?;
 
+    // TODO: something like that
+    // let stream = subscription.stream();
+    // tokio::spawn(async move {
+    //      stream.then(|message| {
+    //      println!("message: {:?}", message);
+    //   }).await;
+    //
+    //   println!("stream cancelled!");
+    // };
+
+    subscription.cancel().await?;
+
     Ok(())
 }
