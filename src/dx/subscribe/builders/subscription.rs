@@ -301,7 +301,7 @@ impl SubscriptionBuilder {
 }
 
 impl Subscription {
-    /// Cancel current subscription.
+    /// Unsubscribed current subscription.
     ///
     /// Cancel current subscription and remove it from the list of active
     /// subscriptions.
@@ -309,7 +309,7 @@ impl Subscription {
     /// # Examples
     /// ```
     /// ```
-    pub async fn cancel(&self) {
+    pub async fn unsubscribe(self) {
         self.subscription_manager
             .write()
             .as_ref()
@@ -492,3 +492,22 @@ impl Stream for SubscriptionStatusStream {
         }
     }
 }
+//
+// impl Subscription {
+//     pub(crate) fn subscribe() -> Self {
+//         // // TODO: implementation is a part of the different task
+//         // let handshake: HandshakeFunction = |&_, &_, _, _| Ok(vec![]);
+//         // let receive: ReceiveFunction = |&_, &_, &_, _, _| Ok(vec![]);
+//         //
+//         // Self {
+//         //     engine: SubscribeEngine::new(
+//         //         SubscribeEffectHandler::new(handshake, receive),
+//         //         SubscribeState::Unsubscribed,
+//         //     ),
+//         // }
+//         Self { /* fields */ }
+//     }
+// }
+
+#[cfg(test)]
+mod should {}

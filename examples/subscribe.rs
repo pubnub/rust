@@ -40,5 +40,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // };
     // let mut subscription = client.subscribe().build().unwrap();
 
+    subscription.unsubscribe().await;
+
     Ok(())
 }
