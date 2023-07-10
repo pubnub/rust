@@ -27,7 +27,7 @@ use crate::{
     },
 };
 use derive_builder::Builder;
-use futures::{select, Future, FutureExt};
+use futures::{select_biased, Future, FutureExt};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -207,7 +207,7 @@ where
             let client = request.pubnub_client.clone();
             let deserializer = request.deserializer;
 
-            select! {
+            select_biased! {
                 _ = cancel_task.wait_for_cancel().fuse() => {
                     Err(PubNubError::EffectCanceled)
                 },
