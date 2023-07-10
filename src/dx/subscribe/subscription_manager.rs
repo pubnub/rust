@@ -5,9 +5,9 @@
 use crate::{
     dx::subscribe::{
         event_engine::SubscribeEventEngine, result::Update, subscription::Subscription,
-        types::SubscribeStreamEvent, SubscribeStatus,
+        SubscribeStatus,
     },
-    lib::alloc::{sync::Arc, vec::Vec},
+    lib::alloc::vec::Vec,
 };
 use spin::RwLock;
 
@@ -44,18 +44,13 @@ impl SubscriptionManager {
 
     pub fn notify_new_status(&self, status: &SubscribeStatus) {
         self.subscribers.read().iter().for_each(|subscription| {
-            subscription.notify_update(SubscribeStreamEvent::Status(status.clone()));
+            subscription.handle_status(status.clone());
         });
     }
 
     pub fn notify_new_messages(&self, messages: Vec<Update>) {
-        messages.iter().for_each(|update| {
-            let channel = update.channel();
-            self.subscribers.read().iter().for_each(|subscription| {
-                if subscription.channels.contains(&channel) {
-                    subscription.notify_update(SubscribeStreamEvent::Update(update.clone()));
-                }
-            });
+        self.subscribers.read().iter().for_each(|subscription| {
+            subscription.handle_messages(&messages);
         });
     }
 

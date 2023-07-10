@@ -1,9 +1,14 @@
 use core::ops::{Deref, DerefMut};
+use std::{
+    pin::Pin,
+    task::{Context, Poll, Waker},
+};
 
 use crate::{
     core::PubNubError,
     dx::subscribe::{
-        subscription_manager::SubscriptionManager, types::SubscribeStreamEvent, SubscribeCursor,
+        result::Update, subscription_manager::SubscriptionManager, types::SubscribeStreamEvent,
+        SubscribeCursor, SubscribeStatus,
     },
     lib::alloc::{
         string::{String, ToString},
@@ -12,6 +17,7 @@ use crate::{
     },
 };
 use derive_builder::Builder;
+use futures::Stream;
 use spin::RwLock;
 use uuid::Uuid;
 
@@ -122,6 +128,24 @@ pub struct SubscriptionRef {
         default = "Uuid::new_v4().to_string()"
     )]
     pub(in crate::dx::subscribe) id: String,
+
+    /// List of updates to be delivered to stream listener.
+    #[builder(
+        field(vis = "pub(in crate::dx::subscribe)"),
+        setter(custom),
+        default = "RwLock::new(Vec::with_capacity(100))"
+    )]
+    pub(in crate::dx::subscribe) updates: RwLock<Vec<SubscribeStreamEvent>>,
+
+    /// Subscription stream waker.
+    ///
+    /// Handler used each time when new data available for a stream listener.
+    #[builder(
+        field(vis = "pub(in crate::dx::subscribe)"),
+        setter(custom),
+        default = "RwLock::new(None)"
+    )]
+    waker: RwLock<Option<Waker>>,
 }
 
 impl SubscriptionBuilder {
@@ -178,22 +202,56 @@ impl Subscription {
             .map(|manager| manager.unregister(self.clone()));
     }
 
-    pub(crate) fn notify_update(&self, _update: SubscribeStreamEvent) {}
+    /// Handle received real-time updates.
+    pub(in crate::dx::subscribe) fn handle_messages(&self, messages: &Vec<Update>) {
+        let mut updates_slot = self.updates.write();
+        let updates_len = updates_slot.len();
+
+        messages
+            .iter()
+            .filter(|msg| {
+                self.channels.contains(&msg.channel())
+                    || self.channel_groups.contains(&msg.channel_group())
+            })
+            .for_each(|msg| updates_slot.push(SubscribeStreamEvent::Update(msg.clone())));
+
+        if updates_len < updates_slot.len() {
+            self.wake_task();
+        }
+    }
+
+    /// Handle received real-time updates.
+    pub(in crate::dx::subscribe) fn handle_status(&self, status: SubscribeStatus) {
+        let mut updates_slot = self.updates.write();
+        updates_slot.push(SubscribeStreamEvent::Status(status));
+
+        self.wake_task();
+    }
+
+    fn wake_task(&self) {
+        let mut waker_slot = self.waker.write();
+        if let Some(waker) = waker_slot.take() {
+            waker.wake();
+        }
+    }
 }
 
-//
-// impl Subscription {
-//     pub(crate) fn subscribe() -> Self {
-//         // // TODO: implementation is a part of the different task
-//         // let handshake: HandshakeFunction = |&_, &_, _, _| Ok(vec![]);
-//         // let receive: ReceiveFunction = |&_, &_, &_, _, _| Ok(vec![]);
-//         //
-//         // Self {
-//         //     engine: SubscribeEngine::new(
-//         //         SubscribeEffectHandler::new(handshake, receive),
-//         //         SubscribeState::Unsubscribed,
-//         //     ),
-//         // }
-//         Self { /* fields */ }
-//     }
-// }
+impl Stream for Subscription {
+    type Item = Vec<SubscribeStreamEvent>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut updates_slot = self.updates.write();
+
+        if updates_slot.is_empty() {
+            let mut waker_slot = self.waker.write();
+            *waker_slot = Some(cx.waker().clone());
+
+            Poll::Pending
+        } else {
+            let updates = updates_slot.to_vec();
+            updates_slot.clear();
+
+            Poll::Ready(Some(updates))
+        }
+    }
+}

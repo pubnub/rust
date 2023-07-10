@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code, missing_docs)]
 pub enum SubscribeStreamEvent {
     Status(SubscribeStatus),
@@ -117,6 +117,10 @@ pub enum Presence {
         /// Name of channel to which user joined.
         channel: String,
 
+        /// Actual name of subscription through which `user joined` update has
+        /// been delivered.
+        subscription: String,
+
         /// Current channel occupancy after user joined.
         occupancy: usize,
     },
@@ -130,6 +134,10 @@ pub enum Presence {
 
         /// Name of channel which user left.
         channel: String,
+
+        /// Actual name of subscription through which `user left` update has
+        /// been delivered.
+        subscription: String,
 
         /// Current channel occupancy after user left.
         occupancy: usize,
@@ -148,6 +156,10 @@ pub enum Presence {
         /// Name of channel where user timeout.
         channel: String,
 
+        /// Actual name of subscription through which `user timeout` update has
+        /// been delivered.
+        subscription: String,
+
         /// Current channel occupancy after user timeout.
         occupancy: usize,
 
@@ -165,6 +177,10 @@ pub enum Presence {
 
         /// Name of channel where user timeout.
         channel: String,
+
+        /// Actual name of subscription through which `interval` update has been
+        /// delivered.
+        subscription: String,
 
         /// Current channel occupancy.
         occupancy: usize,
@@ -192,6 +208,10 @@ pub enum Presence {
 
         /// Name of channel where user timeout.
         channel: String,
+
+        /// Actual name of subscription through which `state changed` update has
+        /// been delivered.
+        subscription: String,
 
         /// Unique identification of the user for which state has been changed.
         uuid: String,
@@ -240,6 +260,10 @@ pub enum Object {
 
         /// Current `channel` object state hash.
         tag: String,
+
+        /// Actual name of subscription through which `channel object` update
+        /// has been delivered.
+        subscription: String,
     },
 
     /// `UUID` object update.
@@ -280,6 +304,10 @@ pub enum Object {
 
         /// Current `uuid` object state hash.
         tag: String,
+
+        /// Actual name of subscription through which `uuid object` update has
+        /// been delivered.
+        subscription: String,
     },
 
     /// `Membership` object update.
@@ -309,6 +337,10 @@ pub enum Object {
 
         /// Current `membership` object state hash.
         tag: String,
+
+        /// Actual name of subscription through which `membership` update has
+        /// been delivered.
+        subscription: String,
     },
 }
 
@@ -505,6 +537,23 @@ impl Presence {
                 .unwrap_or(channel.to_string()),
         }
     }
+
+    /// Presence update channel group.
+    ///
+    /// Name of channel group through which presence update has been triggered.
+    pub(crate) fn channel_group(&self) -> String {
+        match self {
+            Presence::Join { subscription, .. }
+            | Presence::Leave { subscription, .. }
+            | Presence::Timeout { subscription, .. }
+            | Presence::Interval { subscription, .. }
+            | Presence::StateChange { subscription, .. } => subscription
+                .split('-')
+                .last()
+                .map(|name| name.to_string())
+                .unwrap_or(subscription.to_string()),
+        }
+    }
 }
 
 impl Object {
@@ -515,6 +564,17 @@ impl Object {
         match self {
             Object::Channel { id, .. } | Object::Uuid { id, .. } => id.to_string(),
             Object::Membership { uuid, .. } => uuid.to_string(),
+        }
+    }
+
+    /// Object channel group name.
+    ///
+    /// Name of channel group through which object update has been triggered.
+    pub(crate) fn channel_group(&self) -> String {
+        match self {
+            Object::Channel { subscription, .. }
+            | Object::Uuid { subscription, .. }
+            | Object::Membership { subscription, .. } => subscription.to_string(),
         }
     }
 }
@@ -542,6 +602,7 @@ impl TryFrom<Envelope> for Presence {
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
                     channel: value.channel,
+                    subscription: value.subscription,
                     occupancy: occupancy.unwrap_or(0),
                 }),
                 "leave" => Ok(Self::Leave {
@@ -550,6 +611,7 @@ impl TryFrom<Envelope> for Presence {
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
                     channel: value.channel,
+                    subscription: value.subscription,
                     occupancy: occupancy.unwrap_or(0),
                 }),
                 "timeout" => Ok(Self::Timeout {
@@ -558,11 +620,13 @@ impl TryFrom<Envelope> for Presence {
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
                     channel: value.channel,
+                    subscription: value.subscription,
                     occupancy: occupancy.unwrap_or(0),
                 }),
                 "interval" => Ok(Self::Interval {
                     timestamp,
                     channel: value.channel,
+                    subscription: value.subscription,
                     occupancy: occupancy.unwrap_or(0),
                     join,
                     leave,
@@ -574,6 +638,7 @@ impl TryFrom<Envelope> for Presence {
                     // default value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
                     channel: value.channel,
+                    subscription: value.subscription,
                     data,
                 }),
             }
@@ -619,6 +684,7 @@ impl TryFrom<Envelope> for Object {
                     custom,
                     updated,
                     tag,
+                    subscription: value.subscription,
                 }),
                 ObjectDataBody::Uuid {
                     name,
@@ -644,6 +710,7 @@ impl TryFrom<Envelope> for Object {
                     custom,
                     updated,
                     tag,
+                    subscription: value.subscription,
                 }),
                 ObjectDataBody::Membership {
                     channel,
@@ -678,12 +745,14 @@ impl TryFrom<Envelope> for Object {
                                 custom: channel_custom,
                                 updated: channel_updated,
                                 tag: channel_tag,
+                                subscription: value.subscription.clone(),
                             }),
                             custom,
                             status,
                             uuid,
                             updated,
                             tag,
+                            subscription: value.subscription,
                         })
                     } else {
                         Err(PubNubError::Deserialization {
