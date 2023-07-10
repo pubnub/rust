@@ -38,8 +38,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     //
     //   println!("stream cancelled!");
     // };
-
-    subscription.cancel().await?;
+    // let mut subscription = client.subscribe().build().unwrap();
 
     Ok(())
 }

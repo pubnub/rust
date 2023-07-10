@@ -18,8 +18,102 @@ use crate::{
 };
 use derive_builder::Builder;
 use futures::Stream;
-use spin::RwLock;
+use spin::{RwLock, RwLockWriteGuard};
 use uuid::Uuid;
+
+/// Regular messages stream.
+#[derive(Debug)]
+pub struct SubscriptionMessagesStream {
+    inner: Arc<SubscriptionMessagesStreamRef>,
+}
+
+impl Deref for SubscriptionMessagesStream {
+    type Target = SubscriptionMessagesStreamRef;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for SubscriptionMessagesStream {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.inner).expect("Subscription message stream is not unique")
+    }
+}
+
+impl Clone for SubscriptionMessagesStream {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+/// Regular messages stream.
+#[derive(Debug, Default)]
+pub struct SubscriptionMessagesStreamRef {
+    /// List of updates to be delivered to stream listener.
+    updates: RwLock<Vec<Update>>,
+
+    /// Subscription messages stream waker.
+    ///
+    /// Handler used each time when new data available for a stream listener.
+    waker: RwLock<Option<Waker>>,
+}
+
+/// Subscription status stream.
+///
+/// Stream delivers changes in subscription status:
+/// * `connected` - client connected to real-time [`PubNub`] network.
+/// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
+/// * `connection error` - client was unable to subscribe to specified channels and groups
+///
+/// [`PubNub`]:https://www.pubnub.com/
+#[derive(Debug)]
+pub struct SubscriptionStatusStream {
+    inner: Arc<SubscriptionStatusStreamRef>,
+}
+
+impl Deref for SubscriptionStatusStream {
+    type Target = SubscriptionStatusStreamRef;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for SubscriptionStatusStream {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.inner).expect("Subscription status stream is not unique")
+    }
+}
+
+impl Clone for SubscriptionStatusStream {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+/// Subscription status stream.
+///
+/// Stream delivers changes in subscription status:
+/// * `connected` - client connected to real-time [`PubNub`] network.
+/// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
+/// * `connection error` - client was unable to subscribe to specified channels and groups
+///
+/// [`PubNub`]:https://www.pubnub.com/
+#[derive(Debug, Default)]
+pub struct SubscriptionStatusStreamRef {
+    /// List of updates to be delivered to stream listener.
+    updates: RwLock<Vec<SubscribeStatus>>,
+
+    /// Subscription messages stream waker.
+    ///
+    /// Handler used each time when new data available for a stream listener.
+    waker: RwLock<Option<Waker>>,
+}
 
 /// Subscription that is responsible for getting messages from PubNub.
 ///
@@ -146,6 +240,26 @@ pub struct SubscriptionRef {
         default = "RwLock::new(None)"
     )]
     waker: RwLock<Option<Waker>>,
+
+    /// Messages / updates stream.
+    ///
+    /// Stream used to deliver only real-time updates.
+    #[builder(
+        field(vis = "pub(in crate::dx::subscribe)"),
+        setter(custom),
+        default = "None"
+    )]
+    pub(in crate::dx::subscribe) updates_stream: Option<SubscriptionMessagesStream>,
+
+    /// Status stream.
+    ///
+    /// Stream used to deliver only subscription status changes.
+    #[builder(
+        field(vis = "pub(in crate::dx::subscribe)"),
+        setter(custom),
+        default = "None"
+    )]
+    pub(in crate::dx::subscribe) status_stream: Option<SubscriptionStatusStream>,
 }
 
 impl SubscriptionBuilder {
@@ -202,10 +316,61 @@ impl Subscription {
             .map(|manager| manager.unregister(self.clone()));
     }
 
+    /// Stream of all subscription updates.
+    ///
+    /// Stream is used to deliver following updates:
+    /// * received messages / updates
+    /// * changes in subscription status
+    pub fn stream(&self) -> Self {
+        self.clone()
+    }
+
+    /// Stream with message / updates.
+    ///
+    /// Stream will deliver filtered set of updates which include only messages.
+    pub fn message_stream(&mut self) -> SubscriptionMessagesStream {
+        if let Some(stream) = &self.updates_stream {
+            stream.clone()
+        } else {
+            let stream = SubscriptionMessagesStream {
+                inner: Arc::new(SubscriptionMessagesStreamRef {
+                    ..Default::default()
+                }),
+            };
+
+            self.updates_stream = Some(stream.clone());
+            stream
+        }
+    }
+
+    /// Stream with subscription status updates.
+    ///
+    /// Stream will deliver filtered set of updates which include only
+    /// subscription status change.
+    pub fn status_stream(&mut self) -> SubscriptionStatusStream {
+        if let Some(stream) = &self.status_stream {
+            stream.clone()
+        } else {
+            let stream = SubscriptionStatusStream {
+                inner: Arc::new(SubscriptionStatusStreamRef {
+                    ..Default::default()
+                }),
+            };
+
+            self.status_stream = Some(stream.clone());
+            stream
+        }
+    }
+
     /// Handle received real-time updates.
     pub(in crate::dx::subscribe) fn handle_messages(&self, messages: &Vec<Update>) {
+        let mut updates_stream_updates_slot: Option<RwLockWriteGuard<Vec<Update>>> = None;
         let mut updates_slot = self.updates.write();
         let updates_len = updates_slot.len();
+
+        if let Some(updates_stream) = &self.updates_stream {
+            updates_stream_updates_slot = Some(updates_stream.updates.write());
+        }
 
         messages
             .iter()
@@ -213,10 +378,20 @@ impl Subscription {
                 self.channels.contains(&msg.channel())
                     || self.channel_groups.contains(&msg.channel_group())
             })
-            .for_each(|msg| updates_slot.push(SubscribeStreamEvent::Update(msg.clone())));
+            .for_each(|msg| {
+                if let Some(updates_stream_slot) = updates_stream_updates_slot.as_mut() {
+                    updates_stream_slot.push(msg.clone());
+                }
+
+                updates_slot.push(SubscribeStreamEvent::Update(msg.clone()))
+            });
 
         if updates_len < updates_slot.len() {
             self.wake_task();
+
+            if let Some(updates_stream) = &self.updates_stream {
+                updates_stream.wake_task();
+            }
         }
     }
 
@@ -226,6 +401,13 @@ impl Subscription {
         updates_slot.push(SubscribeStreamEvent::Status(status));
 
         self.wake_task();
+
+        if let Some(status_stream) = &self.status_stream {
+            let mut updates_slot = status_stream.updates.write();
+            updates_slot.push(status);
+
+            status_stream.wake_task();
+        }
     }
 
     fn wake_task(&self) {
@@ -236,8 +418,64 @@ impl Subscription {
     }
 }
 
+impl SubscriptionMessagesStream {
+    fn wake_task(&self) {
+        let mut waker_slot = self.waker.write();
+        if let Some(waker) = waker_slot.take() {
+            waker.wake();
+        }
+    }
+}
+
+impl SubscriptionStatusStream {
+    fn wake_task(&self) {
+        let mut waker_slot = self.waker.write();
+        if let Some(waker) = waker_slot.take() {
+            waker.wake();
+        }
+    }
+}
+
 impl Stream for Subscription {
     type Item = Vec<SubscribeStreamEvent>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut updates_slot = self.updates.write();
+        let mut waker_slot = self.waker.write();
+        *waker_slot = Some(cx.waker().clone());
+
+        if updates_slot.is_empty() {
+            Poll::Pending
+        } else {
+            let updates = updates_slot.to_vec();
+            updates_slot.clear();
+
+            Poll::Ready(Some(updates))
+        }
+    }
+}
+
+impl Stream for SubscriptionMessagesStream {
+    type Item = Vec<Update>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut updates_slot = self.updates.write();
+        let mut waker_slot = self.waker.write();
+        *waker_slot = Some(cx.waker().clone());
+
+        if updates_slot.is_empty() {
+            Poll::Pending
+        } else {
+            let updates = updates_slot.to_vec();
+            updates_slot.clear();
+
+            Poll::Ready(Some(updates))
+        }
+    }
+}
+
+impl Stream for SubscriptionStatusStream {
+    type Item = Vec<SubscribeStatus>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut updates_slot = self.updates.write();
