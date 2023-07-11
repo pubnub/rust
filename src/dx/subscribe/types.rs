@@ -1,19 +1,21 @@
 //! Subscription types module.
 
-use crate::dx::subscribe::result::Update;
 use crate::{
-    core::{PubNubError, ScalarValue},
-    dx::subscribe::result::{Envelope, EnvelopePayload, ObjectDataBody},
+    core::{Cryptor, PubNubError, ScalarValue},
+    dx::subscribe::result::{Envelope, EnvelopePayload, ObjectDataBody, Update},
     lib::{
         alloc::{
             boxed::Box,
             string::{String, ToString},
+            sync::Arc,
             vec::Vec,
         },
         collections::HashMap,
         core::{fmt::Formatter, result::Result},
     },
 };
+use base64::{engine::general_purpose, Engine};
+use futures::future::err;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code, missing_docs)]
@@ -347,7 +349,7 @@ pub enum Object {
 /// Message information.
 ///
 /// [`Message`] type provides to the updates listener message's information.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     /// Identifier of client which sent message / signal.
     pub sender: Option<String>,
@@ -575,6 +577,33 @@ impl Object {
             Object::Channel { subscription, .. }
             | Object::Uuid { subscription, .. }
             | Object::Membership { subscription, .. } => subscription.to_string(),
+        }
+    }
+}
+
+impl Message {
+    /// Decrypt message payload if possible.
+    pub(in crate::dx::subscribe) fn decrypt(
+        mut self,
+        cryptor: &Arc<dyn Cryptor + Send + Sync>,
+    ) -> Result<Self, PubNubError> {
+        let trimmed = String::from_utf8_lossy(self.data.as_slice())
+            .to_string()
+            .as_mut()
+            .trim_matches('"');
+        let decryption_result = general_purpose::STANDARD
+            .decode(trimmed)
+            .map_err(|err| PubNubError::Decryption {
+                details: err.to_string(),
+            })
+            .and_then(|base64_bytes| cryptor.decrypt(base64_bytes));
+
+        match decryption_result {
+            Ok(bytes) => {
+                self.data = bytes;
+                Ok(self)
+            }
+            Err(error) => Err(error),
         }
     }
 }

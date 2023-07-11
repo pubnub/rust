@@ -100,13 +100,15 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 executor: self.subscribe_call.clone(),
                 cancellation_channel: self.cancellation_channel.clone(),
             }),
-            SubscribeEffectInvocation::EmitStatus(status) => {
-                // TODO: Provide emit status effect
-                Some(SubscribeEffect::EmitStatus(*status))
-            }
+            SubscribeEffectInvocation::EmitStatus(status) => Some(SubscribeEffect::EmitStatus {
+                status: *status,
+                executor: self.emit_status.clone(),
+            }),
             SubscribeEffectInvocation::EmitMessages(messages) => {
-                // TODO: Provide emit messages effect
-                Some(SubscribeEffect::EmitMessages(messages.clone()))
+                Some(SubscribeEffect::EmitMessages {
+                    updates: messages.clone(),
+                    executor: self.emit_messages.clone(),
+                })
             }
             _ => None,
         }

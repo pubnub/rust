@@ -98,20 +98,25 @@ where
 
     pub(crate) fn subscription_manager(&mut self) -> SubscriptionManager {
         let channel_bound = 10; // TODO: Think about this value
-        let client = self.clone();
+        let emit_messages_client = self.clone();
+        let emit_status_client = self.clone();
+        let subscribe_client = self.clone();
 
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
 
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
                 Arc::new(move |cursor, params| {
-                    Self::subscribe_call(client.clone(), cursor, cancel_rx.clone(), params)
+                    Self::subscribe_call(
+                        subscribe_client.clone(),
+                        cursor,
+                        cancel_rx.clone(),
+                        params,
+                    )
                 }),
-                Arc::new(|| {
-                    // Do nothing yet
-                }),
-                Arc::new(Box::new(|| {
-                    // Do nothing yet
+                Arc::new(move |status| Self::emit_status(emit_status_client.clone(), &status)),
+                Arc::new(Box::new(move |updates| {
+                    Self::emit_messages(emit_messages_client.clone(), updates)
                 })),
                 cancel_tx,
             ),
@@ -146,17 +151,40 @@ where
         request.execute(cancel_task).boxed()
     }
 
-    #[allow(dead_code)]
-    fn emit_status(&self, status: &SubscribeStatus) {
-        self.subscription_manager
+    fn emit_status(client: Self, status: &SubscribeStatus) {
+        client
+            .subscription_manager
             .read()
             .as_ref()
             .map(|manager| manager.notify_new_status(status));
     }
 
-    #[allow(dead_code)]
-    fn emit_messages(&self, messages: Vec<Update>) {
-        self.subscription_manager
+    fn emit_messages(client: Self, messages: Vec<Update>) {
+        let messages = if let Some(cryptor) = &client.cryptor {
+            messages
+                .into_iter()
+                .map(|update| match update {
+                    Update::Message(message) => {
+                        Update::Message(match message.clone().decrypt(cryptor) {
+                            Ok(decrypted) => decrypted,
+                            Err(_) => message,
+                        })
+                    }
+                    Update::Signal(message) => {
+                        Update::Signal(match message.clone().decrypt(cryptor) {
+                            Ok(decrypted) => decrypted,
+                            Err(_) => message,
+                        })
+                    }
+                    _ => update,
+                })
+                .collect()
+        } else {
+            messages
+        };
+
+        client
+            .subscription_manager
             .read()
             .as_ref()
             .map(|manager| manager.notify_new_messages(messages));

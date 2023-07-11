@@ -122,10 +122,10 @@ mod should {
                         })
                     })
                 }),
-                Arc::new(|| {
+                Arc::new(|_| {
                     // Do nothing yet
                 }),
-                Arc::new(Box::new(|| {
+                Arc::new(Box::new(|_| {
                     // Do nothing yet
                 })),
                 cancel_tx,

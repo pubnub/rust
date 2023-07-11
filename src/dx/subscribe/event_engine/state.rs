@@ -741,8 +741,8 @@ mod should {
             .boxed()
         });
 
-        let emit_status: Arc<EmitStatusEffectExecutor> = Arc::new(|| {});
-        let emit_message: Arc<EmitMessagesEffectExecutor> = Arc::new(|| {});
+        let emit_status: Arc<EmitStatusEffectExecutor> = Arc::new(|_| {});
+        let emit_message: Arc<EmitMessagesEffectExecutor> = Arc::new(|_| {});
 
         let (tx, _) = async_channel::bounded(1);
 

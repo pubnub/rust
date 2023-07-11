@@ -16,6 +16,8 @@ use crate::{
 use async_channel::Sender;
 use futures::{future::BoxFuture, FutureExt};
 
+mod emit_messagess;
+mod emit_status;
 mod handshake;
 mod handshake_reconnection;
 mod receive;
@@ -28,8 +30,8 @@ pub(in crate::dx::subscribe) type SubscribeEffectExecutor = dyn Fn(
     + Send
     + Sync;
 
-pub(in crate::dx::subscribe) type EmitStatusEffectExecutor = dyn Fn() + Send + Sync;
-pub(in crate::dx::subscribe) type EmitMessagesEffectExecutor = dyn Fn() + Send + Sync;
+pub(in crate::dx::subscribe) type EmitStatusEffectExecutor = dyn Fn(SubscribeStatus) + Send + Sync;
+pub(in crate::dx::subscribe) type EmitMessagesEffectExecutor = dyn Fn(Vec<Update>) + Send + Sync;
 
 // TODO: maybe move executor and cancellation_channel to super struct?
 /// Subscription state machine effects.
@@ -163,10 +165,26 @@ pub(crate) enum SubscribeEffect {
     },
 
     /// Status change notification effect invocation.
-    EmitStatus(SubscribeStatus),
+    EmitStatus {
+        /// Status which should be emitted.
+        status: SubscribeStatus,
+
+        /// Executor function.
+        ///
+        /// Function which will be used to execute receive updates.
+        executor: Arc<EmitStatusEffectExecutor>,
+    },
 
     /// Received updates notification effect invocation.
-    EmitMessages(Vec<Update>),
+    EmitMessages {
+        /// Updates which should be emitted.
+        updates: Vec<Update>,
+
+        /// Executor function.
+        ///
+        /// Function which will be used to execute receive updates.
+        executor: Arc<EmitMessagesEffectExecutor>,
+    },
 }
 
 impl Debug for SubscribeEffect {
@@ -213,13 +231,13 @@ impl Debug for SubscribeEffect {
                 "SubscribeEffect::ReceiveReconnect {{ channels: {channels:?}, channel groups: \
                 {channel_groups:?}, attempts: {attempts:?}, reason: {reason:?} }}"
             ),
-            SubscribeEffect::EmitStatus(status) => {
+            SubscribeEffect::EmitStatus { status, .. } => {
                 write!(f, "SubscribeEffect::EmitStatus {{ status: {status:?} }}")
             }
-            SubscribeEffect::EmitMessages(messages) => {
+            SubscribeEffect::EmitMessages { updates, .. } => {
                 write!(
                     f,
-                    "SubscribeEffect::EmitMessages {{ messages: {messages:?} }}"
+                    "SubscribeEffect::EmitMessages {{ messages: {updates:?} }}"
                 )
             }
         }
@@ -236,8 +254,8 @@ impl Effect for SubscribeEffect {
             SubscribeEffect::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT".into(),
             SubscribeEffect::Receive { .. } => "RECEIVE_EFFECT".into(),
             SubscribeEffect::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT".into(),
-            SubscribeEffect::EmitStatus(_) => "EMIT_STATUS_EFFECT".into(),
-            SubscribeEffect::EmitMessages(_) => "EMIT_MESSAGES_EFFECT".into(),
+            SubscribeEffect::EmitStatus { .. } => "EMIT_STATUS_EFFECT".into(),
+            SubscribeEffect::EmitMessages { .. } => "EMIT_MESSAGES_EFFECT".into(),
         }
     }
 
@@ -303,10 +321,14 @@ impl Effect for SubscribeEffect {
                 ),
                 then: Box::new(f),
             },
-            _ => {
-                /* TODO: Implement other effects */
-                EffectExecution::None
-            }
+            SubscribeEffect::EmitStatus { status, executor } => EffectExecution::Async {
+                future: emit_status::execute(*status, executor),
+                then: Box::new(|| {}),
+            },
+            SubscribeEffect::EmitMessages { updates, executor } => EffectExecution::Async {
+                future: emit_messagess::execute(updates.clone(), executor),
+                then: Box::new(|| {}),
+            },
         }
     }
 
