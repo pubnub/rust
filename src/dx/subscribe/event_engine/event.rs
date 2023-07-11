@@ -10,6 +10,7 @@ use crate::{
 /// Subscribe state machine behaviour depends from external events which it
 /// receives.
 #[allow(dead_code)]
+#[derive(Debug)]
 pub(crate) enum SubscribeEvent {
     /// Current list of channels / groups has been changed.
     ///

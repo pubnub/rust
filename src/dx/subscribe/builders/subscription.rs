@@ -15,9 +15,10 @@ use crate::{
         sync::Arc,
         vec::Vec,
     },
+    providers::futures_tokio::TokioSpawner,
 };
 use derive_builder::Builder;
-use futures::Stream;
+use futures::{FutureExt, Stream};
 use spin::{RwLock, RwLockWriteGuard};
 use uuid::Uuid;
 
