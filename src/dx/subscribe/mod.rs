@@ -41,6 +41,7 @@ mod cancel;
 pub(crate) struct SubscriptionParams<'execution> {
     channels: &'execution Option<Vec<String>>,
     channel_groups: &'execution Option<Vec<String>>,
+    cursor: Option<&'execution SubscribeCursor>,
     attempt: u8,
     reason: Option<PubNubError>,
     effect_id: &'execution str,
@@ -107,12 +108,7 @@ where
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
                 Arc::new(move |cursor, params| {
-                    Self::subscribe_call(
-                        subscribe_client.clone(),
-                        cursor,
-                        cancel_rx.clone(),
-                        params,
-                    )
+                    Self::subscribe_call(subscribe_client.clone(), cancel_rx.clone(), params)
                 }),
                 Arc::new(move |status| Self::emit_status(emit_status_client.clone(), &status)),
                 Arc::new(Box::new(move |updates| {
@@ -129,14 +125,12 @@ where
     #[allow(dead_code)]
     pub(crate) fn subscribe_call(
         client: Self,
-        cursor: Option<&SubscribeCursor>,
         cancel_rx: async_channel::Receiver<String>,
         params: SubscriptionParams,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
-        // TODO: Add retry policy check and error if failed.
         let mut request = client
             .subscribe_request()
-            .cursor(cursor.cloned().unwrap_or_default()); // TODO: is this clone required?
+            .cursor(params.cursor.cloned().unwrap_or_default()); // TODO: is this clone required?
 
         if let Some(channels) = params.channels.clone() {
             request = request.channels(channels);
@@ -163,21 +157,7 @@ where
         let messages = if let Some(cryptor) = &client.cryptor {
             messages
                 .into_iter()
-                .map(|update| match update {
-                    Update::Message(message) => {
-                        Update::Message(match message.clone().decrypt(cryptor) {
-                            Ok(decrypted) => decrypted,
-                            Err(_) => message,
-                        })
-                    }
-                    Update::Signal(message) => {
-                        Update::Signal(match message.clone().decrypt(cryptor) {
-                            Ok(decrypted) => decrypted,
-                            Err(_) => message,
-                        })
-                    }
-                    _ => update,
-                })
+                .map(|update| update.decrypt(cryptor))
                 .collect()
         } else {
             messages

@@ -230,8 +230,6 @@ where
                     }
             }
         }
-
-        // TODO: Handle decryption (when provider will be exposed).
     }
 }
 

@@ -30,6 +30,7 @@ pub(crate) fn execute(
         SubscriptionParams {
             channels: &channels,
             channel_groups: &channel_groups,
+            cursor: Some(cursor),
             attempt,
             reason: Some(reason),
             effect_id: &effect_id,

@@ -36,6 +36,7 @@ mod should {
             data: vec![],
             r#type: None,
             space_id: None,
+            decryption_error: None,
         };
         let mut function_called = false;
         let emit_message_function: Arc<EmitMessagesEffectExecutor> = Arc::new(|updates| {

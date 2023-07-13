@@ -26,6 +26,7 @@ pub(super) fn execute(
         SubscriptionParams {
             channels: &channels,
             channel_groups: &channel_groups,
+            cursor: None,
             attempt: 0,
             reason: None,
             effect_id: &effect_id,

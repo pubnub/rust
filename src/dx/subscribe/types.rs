@@ -377,6 +377,12 @@ pub struct Message {
     ///
     /// [`publish`]: crate::dx::publish
     pub space_id: Option<String>,
+
+    /// Decryption error details.
+    ///
+    /// Error is set when [`PubNubClient`] configured with cryptor and it wasn't
+    /// able to decrypt [`data`] in this message.
+    pub decryption_error: Option<PubNubError>,
 }
 
 /// Message's action update information.
@@ -581,16 +587,29 @@ impl Object {
     }
 }
 
-impl Message {
-    /// Decrypt message payload if possible.
+impl Update {
+    /// Decrypt real-time update.
     pub(in crate::dx::subscribe) fn decrypt(
         mut self,
         cryptor: &Arc<dyn Cryptor + Send + Sync>,
-    ) -> Result<Self, PubNubError> {
-        let trimmed = String::from_utf8_lossy(self.data.as_slice())
-            .to_string()
-            .as_mut()
-            .trim_matches('"');
+    ) -> Self {
+        if !matches!(self, Self::Message(_) | Self::Signal(_)) {
+            return self;
+        }
+
+        match self {
+            Self::Message(message) => Self::Message(message.decrypt(cryptor)),
+            Self::Signal(message) => Self::Signal(message.decrypt(cryptor)),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl Message {
+    /// Decrypt message payload if possible.
+    fn decrypt(mut self, cryptor: &Arc<dyn Cryptor + Send + Sync>) -> Self {
+        let lossy_string = String::from_utf8_lossy(self.data.as_slice()).to_string();
+        let trimmed = lossy_string.trim_matches('"');
         let decryption_result = general_purpose::STANDARD
             .decode(trimmed)
             .map_err(|err| PubNubError::Decryption {
@@ -601,10 +620,11 @@ impl Message {
         match decryption_result {
             Ok(bytes) => {
                 self.data = bytes;
-                Ok(self)
             }
-            Err(error) => Err(error),
-        }
+            Err(error) => self.decryption_error = Some(error),
+        };
+
+        self
     }
 }
 
@@ -818,6 +838,7 @@ impl TryFrom<Envelope> for Message {
                 data,
                 r#type: value.r#type,
                 space_id: value.space_id,
+                decryption_error: None,
             })
         } else {
             Err(PubNubError::Deserialization {
