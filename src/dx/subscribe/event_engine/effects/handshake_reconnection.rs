@@ -18,7 +18,7 @@ pub(super) fn execute(
     effect_id: &str,
     retry_policy: &RequestRetryPolicy,
     executor: &Arc<SubscribeEffectExecutor>,
-) -> BoxFuture<'static, Result<Vec<SubscribeEvent>, PubNubError>> {
+) -> Vec<SubscribeEvent> {
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
         channels.as_ref().unwrap_or(&Vec::new()),
@@ -28,36 +28,37 @@ pub(super) fn execute(
 
     // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
-    executor(SubscriptionParams {
-        channels: &channels,
-        channel_groups: &channel_groups,
-        cursor: None,
-        attempt,
-        reason: Some(reason),
-        effect_id: &effect_id,
-    })
-    .map(move |result| {
-        result
-            .map(|subscribe_result| {
-                vec![SubscribeEvent::HandshakeReconnectSuccess {
-                    cursor: subscribe_result.cursor,
-                }]
-            })
-            .or_else(|error| {
-                Ok(match error {
-                    PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
-                        if !retry_policy.retriable(attempt, status) =>
-                    {
-                        vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
-                    }
-                    _ if !matches!(error, PubNubError::EffectCanceled) => {
-                        vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }]
-                    }
-                    _ => vec![],
-                })
-            })
-    })
-    .boxed()
+    //    executor(SubscriptionParams {
+    //        channels: &channels,
+    //        channel_groups: &channel_groups,
+    //        cursor: None,
+    //        attempt,
+    //        reason: Some(reason),
+    //        effect_id: &effect_id,
+    //    })
+    //    .map(move |result| {
+    //        result
+    //            .map(|subscribe_result| {
+    //                vec![SubscribeEvent::HandshakeReconnectSuccess {
+    //                    cursor: subscribe_result.cursor,
+    //                }]
+    //            })
+    //            .or_else(|error| {
+    //                Ok(match error {
+    //                    PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
+    //                        if !retry_policy.retriable(attempt, status) =>
+    //                    {
+    //                        vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
+    //                    }
+    //                    _ if !matches!(error, PubNubError::EffectCanceled) => {
+    //                        vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }]
+    //                    }
+    //                    _ => vec![],
+    //                })
+    //            })
+    //    })
+    //    .boxed()
+    vec![]
 }
 
 #[cfg(test)]

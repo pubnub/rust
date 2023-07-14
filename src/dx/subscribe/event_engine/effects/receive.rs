@@ -15,7 +15,7 @@ pub(crate) fn execute(
     cursor: &SubscribeCursor,
     effect_id: &str,
     executor: &Arc<SubscribeEffectExecutor>,
-) -> BoxFuture<'static, Result<Vec<SubscribeEvent>, PubNubError>> {
+) -> Vec<SubscribeEvent> {
     info!(
         "Receive at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
         cursor.timetoken,
@@ -23,29 +23,30 @@ pub(crate) fn execute(
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
 
-    executor(SubscriptionParams {
-        channels: &channels,
-        channel_groups: &channel_groups,
-        cursor: Some(cursor),
-        attempt: 0,
-        reason: None,
-        effect_id: &effect_id,
-    })
-    .map(|result| {
-        result
-            .map(|subscribe_result| {
-                vec![SubscribeEvent::ReceiveSuccess {
-                    cursor: subscribe_result.cursor,
-                    messages: subscribe_result.messages,
-                }]
-            })
-            .or_else(|error| {
-                Ok(vec![SubscribeEvent::ReceiveFailure {
-                    reason: error.into(),
-                }])
-            })
-    })
-    .boxed()
+    //    executor(SubscriptionParams {
+    //        channels: &channels,
+    //        channel_groups: &channel_groups,
+    //        cursor: Some(cursor),
+    //        attempt: 0,
+    //        reason: None,
+    //        effect_id: &effect_id,
+    //    })
+    //    .map(|result| {
+    //        result
+    //            .map(|subscribe_result| {
+    //                vec![SubscribeEvent::ReceiveSuccess {
+    //                    cursor: subscribe_result.cursor,
+    //                    messages: subscribe_result.messages,
+    //                }]
+    //            })
+    //            .or_else(|error| {
+    //                Ok(vec![SubscribeEvent::ReceiveFailure {
+    //                    reason: error.into(),
+    //                }])
+    //            })
+    //    })
+    //    .boxed()
+    vec![]
 }
 
 #[cfg(test)]

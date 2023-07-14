@@ -5,6 +5,7 @@
 use crate::core::event_engine::effect_execution::EffectExecution;
 use crate::core::PubNubError;
 use crate::lib::alloc::collections::VecDeque;
+use crate::lib::alloc::sync::Arc;
 use crate::{
     dx::subscribe::{
         event_engine::SubscribeEventEngine, result::Update, subscription::Subscription,
@@ -12,7 +13,6 @@ use crate::{
     },
     lib::alloc::vec::Vec,
 };
-use alloc::sync::Arc;
 use async_channel::Sender;
 use spin::RwLock;
 

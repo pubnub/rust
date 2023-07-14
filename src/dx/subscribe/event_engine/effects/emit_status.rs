@@ -12,16 +12,17 @@ use log::info;
 pub(super) fn execute(
     status: SubscribeStatus,
     executor: &Arc<EmitStatusEffectExecutor>,
-) -> BoxFuture<'static, Result<Vec<SubscribeEvent>, PubNubError>> {
+) -> Vec<SubscribeEvent> {
     info!("Emit status: {status:?}");
     let cloned_executor = executor.clone();
 
-    async move {
-        cloned_executor(status);
-
-        Ok(vec![])
-    }
-    .boxed()
+    //    async move {
+    //        cloned_executor(status);
+    //
+    //        Ok(vec![])
+    //    }
+    //    .boxed()
+    vec![]
 }
 
 #[cfg(test)]
