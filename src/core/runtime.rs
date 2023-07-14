@@ -27,7 +27,7 @@ use crate::lib::core::future::Future;
 ///    }
 /// }
 /// ```
-pub trait Spawner: Clone + Send {
+pub trait Runtime: Clone + Send {
     /// Spawn a task.
     ///
     /// This method is used to spawn a task.

@@ -20,7 +20,7 @@ pub use types::{
 pub mod types;
 
 use crate::{
-    core::{event_engine::EventEngine, spawner::Spawner, PubNubError, Transport},
+    core::{event_engine::EventEngine, runtime::Runtime, PubNubError, Transport},
     dx::{
         pubnub_client::PubNubClientInstance,
         subscribe::result::{SubscribeResult, Update},
@@ -58,9 +58,9 @@ where
     /// Instance of [`SubscribeRequestBuilder`] returned.
     #[cfg(feature = "tokio")]
     pub fn subscribe(&self) -> SubscriptionBuilder {
-        use crate::providers::futures_tokio::TokioSpawner;
+        use crate::providers::futures_tokio::TokioRuntime;
 
-        self.subscribe_with_spawner(TokioSpawner)
+        self.subscribe_with_spawner(TokioRuntime)
     }
 
     /// Create subscribe request builder.
@@ -72,7 +72,7 @@ where
     /// Instance of [`SubscribeRequestBuilder`] returned.
     pub fn subscribe_with_spawner<S>(&self, spawner: S) -> SubscriptionBuilder
     where
-        S: Spawner,
+        S: Runtime,
     {
         {
             // Initialize manager when it will be first required.
@@ -116,7 +116,7 @@ where
 
     pub(crate) fn subscription_manager<S>(&mut self, spawner: S) -> SubscriptionManager
     where
-        S: Spawner,
+        S: Runtime,
     {
         let channel_bound = 10; // TODO: Think about this value
         let emit_messages_client = self.clone();

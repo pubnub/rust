@@ -6,13 +6,13 @@
 //!
 //! [`future_tokio` feature]: ../index.html#features
 
-use crate::core::spawner::Spawner;
+use crate::core::runtime::Runtime;
 
 /// Tokio-based `async` tasks spawner.
 #[derive(Clone, Debug)]
-pub struct TokioSpawner;
+pub struct TokioRuntime;
 
-impl Spawner for TokioSpawner {
+impl Runtime for TokioRuntime {
     fn spawn<R>(&self, future: impl futures::Future<Output = R> + Send + 'static)
     where
         R: Send + 'static,
