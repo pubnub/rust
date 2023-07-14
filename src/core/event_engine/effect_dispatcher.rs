@@ -48,7 +48,7 @@ where
     }
 
     /// Dispatch effect associated with `invocation`.
-    pub fn dispatch(self: &Arc<Self>, invocation: &EI) -> EffectExecution<EI::Event> {
+    pub fn dispatch(self: &Arc<Self>, invocation: &EI) -> Option<Arc<EF>> {
         if let Some(effect) = self.handler.create(invocation) {
             let effect = Arc::new(effect);
 
@@ -57,30 +57,13 @@ where
                 managed.push(effect.clone());
             }
 
-            let managed = self.managed.clone();
-
-            // Placeholder for effect invocation.
-            let effect_id = effect.id();
-            let execution = effect.run(move || {
-                // Try remove effect from list of managed.
-                Self::remove_managed_effect(managed, effect_id);
-            });
-
-            // Notify about effect run completion.
-            // Placeholder for effect events processing (pass to effects handler).
-            // let t = f.deref();
-            // t(vec![]);
-            // let tt = f;
-            // f.deref().get_mut();
-
-            execution
-        } else if invocation.cancelling() {
-            self.cancel_effect(invocation);
-            // Placeholder for effect events processing (pass to effects handler).
-
-            EffectExecution::<EI::Event>::None
+            Some(effect)
         } else {
-            EffectExecution::<EI::Event>::None
+            if invocation.cancelling() {
+                self.cancel_effect(invocation);
+            }
+
+            None
         }
     }
 
@@ -96,8 +79,8 @@ where
     }
 
     /// Remove managed effect.
-    fn remove_managed_effect(list: Arc<RwLock<Vec<Arc<EF>>>>, effect_id: String) {
-        let mut managed = list.write();
+    fn remove_managed_effect(&self, effect_id: String) {
+        let mut managed = self.managed.write();
         if let Some(position) = managed.iter().position(|ef| ef.id() == effect_id) {
             managed.remove(position);
         }
@@ -201,30 +184,31 @@ mod should {
     }
 
     #[test]
-    fn run_not_managed_effect() {
+    fn return_not_managed_effect() {
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
-        dispatcher.dispatch(&TestInvocation::One);
+        let effect = dispatcher.dispatch(&TestInvocation::One);
 
         assert_eq!(
             dispatcher.managed.read().len(),
             0,
             "Non managed effects shouldn't be stored"
         );
+        assert_eq!(effect.unwrap().id(), "EFFECT_ONE");
     }
 
     #[tokio::test]
-    async fn run_managed_effect() {
+    async fn return_managed_effect() {
         // TODO: now we remove it right away!
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
-        let execution = dispatcher.dispatch(&TestInvocation::Two);
-
-        execution.execute_async().await.unwrap();
+        let effect = dispatcher.dispatch(&TestInvocation::Two);
 
         assert_eq!(
             dispatcher.managed.read().len(),
-            0,
+            1,
             "Managed effect should be removed on completion"
         );
+
+        assert_eq!(effect.unwrap().id(), "EFFECT_TWO");
     }
 
     #[test]

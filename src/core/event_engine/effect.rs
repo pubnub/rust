@@ -11,9 +11,9 @@ pub(crate) trait Effect: Send + Sync {
     /// Unique effect identifier.
     fn id(&self) -> String;
 
-    fn run<F>(&self, f: F) -> EffectExecution<<Self::Invocation as EffectInvocation>::Event>
+    fn run<F>(&self, f: F)
     where
-        F: FnOnce() + 'static;
+        F: FnOnce(Vec<<Self::Invocation as EffectInvocation>::Event>) + 'static;
 
     /// Cancel any ongoing effect's work.
     fn cancel(&self);

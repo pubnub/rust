@@ -30,7 +30,6 @@ pub(crate) mod state;
 #[doc(inline)]
 pub(crate) use transition::Transition;
 
-use self::effect_execution::EffectExecution;
 pub(crate) mod transition;
 
 pub(crate) mod effect_execution;
@@ -84,7 +83,7 @@ where
     /// Process event passed to the system and perform required transitions to
     /// new state if required.
     #[allow(dead_code)]
-    pub fn process(&self, event: &EI::Event) -> Vec<EffectExecution<EI::Event>> {
+    pub fn process(&self, event: &EI::Event) -> Vec<Arc<EF>> {
         let state = self.current_state.read();
 
         let transition = state.transition(event);
@@ -101,10 +100,7 @@ where
     /// This method is responsible for transition maintenance:
     /// * update current state
     /// * call effects dispatcher to process effect invocation
-    fn process_transition(
-        &self,
-        transition: Transition<S::State, S::Invocation>,
-    ) -> Vec<EffectExecution<EI::Event>> {
+    fn process_transition(&self, transition: Transition<S::State, S::Invocation>) -> Vec<Arc<EF>> {
         {
             let mut writable_state = self.current_state.write();
             *writable_state = transition.state;
@@ -113,7 +109,7 @@ where
         transition
             .invocations
             .iter()
-            .map(|invocation| self.effect_dispatcher.dispatch(invocation))
+            .filter_map(|invocation| self.effect_dispatcher.dispatch(invocation))
             .collect()
     }
 }
@@ -201,6 +197,7 @@ mod should {
         }
     }
 
+    #[derive(Debug, PartialEq)]
     enum TestEffect {
         One,
         Two,
@@ -313,5 +310,14 @@ mod should {
         engine.process(&TestEvent::Three);
         assert!(!matches!(engine.current_state(), TestState::Completed));
         assert!(matches!(engine.current_state(), TestState::Started));
+    }
+
+    #[test]
+    fn return_effects_to_process() {
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+
+        let effects = engine.process(&TestEvent::One);
+
+        assert_eq!(effects, vec![Arc::new(TestEffect::One)]);
     }
 }

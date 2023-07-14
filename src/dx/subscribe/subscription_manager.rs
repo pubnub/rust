@@ -12,10 +12,11 @@ use crate::{
     },
     lib::alloc::vec::Vec,
 };
+use alloc::sync::Arc;
 use async_channel::Sender;
 use spin::RwLock;
 
-use super::event_engine::SubscribeEvent;
+use super::event_engine::{SubscribeEffect, SubscribeEvent};
 
 /// Active subscriptions manager.
 ///
@@ -84,7 +85,7 @@ impl SubscriptionManager {
         }
     }
 
-    pub fn handle_event(&self, event: SubscribeEvent) -> Vec<EffectExecution<SubscribeEvent>> {
+    pub fn handle_event(&self, event: SubscribeEvent) -> Vec<Arc<SubscribeEffect>> {
         self.subscribe_event_engine.write().process(&event)
     }
 }

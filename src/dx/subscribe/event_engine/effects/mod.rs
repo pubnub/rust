@@ -262,20 +262,17 @@ impl Effect for SubscribeEffect {
         }
     }
 
-    fn run<F>(&self, f: F) -> EffectExecution<SubscribeEvent>
+    fn run<F>(&self, f: F)
     where
-        F: FnOnce() + 'static,
+        F: FnOnce(Vec<SubscribeEvent>) + 'static,
     {
-        match self {
+        let events = match self {
             SubscribeEffect::Handshake {
                 channels,
                 channel_groups,
                 executor,
                 ..
-            } => EffectExecution::Async {
-                future: handshake::execute(channels, channel_groups, &self.id(), executor),
-                then: Box::new(f),
-            },
+            } => handshake::execute(channels, channel_groups, &self.id(), executor),
             SubscribeEffect::HandshakeReconnect {
                 channels,
                 channel_groups,
@@ -284,28 +281,22 @@ impl Effect for SubscribeEffect {
                 retry_policy,
                 executor,
                 ..
-            } => EffectExecution::Async {
-                future: handshake_reconnection::execute(
-                    channels,
-                    channel_groups,
-                    *attempts,
-                    reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
-                    &self.id(),
-                    retry_policy,
-                    executor,
-                ),
-                then: Box::new(f),
-            },
+            } => handshake_reconnection::execute(
+                channels,
+                channel_groups,
+                *attempts,
+                reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                &self.id(),
+                retry_policy,
+                executor,
+            ),
             SubscribeEffect::Receive {
                 channels,
                 channel_groups,
                 cursor,
                 executor,
                 ..
-            } => EffectExecution::Async {
-                future: receive::execute(channels, channel_groups, cursor, &self.id(), executor),
-                then: Box::new(f),
-            },
+            } => receive::execute(channels, channel_groups, cursor, &self.id(), executor),
             SubscribeEffect::ReceiveReconnect {
                 channels,
                 channel_groups,
@@ -315,28 +306,25 @@ impl Effect for SubscribeEffect {
                 retry_policy,
                 executor,
                 ..
-            } => EffectExecution::Async {
-                future: receive_reconnection::execute(
-                    channels,
-                    channel_groups,
-                    cursor,
-                    *attempts,
-                    reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
-                    &self.id(),
-                    retry_policy,
-                    executor,
-                ),
-                then: Box::new(f),
-            },
-            SubscribeEffect::EmitStatus { status, executor } => EffectExecution::Async {
-                future: emit_status::execute(*status, executor),
-                then: Box::new(|| {}),
-            },
-            SubscribeEffect::EmitMessages { updates, executor } => EffectExecution::Async {
-                future: emit_messagess::execute(updates.clone(), executor),
-                then: Box::new(|| {}),
-            },
-        }
+            } => receive_reconnection::execute(
+                channels,
+                channel_groups,
+                cursor,
+                *attempts,
+                reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                &self.id(),
+                retry_policy,
+                executor,
+            ),
+            SubscribeEffect::EmitStatus { status, executor } => {
+                emit_status::execute(*status, executor)
+            }
+            SubscribeEffect::EmitMessages { updates, executor } => {
+                emit_messagess::execute(updates.clone(), executor)
+            }
+        };
+
+        f(events)
     }
 
     fn cancel(&self) {

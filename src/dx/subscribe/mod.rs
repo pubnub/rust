@@ -36,6 +36,8 @@ pub use builders::*;
 pub mod builders;
 
 use cancel::CancellationTask;
+
+use self::event_engine::SubscribeEvent;
 mod cancel;
 
 pub(crate) struct SubscriptionParams<'execution> {
@@ -149,7 +151,23 @@ where
         //let spawning_manager = manager;
         let task_spawner = spawner.clone();
 
-        // todo: implement spawn here
+        // spawning should be done somehow like This
+
+        // spawner.spawn(async move {
+        //  let event = events_rx.recv().await.unwrap(); // <--- handle somehow that error
+        //  let effects = self.subscription_manager.write().unwrap().handle_event(event);
+        //
+        //  for effect in effects {
+        //      spawner.spawn(effect.run(|events| {
+        //          subscription_manager.write().unwrap().remove_managed_effect() // <--- I don't like
+        //                                                                        //      this but I don't
+        //                                                                        //      know how to do it
+        //                                                                        //      better for now
+        //
+        //          events_tx.send_blocking(events).unwrap(); // <--- handle somehow that error
+        //      }));
+        //  }
+        // });
 
         manager
     }
