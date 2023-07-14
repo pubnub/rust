@@ -85,6 +85,7 @@ impl Transport for TransportReqwest {
             .await
             .map_err(|e| PubNubError::Transport {
                 details: e.to_string(),
+                status: 400,
             })?;
 
         let headers = result.headers().clone();
@@ -94,6 +95,7 @@ impl Transport for TransportReqwest {
             .await
             .map_err(|e| PubNubError::Transport {
                 details: e.to_string(),
+                status: status.into(),
             })
             .and_then(|bytes| create_result(status, bytes, &headers))
     }
@@ -158,6 +160,7 @@ impl TransportReqwest {
             .body
             .ok_or(PubNubError::Transport {
                 details: "Body should not be empty for POST".into(),
+                status: 400,
             })
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
     }
@@ -178,10 +181,12 @@ fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMa
             let name =
                 TryFrom::try_from(k).map_err(|err: InvalidHeaderName| PubNubError::Transport {
                     details: err.to_string(),
+                    status: 400,
                 })?;
             let value: HeaderValue =
                 TryFrom::try_from(v).map_err(|err: InvalidHeaderValue| PubNubError::Transport {
                     details: err.to_string(),
+                    status: 400,
                 })?;
             Ok((name, value))
         })
@@ -331,6 +336,7 @@ pub mod blocking {
                 .send()
                 .map_err(|e| PubNubError::Transport {
                     details: e.to_string(),
+                    status: 400,
                 })?;
 
             let headers = result.headers().clone();
@@ -339,6 +345,7 @@ pub mod blocking {
                 .bytes()
                 .map_err(|e| PubNubError::Transport {
                     details: e.to_string(),
+                    status: status.into(),
                 })
                 .and_then(|bytes| create_result(status, bytes, &headers))
         }

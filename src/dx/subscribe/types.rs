@@ -590,7 +590,7 @@ impl Object {
 impl Update {
     /// Decrypt real-time update.
     pub(in crate::dx::subscribe) fn decrypt(
-        mut self,
+        self,
         cryptor: &Arc<dyn Cryptor + Send + Sync>,
     ) -> Self {
         if !matches!(self, Self::Message(_) | Self::Signal(_)) {

@@ -4,6 +4,7 @@
 //! The [`SubscribeResult`] type is used to represent results of subscribe
 //! operation.
 
+use crate::core::TransportResponse;
 use crate::dx::subscribe::types::Message;
 use crate::{
     core::{APIErrorBody, PubNubError, ScalarValue},

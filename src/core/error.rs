@@ -35,6 +35,9 @@ pub enum PubNubError {
     Transport {
         ///docs
         details: String,
+
+        /// Failed request HTTP status code.
+        status: u16,
     },
 
     /// this error is returned when the publication of the request fails

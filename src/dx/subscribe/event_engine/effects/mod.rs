@@ -1,7 +1,7 @@
 use crate::{
     core::{
         event_engine::{effect_execution::EffectExecution, Effect},
-        PubNubError,
+        PubNubError, RequestRetryPolicy,
     },
     dx::subscribe::{
         event_engine::{SubscribeEffectInvocation, SubscribeEvent},
@@ -23,10 +23,7 @@ mod handshake_reconnection;
 mod receive;
 mod receive_reconnection;
 
-pub(in crate::dx::subscribe) type SubscribeEffectExecutor = dyn Fn(
-        Option<&SubscribeCursor>, // TODO: move cursor to params
-        SubscriptionParams,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
+pub(in crate::dx::subscribe) type SubscribeEffectExecutor = dyn Fn(SubscriptionParams) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
     + Send
     + Sync;
 
@@ -83,6 +80,9 @@ pub(crate) enum SubscribeEffect {
 
         /// Initial subscribe attempt failure reason.
         reason: PubNubError,
+
+        /// Retry policy.
+        retry_policy: RequestRetryPolicy,
 
         /// Executor function.
         ///
@@ -152,6 +152,9 @@ pub(crate) enum SubscribeEffect {
 
         /// Receive updates attempt failure reason.
         reason: PubNubError,
+
+        /// Retry policy.
+        retry_policy: RequestRetryPolicy,
 
         /// Executor function.
         ///
@@ -278,6 +281,7 @@ impl Effect for SubscribeEffect {
                 channel_groups,
                 attempts,
                 reason,
+                retry_policy,
                 executor,
                 ..
             } => EffectExecution::Async {
@@ -287,6 +291,7 @@ impl Effect for SubscribeEffect {
                     *attempts,
                     reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
                     &self.id(),
+                    retry_policy,
                     executor,
                 ),
                 then: Box::new(f),
@@ -307,6 +312,7 @@ impl Effect for SubscribeEffect {
                 cursor,
                 attempts,
                 reason,
+                retry_policy,
                 executor,
                 ..
             } => EffectExecution::Async {
@@ -317,6 +323,7 @@ impl Effect for SubscribeEffect {
                     *attempts,
                     reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
                     &self.id(),
+                    retry_policy,
                     executor,
                 ),
                 then: Box::new(f),
@@ -368,7 +375,7 @@ mod should {
         let effect = SubscribeEffect::Handshake {
             channels: None,
             channel_groups: None,
-            executor: Arc::new(|_, _| {
+            executor: Arc::new(|_| {
                 Box::pin(async move {
                     Ok(SubscribeResult {
                         cursor: SubscribeCursor::default(),

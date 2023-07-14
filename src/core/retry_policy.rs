@@ -24,7 +24,7 @@ pub enum RequestRetryPolicy {
         delay: u32,
 
         /// Number of times a request can be retried.
-        max_retry: u32,
+        max_retry: u8,
     },
 
     /// Retry the request using exponential amount of time.
@@ -36,13 +36,28 @@ pub enum RequestRetryPolicy {
         max_delay: u32,
 
         /// Number of times a request can be retried.
-        max_retry: u32,
+        max_retry: u8,
     },
 }
 
 impl RequestRetryPolicy {
+    /// Check whether next retry `attempt` is allowed.
+    pub(crate) fn retriable(&self, attempt: u8, status_code: u16) -> bool {
+        match status_code {
+            429 => true,
+            500..=599 => match self {
+                Self::Linear { max_retry, .. } | Self::Exponential { max_retry, .. } => {
+                    attempt.le(max_retry)
+                }
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    #[cfg(feature = "std")]
     #[allow(dead_code)]
-    pub(crate) fn retry_delay(&self, attempt: &u32, response: &TransportResponse) -> Option<u32> {
+    pub(crate) fn retry_delay(&self, attempt: &u8, response: &TransportResponse) -> Option<u32> {
         match response.status {
             // Respect service requested delay.
             429 => (!matches!(self, Self::None))
@@ -50,20 +65,26 @@ impl RequestRetryPolicy {
                 .flatten()
                 .and_then(|value| value.parse::<u32>().ok()),
             500..=599 => match self {
-                RequestRetryPolicy::None => None,
-                RequestRetryPolicy::Linear { delay, max_retry } => {
-                    (*attempt).le(max_retry).then_some(*delay)
+                Self::None => None,
+                Self::Linear { delay, .. } => {
+                    self.retriable(*attempt, response.status).then_some(*delay)
                 }
-                RequestRetryPolicy::Exponential {
+                Self::Exponential {
                     min_delay,
                     max_delay,
-                    max_retry,
-                } => (*attempt)
-                    .le(max_retry)
-                    .then_some((*min_delay).pow(*attempt).min(*max_delay)),
+                    ..
+                } => self
+                    .retriable(*attempt, response.status)
+                    .then_some((*min_delay).pow((*attempt).into()).min(*max_delay)),
             },
             _ => None,
         }
+    }
+
+    #[cfg(not(feature = "std"))]
+    #[allow(dead_code)]
+    pub(crate) fn retry_delay(&self, _attempt: &u8, _response: &TransportResponse) -> Option<u32> {
+        None
     }
 }
 

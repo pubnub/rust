@@ -23,17 +23,14 @@ pub(crate) fn execute(
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
 
-    executor(
-        Some(&cursor),
-        SubscriptionParams {
-            channels: &channels,
-            channel_groups: &channel_groups,
-            cursor: Some(cursor),
-            attempt: 0,
-            reason: None,
-            effect_id: &effect_id,
-        },
-    )
+    executor(SubscriptionParams {
+        channels: &channels,
+        channel_groups: &channel_groups,
+        cursor: Some(cursor),
+        attempt: 0,
+        reason: None,
+        effect_id: &effect_id,
+    })
     .map(|result| {
         result
             .map(|subscribe_result| {
@@ -59,23 +56,22 @@ mod should {
 
     #[tokio::test]
     async fn receive_messages() {
-        let mock_receive_function: Arc<SubscribeEffectExecutor> =
-            Arc::new(move |cursor, params| {
-                assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
-                assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
-                assert_eq!(params.attempt, 0);
-                assert_eq!(params.reason, None);
-                assert_eq!(cursor, Some(&Default::default()));
-                assert_eq!(params.effect_id, "id");
+        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |params| {
+            assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
+            assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
+            assert_eq!(params.attempt, 0);
+            assert_eq!(params.reason, None);
+            assert_eq!(params.cursor, Some(&Default::default()));
+            assert_eq!(params.effect_id, "id");
 
-                async move {
-                    Ok(SubscribeResult {
-                        cursor: Default::default(),
-                        messages: vec![],
-                    })
-                }
-                .boxed()
-            });
+            async move {
+                Ok(SubscribeResult {
+                    cursor: Default::default(),
+                    messages: vec![],
+                })
+            }
+            .boxed()
+        });
 
         let result = execute(
             &Some(vec!["ch1".to_string()]),
@@ -95,10 +91,11 @@ mod should {
 
     #[tokio::test]
     async fn return_handshake_failure_event_on_err() {
-        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_, _| {
+        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),
+                    status: 500,
                 })
             }
             .boxed()

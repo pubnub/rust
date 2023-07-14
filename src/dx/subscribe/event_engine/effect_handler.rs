@@ -1,5 +1,6 @@
 use async_channel::Sender;
 
+use crate::core::RequestRetryPolicy;
 use crate::{
     core::event_engine::EffectHandler,
     dx::subscribe::event_engine::{
@@ -27,6 +28,9 @@ pub(crate) struct SubscribeEffectHandler {
     /// Emit messages function pointer.
     emit_messages: Arc<EmitMessagesEffectExecutor>,
 
+    /// Retry policy.
+    retry_policy: RequestRetryPolicy,
+
     /// Cancellation channel.
     cancellation_channel: Sender<String>,
 }
@@ -38,12 +42,14 @@ impl<'client> SubscribeEffectHandler {
         subscribe_call: Arc<SubscribeEffectExecutor>,
         emit_status: Arc<EmitStatusEffectExecutor>,
         emit_messages: Arc<EmitMessagesEffectExecutor>,
+        retry_policy: RequestRetryPolicy,
         cancellation_channel: Sender<String>,
     ) -> Self {
         SubscribeEffectHandler {
             subscribe_call,
             emit_status,
             emit_messages,
+            retry_policy,
             cancellation_channel,
         }
     }
@@ -71,6 +77,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channel_groups: channel_groups.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
+                retry_policy: self.retry_policy.clone(),
                 executor: self.subscribe_call.clone(),
                 cancellation_channel: self.cancellation_channel.clone(),
             }),
@@ -97,6 +104,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 cursor: cursor.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
+                retry_policy: self.retry_policy.clone(),
                 executor: self.subscribe_call.clone(),
                 cancellation_channel: self.cancellation_channel.clone(),
             }),

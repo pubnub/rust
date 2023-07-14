@@ -102,18 +102,20 @@ where
         let emit_messages_client = self.clone();
         let emit_status_client = self.clone();
         let subscribe_client = self.clone();
+        let retry_policy = self.config.clone().retry_policy;
 
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
 
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
-                Arc::new(move |cursor, params| {
+                Arc::new(move |params| {
                     Self::subscribe_call(subscribe_client.clone(), cancel_rx.clone(), params)
                 }),
                 Arc::new(move |status| Self::emit_status(emit_status_client.clone(), &status)),
                 Arc::new(Box::new(move |updates| {
                     Self::emit_messages(emit_messages_client.clone(), updates)
                 })),
+                retry_policy,
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,
