@@ -14,8 +14,12 @@ pub(super) fn execute(
     executor: &Arc<EmitMessagesEffectExecutor>,
 ) -> BoxFuture<'static, Result<Vec<SubscribeEvent>, PubNubError>> {
     info!("Emit updates: {updates:?}");
+
+    let cloned_executor = executor.clone();
+
     async move {
-        executor(updates.clone());
+        cloned_executor(updates);
+
         Ok(vec![])
     }
     .boxed()

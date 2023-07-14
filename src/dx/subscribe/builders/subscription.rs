@@ -15,7 +15,6 @@ use crate::{
         sync::Arc,
         vec::Vec,
     },
-    providers::futures_tokio::TokioSpawner,
 };
 use derive_builder::Builder;
 use futures::{FutureExt, Stream};
