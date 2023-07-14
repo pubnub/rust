@@ -59,6 +59,9 @@ pub mod cryptor;
 #[cfg(feature = "event_engine")]
 pub(crate) mod event_engine;
 
+#[cfg(feature = "event_engine")]
+pub(crate) mod spawner;
+
 pub(crate) mod utils;
 
 #[doc(inline)]

@@ -14,10 +14,10 @@ build = "build.rs"
 [features]
 
 # Enables all non-conflicting features
-full = ["publish", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
+full = ["publish", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
-default = ["publish", "subscribe", "serde", "reqwest", "aescbc", "std", "blocking"]
+default = ["publish", "subscribe", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]
 
 # [PubNub features]
 
@@ -40,6 +40,9 @@ serde = ["dep:serde", "dep:serde_json", "hashbrown/serde"]
 
 ## Enables reqwest implementation for transport layer
 reqwest = ["dep:reqwest", "dep:bytes"]
+
+## Enables tokio runtime for subscribe loop
+tokio = ["dep:tokio"]
 
 ## Enables blocking implementation for transport layer
 blocking = ["reqwest?/blocking"]

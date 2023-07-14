@@ -212,7 +212,7 @@ pub struct SubscriptionRef {
 
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
-        setter(strip_option),
+        setter(strip_option, into),
         default = "None"
     )]
     pub(in crate::dx::subscribe) filter_expression: Option<String>,

@@ -6,15 +6,17 @@
 //!
 //! [`future_tokio` feature]: ../index.html#features
 
-use futures::future::FutureObj;
-use futures::task::{Spawn, SpawnError};
+use crate::core::spawner::Spawner;
 
 /// Tokio-based `async` tasks spawner.
+#[derive(Clone, Debug)]
 pub struct TokioSpawner;
 
-impl Spawn for TokioSpawner {
-    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-        tokio::task::spawn(future);
-        Ok(())
+impl Spawner for TokioSpawner {
+    fn spawn<R>(&self, future: impl futures::Future<Output = R> + Send + 'static)
+    where
+        R: Send + 'static,
+    {
+        tokio::spawn(future);
     }
 }

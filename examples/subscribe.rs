@@ -26,10 +26,17 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .with_user_id("user_id")
         .build()?;
 
-    let subscription = client
-        .subscribe()
-        .channels(vec!["hello_world".to_string()])
-        .build()?;
+    //client
+    //    .subscribe_with_spawner()
+    //    .channels(["hello".into(), "world".into()].to_vec())
+    //    .heartbeat(10)
+    //    .filter_expression("some_filter".into())
+    //    .build()?
+    //    .stream()
+    //    .for_each(|message| async {
+    //        println!("message: {:?}", message);
+    //    })
+    //    .await;
 
     // TODO: something like that
     // let stream = subscription.stream();
@@ -43,14 +50,14 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // let mut subscription = client.subscribe().build().unwrap();
 
     //subscription.unsubscribe().await;
-    subscription
-        .for_each(|updates| async move {
-            updates.iter().for_each(|update| match update {
-                SubscribeStreamEvent::Status(status) => println!("Status changed: {status:?}"),
-                SubscribeStreamEvent::Update(update) => println!("Received update: {update:?}"),
-            })
-        })
-        .await;
+    //    subscription
+    //        .for_each(|updates| async move {
+    //            updates.iter().for_each(|update| match update {
+    //                SubscribeStreamEvent::Status(status) => println!("Status changed: {status:?}"),
+    //                SubscribeStreamEvent::Update(update) => println!("Received update: {update:?}"),
+    //            })
+    //        })
+    //        .await;
 
     Ok(())
 }

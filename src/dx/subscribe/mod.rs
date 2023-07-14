@@ -20,7 +20,7 @@ pub use types::{
 pub mod types;
 
 use crate::{
-    core::{event_engine::EventEngine, PubNubError, Transport},
+    core::{event_engine::EventEngine, spawner::Spawner, PubNubError, Transport},
     dx::{
         pubnub_client::PubNubClientInstance,
         subscribe::result::{SubscribeResult, Update},
@@ -56,12 +56,29 @@ where
     /// passed list of channels and groups.
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
+    #[cfg(feature = "tokio")]
     pub fn subscribe(&self) -> SubscriptionBuilder {
+        use crate::providers::futures_tokio::TokioSpawner;
+
+        self.subscribe_with_spawner(TokioSpawner)
+    }
+
+    /// Create subscribe request builder.
+    /// This method is used to create events stream for real-time updates on
+    /// passed list of channels and groups.
+    ///
+    /// It takes
+    ///
+    /// Instance of [`SubscribeRequestBuilder`] returned.
+    pub fn subscribe_with_spawner<S>(&self, spawner: S) -> SubscriptionBuilder
+    where
+        S: Spawner,
+    {
         {
             // Initialize manager when it will be first required.
             let mut manager_slot = self.subscription_manager.write();
             if manager_slot.is_none() {
-                *manager_slot = Some(self.clone().subscription_manager());
+                *manager_slot = Some(self.clone().subscription_manager(spawner.clone()));
             }
         }
 
@@ -97,7 +114,10 @@ where
         }
     }
 
-    pub(crate) fn subscription_manager(&mut self) -> SubscriptionManager {
+    pub(crate) fn subscription_manager<S>(&mut self, spawner: S) -> SubscriptionManager
+    where
+        S: Spawner,
+    {
         let channel_bound = 10; // TODO: Think about this value
         let emit_messages_client = self.clone();
         let emit_status_client = self.clone();
@@ -121,7 +141,17 @@ where
             SubscribeState::Unsubscribed,
         );
 
-        SubscriptionManager::new(engine)
+        // TODO: size of the channel
+        let (events_tx, events_rx) = async_channel::bounded(100);
+
+        let manager = SubscriptionManager::new(engine, events_tx.clone());
+
+        //let spawning_manager = manager;
+        let task_spawner = spawner.clone();
+
+        // todo: implement spawn here
+
+        manager
     }
 
     #[allow(dead_code)]
