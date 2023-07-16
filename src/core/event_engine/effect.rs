@@ -3,8 +3,6 @@ use crate::{
     lib::alloc::{string::String, vec::Vec},
 };
 
-use super::effect_execution::EffectExecution;
-
 pub(crate) trait Effect: Send + Sync {
     type Invocation: EffectInvocation;
 

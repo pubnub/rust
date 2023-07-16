@@ -1,19 +1,14 @@
 use crate::{
-    core::PubNubError,
-    dx::subscribe::{
-        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscribeCursor, SubscriptionParams,
-    },
-    lib::alloc::{string::String, sync::Arc, vec::Vec},
+    dx::subscribe::event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
+    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
-use futures::{future::BoxFuture, FutureExt};
 use log::info;
 
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
-    effect_id: &str,
-    executor: &Arc<SubscribeEffectExecutor>,
+    _effect_id: &str,
+    _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Handshake for\nchannels: {:?}\nchannel groups: {:?}",
@@ -77,12 +72,11 @@ mod should {
             &Some(vec!["cg1".to_string()]),
             "id",
             &mock_handshake_function,
-        )
-        .await;
+        );
 
-        assert!(result.is_ok());
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
+            result.first().unwrap(),
             SubscribeEvent::HandshakeSuccess { .. }
         ));
     }
@@ -104,12 +98,11 @@ mod should {
             &Some(vec!["cg1".to_string()]),
             "id",
             &mock_handshake_function,
-        )
-        .await;
+        );
 
-        assert!(result.is_ok());
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
+            result.first().unwrap(),
             SubscribeEvent::HandshakeFailure { .. }
         ));
     }

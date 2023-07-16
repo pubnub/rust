@@ -4,8 +4,7 @@
 //! encryption and decryption of published data.
 
 use crate::core::error::PubNubError;
-use crate::lib::alloc::vec::Vec;
-use std::fmt::Debug;
+use crate::lib::{alloc::vec::Vec, core::fmt::Debug};
 
 /// This trait is used to encrypt and decrypt messages sent to the
 /// [`PubNub API`].
@@ -25,24 +24,17 @@ use std::fmt::Debug;
 /// ```
 /// use pubnub::core::{Cryptor, error::PubNubError};
 ///
+/// #[derive(Debug)]
 /// struct MyCryptor;
 ///
 /// impl Cryptor for MyCryptor {
-///     fn encrypt<'en, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
-///     where
-///         T: Into<&'en [u8]>
-///     {
+///     fn encrypt(&self, source: Vec<u8>) -> Result<Vec<u8>, PubNubError> {
 ///         // Encrypt provided data here
-///
 ///         Ok(vec![])
 ///     }
 ///
-///     fn decrypt<'de, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
-///     where
-///         T: Into<&'de [u8]>
-///     {
+///     fn decrypt(&self, source: Vec<u8>) -> Result<Vec<u8>, PubNubError> {
 ///         // Decrypt provided data here
-///
 ///         Ok(vec![])
 ///     }
 /// }

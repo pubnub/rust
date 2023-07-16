@@ -2,16 +2,13 @@
 //!
 //! This module contains manager which is responsible for tracking and updating
 //! active subscription streams.
-use crate::core::event_engine::effect_execution::EffectExecution;
-use crate::core::PubNubError;
-use crate::lib::alloc::collections::VecDeque;
-use crate::lib::alloc::sync::Arc;
+
 use crate::{
     dx::subscribe::{
         event_engine::SubscribeEventEngine, result::Update, subscription::Subscription,
         SubscribeStatus,
     },
-    lib::alloc::vec::Vec,
+    lib::alloc::{sync::Arc, vec::Vec},
 };
 use async_channel::Sender;
 use spin::RwLock;
@@ -92,6 +89,7 @@ impl SubscriptionManager {
 
 #[cfg(test)]
 mod should {
+    use crate::core::RequestRetryPolicy;
     use core::sync::atomic::{AtomicBool, Ordering};
 
     use crate::dx::subscribe::result::SubscribeResult;
@@ -101,12 +99,13 @@ mod should {
 
     use super::*;
 
+    #[allow(dead_code)]
     fn event_engine(processed: Arc<AtomicBool>) -> SubscribeEventEngine {
         let (cancel_tx, _) = async_channel::bounded(1);
 
         SubscribeEventEngine::new(
             SubscribeEffectHandler::new(
-                Arc::new(move |cursor, params| {
+                Arc::new(move |_| {
                     processed.store(true, Ordering::Relaxed);
                     Box::pin(async move {
                         Ok(SubscribeResult {
@@ -121,6 +120,7 @@ mod should {
                 Arc::new(Box::new(|_| {
                     // Do nothing yet
                 })),
+                RequestRetryPolicy::None,
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,

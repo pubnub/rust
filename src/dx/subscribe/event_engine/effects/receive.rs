@@ -1,20 +1,18 @@
 use crate::{
-    core::PubNubError,
     dx::subscribe::{
         event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscribeCursor, SubscriptionParams,
+        SubscribeCursor,
     },
-    lib::alloc::{string::String, sync::Arc, vec::Vec},
+    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
-use futures::{future::BoxFuture, FutureExt};
 use log::info;
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    effect_id: &str,
-    executor: &Arc<SubscribeEffectExecutor>,
+    _effect_id: &str,
+    _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Receive at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
@@ -80,18 +78,17 @@ mod should {
             &Default::default(),
             "id",
             &mock_receive_function,
-        )
-        .await;
+        );
 
-        assert!(result.is_ok());
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
+            result.first().unwrap(),
             SubscribeEvent::ReceiveSuccess { .. }
         ));
     }
 
     #[tokio::test]
-    async fn return_handshake_failure_event_on_err() {
+    async fn return_receive_failure_event_on_err() {
         let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
@@ -108,12 +105,11 @@ mod should {
             &Default::default(),
             "id",
             &mock_receive_function,
-        )
-        .await;
+        );
 
-        assert!(result.is_ok());
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
+            result.first().unwrap(),
             SubscribeEvent::ReceiveFailure { .. }
         ));
     }

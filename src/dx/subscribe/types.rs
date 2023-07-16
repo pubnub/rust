@@ -15,7 +15,6 @@ use crate::{
     },
 };
 use base64::{engine::general_purpose, Engine};
-use futures::future::err;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code, missing_docs)]

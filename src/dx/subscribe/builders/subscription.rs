@@ -1,23 +1,24 @@
-use core::ops::{Deref, DerefMut};
-use std::{
-    pin::Pin,
-    task::{Context, Poll, Waker},
-};
-
 use crate::{
     core::PubNubError,
     dx::subscribe::{
         result::Update, subscription_manager::SubscriptionManager, types::SubscribeStreamEvent,
         SubscribeCursor, SubscribeStatus,
     },
-    lib::alloc::{
-        string::{String, ToString},
-        sync::Arc,
-        vec::Vec,
+    lib::{
+        alloc::{
+            string::{String, ToString},
+            sync::Arc,
+            vec::Vec,
+        },
+        core::{
+            ops::{Deref, DerefMut},
+            pin::Pin,
+            task::{Context, Poll, Waker},
+        },
     },
 };
 use derive_builder::Builder;
-use futures::{FutureExt, Stream};
+use futures::Stream;
 use spin::{RwLock, RwLockWriteGuard};
 use uuid::Uuid;
 

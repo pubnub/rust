@@ -1,30 +1,25 @@
-use crate::core::RequestRetryPolicy;
 use crate::{
-    core::PubNubError,
-    dx::subscribe::{
-        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscriptionParams,
-    },
-    lib::alloc::{string::String, sync::Arc, vec::Vec},
+    core::{PubNubError, RequestRetryPolicy},
+    dx::subscribe::event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
+    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
-use futures::{future::BoxFuture, FutureExt};
 use log::info;
 
 pub(super) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
-    attempt: u8,
-    reason: PubNubError,
-    effect_id: &str,
+    _attempt: u8,
+    _reason: PubNubError,
+    _effect_id: &str,
     retry_policy: &RequestRetryPolicy,
-    executor: &Arc<SubscribeEffectExecutor>,
+    _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
         channels.as_ref().unwrap_or(&Vec::new()),
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
-    let retry_policy = retry_policy.clone();
+    let _retry_policy = retry_policy.clone();
 
     // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
@@ -103,18 +98,17 @@ mod should {
             "id",
             &RequestRetryPolicy::None,
             &mock_handshake_function,
-        )
-        .await;
+        );
 
-        assert!(result.is_ok());
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
+            result.first().unwrap(),
             SubscribeEvent::HandshakeReconnectSuccess { .. }
         ));
     }
 
     #[tokio::test]
-    async fn return_handskahe_failure_event_on_err() {
+    async fn return_handshake_reconnect_failure_event_on_err() {
         let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
@@ -136,12 +130,11 @@ mod should {
             "id",
             &RequestRetryPolicy::None,
             &mock_handshake_function,
-        )
-        .await;
+        );
 
-        assert!(result.is_ok());
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
+            result.first().unwrap(),
             SubscribeEvent::HandshakeReconnectFailure { .. }
         ));
     }

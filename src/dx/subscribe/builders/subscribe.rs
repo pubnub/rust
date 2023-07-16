@@ -44,7 +44,7 @@ use futures::{select_biased, Future, FutureExt};
     no_std
 )]
 #[allow(dead_code, missing_docs)]
-pub struct SubscribeRequest<T, D>
+pub(crate) struct SubscribeRequest<T, D>
 where
     T: Transport + Send,
     D: for<'ds> Deserializer<'ds, SubscribeResponseBody> + Send,

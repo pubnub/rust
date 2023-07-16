@@ -1,9 +1,13 @@
 use futures::future::BoxFuture;
 
-use crate::core::PubNubError;
+use crate::{
+    core::PubNubError,
+    lib::alloc::{boxed::Box, vec, vec::Vec},
+};
 
 use super::Event;
 
+#[allow(dead_code)]
 pub(crate) enum EffectExecution<E>
 where
     E: Event,
@@ -25,6 +29,7 @@ impl<E> EffectExecution<E>
 where
     E: Event,
 {
+    #[allow(dead_code)]
     pub(crate) async fn execute_async(self) -> Result<Vec<E>, PubNubError> {
         match self {
             EffectExecution::None => Ok(vec![]),

@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        event_engine::{effect_execution::EffectExecution, Effect},
-        PubNubError, RequestRetryPolicy,
-    },
+    core::{event_engine::Effect, PubNubError, RequestRetryPolicy},
     dx::subscribe::{
         event_engine::{SubscribeEffectInvocation, SubscribeEvent},
         result::{SubscribeResult, Update},
@@ -14,7 +11,7 @@ use crate::{
     },
 };
 use async_channel::Sender;
-use futures::{future::BoxFuture, FutureExt};
+use futures::future::BoxFuture;
 
 mod emit_messagess;
 mod emit_status;

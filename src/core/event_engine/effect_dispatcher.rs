@@ -1,11 +1,9 @@
 use crate::{
     core::event_engine::{Effect, EffectHandler, EffectInvocation},
-    lib::alloc::{sync::Arc, vec, vec::Vec},
+    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
 use phantom_type::PhantomType;
 use spin::rwlock::RwLock;
-
-use super::effect_execution::EffectExecution;
 
 /// State machine effects dispatcher.
 #[derive(Debug)]
@@ -79,6 +77,7 @@ where
     }
 
     /// Remove managed effect.
+    #[allow(dead_code)]
     fn remove_managed_effect(&self, effect_id: String) {
         let mut managed = self.managed.write();
         if let Some(position) = managed.iter().position(|ef| ef.id() == effect_id) {
@@ -89,8 +88,6 @@ where
 
 #[cfg(test)]
 mod should {
-    use futures::FutureExt;
-
     use super::*;
     use crate::core::event_engine::Event;
 
@@ -119,14 +116,11 @@ mod should {
             }
         }
 
-        fn run<F>(&self, f: F) -> EffectExecution<TestEvent>
+        fn run<F>(&self, f: F)
         where
-            F: FnOnce() + 'static,
+            F: FnOnce(Vec<<Self::Invocation as EffectInvocation>::Event>) + 'static,
         {
-            EffectExecution::Async {
-                future: Box::pin(async { Ok(vec![TestEvent]) }),
-                then: Box::new(f),
-            }
+            f(vec![]);
         }
 
         fn cancel(&self) {

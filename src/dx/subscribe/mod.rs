@@ -25,7 +25,7 @@ use crate::{
         pubnub_client::PubNubClientInstance,
         subscribe::result::{SubscribeResult, Update},
     },
-    lib::alloc::{boxed::Box, string::String, sync::Arc, vec::Vec},
+    lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
 };
 
 pub(crate) use subscription_manager::SubscriptionManager;
@@ -36,10 +36,9 @@ pub use builders::*;
 pub mod builders;
 
 use cancel::CancellationTask;
-
-use self::event_engine::SubscribeEvent;
 mod cancel;
 
+#[allow(dead_code)]
 pub(crate) struct SubscriptionParams<'execution> {
     channels: &'execution Option<Vec<String>>,
     channel_groups: &'execution Option<Vec<String>>,
@@ -144,12 +143,12 @@ where
         );
 
         // TODO: size of the channel
-        let (events_tx, events_rx) = async_channel::bounded(100);
+        let (events_tx, _events_rx) = async_channel::bounded(100);
 
         let manager = SubscriptionManager::new(engine, events_tx.clone());
 
         //let spawning_manager = manager;
-        let task_spawner = spawner.clone();
+        let _task_spawner = spawner.clone();
 
         // spawning should be done somehow like This
 

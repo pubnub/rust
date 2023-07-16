@@ -8,7 +8,7 @@ use crate::{
         SubscribeEffect, SubscribeEffectInvocation,
     },
     lib::{
-        alloc::sync::Arc,
+        alloc::{string::String, sync::Arc},
         core::fmt::{Debug, Formatter, Result},
     },
 };

@@ -1,4 +1,3 @@
-use super::PubNubError;
 use crate::lib::core::future::Future;
 
 /// This module contains the task spawning trait used in the PubNub client.

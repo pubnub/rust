@@ -1,10 +1,12 @@
 use async_channel::Receiver;
 
-use crate::core::PubNubError;
+use crate::{
+    core::PubNubError,
+    lib::alloc::{format, string::String},
+};
 
-/// TODO: why is it public needed for request?
 #[derive(Debug)]
-pub struct CancellationTask {
+pub(crate) struct CancellationTask {
     cancel_rx: Receiver<String>,
     id: String,
 }

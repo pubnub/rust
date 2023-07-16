@@ -1,24 +1,22 @@
-use crate::core::RequestRetryPolicy;
 use crate::{
-    core::PubNubError,
+    core::{PubNubError, RequestRetryPolicy},
     dx::subscribe::{
         event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscribeCursor, SubscriptionParams,
+        SubscribeCursor,
     },
-    lib::alloc::{string::String, sync::Arc, vec::Vec},
+    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
-use futures::{future::BoxFuture, FutureExt};
 use log::info;
 
 pub(crate) fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    attempt: u8,
-    reason: PubNubError,
-    effect_id: &str,
+    _attempt: u8,
+    _reason: PubNubError,
+    _effect_id: &str,
     retry_policy: &RequestRetryPolicy,
-    executor: &Arc<SubscribeEffectExecutor>,
+    _executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
@@ -26,7 +24,7 @@ pub(crate) fn execute(
         channels.as_ref().unwrap_or(&Vec::new()),
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
-    let retry_policy = retry_policy.clone();
+    let _retry_policy = retry_policy.clone();
 
     // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
@@ -71,7 +69,7 @@ mod should {
     use futures::FutureExt;
 
     #[tokio::test]
-    async fn receive_messages() {
+    async fn receive_reconnect() {
         let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |params| {
             assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
@@ -107,18 +105,17 @@ mod should {
             "id",
             &RequestRetryPolicy::None,
             &mock_receive_function,
-        )
-        .await;
+        );
 
-        assert!(result.is_ok());
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
+            result.first().unwrap(),
             SubscribeEvent::ReceiveReconnectSuccess { .. }
         ));
     }
 
     #[tokio::test]
-    async fn return_handshake_failure_event_on_err() {
+    async fn return_receive_reconnect_failure_event_on_err() {
         let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
@@ -141,12 +138,11 @@ mod should {
             "id",
             &RequestRetryPolicy::None,
             &mock_receive_function,
-        )
-        .await;
+        );
 
-        assert!(result.is_ok());
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
+            result.first().unwrap(),
             SubscribeEvent::ReceiveReconnectFailure { .. }
         ));
     }

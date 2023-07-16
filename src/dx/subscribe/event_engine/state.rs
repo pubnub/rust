@@ -707,6 +707,7 @@ impl State for SubscribeState {
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::core::RequestRetryPolicy;
     use crate::{
         core::event_engine::EventEngine,
         dx::subscribe::{
@@ -718,7 +719,7 @@ mod should {
             },
             result::SubscribeResult,
         },
-        lib::core::sync::Arc,
+        lib::alloc::sync::Arc,
     };
     use futures::FutureExt;
     use test_case::test_case;
@@ -731,7 +732,7 @@ mod should {
         SubscribeEffect,
         SubscribeEffectInvocation,
     > {
-        let call: Arc<SubscribeEffectExecutor> = Arc::new(|_, _| {
+        let call: Arc<SubscribeEffectExecutor> = Arc::new(|_| {
             async move {
                 Ok(SubscribeResult {
                     cursor: Default::default(),
@@ -747,7 +748,13 @@ mod should {
         let (tx, _) = async_channel::bounded(1);
 
         EventEngine::new(
-            SubscribeEffectHandler::new(call, emit_status, emit_message, tx),
+            SubscribeEffectHandler::new(
+                call,
+                emit_status,
+                emit_message,
+                RequestRetryPolicy::None,
+                tx,
+            ),
             start_state,
         )
     }

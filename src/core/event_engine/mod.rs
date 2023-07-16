@@ -215,8 +215,8 @@ mod should {
             }
         }
 
-        fn run<F>(&self, _: F) -> EffectExecution<TestEvent> {
-            EffectExecution::None
+        fn run<F>(&self, _: F) {
+            // Do nothing.
         }
 
         fn cancel(&self) {
