@@ -2,6 +2,7 @@
 
 use crate::lib::alloc::sync::Arc;
 use async_channel::Sender;
+use log::error;
 use spin::rwlock::RwLock;
 
 #[doc(inline)]
@@ -76,7 +77,7 @@ where
     where
         R: Runtime,
     {
-        let (channel_tx, channel_rx) = async_channel::bounded::<EI>(5);
+        let (channel_tx, channel_rx) = async_channel::bounded::<EI>(100);
         let effect_dispatcher = Arc::new(EffectDispatcher::new(handler, channel_rx));
 
         let engine = Arc::new(EventEngine {
@@ -102,11 +103,10 @@ where
     /// new state if required.
     #[allow(dead_code)]
     pub fn process(&self, event: &EI::Event) {
-        let state = self.current_state.read();
-
-        let transition = state.transition(event);
-
-        drop(state);
+        let transition = {
+            let state = self.current_state.read();
+            state.transition(event)
+        };
 
         transition.map(|transition| self.process_transition(transition));
     }
@@ -123,9 +123,9 @@ where
         }
 
         transition.invocations.into_iter().for_each(|invocation| {
-            self.effect_dispatcher_channel
-                .send_blocking(invocation)
-                .unwrap();
+            if let Err(error) = self.effect_dispatcher_channel.send_blocking(invocation) {
+                error!("Unable dispatch invocation: {error:?}")
+            }
         });
     }
 
@@ -152,8 +152,10 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::lib::alloc::{vec, vec::Vec};
-    use std::future::Future;
+    use crate::lib::{
+        alloc::{vec, vec::Vec},
+        core::future::Future,
+    };
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestState {
@@ -252,11 +254,11 @@ mod should {
             }
         }
 
-        async fn run<F>(&self, _: F)
+        async fn run<F>(&self, completion: F)
         where
-            F: Send,
+            F: FnOnce(Vec<<Self::Invocation as EffectInvocation>::Event>) + Send + 'static,
         {
-            // Do nothing.
+            completion(vec![])
         }
 
         fn cancel(&self) {
@@ -311,11 +313,11 @@ mod should {
     struct TestRuntime {}
 
     impl Runtime for TestRuntime {
-        fn spawn<R>(&self, _future: impl Future<Output = R> + Send + 'static)
+        fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static)
         where
             R: Send + 'static,
         {
-            // Do nothing.
+            tokio::spawn(future);
         }
     }
 
@@ -332,9 +334,9 @@ mod should {
         assert!(matches!(engine.current_state(), TestState::Started));
     }
 
-    #[test]
-    #[ignore = "hangs forever"]
-    fn transit_between_states() {
+    #[tokio::test]
+    // #[ignore = "hangs forever"]
+    async fn transit_between_states() {
         let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
 
         engine.process(&TestEvent::One);

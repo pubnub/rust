@@ -122,9 +122,9 @@ mod should {
     }
 
     #[test]
-    fn create_exponential_by_default() {
+    fn create_none_by_default() {
         let policy: RequestRetryPolicy = Default::default();
-        assert!(matches!(policy, RequestRetryPolicy::Exponential { .. }));
+        assert!(matches!(policy, RequestRetryPolicy::None));
     }
 
     mod none_policy {

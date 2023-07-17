@@ -68,9 +68,14 @@ where
 
         runtime.spawn(async move {
             loop {
-                if let Ok(invocation) = cloned_self.clone().invocations_channel.recv().await {
-                    // TODO: Spawn detached task here and await on Effect::execute / Effect::run  until completion.
-                    cloned_self.dispatch(&invocation);
+                match cloned_self.invocations_channel.recv().await {
+                    Ok(invocation) => {
+                        // TODO: Spawn detached task here and await on Effect::execute / Effect::run  until completion.
+                        cloned_self.dispatch(&invocation);
+                    }
+                    Err(err) => {
+                        println!("Receive error: {err:?}");
+                    }
                 }
             }
         });
