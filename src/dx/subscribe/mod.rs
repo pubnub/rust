@@ -144,33 +144,7 @@ where
             runtime,
         );
 
-        // TODO: size of the channel
-        let (events_tx, _events_rx) = async_channel::bounded(100);
-
-        let manager = SubscriptionManager::new(engine, events_tx.clone());
-
-        //let spawning_manager = manager;
-        let _task_runtime = runtime.clone();
-
-        // spawning should be done somehow like This
-
-        // spawner.spawn(async move {
-        //  let event = events_rx.recv().await.unwrap(); // <--- handle somehow that error
-        //  let effects = self.subscription_manager.write().unwrap().handle_event(event);
-        //
-        //  for effect in effects {
-        //      spawner.spawn(effect.run(|events| {
-        //          subscription_manager.write().unwrap().remove_managed_effect() // <--- I don't like
-        //                                                                        //      this but I don't
-        //                                                                        //      know how to do it
-        //                                                                        //      better for now
-        //
-        //          events_tx.send_blocking(events).unwrap(); // <--- handle somehow that error
-        //      }));
-        //  }
-        // });
-
-        manager
+        SubscriptionManager::new(engine)
     }
 
     #[allow(dead_code)]

@@ -35,23 +35,14 @@ pub(crate) struct SubscriptionManager {
     ///
     /// List of subscribers which will receive real-time updates.
     pub subscribers: RwLock<Vec<Subscription>>,
-
-    /// Event sender.
-    ///
-    /// Sender which will be used to send events to event engine.
-    pub event_sender: Sender<SubscribeEvent>,
 }
 
 #[allow(dead_code)]
 impl SubscriptionManager {
-    pub fn new(
-        subscribe_event_engine: Arc<SubscribeEventEngine>,
-        event_sender: Sender<SubscribeEvent>,
-    ) -> Self {
+    pub fn new(subscribe_event_engine: Arc<SubscribeEventEngine>) -> Self {
         Self {
             subscribe_event_engine: RwLock::new(subscribe_event_engine),
             subscribers: Default::default(),
-            event_sender,
         }
     }
 
@@ -80,10 +71,6 @@ impl SubscriptionManager {
         {
             subscribers_slot.swap_remove(position);
         }
-    }
-
-    pub fn handle_event(&self, event: SubscribeEvent) -> Vec<Arc<SubscribeEffect>> {
-        self.subscribe_event_engine.write().process(&event)
     }
 }
 
@@ -125,21 +112,5 @@ mod should {
             ),
             SubscribeState::Unsubscribed,
         )
-    }
-
-    #[tokio::test]
-    async fn feed_event_engine_with_events() {
-        //        let processed = Arc::new(AtomicBool::new(false));
-        //        let sut = SubscriptionManager::new(event_engine(processed.clone()));
-        //        sut.event_queue
-        //            .write()
-        //            .push_back(SubscribeEvent::SubscriptionChanged {
-        //                channels: Some(vec!["channel".into()]),
-        //                channel_groups: None,
-        //            });
-        //
-        //        sut.update().await.unwrap();
-        //
-        //        assert!(processed.load(Ordering::Relaxed));
     }
 }
