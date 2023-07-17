@@ -218,37 +218,37 @@ mod should {
     }
 
     #[test]
-    fn return_not_managed_effect() {
-        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, TestRuntime {}));
-        let effect = dispatcher.dispatch(&TestInvocation::One);
+    fn create_not_managed_effect() {
+        let (tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
+        dispatcher.dispatch(&TestInvocation::One);
 
         assert_eq!(
             dispatcher.managed.read().len(),
             0,
             "Non managed effects shouldn't be stored"
         );
-        assert_eq!(effect.unwrap().id(), "EFFECT_ONE");
     }
 
     #[tokio::test]
-    async fn return_managed_effect() {
+    async fn create_managed_effect() {
         // TODO: now we remove it right away!
-        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, TestRuntime {}));
-        let effect = dispatcher.dispatch(&TestInvocation::Two);
+        let (tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
+        dispatcher.dispatch(&TestInvocation::Two);
 
         assert_eq!(
             dispatcher.managed.read().len(),
             1,
             "Managed effect should be removed on completion"
         );
-
-        assert_eq!(effect.unwrap().id(), "EFFECT_TWO");
     }
 
     #[test]
     fn cancel_managed_effect() {
         // TODO: now we remove it right away!
-        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, TestRuntime {}));
+        let (tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
         dispatcher.dispatch(&TestInvocation::Three);
         dispatcher.dispatch(&TestInvocation::CancelThree);
 

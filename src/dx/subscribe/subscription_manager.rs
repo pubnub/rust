@@ -77,6 +77,7 @@ impl SubscriptionManager {
 #[cfg(test)]
 mod should {
     use crate::core::RequestRetryPolicy;
+    use crate::providers::futures_tokio::TokioRuntime;
     use core::sync::atomic::{AtomicBool, Ordering};
 
     use crate::dx::subscribe::result::SubscribeResult;
@@ -111,6 +112,7 @@ mod should {
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,
+            TokioRuntime,
         )
     }
 }

@@ -708,6 +708,7 @@ impl State for SubscribeState {
 mod should {
     use super::*;
     use crate::core::RequestRetryPolicy;
+    use crate::providers::futures_tokio::TokioRuntime;
     use crate::{
         core::event_engine::EventEngine,
         dx::subscribe::{
@@ -726,11 +727,13 @@ mod should {
 
     fn event_engine(
         start_state: SubscribeState,
-    ) -> EventEngine<
-        SubscribeState,
-        SubscribeEffectHandler,
-        SubscribeEffect,
-        SubscribeEffectInvocation,
+    ) -> Arc<
+        EventEngine<
+            SubscribeState,
+            SubscribeEffectHandler,
+            SubscribeEffect,
+            SubscribeEffectInvocation,
+        >,
     > {
         let call: Arc<SubscribeEffectExecutor> = Arc::new(|_| {
             async move {
@@ -756,6 +759,7 @@ mod should {
                 tx,
             ),
             start_state,
+            TokioRuntime,
         )
     }
 

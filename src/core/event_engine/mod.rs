@@ -359,13 +359,4 @@ mod should {
         assert!(!matches!(engine.current_state(), TestState::Completed));
         assert!(matches!(engine.current_state(), TestState::Started));
     }
-
-    #[test]
-    fn return_effects_to_process() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
-
-        let effects = engine.process(&TestEvent::One);
-
-        assert_eq!(effects, vec![Arc::new(TestEffect::One)]);
-    }
 }
