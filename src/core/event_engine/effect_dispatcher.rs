@@ -40,8 +40,8 @@ where
 
 impl<EH, EF, EI> EffectDispatcher<EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF> + Send + Sync,
-    EH: EffectHandler<EI, EF> + Send + Sync,
+    EI: EffectInvocation<Effect = EF> + Send + Sync + 'static,
+    EH: EffectHandler<EI, EF> + Send + Sync + 'static,
     EF: Effect<Invocation = EI> + 'static,
 {
     /// Create new effects dispatcher.
@@ -60,15 +60,17 @@ where
         R: Runtime,
         C: Fn(Vec<<EI as EffectInvocation>::Event>) + 'static,
     {
+        // TODO: Bound channel size to some reasonable value.
         let (channel_tx, channel_rx) = async_channel::bounded::<EI>(5);
         let mut started_slot = self.started.write();
         let runtime_clone = runtime.clone();
+        let cloned_self = self.clone();
 
-        runtime.spawn(async {
+        runtime.spawn(async move {
             loop {
-                if let Ok(invocation) = self.invocations_channel.recv().await {
+                if let Ok(invocation) = cloned_self.clone().invocations_channel.recv().await {
                     // TODO: Spawn detached task here and await on Effect::execute / Effect::run  until completion.
-                    self.dispatch(&invocation);
+                    cloned_self.dispatch(&invocation);
                 }
             }
         });
@@ -77,7 +79,7 @@ where
     }
 
     /// Dispatch effect associated with `invocation`.
-    pub fn dispatch(self, invocation: &EI) {
+    pub fn dispatch(&self, invocation: &EI) {
         if let Some(effect) = self.handler.create(invocation) {
             let effect = Arc::new(effect);
 

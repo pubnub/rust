@@ -65,10 +65,10 @@ where
 
 impl<S, EH, EF, EI> EventEngine<S, EH, EF, EI>
 where
-    S: State<State = S, Invocation = EI> + Send + Sync,
-    EH: EffectHandler<EI, EF> + Send + Sync,
+    S: State<State = S, Invocation = EI> + Send + Sync + 'static,
+    EH: EffectHandler<EI, EF> + Send + Sync + 'static,
     EF: Effect<Invocation = EI> + 'static,
-    EI: EffectInvocation<Effect = EF> + Send + Sync,
+    EI: EffectInvocation<Effect = EF> + Send + Sync + 'static,
 {
     /// Create [`EventEngine`] with initial state for state machine.
     #[allow(dead_code)]
@@ -133,14 +133,15 @@ where
     ///
     /// This method is used to start state machine and perform initial State
     /// transition.
-    fn start<R>(&self, runtime: R)
+    fn start<R>(self: &Arc<Self>, runtime: R)
     where
         R: Runtime,
     {
         let engine_clone = self.clone();
+        let dispatcher = self.effect_dispatcher.clone();
 
-        self.effect_dispatcher.start(
-            |events| {
+        dispatcher.start(
+            move |events| {
                 events.iter().for_each(|event| engine_clone.process(event));
             },
             runtime,
