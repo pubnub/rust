@@ -142,7 +142,7 @@ mod should {
         assert!(!result.is_empty());
         assert!(matches!(
             result.first().unwrap(),
-            SubscribeEvent::ReceiveReconnectFailure { .. }
+            SubscribeEvent::ReceiveReconnectGiveUp { .. }
         ));
     }
 }

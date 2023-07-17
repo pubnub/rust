@@ -137,7 +137,7 @@ mod should {
         assert!(!result.is_empty());
         assert!(matches!(
             result.first().unwrap(),
-            SubscribeEvent::HandshakeReconnectFailure { .. }
+            SubscribeEvent::HandshakeReconnectGiveUp { .. }
         ));
     }
 }
