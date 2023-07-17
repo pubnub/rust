@@ -85,13 +85,7 @@ where
             current_state: RwLock::new(state),
         });
 
-        let engine_clone = engine.clone();
-        effect_dispatcher.start(
-            |events| {
-                events.iter().for_each(|event| engine_clone.process(event));
-            },
-            runtime,
-        );
+        engine.start(runtime);
 
         engine
     }
@@ -133,6 +127,24 @@ where
                 .send_blocking(invocation)
                 .unwrap();
         });
+    }
+
+    /// Start state machine.
+    ///
+    /// This method is used to start state machine and perform initial State
+    /// transition.
+    fn start<R>(&self, runtime: R)
+    where
+        R: Runtime,
+    {
+        let engine_clone = self.clone();
+
+        self.effect_dispatcher.start(
+            |events| {
+                events.iter().for_each(|event| engine_clone.process(event));
+            },
+            runtime,
+        );
     }
 }
 
