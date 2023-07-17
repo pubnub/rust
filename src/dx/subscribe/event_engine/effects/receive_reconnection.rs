@@ -2,21 +2,22 @@ use crate::{
     core::{PubNubError, RequestRetryPolicy},
     dx::subscribe::{
         event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscribeCursor,
+        SubscribeCursor, SubscriptionParams,
     },
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
+use futures::TryFutureExt;
 use log::info;
 
-pub(crate) fn execute(
+pub(crate) async fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    _attempt: u8,
-    _reason: PubNubError,
-    _effect_id: &str,
+    attempt: u8,
+    reason: PubNubError,
+    effect_id: &str,
     retry_policy: &RequestRetryPolicy,
-    _executor: &Arc<SubscribeEffectExecutor>,
+    executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
@@ -28,38 +29,34 @@ pub(crate) fn execute(
 
     // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
-    //    executor(SubscriptionParams {
-    //        channels: &channels,
-    //        channel_groups: &channel_groups,
-    //        cursor: Some(cursor),
-    //        attempt,
-    //        reason: Some(reason),
-    //        effect_id: &effect_id,
-    //    })
-    //    .map(move |result| {
-    //        result
-    //            .map(|subscribe_result| {
-    //                vec![SubscribeEvent::ReceiveReconnectSuccess {
-    //                    cursor: subscribe_result.cursor,
-    //                    messages: subscribe_result.messages,
-    //                }]
-    //            })
-    //            .or_else(|error| {
-    //                Ok(match error {
-    //                    PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
-    //                        if !retry_policy.retriable(attempt, status) =>
-    //                    {
-    //                        vec![SubscribeEvent::ReceiveReconnectGiveUp { reason: error }]
-    //                    }
-    //                    _ if !matches!(error, PubNubError::EffectCanceled) => {
-    //                        vec![SubscribeEvent::ReceiveReconnectFailure { reason: error }]
-    //                    }
-    //                    _ => vec![],
-    //                })
-    //            })
-    //    })
-    //    .boxed()
-    vec![]
+    executor(SubscriptionParams {
+        channels: &channels,
+        channel_groups: &channel_groups,
+        cursor: Some(cursor),
+        attempt,
+        reason: Some(reason),
+        effect_id: &effect_id,
+    })
+    .map_ok_or_else(
+        |error| match error {
+            PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
+                if !retry_policy.retriable(attempt, status) =>
+            {
+                vec![SubscribeEvent::ReceiveReconnectGiveUp { reason: error }]
+            }
+            _ if !matches!(error, PubNubError::EffectCanceled) => {
+                vec![SubscribeEvent::ReceiveReconnectFailure { reason: error }]
+            }
+            _ => vec![],
+        },
+        |subscribe_result| {
+            vec![SubscribeEvent::ReceiveReconnectSuccess {
+                cursor: subscribe_result.cursor,
+                messages: subscribe_result.messages,
+            }]
+        },
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -105,7 +102,8 @@ mod should {
             "id",
             &RequestRetryPolicy::None,
             &mock_receive_function,
-        );
+        )
+        .await;
 
         assert!(!result.is_empty());
         assert!(matches!(
@@ -138,7 +136,8 @@ mod should {
             "id",
             &RequestRetryPolicy::None,
             &mock_receive_function,
-        );
+        )
+        .await;
 
         assert!(!result.is_empty());
         assert!(matches!(

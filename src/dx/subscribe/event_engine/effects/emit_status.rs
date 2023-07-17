@@ -7,19 +7,14 @@ use crate::{
 };
 use log::info;
 
-pub(super) fn execute(
+pub(super) async fn execute(
     status: SubscribeStatus,
     executor: &Arc<EmitStatusEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!("Emit status: {status:?}");
-    let _cloned_executor = executor.clone();
 
-    //    async move {
-    //        cloned_executor(status);
-    //
-    //        Ok(vec![])
-    //    }
-    //    .boxed()
+    executor(status);
+
     vec![]
 }
 
@@ -33,6 +28,6 @@ mod should {
             assert!(matches!(status, SubscribeStatus::Connected));
         });
 
-        execute(SubscribeStatus::Connected, &emit_status_function);
+        execute(SubscribeStatus::Connected, &emit_status_function).await;
     }
 }

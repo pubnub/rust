@@ -1,18 +1,19 @@
 use crate::{
     dx::subscribe::{
         event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscribeCursor,
+        SubscribeCursor, SubscriptionParams,
     },
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
+use futures::TryFutureExt;
 use log::info;
 
-pub(crate) fn execute(
+pub(crate) async fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    _effect_id: &str,
-    _executor: &Arc<SubscribeEffectExecutor>,
+    effect_id: &str,
+    executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Receive at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
@@ -21,30 +22,28 @@ pub(crate) fn execute(
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
 
-    //    executor(SubscriptionParams {
-    //        channels: &channels,
-    //        channel_groups: &channel_groups,
-    //        cursor: Some(cursor),
-    //        attempt: 0,
-    //        reason: None,
-    //        effect_id: &effect_id,
-    //    })
-    //    .map(|result| {
-    //        result
-    //            .map(|subscribe_result| {
-    //                vec![SubscribeEvent::ReceiveSuccess {
-    //                    cursor: subscribe_result.cursor,
-    //                    messages: subscribe_result.messages,
-    //                }]
-    //            })
-    //            .or_else(|error| {
-    //                Ok(vec![SubscribeEvent::ReceiveFailure {
-    //                    reason: error.into(),
-    //                }])
-    //            })
-    //    })
-    //    .boxed()
-    vec![]
+    executor(SubscriptionParams {
+        channels: &channels,
+        channel_groups: &channel_groups,
+        cursor: Some(cursor),
+        attempt: 0,
+        reason: None,
+        effect_id: &effect_id,
+    })
+    .map_ok_or_else(
+        |error| {
+            vec![SubscribeEvent::ReceiveFailure {
+                reason: error.into(),
+            }]
+        },
+        |subscribe_result| {
+            vec![SubscribeEvent::ReceiveSuccess {
+                cursor: subscribe_result.cursor,
+                messages: subscribe_result.messages,
+            }]
+        },
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -78,7 +77,8 @@ mod should {
             &Default::default(),
             "id",
             &mock_receive_function,
-        );
+        )
+        .await;
 
         assert!(!result.is_empty());
         assert!(matches!(
@@ -105,7 +105,8 @@ mod should {
             &Default::default(),
             "id",
             &mock_receive_function,
-        );
+        )
+        .await;
 
         assert!(!result.is_empty());
         assert!(matches!(

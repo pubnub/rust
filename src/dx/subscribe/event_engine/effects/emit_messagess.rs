@@ -7,20 +7,14 @@ use crate::{
 };
 use log::info;
 
-pub(super) fn execute(
+pub(super) async fn execute(
     updates: Vec<Update>,
     executor: &Arc<EmitMessagesEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!("Emit updates: {updates:?}");
 
-    let _cloned_executor = executor.clone();
+    executor(updates);
 
-    //    async move {
-    //        cloned_executor(updates);
-    //
-    //        Ok(vec![])
-    //    }
-    //    .boxed()
     vec![]
 }
 
@@ -54,6 +48,7 @@ mod should {
         execute(
             vec![Update::Message(message.clone())],
             &emit_message_function,
-        );
+        )
+        .await;
     }
 }

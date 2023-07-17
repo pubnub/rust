@@ -1,14 +1,18 @@
 use crate::{
-    dx::subscribe::event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
+    dx::subscribe::{
+        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
+        SubscriptionParams,
+    },
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
+use futures::TryFutureExt;
 use log::info;
 
-pub(super) fn execute(
+pub(super) async fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
-    _effect_id: &str,
-    _executor: &Arc<SubscribeEffectExecutor>,
+    effect_id: &str,
+    executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Handshake for\nchannels: {:?}\nchannel groups: {:?}",
@@ -16,30 +20,27 @@ pub(super) fn execute(
         channel_groups.as_ref().unwrap_or(&Vec::new())
     );
 
-    //    executor(SubscriptionParams {
-    //        channels: &channels,
-    //        channel_groups: &channel_groups,
-    //        cursor: None,
-    //        attempt: 0,
-    //        reason: None,
-    //        effect_id: &effect_id,
-    //    })
-    //    .map(|result| {
-    //        result
-    //            .map(|subscribe_result| {
-    //                vec![SubscribeEvent::HandshakeSuccess {
-    //                    cursor: subscribe_result.cursor,
-    //                }]
-    //            })
-    //            .or_else(|error| {
-    //                Ok(vec![SubscribeEvent::HandshakeFailure {
-    //                    reason: error.into(),
-    //                }])
-    //            })
-    //    })
-    //    .boxed();
-
-    vec![]
+    executor(SubscriptionParams {
+        channels: &channels,
+        channel_groups: &channel_groups,
+        cursor: None,
+        attempt: 0,
+        reason: None,
+        effect_id: &effect_id,
+    })
+    .map_ok_or_else(
+        |error| {
+            vec![SubscribeEvent::HandshakeFailure {
+                reason: error.into(),
+            }]
+        },
+        |subscribe_result| {
+            vec![SubscribeEvent::HandshakeSuccess {
+                cursor: subscribe_result.cursor,
+            }]
+        },
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -72,7 +73,8 @@ mod should {
             &Some(vec!["cg1".to_string()]),
             "id",
             &mock_handshake_function,
-        );
+        )
+        .await;
 
         assert!(!result.is_empty());
         assert!(matches!(
@@ -98,7 +100,8 @@ mod should {
             &Some(vec!["cg1".to_string()]),
             "id",
             &mock_handshake_function,
-        );
+        )
+        .await;
 
         assert!(!result.is_empty());
         assert!(matches!(

@@ -133,6 +133,7 @@ mod should {
         Three,
     }
 
+    #[async_trait::async_trait]
     impl Effect for TestEffect {
         type Invocation = TestInvocation;
 
@@ -144,9 +145,9 @@ mod should {
             }
         }
 
-        fn run<F>(&self, f: F)
+        async fn run<F>(&self, f: F)
         where
-            F: FnOnce(Vec<<Self::Invocation as EffectInvocation>::Event>) + 'static,
+            F: FnOnce(Vec<<Self::Invocation as EffectInvocation>::Event>) + Send + 'static,
         {
             f(vec![]);
         }

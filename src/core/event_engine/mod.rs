@@ -240,6 +240,7 @@ mod should {
         Three,
     }
 
+    #[async_trait::async_trait]
     impl Effect for TestEffect {
         type Invocation = TestInvocation;
 
@@ -251,7 +252,10 @@ mod should {
             }
         }
 
-        fn run<F>(&self, _: F) {
+        async fn run<F>(&self, _: F)
+        where
+            F: Send,
+        {
             // Do nothing.
         }
 

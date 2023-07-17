@@ -1,18 +1,22 @@
 use crate::{
     core::{PubNubError, RequestRetryPolicy},
-    dx::subscribe::event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
+    dx::subscribe::{
+        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
+        SubscriptionParams,
+    },
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
+use futures::TryFutureExt;
 use log::info;
 
-pub(super) fn execute(
+pub(super) async fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
-    _attempt: u8,
-    _reason: PubNubError,
-    _effect_id: &str,
+    attempt: u8,
+    reason: PubNubError,
+    effect_id: &str,
     retry_policy: &RequestRetryPolicy,
-    _executor: &Arc<SubscribeEffectExecutor>,
+    executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
@@ -23,37 +27,33 @@ pub(super) fn execute(
 
     // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
-    //    executor(SubscriptionParams {
-    //        channels: &channels,
-    //        channel_groups: &channel_groups,
-    //        cursor: None,
-    //        attempt,
-    //        reason: Some(reason),
-    //        effect_id: &effect_id,
-    //    })
-    //    .map(move |result| {
-    //        result
-    //            .map(|subscribe_result| {
-    //                vec![SubscribeEvent::HandshakeReconnectSuccess {
-    //                    cursor: subscribe_result.cursor,
-    //                }]
-    //            })
-    //            .or_else(|error| {
-    //                Ok(match error {
-    //                    PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
-    //                        if !retry_policy.retriable(attempt, status) =>
-    //                    {
-    //                        vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
-    //                    }
-    //                    _ if !matches!(error, PubNubError::EffectCanceled) => {
-    //                        vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }]
-    //                    }
-    //                    _ => vec![],
-    //                })
-    //            })
-    //    })
-    //    .boxed()
-    vec![]
+    executor(SubscriptionParams {
+        channels: &channels,
+        channel_groups: &channel_groups,
+        cursor: None,
+        attempt,
+        reason: Some(reason),
+        effect_id: &effect_id,
+    })
+    .map_ok_or_else(
+        |error| match error {
+            PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
+                if !retry_policy.retriable(attempt, status) =>
+            {
+                vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
+            }
+            _ if !matches!(error, PubNubError::EffectCanceled) => {
+                vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }]
+            }
+            _ => vec![],
+        },
+        |subscribe_result| {
+            vec![SubscribeEvent::HandshakeReconnectSuccess {
+                cursor: subscribe_result.cursor,
+            }]
+        },
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -98,7 +98,8 @@ mod should {
             "id",
             &RequestRetryPolicy::None,
             &mock_handshake_function,
-        );
+        )
+        .await;
 
         assert!(!result.is_empty());
         assert!(matches!(
@@ -130,7 +131,8 @@ mod should {
             "id",
             &RequestRetryPolicy::None,
             &mock_handshake_function,
-        );
+        )
+        .await;
 
         assert!(!result.is_empty());
         assert!(matches!(
