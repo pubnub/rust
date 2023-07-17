@@ -55,15 +55,15 @@ where
     }
 
     /// Prepare dispatcher for `invocations` processing.
-    pub fn start<C, R>(self: &Arc<Self>, completion: C, runtime: R)
+    pub fn start<C, R>(self: &Arc<Self>, _completion: C, runtime: R)
     where
         R: Runtime,
         C: Fn(Vec<<EI as EffectInvocation>::Event>) + 'static,
     {
         // TODO: Bound channel size to some reasonable value.
-        let (channel_tx, channel_rx) = async_channel::bounded::<EI>(5);
+        let (_channel_tx, _channel_rx) = async_channel::bounded::<EI>(5);
         let mut started_slot = self.started.write();
-        let runtime_clone = runtime.clone();
+        let _runtime_clone = runtime.clone();
         let cloned_self = self.clone();
 
         runtime.spawn(async move {
@@ -209,7 +209,7 @@ mod should {
     struct TestRuntime {}
 
     impl Runtime for TestRuntime {
-        fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static)
+        fn spawn<R>(&self, _future: impl Future<Output = R> + Send + 'static)
         where
             R: Send + 'static,
         {
@@ -219,7 +219,7 @@ mod should {
 
     #[test]
     fn create_not_managed_effect() {
-        let (tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
         dispatcher.dispatch(&TestInvocation::One);
 
@@ -233,7 +233,7 @@ mod should {
     #[tokio::test]
     async fn create_managed_effect() {
         // TODO: now we remove it right away!
-        let (tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
         dispatcher.dispatch(&TestInvocation::Two);
 
@@ -247,7 +247,7 @@ mod should {
     #[test]
     fn cancel_managed_effect() {
         // TODO: now we remove it right away!
-        let (tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
         dispatcher.dispatch(&TestInvocation::Three);
         dispatcher.dispatch(&TestInvocation::CancelThree);

@@ -1,6 +1,6 @@
 //! Event Engine module
 
-use crate::lib::alloc::{sync::Arc, vec::Vec};
+use crate::lib::alloc::{sync::Arc};
 use async_channel::Sender;
 use spin::rwlock::RwLock;
 
@@ -307,7 +307,7 @@ mod should {
     struct TestRuntime {}
 
     impl Runtime for TestRuntime {
-        fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static)
+        fn spawn<R>(&self, _future: impl Future<Output = R> + Send + 'static)
         where
             R: Send + 'static,
         {
