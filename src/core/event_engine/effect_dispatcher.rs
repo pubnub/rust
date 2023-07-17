@@ -1,8 +1,9 @@
+use crate::core::runtime::Runtime;
 use crate::{
     core::event_engine::{Effect, EffectHandler, EffectInvocation},
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
-use phantom_type::PhantomType;
+use async_channel::Receiver;
 use spin::rwlock::RwLock;
 
 /// State machine effects dispatcher.
@@ -27,7 +28,14 @@ where
     /// and cancels them when required.
     managed: Arc<RwLock<Vec<Arc<EF>>>>,
 
-    _invocation: PhantomType<EI>,
+    /// `Effect invocation` handling channel.
+    ///
+    /// Channel is used to receive submitted `invocations` for new effects
+    /// execution.
+    invocations_channel: Receiver<EI>,
+
+    /// Whether dispatcher already started or not.
+    started: RwLock<bool>,
 }
 
 impl<EH, EF, EI> EffectDispatcher<EH, EF, EI>
@@ -37,16 +45,39 @@ where
     EF: Effect<Invocation = EI> + 'static,
 {
     /// Create new effects dispatcher.
-    pub fn new(handler: EH) -> Self {
+    pub fn new(handler: EH, channel: Receiver<EI>) -> Self {
         EffectDispatcher {
             handler,
             managed: Arc::new(RwLock::new(vec![])),
-            _invocation: Default::default(),
+            invocations_channel: channel,
+            started: RwLock::new(false),
         }
     }
 
+    /// Prepare dispatcher for `invocations` processing.
+    pub fn start<C, R>(self: &Arc<Self>, completion: C, runtime: R)
+    where
+        R: Runtime,
+        C: Fn(Vec<<EI as EffectInvocation>::Event>) + 'static,
+    {
+        let (channel_tx, channel_rx) = async_channel::bounded::<EI>(5);
+        let mut started_slot = self.started.write();
+        let runtime_clone = runtime.clone();
+
+        runtime.spawn(async {
+            loop {
+                if let Ok(invocation) = self.invocations_channel.recv().await {
+                    // TODO: Spawn detached task here and await on Effect::execute / Effect::run  until completion.
+                    self.dispatch(&invocation);
+                }
+            }
+        });
+
+        *started_slot = true;
+    }
+
     /// Dispatch effect associated with `invocation`.
-    pub fn dispatch(self: &Arc<Self>, invocation: &EI) -> Option<Arc<EF>> {
+    pub fn dispatch(self, invocation: &EI) {
         if let Some(effect) = self.handler.create(invocation) {
             let effect = Arc::new(effect);
 
@@ -54,14 +85,8 @@ where
                 let mut managed = self.managed.write();
                 managed.push(effect.clone());
             }
-
-            Some(effect)
-        } else {
-            if invocation.cancelling() {
-                self.cancel_effect(invocation);
-            }
-
-            None
+        } else if invocation.cancelling() {
+            self.cancel_effect(invocation);
         }
     }
 
@@ -90,6 +115,7 @@ where
 mod should {
     use super::*;
     use crate::core::event_engine::Event;
+    use std::future::Future;
 
     struct TestEvent;
 
@@ -177,9 +203,21 @@ mod should {
         }
     }
 
+    #[derive(Clone)]
+    struct TestRuntime {}
+
+    impl Runtime for TestRuntime {
+        fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static)
+        where
+            R: Send + 'static,
+        {
+            // Do nothing.
+        }
+    }
+
     #[test]
     fn return_not_managed_effect() {
-        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, TestRuntime {}));
         let effect = dispatcher.dispatch(&TestInvocation::One);
 
         assert_eq!(
@@ -193,7 +231,7 @@ mod should {
     #[tokio::test]
     async fn return_managed_effect() {
         // TODO: now we remove it right away!
-        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, TestRuntime {}));
         let effect = dispatcher.dispatch(&TestInvocation::Two);
 
         assert_eq!(
@@ -208,7 +246,7 @@ mod should {
     #[test]
     fn cancel_managed_effect() {
         // TODO: now we remove it right away!
-        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}));
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, TestRuntime {}));
         dispatcher.dispatch(&TestInvocation::Three);
         dispatcher.dispatch(&TestInvocation::CancelThree);
 

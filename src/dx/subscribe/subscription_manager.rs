@@ -29,7 +29,7 @@ pub(crate) struct SubscriptionManager {
     /// Subscription event engine.
     ///
     /// State machine which is responsible for subscription loop maintenance.
-    subscribe_event_engine: RwLock<SubscribeEventEngine>,
+    subscribe_event_engine: RwLock<Arc<SubscribeEventEngine>>,
 
     /// List of registered subscribers.
     ///
@@ -45,7 +45,7 @@ pub(crate) struct SubscriptionManager {
 #[allow(dead_code)]
 impl SubscriptionManager {
     pub fn new(
-        subscribe_event_engine: SubscribeEventEngine,
+        subscribe_event_engine: Arc<SubscribeEventEngine>,
         event_sender: Sender<SubscribeEvent>,
     ) -> Self {
         Self {
@@ -100,7 +100,7 @@ mod should {
     use super::*;
 
     #[allow(dead_code)]
-    fn event_engine(processed: Arc<AtomicBool>) -> SubscribeEventEngine {
+    fn event_engine(processed: Arc<AtomicBool>) -> Arc<SubscribeEventEngine> {
         let (cancel_tx, _) = async_channel::bounded(1);
 
         SubscribeEventEngine::new(

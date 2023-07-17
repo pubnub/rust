@@ -1,6 +1,7 @@
 //! Event Engine module
 
 use crate::lib::alloc::{sync::Arc, vec::Vec};
+use async_channel::Sender;
 use spin::rwlock::RwLock;
 
 #[doc(inline)]
@@ -27,6 +28,7 @@ pub(crate) mod event;
 pub(crate) use state::State;
 pub(crate) mod state;
 
+use crate::core::runtime::Runtime;
 #[doc(inline)]
 pub(crate) use transition::Transition;
 
@@ -52,6 +54,11 @@ where
     /// Dispatcher responsible for effects invocation processing.
     effect_dispatcher: Arc<EffectDispatcher<EH, EF, EI>>,
 
+    /// `Effect invocation` submission channel.
+    ///
+    /// Channel is used to submit `invocations` for new effects execution.
+    effect_dispatcher_channel: Sender<EI>,
+
     /// Current event engine state.
     current_state: RwLock<S>,
 }
@@ -65,11 +72,28 @@ where
 {
     /// Create [`EventEngine`] with initial state for state machine.
     #[allow(dead_code)]
-    pub fn new(handler: EH, state: S) -> Self {
-        EventEngine {
-            effect_dispatcher: Arc::new(EffectDispatcher::new(handler)),
+    pub fn new<R>(handler: EH, state: S, runtime: R) -> Arc<Self>
+    where
+        R: Runtime,
+    {
+        let (channel_tx, channel_rx) = async_channel::bounded::<EI>(5);
+        let effect_dispatcher = Arc::new(EffectDispatcher::new(handler, channel_rx));
+
+        let engine = Arc::new(EventEngine {
+            effect_dispatcher,
+            effect_dispatcher_channel: channel_tx.clone(),
             current_state: RwLock::new(state),
-        }
+        });
+
+        let engine_clone = engine.clone();
+        effect_dispatcher.start(
+            |events| {
+                events.iter().for_each(|event| engine_clone.process(event));
+            },
+            runtime,
+        );
+
+        engine
     }
 
     /// Retrieve current engine state.
@@ -83,16 +107,14 @@ where
     /// Process event passed to the system and perform required transitions to
     /// new state if required.
     #[allow(dead_code)]
-    pub fn process(&self, event: &EI::Event) -> Vec<Arc<EF>> {
+    pub fn process(&self, event: &EI::Event) {
         let state = self.current_state.read();
 
         let transition = state.transition(event);
 
         drop(state);
 
-        transition
-            .map(|transition| self.process_transition(transition))
-            .unwrap_or_default()
+        transition.map(|transition| self.process_transition(transition));
     }
 
     /// Process transition.
@@ -100,17 +122,17 @@ where
     /// This method is responsible for transition maintenance:
     /// * update current state
     /// * call effects dispatcher to process effect invocation
-    fn process_transition(&self, transition: Transition<S::State, S::Invocation>) -> Vec<Arc<EF>> {
+    fn process_transition(&self, transition: Transition<S::State, S::Invocation>) {
         {
             let mut writable_state = self.current_state.write();
             *writable_state = transition.state;
         }
 
-        transition
-            .invocations
-            .iter()
-            .filter_map(|invocation| self.effect_dispatcher.dispatch(invocation))
-            .collect()
+        transition.invocations.into_iter().for_each(|invocation| {
+            self.effect_dispatcher_channel
+                .send_blocking(invocation)
+                .unwrap();
+        });
     }
 }
 
@@ -118,6 +140,7 @@ where
 mod should {
     use super::*;
     use crate::lib::alloc::{vec, vec::Vec};
+    use std::future::Future;
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestState {
@@ -267,22 +290,34 @@ mod should {
         }
     }
 
+    #[derive(Clone)]
+    struct TestRuntime {}
+
+    impl Runtime for TestRuntime {
+        fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static)
+        where
+            R: Send + 'static,
+        {
+            // Do nothing.
+        }
+    }
+
     #[test]
     fn set_initial_state() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
         assert!(matches!(engine.current_state(), TestState::NotStarted));
     }
 
     #[test]
     fn transit_to_new_state() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
         engine.process(&TestEvent::One);
         assert!(matches!(engine.current_state(), TestState::Started));
     }
 
     #[test]
     fn transit_between_states() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
 
         engine.process(&TestEvent::One);
         assert!(matches!(engine.current_state(), TestState::Started));
@@ -302,7 +337,7 @@ mod should {
 
     #[test]
     fn not_transit_for_unexpected_event() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
 
         engine.process(&TestEvent::One);
         assert!(matches!(engine.current_state(), TestState::Started));
@@ -314,7 +349,7 @@ mod should {
 
     #[test]
     fn return_effects_to_process() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
 
         let effects = engine.process(&TestEvent::One);
 

@@ -61,17 +61,18 @@ where
     pub fn subscribe(&self) -> SubscriptionBuilder {
         use crate::providers::futures_tokio::TokioRuntime;
 
-        self.subscribe_with_spawner(TokioRuntime)
+        self.subscribe_with_runtime(TokioRuntime)
     }
 
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
     /// passed list of channels and groups.
     ///
-    /// It takes
+    /// It takes custom runtime which will be used for detached tasks spawning
+    /// and delayed task execution.
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub fn subscribe_with_spawner<S>(&self, spawner: S) -> SubscriptionBuilder
+    pub fn subscribe_with_runtime<S>(&self, runtime: S) -> SubscriptionBuilder
     where
         S: Runtime,
     {
@@ -79,7 +80,7 @@ where
             // Initialize manager when it will be first required.
             let mut manager_slot = self.subscription_manager.write();
             if manager_slot.is_none() {
-                *manager_slot = Some(self.clone().subscription_manager(spawner.clone()));
+                *manager_slot = Some(self.clone().subscription_manager(runtime.clone()));
             }
         }
 
@@ -115,7 +116,7 @@ where
         }
     }
 
-    pub(crate) fn subscription_manager<S>(&mut self, spawner: S) -> SubscriptionManager
+    pub(crate) fn subscription_manager<S>(&mut self, runtime: S) -> SubscriptionManager
     where
         S: Runtime,
     {
@@ -140,6 +141,7 @@ where
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,
+            runtime,
         );
 
         // TODO: size of the channel
@@ -148,7 +150,7 @@ where
         let manager = SubscriptionManager::new(engine, events_tx.clone());
 
         //let spawning_manager = manager;
-        let _task_spawner = spawner.clone();
+        let _task_runtime = runtime.clone();
 
         // spawning should be done somehow like This
 
@@ -281,7 +283,7 @@ mod should {
         // }
     }
 
-    // TODO: add posibility to cancel subscription
+    // TODO: add possibility to cancel subscription
     //    #[tokio::test]
     //    async fn cancel_effect() {
     //        let mut client = client();
