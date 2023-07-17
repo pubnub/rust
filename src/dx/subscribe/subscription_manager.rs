@@ -13,8 +13,6 @@ use crate::{
 
 use spin::RwLock;
 
-
-
 /// Active subscriptions manager.
 ///
 /// [`PubNubClient`] allows to have multiple [`subscription`] objects which will

@@ -1,6 +1,6 @@
 //! Event Engine module
 
-use crate::lib::alloc::{sync::Arc};
+use crate::lib::alloc::sync::Arc;
 use async_channel::Sender;
 use spin::rwlock::RwLock;
 
