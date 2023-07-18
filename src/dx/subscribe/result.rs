@@ -14,6 +14,7 @@ use crate::{
         alloc::{
             boxed::Box,
             string::{String, ToString},
+            vec,
             vec::Vec,
         },
         collections::HashMap,
@@ -338,9 +339,6 @@ pub(in crate::dx::subscribe) enum EnvelopePayload {
         version: String,
     },
 
-    /// Real-time message update.
-    Message(Vec<u8>),
-
     MessageAction {
         /// The type of event that happened during the message action update.
         ///
@@ -366,6 +364,14 @@ pub(in crate::dx::subscribe) enum EnvelopePayload {
         /// Information about uploaded file.
         file: FileDataBody,
     },
+
+    /// Real-time message update.
+    #[cfg(feature = "serde")]
+    Message(serde_json::Value),
+
+    /// Real-time message update.
+    #[cfg(not(feature = "serde"))]
+    Message(Vec<u8>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -579,5 +585,23 @@ impl TryFrom<Envelope> for Update {
                 details: "Unable deserialize unknown payload".to_string(),
             }),
         }
+    }
+}
+
+impl From<EnvelopePayload> for Vec<u8> {
+    #[cfg(feature = "serde")]
+    fn from(value: EnvelopePayload) -> Self {
+        if let EnvelopePayload::Message(payload) = value {
+            return serde_json::to_vec(&payload).unwrap_or_default();
+        }
+        vec![]
+    }
+
+    #[cfg(not(feature = "serde"))]
+    fn from(value: EnvelopePayload) -> Self {
+        if let EnvelopePayload::Message(payload) = value {
+            return payload;
+        }
+        vec![]
     }
 }

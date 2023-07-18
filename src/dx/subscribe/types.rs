@@ -828,13 +828,13 @@ impl TryFrom<Envelope> for Message {
         // value won't be actually used.
         let timestamp = value.published.timetoken.parse::<usize>().ok().unwrap_or(0);
 
-        if let EnvelopePayload::Message(data) = value.payload {
+        if let EnvelopePayload::Message(_) = value.payload {
             Ok(Self {
                 sender: value.sender,
                 timestamp,
                 channel: value.channel,
                 subscription: value.subscription,
-                data,
+                data: value.payload.into(),
                 r#type: value.r#type,
                 space_id: value.space_id,
                 decryption_error: None,

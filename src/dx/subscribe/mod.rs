@@ -16,6 +16,7 @@ pub mod result;
 #[doc(inline)]
 pub use types::{
     File, MessageAction, Object, Presence, SubscribeCursor, SubscribeMessageType, SubscribeStatus,
+    SubscribeStreamEvent,
 };
 pub mod types;
 
