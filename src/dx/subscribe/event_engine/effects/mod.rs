@@ -260,11 +260,8 @@ impl Effect for SubscribeEffect {
         }
     }
 
-    async fn run<F>(&self, f: F)
-    where
-        F: FnOnce(Vec<SubscribeEvent>) + Send + 'static,
-    {
-        let events = match self {
+    async fn run(&self) -> Vec<SubscribeEvent> {
+        match self {
             SubscribeEffect::Handshake {
                 channels,
                 channel_groups,
@@ -326,9 +323,7 @@ impl Effect for SubscribeEffect {
             SubscribeEffect::EmitMessages { updates, executor } => {
                 emit_messagess::execute(updates.clone(), executor).await
             }
-        };
-
-        f(events)
+        }
     }
 
     fn cancel(&self) {

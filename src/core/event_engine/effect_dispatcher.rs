@@ -55,23 +55,41 @@ where
     }
 
     /// Prepare dispatcher for `invocations` processing.
-    pub fn start<C, R>(self: &Arc<Self>, _completion: C, runtime: R)
+    pub fn start<C, R>(self: &Arc<Self>, completion: C, runtime: R)
     where
-        R: Runtime,
-        C: Fn(Vec<<EI as EffectInvocation>::Event>) + 'static,
+        R: Runtime + 'static,
+        C: Fn(Vec<<EI as EffectInvocation>::Event>) + Clone + Send + 'static,
     {
-        // TODO: Bound channel size to some reasonable value.
-        let (_channel_tx, _channel_rx) = async_channel::bounded::<EI>(5);
         let mut started_slot = self.started.write();
-        let _runtime_clone = runtime.clone();
+        let runtime_clone = runtime.clone();
         let cloned_self = self.clone();
 
         runtime.spawn(async move {
+            log::info!("Subscribe engine has started!");
+
             loop {
                 match cloned_self.invocations_channel.recv().await {
                     Ok(invocation) => {
+                        log::debug!("Received invocation: {}", invocation.id());
+
                         // TODO: Spawn detached task here and await on Effect::execute / Effect::run  until completion.
-                        cloned_self.dispatch(&invocation);
+                        let effect = cloned_self.dispatch(&invocation);
+                        let task_completition = completion.clone();
+
+                        if let Some(effect) = effect {
+                            log::debug!("Dispatched effect: {}", effect.id());
+                            let cloned_self = cloned_self.clone();
+
+                            runtime_clone.spawn(async move {
+                                let events = effect.run().await;
+
+                                if invocation.managed() {
+                                    cloned_self.remove_managed_effect(effect.id());
+                                }
+
+                                task_completition(events);
+                            });
+                        }
                     }
                     Err(err) => {
                         println!("Receive error: {err:?}");
@@ -84,7 +102,7 @@ where
     }
 
     /// Dispatch effect associated with `invocation`.
-    pub fn dispatch(&self, invocation: &EI) {
+    pub fn dispatch(&self, invocation: &EI) -> Option<Arc<EF>> {
         if let Some(effect) = self.handler.create(invocation) {
             let effect = Arc::new(effect);
 
@@ -92,8 +110,14 @@ where
                 let mut managed = self.managed.write();
                 managed.push(effect.clone());
             }
-        } else if invocation.cancelling() {
-            self.cancel_effect(invocation);
+
+            Some(effect)
+        } else {
+            if invocation.cancelling() {
+                self.cancel_effect(invocation);
+            }
+
+            None
         }
     }
 
@@ -150,11 +174,8 @@ mod should {
             }
         }
 
-        async fn run<F>(&self, f: F)
-        where
-            F: FnOnce(Vec<<Self::Invocation as EffectInvocation>::Event>) + Send + 'static,
-        {
-            f(vec![]);
+        async fn run(&self) -> Vec<TestEvent> {
+            vec![]
         }
 
         fn cancel(&self) {
@@ -227,13 +248,15 @@ mod should {
     fn create_not_managed_effect() {
         let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
-        dispatcher.dispatch(&TestInvocation::One);
+        let effect = dispatcher.dispatch(&TestInvocation::One);
 
         assert_eq!(
             dispatcher.managed.read().len(),
             0,
             "Non managed effects shouldn't be stored"
         );
+
+        assert!(effect.unwrap().id() == "EFFECT_ONE");
     }
 
     #[tokio::test]
@@ -241,13 +264,15 @@ mod should {
         // TODO: now we remove it right away!
         let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
-        dispatcher.dispatch(&TestInvocation::Two);
+        let effect = dispatcher.dispatch(&TestInvocation::Two);
 
         assert_eq!(
             dispatcher.managed.read().len(),
             1,
             "Managed effect should be removed on completion"
         );
+
+        assert!(effect.unwrap().id() == "EFFECT_TWO");
     }
 
     #[test]
@@ -256,12 +281,14 @@ mod should {
         let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
         dispatcher.dispatch(&TestInvocation::Three);
-        dispatcher.dispatch(&TestInvocation::CancelThree);
+        let cancelation_effect = dispatcher.dispatch(&TestInvocation::CancelThree);
 
         assert_eq!(
             dispatcher.managed.read().len(),
             0,
             "Managed effect should be cancelled"
         );
+
+        assert!(cancelation_effect.is_none());
     }
 }

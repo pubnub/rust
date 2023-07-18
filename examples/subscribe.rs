@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Deserialize;
 use std::env;
@@ -11,10 +12,12 @@ struct Message {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
-    let publish_key = env::var("SDK_PUB_KEY")?;
-    let subscribe_key = env::var("SDK_SUB_KEY")?;
+    env_logger::init();
+    log::info!("running!");
+    let publish_key = "demo"; //env::var("SDK_PUB_KEY")?;
+    let subscribe_key = "demo"; //env::var("SDK_SUB_KEY")?;
 
-    let _client = PubNubClientBuilder::with_reqwest_transport()
+    let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
             subscribe_key,
             publish_key: Some(publish_key),
@@ -23,17 +26,19 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .with_user_id("user_id")
         .build()?;
 
-    //client
-    //    .subscribe_with_spawner()
-    //    .channels(["hello".into(), "world".into()].to_vec())
-    //    .heartbeat(10)
-    //    .filter_expression("some_filter".into())
-    //    .build()?
-    //    .stream()
-    //    .for_each(|message| async {
-    //        println!("message: {:?}", message);
-    //    })
-    //    .await;
+    log::info!("running!");
+
+    client
+        .subscribe()
+        .channels(["hello".into(), "world".into()].to_vec())
+        .heartbeat(10)
+        .filter_expression("some_filter")
+        .build()?
+        .stream()
+        .for_each(|message| async move {
+            log::info!("message: {:?}", message);
+        })
+        .await;
 
     // TODO: something like that
     // let stream = subscription.stream();

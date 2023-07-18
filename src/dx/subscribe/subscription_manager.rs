@@ -13,6 +13,8 @@ use crate::{
 
 use spin::RwLock;
 
+use super::event_engine::SubscribeEvent;
+
 /// Active subscriptions manager.
 ///
 /// [`PubNubClient`] allows to have multiple [`subscription`] objects which will
@@ -59,6 +61,25 @@ impl SubscriptionManager {
     pub fn register(&self, subscription: Subscription) {
         let mut subscribers_slot = self.subscribers.write();
         subscribers_slot.push(subscription);
+
+        let channels = subscribers_slot
+            .iter()
+            .flat_map(|val| val.channels.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let channel_groups = subscribers_slot
+            .iter()
+            .flat_map(|val| val.channel_groups.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        self.subscribe_event_engine
+            .write()
+            .process(&SubscribeEvent::SubscriptionChanged {
+                channels: Some(channels),
+                channel_groups: Some(channel_groups),
+            });
     }
 
     pub fn unregister(&self, subscription: Subscription) {

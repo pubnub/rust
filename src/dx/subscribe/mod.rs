@@ -72,9 +72,9 @@ where
     /// and delayed task execution.
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub fn subscribe_with_runtime<S>(&self, runtime: S) -> SubscriptionBuilder
+    pub fn subscribe_with_runtime<R>(&self, runtime: R) -> SubscriptionBuilder
     where
-        S: Runtime,
+        R: Runtime + 'static,
     {
         {
             // Initialize manager when it will be first required.
@@ -116,9 +116,9 @@ where
         }
     }
 
-    pub(crate) fn subscription_manager<S>(&mut self, runtime: S) -> SubscriptionManager
+    pub(crate) fn subscription_manager<R>(&mut self, runtime: R) -> SubscriptionManager
     where
-        S: Runtime,
+        R: Runtime + 'static,
     {
         let channel_bound = 10; // TODO: Think about this value
         let emit_messages_client = self.clone();
@@ -219,8 +219,8 @@ mod should {
             .unwrap()
     }
 
-    #[test]
-    fn create_builder() {
+    #[tokio::test]
+    async fn create_builder() {
         let _ = client().subscribe();
     }
 

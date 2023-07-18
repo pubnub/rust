@@ -75,9 +75,10 @@ where
     #[allow(dead_code)]
     pub fn new<R>(handler: EH, state: S, runtime: R) -> Arc<Self>
     where
-        R: Runtime,
+        R: Runtime + 'static,
     {
         let (channel_tx, channel_rx) = async_channel::bounded::<EI>(100);
+
         let effect_dispatcher = Arc::new(EffectDispatcher::new(handler, channel_rx));
 
         let engine = Arc::new(EventEngine {
@@ -135,7 +136,7 @@ where
     /// transition.
     fn start<R>(self: &Arc<Self>, runtime: R)
     where
-        R: Runtime,
+        R: Runtime + 'static,
     {
         let engine_clone = self.clone();
         let dispatcher = self.effect_dispatcher.clone();
@@ -254,11 +255,9 @@ mod should {
             }
         }
 
-        async fn run<F>(&self, completion: F)
-        where
-            F: FnOnce(Vec<<Self::Invocation as EffectInvocation>::Event>) + Send + 'static,
-        {
-            completion(vec![])
+        async fn run(&self) -> Vec<TestEvent> {
+            // Do nothing.
+            vec![]
         }
 
         fn cancel(&self) {
@@ -365,5 +364,10 @@ mod should {
         engine.process(&TestEvent::Three);
         assert!(!matches!(engine.current_state(), TestState::Completed));
         assert!(matches!(engine.current_state(), TestState::Started));
+    }
+
+    #[tokio::test]
+    async fn run_effect() {
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
     }
 }
