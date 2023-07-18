@@ -30,6 +30,7 @@ pub(super) async fn execute(
     })
     .map_ok_or_else(
         |error| {
+            log::error!("Handshake error: {:?}", error);
             vec![SubscribeEvent::HandshakeFailure {
                 reason: error.into(),
             }]

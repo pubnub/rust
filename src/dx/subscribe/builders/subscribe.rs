@@ -217,7 +217,7 @@ where
                     .fuse() => {
                         result?
                             .body
-                            .map(|bytes| deserializer.deserialize(&bytes))
+                            .map(|bytes|deserializer.deserialize(&bytes))
                             .map_or(
                                 Err(PubNubError::general_api_error(
                                     "No body in the response!",

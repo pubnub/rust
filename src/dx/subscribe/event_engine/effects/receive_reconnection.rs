@@ -38,16 +38,20 @@ pub(crate) async fn execute(
         effect_id: &effect_id,
     })
     .map_ok_or_else(
-        |error| match error {
-            PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
-                if !retry_policy.retriable(attempt, status) =>
-            {
-                vec![SubscribeEvent::ReceiveReconnectGiveUp { reason: error }]
+        |error| {
+            log::debug!("Receive reconnection error: {:?}", error);
+
+            match error {
+                PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
+                    if !retry_policy.retriable(attempt, status) =>
+                {
+                    vec![SubscribeEvent::ReceiveReconnectGiveUp { reason: error }]
+                }
+                _ if !matches!(error, PubNubError::EffectCanceled) => {
+                    vec![SubscribeEvent::ReceiveReconnectFailure { reason: error }]
+                }
+                _ => vec![],
             }
-            _ if !matches!(error, PubNubError::EffectCanceled) => {
-                vec![SubscribeEvent::ReceiveReconnectFailure { reason: error }]
-            }
-            _ => vec![],
         },
         |subscribe_result| {
             vec![SubscribeEvent::ReceiveReconnectSuccess {

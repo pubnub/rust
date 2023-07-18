@@ -32,6 +32,7 @@ pub(crate) async fn execute(
     })
     .map_ok_or_else(
         |error| {
+            log::error!("Receive error: {:?}", error);
             vec![SubscribeEvent::ReceiveFailure {
                 reason: error.into(),
             }]

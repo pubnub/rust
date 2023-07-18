@@ -104,6 +104,8 @@ where
     /// new state if required.
     #[allow(dead_code)]
     pub fn process(&self, event: &EI::Event) {
+        log::debug!("Processing event: {}", event.id());
+
         let transition = {
             let state = self.current_state.read();
             state.transition(event)

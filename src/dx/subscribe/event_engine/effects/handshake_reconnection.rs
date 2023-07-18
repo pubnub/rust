@@ -36,16 +36,20 @@ pub(super) async fn execute(
         effect_id: &effect_id,
     })
     .map_ok_or_else(
-        |error| match error {
-            PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
-                if !retry_policy.retriable(attempt, status) =>
-            {
-                vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
+        |error| {
+            log::error!("Handshake reconnection error: {:?}", error);
+
+            match error {
+                PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
+                    if !retry_policy.retriable(attempt, status) =>
+                {
+                    vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
+                }
+                _ if !matches!(error, PubNubError::EffectCanceled) => {
+                    vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }]
+                }
+                _ => vec![],
             }
-            _ if !matches!(error, PubNubError::EffectCanceled) => {
-                vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }]
-            }
-            _ => vec![],
         },
         |subscribe_result| {
             vec![SubscribeEvent::HandshakeReconnectSuccess {
