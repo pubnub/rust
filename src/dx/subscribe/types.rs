@@ -84,7 +84,7 @@ pub struct SubscribeCursor {
 }
 
 /// Subscription statuses.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SubscribeStatus {
     /// Successfully connected and receiving real-time updates.
     Connected,

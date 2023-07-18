@@ -11,7 +11,7 @@ use crate::{
     lib::alloc::{sync::Arc, vec::Vec},
 };
 
-use spin::RwLock;
+use spin::{RwLock, RwLockWriteGuard};
 
 use super::event_engine::SubscribeEvent;
 
@@ -62,6 +62,22 @@ impl SubscriptionManager {
         let mut subscribers_slot = self.subscribers.write();
         subscribers_slot.push(subscription);
 
+        self.change_subscription(&subscribers_slot);
+    }
+
+    pub fn unregister(&self, subscription: Subscription) {
+        let mut subscribers_slot = self.subscribers.write();
+        if let Some(position) = subscribers_slot
+            .iter()
+            .position(|val| val.id.eq(&subscription.id))
+        {
+            subscribers_slot.swap_remove(position);
+        }
+
+        self.change_subscription(&subscribers_slot);
+    }
+
+    fn change_subscription(&self, subscribers_slot: &RwLockWriteGuard<Vec<Subscription>>) {
         let channels = subscribers_slot
             .iter()
             .flat_map(|val| val.channels.iter())
@@ -77,25 +93,16 @@ impl SubscriptionManager {
         self.subscribe_event_engine
             .write()
             .process(&SubscribeEvent::SubscriptionChanged {
-                channels: Some(channels),
-                channel_groups: Some(channel_groups),
+                channels: (!channels.is_empty()).then_some(channels),
+                channel_groups: (!channel_groups.is_empty()).then_some(channel_groups),
             });
-    }
-
-    pub fn unregister(&self, subscription: Subscription) {
-        let mut subscribers_slot = self.subscribers.write();
-        if let Some(position) = subscribers_slot
-            .iter()
-            .position(|val| val.id.eq(&subscription.id))
-        {
-            subscribers_slot.swap_remove(position);
-        }
     }
 }
 
 #[cfg(test)]
 mod should {
     use crate::core::RequestRetryPolicy;
+    use crate::dx::subscribe::subscription::SubscriptionBuilder;
     use crate::providers::futures_tokio::TokioRuntime;
     use core::sync::atomic::{AtomicBool, Ordering};
 
@@ -133,5 +140,81 @@ mod should {
             SubscribeState::Unsubscribed,
             TokioRuntime,
         )
+    }
+
+    #[tokio::test]
+    async fn register_subscription() {
+        let processed = Arc::new(AtomicBool::new(false));
+
+        let event_engine = event_engine(processed.clone());
+        let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
+
+        SubscriptionBuilder {
+            subscription_manager: Some(manager.clone()),
+            ..Default::default()
+        }
+        .channels(["test".into()])
+        .build()
+        .unwrap();
+
+        assert_eq!(manager.read().as_ref().unwrap().subscribers.read().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn unregister_subscription() {
+        let processed = Arc::new(AtomicBool::new(false));
+
+        let event_engine = event_engine(processed.clone());
+        let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
+
+        let subscription = SubscriptionBuilder {
+            subscription_manager: Some(manager.clone()),
+            ..Default::default()
+        }
+        .channels(["test".into()])
+        .build()
+        .unwrap();
+
+        manager.read().as_ref().unwrap().unregister(subscription);
+
+        assert_eq!(manager.read().as_ref().unwrap().subscribers.read().len(), 0);
+    }
+
+    #[tokio::test]
+    #[ignore = "mutable reference claimed multiple times"]
+    async fn notify_subscription_about_statuses() {
+        let processed = Arc::new(AtomicBool::new(false));
+
+        let event_engine = event_engine(processed.clone());
+        let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
+
+        let mut subscription = SubscriptionBuilder {
+            subscription_manager: Some(manager.clone()),
+            ..Default::default()
+        }
+        .channels(["test".into()])
+        .build()
+        .unwrap();
+
+        manager
+            .read()
+            .as_ref()
+            .unwrap()
+            .notify_new_status(&SubscribeStatus::Connected);
+
+        use futures::StreamExt;
+        assert_eq!(
+            subscription
+                .status_stream()
+                .next()
+                .await
+                .iter()
+                .next()
+                .unwrap()
+                .iter()
+                .next()
+                .unwrap(),
+            &SubscribeStatus::Connected
+        );
     }
 }
