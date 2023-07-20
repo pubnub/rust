@@ -1,4 +1,5 @@
 use futures::StreamExt;
+use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Deserialize;
 use std::env;
@@ -35,8 +36,30 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .filter_expression("some_filter")
         .build()?
         .stream()
-        .for_each(|message| async move {
-            log::info!("message: {:?}", message);
+        .for_each(|event| async move {
+            match event {
+                SubscribeStreamEvent::Update(update) => {
+                    log::info!("update: {:?}", update);
+                    match update {
+                        Update::Message(message) | Update::Signal(message) => {
+                            log::info!("message: {:?}", String::from_utf8(message.data))
+                        }
+                        Update::Presence(presence) => {
+                            log::info!("presence: {:?}", presence)
+                        }
+                        Update::Object(object) => {
+                            log::info!("object: {:?}", object)
+                        }
+                        Update::MessageAction(action) => {
+                            log::info!("message action: {:?}", action)
+                        }
+                        Update::File(file) => {
+                            log::info!("file: {:?}", file)
+                        }
+                    }
+                }
+                SubscribeStreamEvent::Status(status) => log::info!("status: {:?}", status),
+            }
         })
         .await;
 
@@ -60,6 +83,5 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     //            })
     //        })
     //        .await;
-
     Ok(())
 }

@@ -6,6 +6,7 @@ use crate::{
     },
     lib::{
         alloc::{
+            collections::VecDeque,
             string::{String, ToString},
             sync::Arc,
             vec::Vec,
@@ -19,30 +20,40 @@ use crate::{
 };
 use derive_builder::Builder;
 use futures::Stream;
-use spin::{RwLock, RwLockWriteGuard};
+use spin::RwLock;
+use std::fmt::Debug;
 use uuid::Uuid;
 
-/// Regular messages stream.
+/// Subscription stream.
+///
+/// Stream delivers changes in subscription status:
+/// * `connected` - client connected to real-time [`PubNub`] network.
+/// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
+/// * `connection error` - client was unable to subscribe to specified channels and groups
+///
+/// and regular messages / signals.
+///
+/// [`PubNub`]:https://www.pubnub.com/
 #[derive(Debug)]
-pub struct SubscriptionMessagesStream {
-    inner: Arc<SubscriptionMessagesStreamRef>,
+pub struct SubscriptionStream<D> {
+    inner: Arc<SubscriptionStreamRef<D>>,
 }
 
-impl Deref for SubscriptionMessagesStream {
-    type Target = SubscriptionMessagesStreamRef;
+impl<D> Deref for SubscriptionStream<D> {
+    type Target = SubscriptionStreamRef<D>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl DerefMut for SubscriptionMessagesStream {
+impl<D> DerefMut for SubscriptionStream<D> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        Arc::get_mut(&mut self.inner).expect("Subscription message stream is not unique")
+        Arc::get_mut(&mut self.inner).expect("Subscription stream is not unique")
     }
 }
 
-impl Clone for SubscriptionMessagesStream {
+impl<D> Clone for SubscriptionStream<D> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -50,67 +61,22 @@ impl Clone for SubscriptionMessagesStream {
     }
 }
 
-/// Regular messages stream.
-#[derive(Debug, Default)]
-pub struct SubscriptionMessagesStreamRef {
-    /// List of updates to be delivered to stream listener.
-    updates: RwLock<Vec<Update>>,
-
-    /// Subscription messages stream waker.
-    ///
-    /// Handler used each time when new data available for a stream listener.
-    waker: RwLock<Option<Waker>>,
-}
-
-/// Subscription status stream.
+/// Subscription stream.
 ///
 /// Stream delivers changes in subscription status:
 /// * `connected` - client connected to real-time [`PubNub`] network.
 /// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
 /// * `connection error` - client was unable to subscribe to specified channels and groups
 ///
-/// [`PubNub`]:https://www.pubnub.com/
-#[derive(Debug)]
-pub struct SubscriptionStatusStream {
-    inner: Arc<SubscriptionStatusStreamRef>,
-}
-
-impl Deref for SubscriptionStatusStream {
-    type Target = SubscriptionStatusStreamRef;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for SubscriptionStatusStream {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        Arc::get_mut(&mut self.inner).expect("Subscription status stream is not unique")
-    }
-}
-
-impl Clone for SubscriptionStatusStream {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-/// Subscription status stream.
-///
-/// Stream delivers changes in subscription status:
-/// * `connected` - client connected to real-time [`PubNub`] network.
-/// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
-/// * `connection error` - client was unable to subscribe to specified channels and groups
+/// and regular messages / signals.
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[derive(Debug, Default)]
-pub struct SubscriptionStatusStreamRef {
-    /// List of updates to be delivered to stream listener.
-    updates: RwLock<Vec<SubscribeStatus>>,
+pub struct SubscriptionStreamRef<D> {
+    /// Update to be delivered to stream listener.
+    updates: RwLock<VecDeque<D>>,
 
-    /// Subscription messages stream waker.
+    /// Subscription stream waker.
     ///
     /// Handler used each time when new data available for a stream listener.
     waker: RwLock<Option<Waker>>,
@@ -228,9 +194,9 @@ pub struct SubscriptionRef {
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(custom),
-        default = "RwLock::new(Vec::with_capacity(100))"
+        default = "RwLock::new(VecDeque::with_capacity(100))"
     )]
-    pub(in crate::dx::subscribe) updates: RwLock<Vec<SubscribeStreamEvent>>,
+    pub(in crate::dx::subscribe) updates: RwLock<VecDeque<SubscribeStreamEvent>>,
 
     /// Subscription stream waker.
     ///
@@ -242,15 +208,25 @@ pub struct SubscriptionRef {
     )]
     waker: RwLock<Option<Waker>>,
 
+    /// General subscription stream.
+    ///
+    /// Stream used to deliver all real-time updates.
+    #[builder(
+        field(vis = "pub(in crate::dx::subscribe)"),
+        setter(custom),
+        default = "RwLock::new(None)"
+    )]
+    pub(in crate::dx::subscribe) stream: RwLock<Option<SubscriptionStream<SubscribeStreamEvent>>>,
+
     /// Messages / updates stream.
     ///
     /// Stream used to deliver only real-time updates.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(custom),
-        default = "None"
+        default = "RwLock::new(None)"
     )]
-    pub(in crate::dx::subscribe) updates_stream: Option<SubscriptionMessagesStream>,
+    pub(in crate::dx::subscribe) updates_stream: RwLock<Option<SubscriptionStream<Update>>>,
 
     /// Status stream.
     ///
@@ -258,9 +234,9 @@ pub struct SubscriptionRef {
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(custom),
-        default = "None"
+        default = "RwLock::new(None)"
     )]
-    pub(in crate::dx::subscribe) status_stream: Option<SubscriptionStatusStream>,
+    pub(in crate::dx::subscribe) status_stream: RwLock<Option<SubscriptionStream<SubscribeStatus>>>,
 }
 
 impl SubscriptionBuilder {
@@ -322,25 +298,55 @@ impl Subscription {
     /// Stream is used to deliver following updates:
     /// * received messages / updates
     /// * changes in subscription status
-    pub fn stream(&self) -> Self {
-        self.clone()
+    pub fn stream(&self) -> SubscriptionStream<SubscribeStreamEvent> {
+        let mut stream = self.stream.write();
+
+        if let Some(stream) = stream.clone() {
+            stream
+        } else {
+            let events_stream = {
+                let mut updates = self.updates.write();
+                let stream = SubscriptionStream::new(updates.clone());
+                updates.clear();
+                stream
+            };
+
+            *stream = Some(events_stream.clone());
+
+            events_stream
+        }
     }
 
     /// Stream with message / updates.
     ///
     /// Stream will deliver filtered set of updates which include only messages.
-    pub fn message_stream(&mut self) -> SubscriptionMessagesStream {
-        if let Some(stream) = &self.updates_stream {
-            stream.clone()
+    pub fn message_stream(&self) -> SubscriptionStream<Update> {
+        let mut stream = self.updates_stream.write();
+
+        if let Some(stream) = stream.clone() {
+            stream
         } else {
-            let stream = SubscriptionMessagesStream {
-                inner: Arc::new(SubscriptionMessagesStreamRef {
-                    ..Default::default()
-                }),
+            let events_stream = {
+                let mut updates = self.updates.write();
+                let updates_len = updates.len();
+                let stream_updates = updates.iter().fold(
+                    VecDeque::<Update>::with_capacity(updates_len),
+                    |mut acc, event| {
+                        if let SubscribeStreamEvent::Update(update) = event {
+                            acc.push_back(update.clone());
+                        }
+                        acc
+                    },
+                );
+
+                let stream = SubscriptionStream::new(stream_updates);
+                updates.clear();
+
+                stream
             };
 
-            self.updates_stream = Some(stream.clone());
-            stream
+            *stream = Some(events_stream.clone());
+            events_stream
         }
     }
 
@@ -348,148 +354,156 @@ impl Subscription {
     ///
     /// Stream will deliver filtered set of updates which include only
     /// subscription status change.
-    pub fn status_stream(&mut self) -> SubscriptionStatusStream {
-        if let Some(stream) = &self.status_stream {
-            stream.clone()
+    pub fn status_stream(&self) -> SubscriptionStream<SubscribeStatus> {
+        let mut stream = self.status_stream.write();
+
+        if let Some(stream) = stream.clone() {
+            stream
         } else {
-            let stream = SubscriptionStatusStream {
-                inner: Arc::new(SubscriptionStatusStreamRef {
-                    ..Default::default()
-                }),
+            let events_stream = {
+                let mut updates = self.updates.write();
+                let updates_len = updates.len();
+                let stream_statuses = updates.iter().fold(
+                    VecDeque::<SubscribeStatus>::with_capacity(updates_len),
+                    |mut acc, event| {
+                        if let SubscribeStreamEvent::Status(update) = event {
+                            acc.push_back(update.clone());
+                        }
+                        acc
+                    },
+                );
+
+                let stream = SubscriptionStream::new(stream_statuses);
+                updates.clear();
+
+                stream
             };
 
-            self.status_stream = Some(stream.clone());
-            stream
+            *stream = Some(events_stream.clone());
+            events_stream
         }
     }
 
     /// Handle received real-time updates.
     pub(in crate::dx::subscribe) fn handle_messages(&self, messages: &Vec<Update>) {
-        let mut updates_stream_updates_slot: Option<RwLockWriteGuard<Vec<Update>>> = None;
-        let mut updates_slot = self.updates.write();
-        let updates_len = updates_slot.len();
+        // Filter out updates for this subscriber.
+        let messages = messages
+            .clone()
+            .into_iter()
+            .filter(|update| self.subscribed_for_update(update))
+            .collect::<Vec<Update>>();
 
-        if let Some(updates_stream) = &self.updates_stream {
-            updates_stream_updates_slot = Some(updates_stream.updates.write());
-        }
+        let common_stream = self.stream.read();
+        let stream = self.updates_stream.read();
+        let accumulate = common_stream.is_none() && stream.is_none();
 
-        messages
-            .iter()
-            .filter(|msg| {
-                self.channels.contains(&msg.channel())
-                    || self.channel_groups.contains(&msg.channel_group())
-            })
-            .for_each(|msg| {
-                if let Some(updates_stream_slot) = updates_stream_updates_slot.as_mut() {
-                    updates_stream_slot.push(msg.clone());
-                }
+        if accumulate {
+            let mut updates_slot = self.updates.write();
+            updates_slot.extend(
+                messages
+                    .into_iter()
+                    .map(|update| SubscribeStreamEvent::Update(update)),
+            );
+        } else {
+            if let Some(stream) = common_stream.clone() {
+                let mut updates_slot = stream.updates.write();
+                let updates_len = updates_slot.len();
+                updates_slot.extend(
+                    messages
+                        .clone()
+                        .into_iter()
+                        .map(|update| SubscribeStreamEvent::Update(update)),
+                );
+                updates_slot
+                    .len()
+                    .ne(&updates_len)
+                    .then(|| stream.wake_task());
+            }
 
-                updates_slot.push(SubscribeStreamEvent::Update(msg.clone()))
-            });
-
-        if updates_len < updates_slot.len() {
-            self.wake_task();
-
-            if let Some(updates_stream) = &self.updates_stream {
-                updates_stream.wake_task();
+            if let Some(stream) = stream.clone() {
+                let mut updates_slot = stream.updates.write();
+                let updates_len = updates_slot.len();
+                updates_slot.extend(messages.into_iter());
+                updates_slot
+                    .len()
+                    .ne(&updates_len)
+                    .then(|| stream.wake_task());
             }
         }
     }
 
     /// Handle received real-time updates.
     pub(in crate::dx::subscribe) fn handle_status(&self, status: SubscribeStatus) {
-        let mut updates_slot = self.updates.write();
-        updates_slot.push(SubscribeStreamEvent::Status(status));
+        let common_stream = self.stream.read();
+        let stream = self.status_stream.read();
+        let accumulate = common_stream.is_none() && stream.is_none();
 
-        self.wake_task();
+        if accumulate {
+            let mut updates_slot = self.updates.write();
+            updates_slot.push_back(SubscribeStreamEvent::Status(status));
+        } else {
+            if let Some(stream) = common_stream.clone() {
+                let mut updates_slot = stream.updates.write();
+                let updates_len = updates_slot.len();
+                updates_slot.push_back(SubscribeStreamEvent::Status(status));
+                updates_slot
+                    .len()
+                    .ne(&updates_len)
+                    .then(|| stream.wake_task());
+            }
 
-        if let Some(status_stream) = &self.status_stream {
-            let mut updates_slot = status_stream.updates.write();
-            updates_slot.push(status);
+            if let Some(stream) = stream.clone() {
+                let mut updates_slot = stream.updates.write();
+                let updates_len = updates_slot.len();
+                updates_slot.push_back(status);
+                updates_slot
+                    .len()
+                    .ne(&updates_len)
+                    .then(|| stream.wake_task());
+            }
+        }
+    }
 
-            status_stream.wake_task();
+    fn subscribed_for_update(&self, update: &Update) -> bool {
+        self.channels.contains(&update.channel())
+            || self.channel_groups.contains(&update.channel_group())
+    }
+}
+
+impl<D> SubscriptionStream<D> {
+    fn new(updates: VecDeque<D>) -> Self {
+        let mut stream_updates = VecDeque::with_capacity(100);
+        stream_updates.extend(updates.into_iter());
+
+        Self {
+            inner: Arc::new(SubscriptionStreamRef {
+                updates: RwLock::new(stream_updates),
+                waker: RwLock::new(None),
+            }),
         }
     }
 
     fn wake_task(&self) {
-        let mut waker_slot = self.waker.write();
-        if let Some(waker) = waker_slot.take() {
+        if let Some(waker) = self.waker.write().take() {
             waker.wake();
         }
     }
 }
 
-impl SubscriptionMessagesStream {
-    fn wake_task(&self) {
-        let mut waker_slot = self.waker.write();
-        if let Some(waker) = waker_slot.take() {
-            waker.wake();
-        }
-    }
-}
-
-impl SubscriptionStatusStream {
-    fn wake_task(&self) {
-        let mut waker_slot = self.waker.write();
-        if let Some(waker) = waker_slot.take() {
-            waker.wake();
-        }
-    }
-}
-
-impl Stream for Subscription {
-    type Item = Vec<SubscribeStreamEvent>;
+impl<D> Stream for SubscriptionStream<D>
+where
+    D: Debug,
+{
+    type Item = D;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut updates_slot = self.updates.write();
         let mut waker_slot = self.waker.write();
         *waker_slot = Some(cx.waker().clone());
 
-        if updates_slot.is_empty() {
-            Poll::Pending
+        if let Some(update) = self.updates.write().pop_front() {
+            Poll::Ready(Some(update))
         } else {
-            let updates = updates_slot.to_vec();
-            updates_slot.clear();
-
-            Poll::Ready(Some(updates))
-        }
-    }
-}
-
-impl Stream for SubscriptionMessagesStream {
-    type Item = Vec<Update>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut updates_slot = self.updates.write();
-        let mut waker_slot = self.waker.write();
-        *waker_slot = Some(cx.waker().clone());
-
-        if updates_slot.is_empty() {
             Poll::Pending
-        } else {
-            let updates = updates_slot.to_vec();
-            updates_slot.clear();
-
-            Poll::Ready(Some(updates))
-        }
-    }
-}
-
-impl Stream for SubscriptionStatusStream {
-    type Item = Vec<SubscribeStatus>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut updates_slot = self.updates.write();
-        let mut waker_slot = self.waker.write();
-        *waker_slot = Some(cx.waker().clone());
-
-        if updates_slot.is_empty() {
-            Poll::Pending
-        } else {
-            let updates = updates_slot.to_vec();
-            updates_slot.clear();
-
-            Poll::Ready(Some(updates))
         }
     }
 }

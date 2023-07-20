@@ -6,3 +6,6 @@ tests/reports
 # GitHub Actions #
 ##################
 .github/.release
+
+# IDE
+.idea

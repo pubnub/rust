@@ -10,7 +10,7 @@ use futures::{future::BoxFuture, FutureExt};
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
 
-pub use result::SubscribeResponseBody;
+pub use result::{SubscribeResponseBody, Update};
 pub mod result;
 
 #[doc(inline)]
@@ -22,10 +22,7 @@ pub mod types;
 
 use crate::{
     core::{event_engine::EventEngine, runtime::Runtime, PubNubError, Transport},
-    dx::{
-        pubnub_client::PubNubClientInstance,
-        subscribe::result::{SubscribeResult, Update},
-    },
+    dx::{pubnub_client::PubNubClientInstance, subscribe::result::SubscribeResult},
     lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
 };
 
