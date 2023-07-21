@@ -322,14 +322,14 @@ mod should {
         }
     }
 
-    #[test]
-    fn set_initial_state() {
+    #[tokio::test]
+    async fn set_initial_state() {
         let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
         assert!(matches!(engine.current_state(), TestState::NotStarted));
     }
 
-    #[test]
-    fn transit_to_new_state() {
+    #[tokio::test]
+    async fn transit_to_new_state() {
         let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
         engine.process(&TestEvent::One);
         assert!(matches!(engine.current_state(), TestState::Started));
@@ -356,8 +356,8 @@ mod should {
         ));
     }
 
-    #[test]
-    fn not_transit_for_unexpected_event() {
+    #[tokio::test]
+    async fn not_transit_for_unexpected_event() {
         let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
 
         engine.process(&TestEvent::One);

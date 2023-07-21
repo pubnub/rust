@@ -706,6 +706,8 @@ impl State for SubscribeState {
 
 #[cfg(test)]
 mod should {
+    // TODO: EE process tests should be async!
+
     use super::*;
     use crate::core::RequestRetryPolicy;
     use crate::providers::futures_tokio::TokioRuntime;
@@ -797,7 +799,8 @@ mod should {
         SubscribeState::Unsubscribed;
         "to not change on unexpected event"
     )]
-    fn transition_for_unsubscribed_state(
+    #[tokio::test]
+    async fn transition_for_unsubscribed_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
@@ -900,7 +903,8 @@ mod should {
         };
         "to not change on unexpected event"
     )]
-    fn transition_handshaking_state(
+    #[tokio::test]
+    async fn transition_handshaking_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
@@ -1034,7 +1038,8 @@ mod should {
         };
         "to not change on unexpected event"
     )]
-    fn transition_handshake_reconnecting_state(
+    #[tokio::test]
+    async fn transition_handshake_reconnecting_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
@@ -1111,7 +1116,8 @@ mod should {
         };
         "to not change on unexpected event"
     )]
-    fn transition_handshake_failed_state(
+    #[tokio::test]
+    async fn transition_handshake_failed_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
@@ -1151,7 +1157,8 @@ mod should {
         };
         "to not change on unexpected event"
     )]
-    fn transition_handshake_stopped_state(
+    #[tokio::test]
+    async fn transition_handshake_stopped_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
@@ -1264,7 +1271,8 @@ mod should {
         };
         "to not change on unexpected event"
     )]
-    fn transition_receiving_state(
+    #[tokio::test]
+    async fn transition_receiving_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
@@ -1391,7 +1399,8 @@ mod should {
         };
         "to not change on unexpected event"
     )]
-    fn transition_receiving_reconnecting_state(
+    #[tokio::test]
+    async fn transition_receiving_reconnecting_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
@@ -1474,7 +1483,8 @@ mod should {
         };
         "to not change on unexpected event"
     )]
-    fn transition_receive_failed_state(
+    #[tokio::test]
+    async fn transition_receive_failed_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
@@ -1516,7 +1526,8 @@ mod should {
         };
         "to not change on unexpected event"
     )]
-    fn transition_receive_stopped_state(
+    #[tokio::test]
+    async fn transition_receive_stopped_state(
         init_state: SubscribeState,
         event: SubscribeEvent,
         target_state: SubscribeState,
