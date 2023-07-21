@@ -114,13 +114,12 @@ mod should {
     use super::*;
 
     #[allow(dead_code)]
-    fn event_engine(processed: Arc<AtomicBool>) -> Arc<SubscribeEventEngine> {
+    fn event_engine() -> Arc<SubscribeEventEngine> {
         let (cancel_tx, _) = async_channel::bounded(1);
 
         SubscribeEventEngine::new(
             SubscribeEffectHandler::new(
                 Arc::new(move |_| {
-                    processed.store(true, Ordering::Relaxed);
                     Box::pin(async move {
                         Ok(SubscribeResult {
                             cursor: Default::default(),
@@ -144,9 +143,7 @@ mod should {
 
     #[tokio::test]
     async fn register_subscription() {
-        let processed = Arc::new(AtomicBool::new(false));
-
-        let event_engine = event_engine(processed.clone());
+        let event_engine = event_engine();
         let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
 
         SubscriptionBuilder {
@@ -162,9 +159,7 @@ mod should {
 
     #[tokio::test]
     async fn unregister_subscription() {
-        let processed = Arc::new(AtomicBool::new(false));
-
-        let event_engine = event_engine(processed.clone());
+        let event_engine = event_engine();
         let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
 
         let subscription = SubscriptionBuilder {
@@ -181,11 +176,8 @@ mod should {
     }
 
     #[tokio::test]
-    #[ignore = "mutable reference claimed multiple times"]
     async fn notify_subscription_about_statuses() {
-        let processed = Arc::new(AtomicBool::new(false));
-
-        let event_engine = event_engine(processed.clone());
+        let event_engine = event_engine();
         let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
 
         let subscription = SubscriptionBuilder {
