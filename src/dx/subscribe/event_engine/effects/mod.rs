@@ -6,7 +6,7 @@ use crate::{
         SubscribeCursor, SubscribeStatus, SubscriptionParams,
     },
     lib::{
-        alloc::{string::String, sync::Arc, vec::Vec},
+        alloc::{boxed::Box, string::String, sync::Arc, vec::Vec},
         core::fmt::{Debug, Formatter},
     },
 };

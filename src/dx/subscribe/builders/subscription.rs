@@ -12,6 +12,7 @@ use crate::{
             vec::Vec,
         },
         core::{
+            fmt::Debug,
             ops::{Deref, DerefMut},
             pin::Pin,
             task::{Context, Poll, Waker},

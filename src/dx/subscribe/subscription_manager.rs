@@ -103,6 +103,7 @@ impl SubscriptionManager {
 mod should {
     use crate::core::RequestRetryPolicy;
     use crate::dx::subscribe::subscription::SubscriptionBuilder;
+    use crate::dx::subscribe::types::Message;
     use crate::providers::futures_tokio::TokioRuntime;
     use core::sync::atomic::{AtomicBool, Ordering};
 
@@ -205,5 +206,28 @@ mod should {
                 .unwrap(),
             &SubscribeStatus::Connected
         );
+    }
+
+    #[tokio::test]
+    async fn notify_subscription_about_updates() {
+        let event_engine = event_engine();
+        let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
+
+        let subscription = SubscriptionBuilder {
+            subscription_manager: Some(manager.clone()),
+            ..Default::default()
+        }
+        .channels(["test".into()])
+        .build()
+        .unwrap();
+
+        manager
+            .read()
+            .as_ref()
+            .unwrap()
+            .notify_new_messages(vec![Update::Message(Message::default())]);
+
+        use futures::StreamExt;
+        assert!(subscription.message_stream().next().await.is_some());
     }
 }

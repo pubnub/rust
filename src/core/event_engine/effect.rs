@@ -1,6 +1,6 @@
 use crate::{
     core::event_engine::EffectInvocation,
-    lib::alloc::{string::String, vec::Vec},
+    lib::alloc::{boxed::Box, string::String, vec::Vec},
 };
 
 #[async_trait::async_trait]

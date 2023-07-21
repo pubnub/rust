@@ -348,7 +348,7 @@ pub enum Object {
 /// Message information.
 ///
 /// [`Message`] type provides to the updates listener message's information.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
     /// Identifier of client which sent message / signal.
     pub sender: Option<String>,
