@@ -210,8 +210,8 @@ mod should {
                 .await
                 .iter()
                 .next()
-                .unwrap()
-                & SubscribeStatus::Connected
+                .unwrap(),
+            &SubscribeStatus::Connected
         );
     }
 }
