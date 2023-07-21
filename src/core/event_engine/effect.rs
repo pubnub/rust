@@ -10,6 +10,7 @@ pub(crate) trait Effect: Send + Sync {
     /// Unique effect identifier.
     fn id(&self) -> String;
 
+    /// Run actual effect implementation.
     async fn run(&self) -> Vec<<Self::Invocation as EffectInvocation>::Event>;
 
     /// Cancel any ongoing effect's work.

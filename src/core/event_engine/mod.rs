@@ -370,6 +370,6 @@ mod should {
 
     #[tokio::test]
     async fn run_effect() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
+        let _engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
     }
 }

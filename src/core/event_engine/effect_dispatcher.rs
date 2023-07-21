@@ -92,7 +92,7 @@ where
                         }
                     }
                     Err(err) => {
-                        println!("Receive error: {err:?}");
+                        log::error!("Receive error: {err:?}");
                     }
                 }
             }

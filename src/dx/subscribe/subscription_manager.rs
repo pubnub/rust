@@ -188,7 +188,7 @@ mod should {
         let event_engine = event_engine(processed.clone());
         let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
 
-        let mut subscription = SubscriptionBuilder {
+        let subscription = SubscriptionBuilder {
             subscription_manager: Some(manager.clone()),
             ..Default::default()
         }

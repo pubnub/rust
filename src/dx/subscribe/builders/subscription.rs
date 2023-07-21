@@ -21,7 +21,6 @@ use crate::{
 use derive_builder::Builder;
 use futures::Stream;
 use spin::RwLock;
-use std::fmt::Debug;
 use uuid::Uuid;
 
 /// Subscription stream.
@@ -490,10 +489,7 @@ impl<D> SubscriptionStream<D> {
     }
 }
 
-impl<D> Stream for SubscriptionStream<D>
-where
-    D: Debug,
-{
+impl<D> Stream for SubscriptionStream<D> {
     type Item = D;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
