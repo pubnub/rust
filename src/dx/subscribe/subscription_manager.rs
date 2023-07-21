@@ -211,10 +211,7 @@ mod should {
                 .iter()
                 .next()
                 .unwrap()
-                .iter()
-                .next()
-                .unwrap(),
-            &SubscribeStatus::Connected
+                & SubscribeStatus::Connected
         );
     }
 }
