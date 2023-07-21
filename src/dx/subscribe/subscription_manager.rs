@@ -225,7 +225,10 @@ mod should {
             .read()
             .as_ref()
             .unwrap()
-            .notify_new_messages(vec![Update::Message(Message::default())]);
+            .notify_new_messages(vec![Update::Message(Message {
+                channel: "test".into(),
+                ..Default::default()
+            })]);
 
         use futures::StreamExt;
         assert!(subscription.message_stream().next().await.is_some());
