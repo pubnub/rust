@@ -13,10 +13,8 @@ struct Message {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
-    env_logger::init();
-    log::info!("running!");
-    let publish_key = "demo"; //env::var("SDK_PUB_KEY")?;
-    let subscribe_key = "demo"; //env::var("SDK_SUB_KEY")?;
+    let publish_key = env::var("SDK_PUB_KEY")?;
+    let subscribe_key = env::var("SDK_SUB_KEY")?;
 
     let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
@@ -27,7 +25,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .with_user_id("user_id")
         .build()?;
 
-    log::info!("running!");
+    println!("running!");
 
     client
         .subscribe()
@@ -39,49 +37,29 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .for_each(|event| async move {
             match event {
                 SubscribeStreamEvent::Update(update) => {
-                    log::info!("update: {:?}", update);
+                    println!("update: {:?}", update);
                     match update {
                         Update::Message(message) | Update::Signal(message) => {
-                            log::info!("message: {:?}", String::from_utf8(message.data))
+                            println!("message: {:?}", String::from_utf8(message.data))
                         }
                         Update::Presence(presence) => {
-                            log::info!("presence: {:?}", presence)
+                            println!("presence: {:?}", presence)
                         }
                         Update::Object(object) => {
-                            log::info!("object: {:?}", object)
+                            println!("object: {:?}", object)
                         }
                         Update::MessageAction(action) => {
-                            log::info!("message action: {:?}", action)
+                            println!("message action: {:?}", action)
                         }
                         Update::File(file) => {
-                            log::info!("file: {:?}", file)
+                            println!("file: {:?}", file)
                         }
                     }
                 }
-                SubscribeStreamEvent::Status(status) => log::info!("status: {:?}", status),
+                SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
             }
         })
         .await;
 
-    // TODO: something like that
-    // let stream = subscription.stream();
-    // tokio::spawn(async move {
-    //      stream.then(|message| {
-    //      println!("message: {:?}", message);
-    //   }).await;
-    //
-    //   println!("stream cancelled!");
-    // };
-    // let mut subscription = client.subscribe().build().unwrap();
-
-    //subscription.unsubscribe().await;
-    //    subscription
-    //        .for_each(|updates| async move {
-    //            updates.iter().for_each(|update| match update {
-    //                SubscribeStreamEvent::Status(status) => println!("Status changed: {status:?}"),
-    //                SubscribeStreamEvent::Update(update) => println!("Received update: {update:?}"),
-    //            })
-    //        })
-    //        .await;
     Ok(())
 }
