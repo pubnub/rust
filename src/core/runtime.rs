@@ -13,13 +13,13 @@ use crate::lib::core::future::Future;
 ///
 /// # Examples
 /// ```
-/// use pubnub_core::core::spawner::Spawner;
-/// use crate::lib::core::future::Future;
-/// use super::PubNubError;
+/// use pubnub::core::{Runtime, PubNubError};
+/// use std::future::Future;
 ///
-/// struct MySpawner;
+/// #[derive(Clone)]
+/// struct MyRuntime;
 ///
-/// impl Spawner for MySpawner {
+/// impl Runtime for MyRuntime {
 ///    fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static) {
 ///       // spawn the Future
 ///       // e.g. tokio::spawn(future);
