@@ -2,13 +2,13 @@
 
 use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String};
 
-// #[cfg(not(feature = "serde"))]
-// #[doc(inline)]
-// pub(crate) use subscribe::SubscribeRequestWithDeserializerBuilder;
-
 #[doc(inline)]
 pub(crate) use subscribe::SubscribeRequestBuilder;
 pub(crate) mod subscribe;
+
+#[cfg(not(feature = "serde"))]
+#[doc(inline)]
+pub(crate) use subscription::SubscriptionWithDeserializerBuilder;
 
 #[doc(inline)]
 pub use subscription::{SubscriptionBuilder, SubscriptionBuilderError};

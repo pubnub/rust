@@ -105,7 +105,7 @@ impl<T> PubNubClientInstance<T> {
 impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     fn prepare_context_with_request(
         self,
@@ -132,7 +132,7 @@ impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
@@ -176,7 +176,7 @@ where
                 }
             })
             .await
-            .map_data(|_, deserializer, resposne| response_to_result(deserializer, resposne?))
+            .map_data(|_, deserializer, response| response_to_result(deserializer, response?))
             .data
     }
 
@@ -193,7 +193,7 @@ impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     T: crate::core::blocking::Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
@@ -337,7 +337,7 @@ impl<T, D, M> From<PublishMessageViaChannel<T, M, D>>
     for PublishMessageContext<T, D, PublishMessageParams<M>>
 where
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     fn from(value: PublishMessageViaChannel<T, M, D>) -> Self {
         Self {
@@ -361,7 +361,7 @@ where
 
 impl<T, D, X> PublishMessageContext<T, D, X>
 where
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     fn map_data<F, Y>(self, f: F) -> PublishMessageContext<T, D, Y>
     where
@@ -424,7 +424,7 @@ fn response_to_result<D>(
     response: TransportResponse,
 ) -> Result<PublishResult, PubNubError>
 where
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     response
         .body
@@ -447,7 +447,7 @@ mod should {
     use crate::{
         core::TransportResponse,
         dx::pubnub_client::{PubNubClientInstance, PubNubClientRef, PubNubConfig},
-        lib::alloc::{boxed::Box, sync::Arc, vec},
+        lib::alloc::{sync::Arc, vec},
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };
@@ -501,7 +501,7 @@ mod should {
 
         let result = client
             .publish_message("First message")
-            .channel("Iguess")
+            .channel("IGuess")
             .replicate(true)
             .execute()
             .await;
@@ -543,12 +543,12 @@ mod should {
     fn verify_seqn_is_incrementing() {
         let client = client();
 
-        let received_seqns = vec![
-            client.publish_message("meess").seqn,
-            client.publish_message("meess").seqn,
+        let received_sequence_numbers = vec![
+            client.publish_message("message").seqn,
+            client.publish_message("message").seqn,
         ];
 
-        assert_eq!(vec![1, 2], received_seqns);
+        assert_eq!(vec![1, 2], received_sequence_numbers);
     }
 
     #[tokio::test]
@@ -569,7 +569,7 @@ mod should {
         };
 
         assert!(client
-            .publish_message("meess")
+            .publish_message("message")
             .channel("chan")
             .execute()
             .await

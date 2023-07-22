@@ -28,12 +28,12 @@ pub(super) async fn execute(
     // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
     executor(SubscriptionParams {
-        channels: &channels,
-        channel_groups: &channel_groups,
+        channels,
+        channel_groups,
         cursor: None,
         attempt,
         reason: Some(reason),
-        effect_id: &effect_id,
+        effect_id,
     })
     .map_ok_or_else(
         |error| {

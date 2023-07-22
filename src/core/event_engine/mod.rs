@@ -83,7 +83,7 @@ where
 
         let engine = Arc::new(EventEngine {
             effect_dispatcher,
-            effect_dispatcher_channel: channel_tx.clone(),
+            effect_dispatcher_channel: channel_tx,
             current_state: RwLock::new(state),
         });
 
@@ -111,7 +111,9 @@ where
             state.transition(event)
         };
 
-        transition.map(|transition| self.process_transition(transition));
+        if let Some(transition) = transition {
+            self.process_transition(transition)
+        }
     }
 
     /// Process transition.

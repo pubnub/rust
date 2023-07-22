@@ -9,7 +9,7 @@
 
 use crate::core::Cryptor;
 #[cfg(feature = "subscribe")]
-use crate::dx::subscribe::subscription_manager::SubscriptionManager;
+use crate::dx::subscribe::SubscriptionConfiguration;
 use crate::{
     core::{PubNubError, RequestRetryPolicy, Transport},
     lib::{
@@ -270,10 +270,10 @@ pub struct PubNubClientRef<T> {
     )]
     pub(crate) auth_token: Arc<RwLock<String>>,
 
-    /// Subscription manager
+    /// Subscription module configuration
     #[cfg(feature = "subscribe")]
     #[builder(setter(skip), field(vis = "pub(crate)"))]
-    pub(crate) subscription_manager: Arc<RwLock<Option<SubscriptionManager>>>,
+    pub(crate) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
 }
 
 impl<T> PubNubClientInstance<T> {
@@ -460,7 +460,7 @@ impl<T> PubNubClientConfigBuilder<T> {
                     cryptor: pre_build.cryptor.clone(),
 
                     #[cfg(feature = "subscribe")]
-                    subscription_manager: Arc::new(RwLock::new(None)),
+                    subscription: Arc::new(RwLock::new(None)),
                 })
             })
             .map(|client| {

@@ -35,7 +35,7 @@ pub(crate) struct SubscribeEffectHandler {
     cancellation_channel: Sender<String>,
 }
 
-impl<'client> SubscribeEffectHandler {
+impl SubscribeEffectHandler {
     /// Create subscribe event handler.
     #[allow(dead_code)]
     pub fn new(

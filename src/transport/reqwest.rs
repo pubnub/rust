@@ -447,9 +447,8 @@ pub mod blocking {
 
     #[cfg(test)]
     mod should {
-        use crate::core::blocking::Transport;
-
         use super::*;
+        use crate::{core::blocking::Transport, lib::alloc::string::ToString};
 
         use test_case::test_case;
         use wiremock::matchers::{body_string, method, path as path_macher};
@@ -539,6 +538,8 @@ pub mod blocking {
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::lib::alloc::string::ToString;
+
     use test_case::test_case;
     use wiremock::matchers::{body_string, header, method, path as path_macher};
     use wiremock::{Mock, MockServer, ResponseTemplate};

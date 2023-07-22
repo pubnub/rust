@@ -3,6 +3,7 @@
 //! This module has all the builders for subscription to real-time updates from
 //! a list of channels and channel groups.
 
+use crate::dx::subscribe::SubscribeResponseBody;
 use crate::{
     core::{
         utils::encoding::join_url_encoded,
@@ -10,17 +11,13 @@ use crate::{
     },
     dx::{
         pubnub_client::PubNubClientInstance,
-        subscribe::{
-            builders,
-            cancel::CancellationTask,
-            result::{SubscribeResponseBody, SubscribeResult},
-            SubscribeCursor,
-        },
+        subscribe::{builders, cancel::CancellationTask, result::SubscribeResult, SubscribeCursor},
     },
     lib::{
         alloc::{
             format,
             string::{String, ToString},
+            sync::Arc,
             vec::Vec,
         },
         collections::HashMap,
@@ -44,18 +41,13 @@ use futures::{select_biased, Future, FutureExt};
     no_std
 )]
 #[allow(dead_code, missing_docs)]
-pub(crate) struct SubscribeRequest<T, D>
+pub(crate) struct SubscribeRequest<T>
 where
     T: Transport + Send,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody> + Send,
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
     pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T>,
-
-    /// Service response deserializer.
-    #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
-    pub(in crate::dx::subscribe) deserializer: D,
 
     /// Channels from which real-time updates should be received.
     ///
@@ -101,27 +93,9 @@ where
     pub(in crate::dx::subscribe) filter_expression: Option<String>,
 }
 
-/// The [`SubscribeRequestWithDeserializerBuilder`] is used to build subscribe
-/// request which will be used for real-time updates notification from the
-/// [`PubNub`] network.
-///
-/// This struct used by the [`subscribe`] method of the [`PubNubClient`] and let
-/// specify custom deserializer for received real-time updates from
-/// the [`PubNub`] network.
-/// The [`subscribe`] method is used to subscribe and receive real-time updates
-/// from the [`PubNub`] network.
-///
-/// [`PubNub`]:https://www.pubnub.com/
-#[cfg(not(feature = "serde"))]
-pub struct SubscribeRequestWithDeserializerBuilder<T> {
-    /// Current client which can provide transportation to perform the request.
-    pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T>,
-}
-
-impl<T, D> SubscribeRequest<T, D>
+impl<T> SubscribeRequest<T>
 where
     T: Transport,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::subscribe) fn transport_request(&self) -> TransportRequest {
@@ -164,10 +138,9 @@ where
     }
 }
 
-impl<T, D> SubscribeRequestBuilder<T, D>
+impl<T> SubscribeRequestBuilder<T>
 where
     T: Transport,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Validate user-provided data for request builder.
     ///
@@ -187,16 +160,20 @@ where
     }
 }
 
-impl<T, D> SubscribeRequestBuilder<T, D>
+impl<T> SubscribeRequestBuilder<T>
 where
     T: Transport,
-    D: for<'ds> Deserializer<'ds, SubscribeResponseBody>,
 {
     /// Build and call request.
-    pub fn execute(
+    #[allow(clippy::manual_async_fn)]
+    pub fn execute<D>(
         self,
+        deserializer: Arc<D>,
         cancel_task: CancellationTask,
-    ) -> impl Future<Output = Result<SubscribeResult, PubNubError>> {
+    ) -> impl Future<Output = Result<SubscribeResult, PubNubError>>
+    where
+        D: Deserializer<SubscribeResponseBody> + ?Sized,
+    {
         async move {
             // Build request instance and report errors if any.
             let request = self
@@ -205,7 +182,6 @@ where
 
             let transport_request = request.transport_request();
             let client = request.pubnub_client.clone();
-            let deserializer = request.deserializer;
 
             select_biased! {
                 _ = cancel_task.wait_for_cancel().fuse() => {
@@ -233,28 +209,9 @@ where
     }
 }
 
-#[cfg(not(feature = "serde"))]
-impl<T> SubscribeRequestWithDeserializerBuilder<T> {
-    /// Add custom deserializer.
-    ///
-    /// Adds the deserializer to the [`SubscribeRequestBuilder`],
-    ///
-    /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub fn deserialize_with<D>(self, deserializer: D) -> SubscribeRequestBuilder<T, D>
-    where
-        T: Transport,
-        D: for<'ds> Deserializer<'ds, SubscribeResponseBody> + Send,
-    {
-        SubscribeRequestBuilder {
-            pubnub_client: Some(self.pubnub_client),
-            deserializer: Some(deserializer),
-            ..Default::default()
-        }
-    }
-}
-
 #[cfg(test)]
 mod should {
+    use crate::providers::deserialization_serde::SerdeDeserializer;
     use crate::{core::TransportResponse, PubNubClientBuilder};
 
     use super::*;
@@ -289,7 +246,7 @@ mod should {
             .unwrap()
             .subscribe_request()
             .channels(vec!["test".into()])
-            .execute(cancel_task)
+            .execute(Arc::new(SerdeDeserializer), cancel_task)
             .await;
 
         assert!(matches!(result, Err(PubNubError::EffectCanceled)));

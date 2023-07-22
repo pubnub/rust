@@ -11,7 +11,7 @@ use crate::lib::{
         string::{String, ToString},
         vec::Vec,
     },
-    collections::hash_map::HashMap,
+    collections::HashMap,
 };
 
 /// Implementation for [`APIError`] to create struct from service error response

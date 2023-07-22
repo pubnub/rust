@@ -67,5 +67,5 @@ pub(crate) mod runtime;
 pub(crate) mod utils;
 
 #[doc(inline)]
-pub use types::{AnyValue, ScalarValue};
+pub use types::ScalarValue;
 pub mod types;

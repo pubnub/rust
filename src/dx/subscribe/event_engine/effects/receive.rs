@@ -23,19 +23,17 @@ pub(crate) async fn execute(
     );
 
     executor(SubscriptionParams {
-        channels: &channels,
-        channel_groups: &channel_groups,
+        channels,
+        channel_groups,
         cursor: Some(cursor),
         attempt: 0,
         reason: None,
-        effect_id: &effect_id,
+        effect_id,
     })
     .map_ok_or_else(
         |error| {
             log::error!("Receive error: {:?}", error);
-            vec![SubscribeEvent::ReceiveFailure {
-                reason: error.into(),
-            }]
+            vec![SubscribeEvent::ReceiveFailure { reason: error }]
         },
         |subscribe_result| {
             vec![SubscribeEvent::ReceiveSuccess {

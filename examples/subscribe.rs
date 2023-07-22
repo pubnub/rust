@@ -1,7 +1,11 @@
+#[cfg(feature = "std")]
 use futures::StreamExt;
+#[cfg(feature = "std")]
 use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+#[cfg(feature = "std")]
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Deserialize;
+#[cfg(feature = "std")]
 use std::env;
 
 #[derive(Deserialize)]
@@ -12,6 +16,7 @@ struct Message {
 }
 
 #[tokio::main]
+#[cfg(feature = "std")]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
     let publish_key = env::var("SDK_PUB_KEY")?;
     let subscribe_key = env::var("SDK_SUB_KEY")?;
@@ -61,5 +66,11 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         })
         .await;
 
+    Ok(())
+}
+
+#[tokio::main]
+#[cfg(not(feature = "std"))]
+async fn main() -> Result<(), Box<dyn snafu::Error>> {
     Ok(())
 }

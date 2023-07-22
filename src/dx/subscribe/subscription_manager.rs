@@ -3,6 +3,7 @@
 //! This module contains manager which is responsible for tracking and updating
 //! active subscription streams.
 
+use super::event_engine::SubscribeEvent;
 use crate::{
     dx::subscribe::{
         event_engine::SubscribeEventEngine, result::Update, subscription::Subscription,
@@ -10,10 +11,7 @@ use crate::{
     },
     lib::alloc::{sync::Arc, vec::Vec},
 };
-
 use spin::{RwLock, RwLockWriteGuard};
-
-use super::event_engine::SubscribeEvent;
 
 /// Active subscriptions manager.
 ///
@@ -34,7 +32,7 @@ pub(crate) struct SubscriptionManager {
     /// List of registered subscribers.
     ///
     /// List of subscribers which will receive real-time updates.
-    pub subscribers: RwLock<Vec<Subscription>>,
+    subscribers: RwLock<Vec<Subscription>>,
 }
 
 #[allow(dead_code)]
@@ -48,7 +46,7 @@ impl SubscriptionManager {
 
     pub fn notify_new_status(&self, status: &SubscribeStatus) {
         self.subscribers.read().iter().for_each(|subscription| {
-            subscription.handle_status(status.clone());
+            subscription.handle_status(*status);
         });
     }
 
@@ -101,18 +99,19 @@ impl SubscriptionManager {
 
 #[cfg(test)]
 mod should {
-    use crate::core::RequestRetryPolicy;
-    use crate::dx::subscribe::subscription::SubscriptionBuilder;
-    use crate::dx::subscribe::types::Message;
-    use crate::providers::futures_tokio::TokioRuntime;
-    use core::sync::atomic::{AtomicBool, Ordering};
-
-    use crate::dx::subscribe::result::SubscribeResult;
-    use crate::lib::alloc::sync::Arc;
-
-    use crate::dx::subscribe::event_engine::{SubscribeEffectHandler, SubscribeState};
-
     use super::*;
+    use crate::{
+        core::RequestRetryPolicy,
+        dx::subscribe::{
+            event_engine::{SubscribeEffectHandler, SubscribeState},
+            result::SubscribeResult,
+            subscription::SubscriptionBuilder,
+            types::Message,
+            SubscriptionConfiguration, SubscriptionConfigurationRef,
+        },
+        lib::alloc::sync::Arc,
+        providers::futures_tokio::TokioRuntime,
+    };
 
     #[allow(dead_code)]
     fn event_engine() -> Arc<SubscribeEventEngine> {
@@ -145,55 +144,66 @@ mod should {
     #[tokio::test]
     async fn register_subscription() {
         let event_engine = event_engine();
-        let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
+        let manager = Arc::new(SubscriptionManager::new(event_engine));
 
         SubscriptionBuilder {
-            subscription_manager: Some(manager.clone()),
+            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
+                inner: Arc::new(SubscriptionConfigurationRef {
+                    subscription_manager: manager.clone(),
+                    deserializer: None,
+                }),
+            })))),
             ..Default::default()
         }
         .channels(["test".into()])
         .build()
         .unwrap();
 
-        assert_eq!(manager.read().as_ref().unwrap().subscribers.read().len(), 1);
+        assert_eq!(manager.subscribers.read().len(), 1);
     }
 
     #[tokio::test]
     async fn unregister_subscription() {
         let event_engine = event_engine();
-        let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
+        let manager = Arc::new(SubscriptionManager::new(event_engine));
 
         let subscription = SubscriptionBuilder {
-            subscription_manager: Some(manager.clone()),
+            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
+                inner: Arc::new(SubscriptionConfigurationRef {
+                    subscription_manager: manager.clone(),
+                    deserializer: None,
+                }),
+            })))),
             ..Default::default()
         }
         .channels(["test".into()])
         .build()
         .unwrap();
 
-        manager.read().as_ref().unwrap().unregister(subscription);
+        manager.unregister(subscription);
 
-        assert_eq!(manager.read().as_ref().unwrap().subscribers.read().len(), 0);
+        assert_eq!(manager.subscribers.read().len(), 0);
     }
 
     #[tokio::test]
     async fn notify_subscription_about_statuses() {
         let event_engine = event_engine();
-        let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
+        let manager = Arc::new(SubscriptionManager::new(event_engine));
 
         let subscription = SubscriptionBuilder {
-            subscription_manager: Some(manager.clone()),
+            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
+                inner: Arc::new(SubscriptionConfigurationRef {
+                    subscription_manager: manager.clone(),
+                    deserializer: None,
+                }),
+            })))),
             ..Default::default()
         }
         .channels(["test".into()])
         .build()
         .unwrap();
 
-        manager
-            .read()
-            .as_ref()
-            .unwrap()
-            .notify_new_status(&SubscribeStatus::Connected);
+        manager.notify_new_status(&SubscribeStatus::Connected);
 
         use futures::StreamExt;
         assert_eq!(
@@ -211,24 +221,25 @@ mod should {
     #[tokio::test]
     async fn notify_subscription_about_updates() {
         let event_engine = event_engine();
-        let manager = Arc::new(RwLock::new(Some(SubscriptionManager::new(event_engine))));
+        let manager = Arc::new(SubscriptionManager::new(event_engine));
 
         let subscription = SubscriptionBuilder {
-            subscription_manager: Some(manager.clone()),
+            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
+                inner: Arc::new(SubscriptionConfigurationRef {
+                    subscription_manager: manager.clone(),
+                    deserializer: None,
+                }),
+            })))),
             ..Default::default()
         }
         .channels(["test".into()])
         .build()
         .unwrap();
 
-        manager
-            .read()
-            .as_ref()
-            .unwrap()
-            .notify_new_messages(vec![Update::Message(Message {
-                channel: "test".into(),
-                ..Default::default()
-            })]);
+        manager.notify_new_messages(vec![Update::Message(Message {
+            channel: "test".into(),
+            ..Default::default()
+        })]);
 
         use futures::StreamExt;
         assert!(subscription.message_stream().next().await.is_some());

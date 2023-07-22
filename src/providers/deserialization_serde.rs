@@ -34,11 +34,11 @@ use crate::{
 /// [`dx`]: ../dx/index.html
 pub struct SerdeDeserializer;
 
-impl<'de, T> Deserializer<'de, T> for SerdeDeserializer
+impl<T> Deserializer<T> for SerdeDeserializer
 where
-    T: serde::Deserialize<'de>,
+    T: for<'de> serde::Deserialize<'de>,
 {
-    fn deserialize(&self, bytes: &'de [u8]) -> Result<T, crate::core::PubNubError> {
+    fn deserialize(&self, bytes: &[u8]) -> Result<T, PubNubError> {
         serde_json::from_slice(bytes).map_err(|e| PubNubError::Deserialization {
             details: e.to_string(),
         })
@@ -74,7 +74,7 @@ mod should {
     fn deserialize() {
         let sut = SerdeDeserializer;
 
-        let result: Foo = sut.deserialize(b"{\"bar\":\"baz\"}").unwrap();
+        let result: Foo = sut.deserialize(&Vec::from("{\"bar\":\"baz\"}")).unwrap();
 
         assert_eq!(
             result,

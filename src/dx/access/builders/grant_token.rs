@@ -34,7 +34,7 @@ use derive_builder::Builder;
 pub struct GrantTokenRequest<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'dl> Deserializer<'dl, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
@@ -132,7 +132,7 @@ where
 impl<'pa, T, S, D> GrantTokenRequest<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
@@ -153,7 +153,7 @@ where
 impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Validate user-provided data for request builder.
     ///
@@ -168,7 +168,7 @@ impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     T: Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Build and call request.
     pub async fn execute(self) -> Result<GrantTokenResult, PubNubError> {
@@ -204,7 +204,7 @@ impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     T: crate::core::blocking::Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Execute the request and return the result.
     ///
@@ -278,7 +278,7 @@ impl<T> GrantTokenRequestWithSerializerBuilder<T> {
         serializer: S,
     ) -> GrantTokenRequestWithDeserializerBuilder<T, S>
     where
-        D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+        D: Deserializer<GrantTokenResponseBody>,
         S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
     {
         GrantTokenRequestWithDeserializerBuilder {
@@ -304,7 +304,7 @@ where
         deserializer: D,
     ) -> GrantTokenRequestBuilder<'builder, T, S, D>
     where
-        D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+        D: Deserializer<GrantTokenResponseBody>,
     {
         GrantTokenRequestBuilder {
             pubnub_client: Some(self.pubnub_client),

@@ -1,8 +1,8 @@
 use crate::{
-    core::PubNubError,
+    core::{Deserializer, PubNubError},
     dx::subscribe::{
-        result::Update, subscription_manager::SubscriptionManager, types::SubscribeStreamEvent,
-        SubscribeCursor, SubscribeStatus,
+        result::Update, types::SubscribeStreamEvent, SubscribeCursor, SubscribeResponseBody,
+        SubscribeStatus, SubscriptionConfiguration,
     },
     lib::{
         alloc::{
@@ -12,7 +12,7 @@ use crate::{
             vec::Vec,
         },
         core::{
-            fmt::Debug,
+            fmt::{Debug, Formatter},
             ops::{Deref, DerefMut},
             pin::Pin,
             task::{Context, Poll, Waker},
@@ -120,7 +120,7 @@ impl Clone for Subscription {
 ///
 /// It should not be created directly, but via [`PubNubClient::subscribe`]
 /// and wrapped in [`Subscription`] struct.
-#[derive(Builder, Debug)]
+#[derive(Builder)]
 #[builder(
     pattern = "owned",
     name = "SubscriptionBuilder",
@@ -129,12 +129,12 @@ impl Clone for Subscription {
 )]
 #[allow(dead_code)]
 pub struct SubscriptionRef {
-    /// Manager of active subscriptions.
+    /// Subscription module configuration.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(custom, strip_option)
     )]
-    pub(in crate::dx::subscribe) subscription_manager: Arc<RwLock<Option<SubscriptionManager>>>,
+    pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
 
     /// Channels from which real-time updates should be received.
     ///
@@ -239,6 +239,13 @@ pub struct SubscriptionRef {
     pub(in crate::dx::subscribe) status_stream: RwLock<Option<SubscriptionStream<SubscribeStatus>>>,
 }
 
+/// [`SubscriptionWithDeserializerBuilder`] is used to configure a subscription
+/// listener with a custom deserializer.
+pub struct SubscriptionWithDeserializerBuilder {
+    /// Subscription module configuration.
+    pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
+}
+
 impl SubscriptionBuilder {
     /// Validate user-provided data for request builder.
     ///
@@ -264,16 +271,50 @@ impl SubscriptionBuilder {
                 inner: Arc::new(subscription),
             })
             .map(|subscription| {
-                subscription
-                    .subscription_manager
-                    .write()
-                    .as_ref()
-                    .map(|manager| manager.register(subscription.clone()));
+                if let Some(manager) = subscription.subscription.write().as_ref() {
+                    manager.subscription_manager.register(subscription.clone())
+                }
                 subscription
             })
             .map_err(|e| PubNubError::SubscribeInitialization {
                 details: e.to_string(),
             })
+    }
+}
+
+impl SubscriptionWithDeserializerBuilder {
+    /// Add custom deserializer.
+    ///
+    /// Adds the deserializer to the [`SubscriptionBuilder`].
+    ///
+    /// Instance of [`SubscriptionBuilder`] returned.
+    pub fn deserialize_with<D>(self, deserializer: D) -> SubscriptionBuilder
+    where
+        D: Deserializer<SubscribeResponseBody> + 'static,
+    {
+        {
+            if let Some(subscription) = self.subscription.write().as_mut() {
+                subscription
+                    .deserializer
+                    .is_none()
+                    .then(|| subscription.deserializer = Some(Arc::new(deserializer)));
+            }
+        }
+
+        SubscriptionBuilder {
+            subscription: Some(self.subscription),
+            ..Default::default()
+        }
+    }
+}
+
+impl Debug for SubscriptionRef {
+    fn fmt(&self, f: &mut Formatter<'_>) -> crate::lib::core::fmt::Result {
+        write!(
+            f,
+            "Subscription {{ \nchannels: {:?}, \nchannel-groups: {:?}, \ncursor: {:?}, \nheartbeat: {:?}, \nfilter_expression: {:?}}}",
+            self.channels, self.channel_groups, self.cursor, self.heartbeat, self.filter_expression
+        )
     }
 }
 
@@ -287,10 +328,9 @@ impl Subscription {
     /// ```
     /// ```
     pub async fn unsubscribe(self) {
-        self.subscription_manager
-            .write()
-            .as_ref()
-            .map(|manager| manager.unregister(self.clone()));
+        if let Some(manager) = self.subscription.write().as_ref() {
+            manager.subscription_manager.unregister(self.clone())
+        }
     }
 
     /// Stream of all subscription updates.
@@ -367,7 +407,7 @@ impl Subscription {
                     VecDeque::<SubscribeStatus>::with_capacity(updates_len),
                     |mut acc, event| {
                         if let SubscribeStreamEvent::Status(update) = event {
-                            acc.push_back(update.clone());
+                            acc.push_back(*update);
                         }
                         acc
                     },
@@ -385,11 +425,11 @@ impl Subscription {
     }
 
     /// Handle received real-time updates.
-    pub(in crate::dx::subscribe) fn handle_messages(&self, messages: &Vec<Update>) {
+    pub(in crate::dx::subscribe) fn handle_messages(&self, messages: &[Update]) {
         // Filter out updates for this subscriber.
         let messages = messages
-            .clone()
-            .into_iter()
+            .iter()
+            .cloned()
             .filter(|update| self.subscribed_for_update(update))
             .collect::<Vec<Update>>();
 
@@ -399,11 +439,7 @@ impl Subscription {
 
         if accumulate {
             let mut updates_slot = self.updates.write();
-            updates_slot.extend(
-                messages
-                    .into_iter()
-                    .map(|update| SubscribeStreamEvent::Update(update)),
-            );
+            updates_slot.extend(messages.into_iter().map(SubscribeStreamEvent::Update));
         } else {
             if let Some(stream) = common_stream.clone() {
                 let mut updates_slot = stream.updates.write();
@@ -412,7 +448,7 @@ impl Subscription {
                     messages
                         .clone()
                         .into_iter()
-                        .map(|update| SubscribeStreamEvent::Update(update)),
+                        .map(SubscribeStreamEvent::Update),
                 );
                 updates_slot
                     .len()

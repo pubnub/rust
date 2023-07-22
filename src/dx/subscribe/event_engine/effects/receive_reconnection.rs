@@ -9,6 +9,7 @@ use crate::{
 use futures::TryFutureExt;
 use log::info;
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
@@ -30,12 +31,12 @@ pub(crate) async fn execute(
     // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
     executor(SubscriptionParams {
-        channels: &channels,
-        channel_groups: &channel_groups,
+        channels,
+        channel_groups,
         cursor: Some(cursor),
         attempt,
         reason: Some(reason),
-        effect_id: &effect_id,
+        effect_id,
     })
     .map_ok_or_else(
         |error| {

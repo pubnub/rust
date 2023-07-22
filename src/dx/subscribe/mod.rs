@@ -29,10 +29,16 @@ use crate::{
 pub(crate) use subscription_manager::SubscriptionManager;
 pub(crate) mod subscription_manager;
 
+pub(crate) use subscription_configuration::{
+    SubscriptionConfiguration, SubscriptionConfigurationRef,
+};
+pub(crate) mod subscription_configuration;
+
 #[doc(inline)]
 pub use builders::*;
 pub mod builders;
 
+#[doc(inline)]
 use cancel::CancellationTask;
 mod cancel;
 
@@ -50,66 +56,109 @@ impl<T> PubNubClientInstance<T>
 where
     T: Transport + Send + 'static,
 {
-    /// Create subscribe request builder.
-    /// This method is used to create events stream for real-time updates on
-    /// passed list of channels and groups.
+    /// Create subscription listener.
     ///
-    /// Instance of [`SubscribeRequestBuilder`] returned.
-    #[cfg(feature = "tokio")]
+    /// Listeners configure [`PubNubClient`] to receive real-time updates for
+    /// specified list of channels and groups.
+    ///
+    /// Instance of [`SubscriptionBuilder`] returned.
+    /// [`PubNubClient`]: crate::PubNubClient
+    #[cfg(all(feature = "tokio", feature = "serde"))]
     pub fn subscribe(&self) -> SubscriptionBuilder {
         use crate::providers::futures_tokio::TokioRuntime;
 
         self.subscribe_with_runtime(TokioRuntime)
     }
 
-    /// Create subscribe request builder.
-    /// This method is used to create events stream for real-time updates on
-    /// passed list of channels and groups.
+    /// Create subscription listener.
+    ///
+    /// Listeners configure [`PubNubClient`] to receive real-time updates for
+    /// specified list of channels and groups.
+    ///
+    /// Instance of [`SubscriptionWithDeserializerBuilder`] returned.
+    /// [`PubNubClient`]: crate::PubNubClient
+    #[cfg(all(feature = "tokio", not(feature = "serde")))]
+    pub fn subscribe(&self) -> SubscriptionWithDeserializerBuilder {
+        use crate::providers::futures_tokio::TokioRuntime;
+
+        self.subscribe_with_runtime(TokioRuntime)
+    }
+
+    /// Create subscription listener.
+    ///
+    /// Listeners configure [`PubNubClient`] to receive real-time updates for
+    /// specified list of channels and groups.
     ///
     /// It takes custom runtime which will be used for detached tasks spawning
     /// and delayed task execution.
     ///
-    /// Instance of [`SubscribeRequestBuilder`] returned.
+    /// Instance of [`SubscriptionBuilder`] returned.
+    /// [`PubNubClient`]: crate::PubNubClient
+    #[cfg(feature = "serde")]
     pub fn subscribe_with_runtime<R>(&self, runtime: R) -> SubscriptionBuilder
     where
         R: Runtime + 'static,
     {
         {
-            // Initialize manager when it will be first required.
-            let mut manager_slot = self.subscription_manager.write();
-            if manager_slot.is_none() {
-                *manager_slot = Some(self.clone().subscription_manager(runtime.clone()));
+            // Initialize subscription module when it will be first required.
+            let mut subscription_slot = self.subscription.write();
+            if subscription_slot.is_none() {
+                *subscription_slot = Some(SubscriptionConfiguration {
+                    inner: Arc::new(SubscriptionConfigurationRef {
+                        subscription_manager: Arc::new(self.clone().subscription_manager(runtime)),
+                        deserializer: Some(Arc::new(SerdeDeserializer)),
+                    }),
+                });
             }
         }
 
         SubscriptionBuilder {
-            subscription_manager: Some(self.subscription_manager.clone()),
+            subscription: Some(self.subscription.clone()),
             ..Default::default()
         }
     }
 
-    // /// Create subscribe request builder.
-    // /// This method is used to create events stream for real-time updates on
-    // /// passed list of channels and groups.
-    // ///
-    // /// Instance of [`SubscribeRequestBuilder`] returned.
-    // #[cfg(not(feature = "serde"))]
-    // pub fn subscribe(&self) -> SubscribeRequestWithDeserializerBuilder<T> {
-    //     SubscribeRequestWithDeserializerBuilder {
-    //         pubnub_client: self.clone(),
-    //     }
-    // }
+    /// Create subscription listener.
+    ///
+    /// Listeners configure [`PubNubClient`] to receive real-time updates for
+    /// specified list of channels and groups.
+    ///
+    /// It takes custom runtime which will be used for detached tasks spawning
+    /// and delayed task execution.
+    ///
+    /// Instance of [`SubscriptionWithDeserializerBuilder`] returned.
+    /// [`PubNubClient`]: crate::PubNubClient
+    #[cfg(not(feature = "serde"))]
+    pub fn subscribe_with_runtime<R>(&self, runtime: R) -> SubscriptionWithDeserializerBuilder
+    where
+        R: Runtime + 'static,
+    {
+        {
+            // Initialize subscription module when it will be first required.
+            let mut subscription_slot = self.subscription.write();
+            if subscription_slot.is_none() {
+                *subscription_slot = Some(SubscriptionConfiguration {
+                    inner: Arc::new(SubscriptionConfigurationRef {
+                        subscription_manager: Arc::new(self.clone().subscription_manager(runtime)),
+                        deserializer: None,
+                    }),
+                });
+            }
+        }
+
+        SubscriptionWithDeserializerBuilder {
+            subscription: self.subscription.clone(),
+        }
+    }
 
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
     /// passed list of channels and groups.
     ///
     /// Instance of [`SubscribeRequestBuilder`] returned.
-    #[cfg(feature = "serde")]
-    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T, SerdeDeserializer> {
+    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T> {
         SubscribeRequestBuilder {
             pubnub_client: Some(self.clone()),
-            deserializer: Some(SerdeDeserializer),
             ..Default::default()
         }
     }
@@ -163,17 +212,27 @@ where
             request = request.channel_groups(channel_groups);
         }
 
+        let deserializer = {
+            let subscription = client
+                .subscription
+                .read()
+                .clone()
+                .expect("Subscription configuration is missing");
+            subscription
+                .deserializer
+                .clone()
+                .expect("Deserializer is missing")
+        };
+
         let cancel_task = CancellationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
 
-        request.execute(cancel_task).boxed()
+        request.execute(deserializer, cancel_task).boxed()
     }
 
     fn emit_status(client: Self, status: &SubscribeStatus) {
-        client
-            .subscription_manager
-            .read()
-            .as_ref()
-            .map(|manager| manager.notify_new_status(status));
+        if let Some(manager) = client.subscription.read().as_ref() {
+            manager.subscription_manager.notify_new_status(status)
+        }
     }
 
     fn emit_messages(client: Self, messages: Vec<Update>) {
@@ -186,11 +245,9 @@ where
             messages
         };
 
-        client
-            .subscription_manager
-            .read()
-            .as_ref()
-            .map(|manager| manager.notify_new_messages(messages));
+        if let Some(manager) = client.subscription.read().as_ref() {
+            manager.subscription_manager.notify_new_messages(messages)
+        }
     }
 }
 
@@ -205,6 +262,7 @@ mod should {
         Keyset, PubNubClientBuilder,
     };
 
+    #[allow(dead_code)]
     fn client() -> PubNubClientInstance<PubNubMiddleware<TransportReqwest>> {
         PubNubClientBuilder::with_reqwest_transport()
             .with_keyset(Keyset {
@@ -218,11 +276,13 @@ mod should {
     }
 
     #[tokio::test]
+    #[cfg(feature = "std")]
     async fn create_builder() {
         let _ = client().subscribe();
     }
 
     #[tokio::test]
+    #[cfg(feature = "std")]
     async fn make_handshake() {
         let _subscription = client()
             .subscribe()

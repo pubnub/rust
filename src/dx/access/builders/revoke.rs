@@ -34,7 +34,7 @@ use derive_builder::Builder;
 /// [`PubNubClient`]: crate::PubNubClient
 pub struct RevokeTokenRequest<T, D>
 where
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
@@ -69,7 +69,7 @@ pub struct RevokeTokenRequestWithDeserializerBuilder<T> {
 
 impl<T, D> RevokeTokenRequest<T, D>
 where
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
@@ -89,7 +89,7 @@ where
 
 impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Validate user-provided data for request builder.
     ///
@@ -103,7 +103,7 @@ where
 impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
     T: Transport,
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Build and call request.
     pub async fn execute(self) -> Result<RevokeTokenResult, PubNubError> {
@@ -138,7 +138,7 @@ where
 impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
     T: crate::core::blocking::Transport,
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Execute the request and return the result.
     ///
@@ -202,7 +202,7 @@ impl<T> RevokeTokenRequestWithDeserializerBuilder<T> {
     /// Instance of [`RevokeTokenRequestBuilder`] returned.
     pub fn deserialize_with<D>(self, deserializer: D) -> RevokeTokenRequestBuilder<T, D>
     where
-        D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+        D: Deserializer<RevokeTokenResponseBody>,
     {
         RevokeTokenRequestBuilder {
             pubnub_client: Some(self.pubnub_client),
