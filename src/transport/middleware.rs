@@ -229,7 +229,7 @@ mod should {
         }
 
         let middleware = PubNubMiddleware {
-            transport: MockTransport::default(),
+            transport: MockTransport,
             instance_id: Arc::new(Some(String::from("instance_id"))),
             user_id: String::from("user_id").into(),
             signature_keys: None,
@@ -296,7 +296,7 @@ mod should {
         }
 
         let middleware = PubNubMiddleware {
-            transport: MockTransport::default(),
+            transport: MockTransport,
             instance_id: Some(String::from("instance_id")).into(),
             user_id: "user_id".to_string().into(),
             signature_keys: None,

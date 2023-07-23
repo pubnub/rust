@@ -471,7 +471,7 @@ mod should {
             }
         }
 
-        PubNubClientBuilder::with_transport(MockTransport::default())
+        PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 publish_key: Some(""),
                 subscribe_key: "",
@@ -707,7 +707,7 @@ mod should {
             }
         }
 
-        let client = PubNubClientBuilder::with_transport(MockTransport::default())
+        let client = PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 publish_key: Some(""),
                 subscribe_key: "",

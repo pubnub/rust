@@ -785,7 +785,7 @@ mod should {
             type_name::<T>()
         }
 
-        let client = PubNubClientBuilder::with_transport(MockTransport::default())
+        let client = PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 subscribe_key: "",
                 publish_key: Some(""),
