@@ -11,11 +11,11 @@ fn events_and_invocations_history() -> Vec<Vec<String>> {
     let mut lines: Vec<Vec<String>> = Vec::new();
     let written_log =
         read_to_string("tests/logs/log.txt").expect("Unable to read history from log");
-    let event_regex = Regex::new(r"(?m)^DEBUG: Processing event: (.+)$").unwrap();
-    let invocation_regex = Regex::new(r"(?m)^DEBUG: Received invocation: (.+)$").unwrap();
+    let event_regex = Regex::new(r" DEBUG .* Processing event: (.+)$").unwrap();
+    let invocation_regex = Regex::new(r" DEBUG .* Received invocation: (.+)$").unwrap();
 
     for line in written_log.lines() {
-        if !line.starts_with("DEBUG: ") {
+        if !line.contains(" DEBUG ") {
             continue;
         }
 
@@ -33,6 +33,7 @@ fn events_and_invocations_history() -> Vec<Vec<String>> {
     lines
 }
 
+#[allow(dead_code)]
 fn event_occurrence_count(history: Vec<Vec<String>>, event: String) -> usize {
     history
         .iter()
@@ -40,6 +41,7 @@ fn event_occurrence_count(history: Vec<Vec<String>>, event: String) -> usize {
         .count()
 }
 
+#[allow(dead_code)]
 fn invocation_occurrence_count(history: Vec<Vec<String>>, invocation: String) -> usize {
     history
         .iter()
@@ -149,7 +151,7 @@ async fn receive_an_error_subscribe_retry(world: &mut PubNubWorld) {
 }
 
 #[then("I observe the following:")]
-async fn event_engine_history(world: &mut PubNubWorld, step: &Step) {
+async fn event_engine_history(_world: &mut PubNubWorld, step: &Step) {
     let history = events_and_invocations_history();
 
     if let Some(table) = step.table.as_ref() {

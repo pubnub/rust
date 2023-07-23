@@ -1,7 +1,6 @@
 use cucumber::{writer, World, WriterExt};
-use spin::lock_api::RwLock;
-use std::fs::{create_dir_all, File, OpenOptions};
-use std::io::Write;
+use std::fs::{create_dir_all, read_to_string, File, OpenOptions};
+use std::process;
 
 mod access;
 mod common;
@@ -84,36 +83,22 @@ pub fn clear_log_file() {
     }
 }
 
-pub struct FileLogger {
-    file: RwLock<File>,
-}
-
-impl FileLogger {
-    pub fn new() -> Self {
-        create_dir_all("tests/logs").expect("Unable to create required directories for logs");
-        let file = OpenOptions::new()
+fn logger_target() -> env_logger::Target {
+    create_dir_all("tests/logs").expect("Unable to create required directories for logs");
+    env_logger::Target::Pipe(Box::new(
+        OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .open("tests/logs/log.txt")
-            .expect("Unable to open log file");
-        Self {
-            file: RwLock::new(file),
-        }
-    }
+            .expect("Unable to open log file"),
+    ))
 }
 
 #[tokio::main]
 async fn main() {
-    let file_logger = FileLogger::new();
     env_logger::builder()
-        .format(move |buf, record| {
-            let mut file = file_logger.file.write();
-            let file_record = record.clone();
-            writeln!(file, "{}: {}", file_record.level(), file_record.args())
-                .expect("Unable to write in logs file");
-            writeln!(buf, "{}: {}", record.level(), record.args())
-        })
+        .target(logger_target())
         .try_init()
         .unwrap();
     let _ = std::fs::create_dir_all("tests/reports");
@@ -153,4 +138,10 @@ async fn main() {
                 || is_ignored_scenario_tag(&current_feature, &scenario.tags))
         })
         .await;
+
+    let report =
+        read_to_string("tests/reports/report-required.xml").expect("Unable to load reports");
+    if report.contains("✘") {
+        process::exit(1)
+    }
 }

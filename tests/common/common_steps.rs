@@ -232,7 +232,7 @@ fn an_auth_error_is_returned(world: &mut PubNubWorld) {
 #[then(regex = r"^the error status code is (\d+)$")]
 #[given(regex = r"^the error status code is (\d+)$")]
 fn has_specific_error_code(world: &mut PubNubWorld, expected_status_code: u16) {
-    if let PubNubError::API { status, .. } = world.api_error.clone().unwrap() {
+    if let Some(PubNubError::API { status, .. }) = world.api_error.clone() {
         assert_eq!(status, expected_status_code);
     } else {
         panic!("API error is missing");

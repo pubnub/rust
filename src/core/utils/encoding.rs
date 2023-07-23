@@ -24,13 +24,36 @@ const USERINFO: &AsciiSet = &PATH
     .add(b'|');
 
 /// `+` sign needed by PubNub API
-const PUBNUB_SET: &AsciiSet = &USERINFO.add(b'+').add(b'%');
+const PUBNUB_SET: &AsciiSet = &USERINFO.add(b'+').add(b'%').add(b'!').add(b'$');
+
+/// Additional non-channel path component extension.
+const PUBNUB_NON_CHANNEL_PATH: &AsciiSet = &PUBNUB_SET.add(b',');
+
+pub enum UrlEncodeExtension {
+    /// Default PubNub required encoding.
+    Default,
+
+    /// Encoding applied to any non-channel component in path.
+    NonChannelPath,
+}
 
 /// `percent_encoding` crate recommends you to create your own set for encoding.
 /// To be consistent in the whole codebase - we created a function that can be used
 /// for encoding related stuff.
 pub fn url_encode(data: &[u8]) -> String {
-    percent_encode(data, PUBNUB_SET).to_string()
+    url_encode_extended(data, UrlEncodeExtension::Default).to_string()
+}
+
+/// `percent_encoding` crate recommends you to create your own set for encoding.
+/// To be consistent in the whole codebase - we created a function that can be used
+/// for encoding related stuff.
+pub fn url_encode_extended(data: &[u8], extension: UrlEncodeExtension) -> String {
+    let set = match extension {
+        UrlEncodeExtension::Default => PUBNUB_SET,
+        UrlEncodeExtension::NonChannelPath => PUBNUB_NON_CHANNEL_PATH,
+    };
+
+    percent_encode(data, set).to_string()
 }
 
 /// Join list of encoded strings.

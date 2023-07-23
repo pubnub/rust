@@ -25,7 +25,7 @@ use self::result::body_to_result;
 use crate::{
     core::{
         utils::{
-            encoding::url_encode,
+            encoding::{url_encode, url_encode_extended, UrlEncodeExtension},
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
         Cryptor, Deserializer, PubNubError, Serialize, Transport, TransportMethod,
@@ -42,7 +42,6 @@ use crate::{
         core::ops::Not,
     },
 };
-
 use base64::{engine::general_purpose, Engine as _};
 
 impl<T> PubNubClientInstance<T> {
@@ -317,7 +316,7 @@ where
                         pub_key,
                         sub_key,
                         url_encode(self.channel.as_bytes()),
-                        url_encode(m_str.as_bytes())
+                        url_encode_extended(m_str.as_bytes(), UrlEncodeExtension::NonChannelPath)
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
@@ -592,7 +591,10 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                url_encode(format!("\"{}\"", message).as_bytes())
+                url_encode_extended(
+                    format!("\"{}\"", message).as_bytes(),
+                    UrlEncodeExtension::NonChannelPath
+                )
             ),
             result.data.path
         );
@@ -614,7 +616,10 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                url_encode("{\"a\":\"b\"}".as_bytes())
+                url_encode_extended(
+                    "{\"a\":\"b\"}".as_bytes(),
+                    UrlEncodeExtension::NonChannelPath
+                )
             ),
             result.data.path
         );
@@ -657,7 +662,10 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                url_encode("{\"number\":7}".as_bytes())
+                url_encode_extended(
+                    "{\"number\":7}".as_bytes(),
+                    UrlEncodeExtension::NonChannelPath
+                )
             ),
             result.data.path
         );

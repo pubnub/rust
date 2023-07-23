@@ -192,7 +192,7 @@ mod should {
             let expected_delay = 10;
             let policy = RequestRetryPolicy::Linear {
                 delay: expected_delay,
-                max_retry: 2,
+                max_retry: 3,
             };
 
             assert_eq!(
@@ -239,7 +239,7 @@ mod should {
             let policy = RequestRetryPolicy::Exponential {
                 min_delay: expected_delay,
                 max_delay: 100,
-                max_retry: 2,
+                max_retry: 3,
             };
 
             assert_eq!(
@@ -259,7 +259,7 @@ mod should {
             let policy = RequestRetryPolicy::Exponential {
                 min_delay: expected_delay,
                 max_delay: 100,
-                max_retry: 2,
+                max_retry: 3,
             };
 
             assert_eq!(
