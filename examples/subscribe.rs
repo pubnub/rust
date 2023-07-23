@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .channels(["hello".into(), "world".into()].to_vec())
         .heartbeat(10)
         .filter_expression("some_filter")
-        .build()?
+        .execute()?
         .stream()
         .for_each(|event| async move {
             match event {

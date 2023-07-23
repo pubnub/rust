@@ -1,8 +1,8 @@
 use crate::{
     core::{Deserializer, PubNubError},
     dx::subscribe::{
-        result::Update, types::SubscribeStreamEvent, SubscribeCursor, SubscribeResponseBody,
-        SubscribeStatus, SubscriptionConfiguration,
+        result::Update, types::SubscribeStreamEvent, SubscribeResponseBody, SubscribeStatus,
+        SubscriptionConfiguration,
     },
     lib::{
         alloc::{
@@ -167,7 +167,7 @@ pub struct SubscriptionRef {
         setter(strip_option),
         default = "Default::default()"
     )]
-    pub(in crate::dx::subscribe) cursor: Option<SubscribeCursor>,
+    pub(in crate::dx::subscribe) cursor: Option<u64>,
 
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
@@ -265,7 +265,7 @@ impl SubscriptionBuilder {
 
 impl SubscriptionBuilder {
     /// Construct subscription object.
-    pub fn build(self) -> Result<Subscription, PubNubError> {
+    pub fn execute(self) -> Result<Subscription, PubNubError> {
         self.build_internal()
             .map(|subscription| Subscription {
                 inner: Arc::new(subscription),

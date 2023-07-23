@@ -45,6 +45,11 @@ pub(super) async fn execute(
                 {
                     vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
                 }
+                _ if !matches!(error, PubNubError::EffectCanceled)
+                    && !retry_policy.retriable(attempt, 500) =>
+                {
+                    vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
+                }
                 _ if !matches!(error, PubNubError::EffectCanceled) => {
                     vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }]
                 }

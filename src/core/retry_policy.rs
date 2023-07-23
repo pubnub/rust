@@ -47,7 +47,7 @@ impl RequestRetryPolicy {
             429 => true,
             500..=599 => match self {
                 Self::Linear { max_retry, .. } | Self::Exponential { max_retry, .. } => {
-                    attempt.le(max_retry)
+                    attempt.lt(max_retry)
                 }
                 _ => false,
             },

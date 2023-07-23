@@ -2,6 +2,7 @@ target
 Cargo.lock
 tests/features
 tests/reports
+tests/logs
 
 # GitHub Actions #
 ##################
@@ -9,3 +10,6 @@ tests/reports
 
 # IDE
 .idea
+
+# OS
+.DS_Store

@@ -156,7 +156,7 @@ mod should {
             ..Default::default()
         }
         .channels(["test".into()])
-        .build()
+        .execute()
         .unwrap();
 
         assert_eq!(manager.subscribers.read().len(), 1);
@@ -177,7 +177,7 @@ mod should {
             ..Default::default()
         }
         .channels(["test".into()])
-        .build()
+        .execute()
         .unwrap();
 
         manager.unregister(subscription);
@@ -200,7 +200,7 @@ mod should {
             ..Default::default()
         }
         .channels(["test".into()])
-        .build()
+        .execute()
         .unwrap();
 
         manager.notify_new_status(&SubscribeStatus::Connected);
@@ -233,7 +233,7 @@ mod should {
             ..Default::default()
         }
         .channels(["test".into()])
-        .build()
+        .execute()
         .unwrap();
 
         manager.notify_new_messages(vec![Update::Message(Message {

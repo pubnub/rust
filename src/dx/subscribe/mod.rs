@@ -287,7 +287,7 @@ mod should {
         let _subscription = client()
             .subscribe()
             .channels(["hello".into(), "world".into()].to_vec())
-            .build();
+            .execute();
 
         // if let Ok(subscription) = subscription {
         //     subscription

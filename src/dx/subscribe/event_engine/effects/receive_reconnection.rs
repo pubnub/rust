@@ -48,6 +48,11 @@ pub(crate) async fn execute(
                 {
                     vec![SubscribeEvent::ReceiveReconnectGiveUp { reason: error }]
                 }
+                _ if !matches!(error, PubNubError::EffectCanceled)
+                    && !retry_policy.retriable(attempt, 500) =>
+                {
+                    vec![SubscribeEvent::ReceiveReconnectGiveUp { reason: error }]
+                }
                 _ if !matches!(error, PubNubError::EffectCanceled) => {
                     vec![SubscribeEvent::ReceiveReconnectFailure { reason: error }]
                 }
