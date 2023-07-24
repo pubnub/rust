@@ -46,7 +46,7 @@ impl Clone for SubscriptionConfiguration {
 /// Subscription module configuration.
 pub(crate) struct SubscriptionConfigurationRef {
     /// Subscription manager
-    pub subscription_manager: Arc<SubscriptionManager>,
+    pub subscription_manager: SubscriptionManager,
 
     /// Received data deserializer.
     pub deserializer: Option<Arc<dyn Deserializer<SubscribeResponseBody>>>,

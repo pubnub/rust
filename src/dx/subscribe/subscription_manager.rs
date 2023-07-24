@@ -143,13 +143,13 @@ mod should {
 
     #[tokio::test]
     async fn register_subscription() {
-        let event_engine = event_engine();
-        let manager = Arc::new(SubscriptionManager::new(event_engine));
+        let manager = SubscriptionManager::new(event_engine());
+        let dummy_manager = SubscriptionManager::new(event_engine());
 
-        SubscriptionBuilder {
+        let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
                 inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: manager.clone(),
+                    subscription_manager: dummy_manager,
                     deserializer: None,
                 }),
             })))),
@@ -158,19 +158,21 @@ mod should {
         .channels(["test".into()])
         .execute()
         .unwrap();
+
+        manager.register(subscription);
 
         assert_eq!(manager.subscribers.read().len(), 1);
     }
 
     #[tokio::test]
     async fn unregister_subscription() {
-        let event_engine = event_engine();
-        let manager = Arc::new(SubscriptionManager::new(event_engine));
+        let manager = SubscriptionManager::new(event_engine());
+        let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
                 inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: manager.clone(),
+                    subscription_manager: dummy_manager,
                     deserializer: None,
                 }),
             })))),
@@ -180,6 +182,7 @@ mod should {
         .execute()
         .unwrap();
 
+        manager.register(subscription.clone());
         manager.unregister(subscription);
 
         assert_eq!(manager.subscribers.read().len(), 0);
@@ -187,13 +190,13 @@ mod should {
 
     #[tokio::test]
     async fn notify_subscription_about_statuses() {
-        let event_engine = event_engine();
-        let manager = Arc::new(SubscriptionManager::new(event_engine));
+        let manager = SubscriptionManager::new(event_engine());
+        let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
                 inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: manager.clone(),
+                    subscription_manager: dummy_manager,
                     deserializer: None,
                 }),
             })))),
@@ -203,6 +206,7 @@ mod should {
         .execute()
         .unwrap();
 
+        manager.register(subscription.clone());
         manager.notify_new_status(&SubscribeStatus::Connected);
 
         use futures::StreamExt;
@@ -220,13 +224,13 @@ mod should {
 
     #[tokio::test]
     async fn notify_subscription_about_updates() {
-        let event_engine = event_engine();
-        let manager = Arc::new(SubscriptionManager::new(event_engine));
+        let manager = SubscriptionManager::new(event_engine());
+        let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
                 inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: manager.clone(),
+                    subscription_manager: dummy_manager,
                     deserializer: None,
                 }),
             })))),
@@ -235,6 +239,8 @@ mod should {
         .channels(["test".into()])
         .execute()
         .unwrap();
+
+        manager.register(subscription.clone());
 
         manager.notify_new_messages(vec![Update::Message(Message {
             channel: "test".into(),
