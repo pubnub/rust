@@ -72,7 +72,6 @@ where
                     Ok(invocation) => {
                         log::debug!("Received invocation: {}", invocation.id());
 
-                        // TODO: Spawn detached task here and await on Effect::execute / Effect::run  until completion.
                         let effect = cloned_self.dispatch(&invocation);
                         let task_completition = completion.clone();
 
