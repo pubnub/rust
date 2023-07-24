@@ -298,7 +298,6 @@ impl SubscribeState {
                     None,
                 ))
             }
-            _ => None,
         }
     }
 
@@ -956,7 +955,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, },
         },
         SubscribeEvent::HandshakeReconnectFailure {
@@ -965,7 +964,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 1,
+            attempts: 2,
             reason: PubNubError::Transport { details: "Test reason on error".to_string(), status: 500, },
         };
         "to handshake reconnecting on reconnect failure"
@@ -974,7 +973,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, },
         },
         SubscribeEvent::SubscriptionChanged {
@@ -991,7 +990,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, },
         },
         SubscribeEvent::Disconnect,
@@ -1005,7 +1004,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, },
         },
         SubscribeEvent::HandshakeReconnectGiveUp {
@@ -1022,7 +1021,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, },
         },
         SubscribeEvent::HandshakeReconnectSuccess {
@@ -1039,7 +1038,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, },
         },
         SubscribeEvent::SubscriptionRestored {
@@ -1058,7 +1057,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, },
         },
         SubscribeEvent::ReceiveSuccess {
@@ -1068,7 +1067,7 @@ mod should {
         SubscribeState::HandshakeReconnecting {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, },
         };
         "to not change on unexpected event"
@@ -1271,7 +1270,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), status: 500, }
         };
         "to receive reconnecting on receive failure"
@@ -1325,7 +1324,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), status: 500, }
         },
         SubscribeEvent::ReceiveReconnectFailure {
@@ -1335,7 +1334,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 1,
+            attempts: 2,
             reason: PubNubError::Transport { details: "Test reconnect error".to_string(), status: 500, }
         };
         "to receive reconnecting on reconnect failure"
@@ -1345,7 +1344,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), status: 500, }
         },
         SubscribeEvent::SubscriptionChanged {
@@ -1364,7 +1363,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), status: 500, }
         },
         SubscribeEvent::SubscriptionRestored {
@@ -1384,7 +1383,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), status: 500, }
         },
         SubscribeEvent::Disconnect,
@@ -1400,7 +1399,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), status: 500, }
         },
         SubscribeEvent::ReceiveReconnectGiveUp {
@@ -1419,7 +1418,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), status: 500, }
         },
         SubscribeEvent::HandshakeSuccess {
@@ -1429,7 +1428,7 @@ mod should {
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
-            attempts: 0,
+            attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), status: 500, }
         };
         "to not change on unexpected event"
