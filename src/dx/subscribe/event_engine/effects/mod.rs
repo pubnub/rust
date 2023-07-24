@@ -343,7 +343,9 @@ impl Effect for SubscribeEffect {
                 cancellation_channel,
                 ..
             } => {
-                cancellation_channel.send_blocking(self.id()).unwrap(); // TODO: result ;/
+                cancellation_channel
+                    .send_blocking(self.id())
+                    .expect("cancellation pipe is broken!");
             }
             _ => { /* cannot cancel other effects */ }
         }
