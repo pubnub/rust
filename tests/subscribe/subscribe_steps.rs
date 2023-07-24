@@ -163,22 +163,7 @@ async fn receive_an_error_subscribe_retry(world: &mut PubNubWorld) {
 
 #[then("I observe the following:")]
 async fn event_engine_history(_world: &mut PubNubWorld, step: &Step) {
-    use std::io::Write;
-
     let history = events_and_invocations_history();
-
-    let mut ff = File::create("tests/logs/history.txt").unwrap();
-    writeln!(
-        ff,
-        "[\n{:?}\n]",
-        history
-            .clone()
-            .iter()
-            .map(|pair| format!("({})", pair.join(",")))
-            .collect::<Vec<String>>()
-            .join(",\n")
-    )
-    .unwrap();
 
     if let Some(table) = step.table.as_ref() {
         match_history_to_feature(history, table);
