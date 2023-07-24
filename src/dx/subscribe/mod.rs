@@ -296,7 +296,7 @@ where
             if subscription_slot.is_none() {
                 *subscription_slot = Some(SubscriptionConfiguration {
                     inner: Arc::new(SubscriptionConfigurationRef {
-                        subscription_manager: Arc::new(self.clone().subscription_manager(runtime)),
+                        subscription_manager: self.clone().subscription_manager(runtime),
                         deserializer: None,
                     }),
                 });
