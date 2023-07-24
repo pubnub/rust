@@ -159,6 +159,7 @@ where
     ///
     /// It takes custom runtime which will be used for detached tasks spawning
     /// and delayed task execution.
+    ///
     /// ```no_run // Starts listening for real-time updates
     /// use futures::StreamExt;
     /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
@@ -217,7 +218,7 @@ where
             if subscription_slot.is_none() {
                 *subscription_slot = Some(SubscriptionConfiguration {
                     inner: Arc::new(SubscriptionConfigurationRef {
-                        subscription_manager: Arc::new(self.clone().subscription_manager(runtime)),
+                        subscription_manager: self.clone().subscription_manager(runtime),
                         deserializer: Some(Arc::new(SerdeDeserializer)),
                     }),
                 });
@@ -295,7 +296,7 @@ where
             if subscription_slot.is_none() {
                 *subscription_slot = Some(SubscriptionConfiguration {
                     inner: Arc::new(SubscriptionConfigurationRef {
-                        subscription_manager: Arc::new(self.clone().subscription_manager(runtime)),
+                        subscription_manager: self.clone().subscription_manager(runtime),
                         deserializer: None,
                     }),
                 });

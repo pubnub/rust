@@ -271,7 +271,7 @@ impl SubscriptionBuilder {
                 inner: Arc::new(subscription),
             })
             .map(|subscription| {
-                if let Some(manager) = subscription.subscription.write().as_ref() {
+                if let Some(manager) = subscription.subscription.write().as_mut() {
                     manager.subscription_manager.register(subscription.clone())
                 }
                 subscription
@@ -328,7 +328,7 @@ impl Subscription {
     /// ```
     /// ```
     pub async fn unsubscribe(self) {
-        if let Some(manager) = self.subscription.write().as_ref() {
+        if let Some(manager) = self.subscription.write().as_mut() {
             manager.subscription_manager.unregister(self.clone())
         }
     }

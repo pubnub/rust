@@ -11,7 +11,6 @@ use crate::{
     },
     lib::alloc::{sync::Arc, vec::Vec},
 };
-use spin::{RwLock, RwLockWriteGuard};
 
 /// Active subscriptions manager.
 ///
@@ -27,69 +26,69 @@ pub(crate) struct SubscriptionManager {
     /// Subscription event engine.
     ///
     /// State machine which is responsible for subscription loop maintenance.
-    subscribe_event_engine: RwLock<Arc<SubscribeEventEngine>>,
+    subscribe_event_engine: Arc<SubscribeEventEngine>,
 
     /// List of registered subscribers.
     ///
     /// List of subscribers which will receive real-time updates.
-    subscribers: RwLock<Vec<Subscription>>,
+    subscribers: Vec<Subscription>,
 }
 
 #[allow(dead_code)]
 impl SubscriptionManager {
     pub fn new(subscribe_event_engine: Arc<SubscribeEventEngine>) -> Self {
         Self {
-            subscribe_event_engine: RwLock::new(subscribe_event_engine),
+            subscribe_event_engine,
             subscribers: Default::default(),
         }
     }
 
     pub fn notify_new_status(&self, status: &SubscribeStatus) {
-        self.subscribers.read().iter().for_each(|subscription| {
+        self.subscribers.iter().for_each(|subscription| {
             subscription.handle_status(status.clone());
         });
     }
 
     pub fn notify_new_messages(&self, messages: Vec<Update>) {
-        self.subscribers.read().iter().for_each(|subscription| {
+        self.subscribers.iter().for_each(|subscription| {
             subscription.handle_messages(&messages);
         });
     }
 
-    pub fn register(&self, subscription: Subscription) {
-        let mut subscribers_slot = self.subscribers.write();
-        subscribers_slot.push(subscription);
+    pub fn register(&mut self, subscription: Subscription) {
+        self.subscribers.push(subscription);
 
-        self.change_subscription(&subscribers_slot);
+        self.change_subscription();
     }
 
-    pub fn unregister(&self, subscription: Subscription) {
-        let mut subscribers_slot = self.subscribers.write();
-        if let Some(position) = subscribers_slot
+    pub fn unregister(&mut self, subscription: Subscription) {
+        if let Some(position) = self
+            .subscribers
             .iter()
             .position(|val| val.id.eq(&subscription.id))
         {
-            subscribers_slot.swap_remove(position);
+            self.subscribers.swap_remove(position);
         }
 
-        self.change_subscription(&subscribers_slot);
+        self.change_subscription();
     }
 
-    fn change_subscription(&self, subscribers_slot: &RwLockWriteGuard<Vec<Subscription>>) {
-        let channels = subscribers_slot
+    fn change_subscription(&self) {
+        let channels = self
+            .subscribers
             .iter()
             .flat_map(|val| val.channels.iter())
             .cloned()
             .collect::<Vec<_>>();
 
-        let channel_groups = subscribers_slot
+        let channel_groups = self
+            .subscribers
             .iter()
             .flat_map(|val| val.channel_groups.iter())
             .cloned()
             .collect::<Vec<_>>();
 
         self.subscribe_event_engine
-            .write()
             .process(&SubscribeEvent::SubscriptionChanged {
                 channels: (!channels.is_empty()).then_some(channels),
                 channel_groups: (!channel_groups.is_empty()).then_some(channel_groups),
@@ -112,6 +111,7 @@ mod should {
         lib::alloc::sync::Arc,
         providers::futures_tokio::TokioRuntime,
     };
+    use spin::RwLock;
 
     #[allow(dead_code)]
     fn event_engine() -> Arc<SubscribeEventEngine> {
@@ -143,13 +143,13 @@ mod should {
 
     #[tokio::test]
     async fn register_subscription() {
-        let event_engine = event_engine();
-        let manager = Arc::new(SubscriptionManager::new(event_engine));
+        let mut manager = SubscriptionManager::new(event_engine());
+        let dummy_manager = SubscriptionManager::new(event_engine());
 
-        SubscriptionBuilder {
+        let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
                 inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: manager.clone(),
+                    subscription_manager: dummy_manager,
                     deserializer: None,
                 }),
             })))),
@@ -159,18 +159,20 @@ mod should {
         .execute()
         .unwrap();
 
-        assert_eq!(manager.subscribers.read().len(), 1);
+        manager.register(subscription);
+
+        assert_eq!(manager.subscribers.len(), 1);
     }
 
     #[tokio::test]
     async fn unregister_subscription() {
-        let event_engine = event_engine();
-        let manager = Arc::new(SubscriptionManager::new(event_engine));
+        let mut manager = SubscriptionManager::new(event_engine());
+        let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
                 inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: manager.clone(),
+                    subscription_manager: dummy_manager,
                     deserializer: None,
                 }),
             })))),
@@ -180,20 +182,21 @@ mod should {
         .execute()
         .unwrap();
 
+        manager.register(subscription.clone());
         manager.unregister(subscription);
 
-        assert_eq!(manager.subscribers.read().len(), 0);
+        assert_eq!(manager.subscribers.len(), 0);
     }
 
     #[tokio::test]
     async fn notify_subscription_about_statuses() {
-        let event_engine = event_engine();
-        let manager = Arc::new(SubscriptionManager::new(event_engine));
+        let mut manager = SubscriptionManager::new(event_engine());
+        let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
                 inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: manager.clone(),
+                    subscription_manager: dummy_manager,
                     deserializer: None,
                 }),
             })))),
@@ -203,6 +206,7 @@ mod should {
         .execute()
         .unwrap();
 
+        manager.register(subscription.clone());
         manager.notify_new_status(&SubscribeStatus::Connected);
 
         use futures::StreamExt;
@@ -220,13 +224,13 @@ mod should {
 
     #[tokio::test]
     async fn notify_subscription_about_updates() {
-        let event_engine = event_engine();
-        let manager = Arc::new(SubscriptionManager::new(event_engine));
+        let mut manager = SubscriptionManager::new(event_engine());
+        let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
                 inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: manager.clone(),
+                    subscription_manager: dummy_manager,
                     deserializer: None,
                 }),
             })))),
@@ -235,6 +239,8 @@ mod should {
         .channels(["test".into()])
         .execute()
         .unwrap();
+
+        manager.register(subscription.clone());
 
         manager.notify_new_messages(vec![Update::Message(Message {
             channel: "test".into(),
