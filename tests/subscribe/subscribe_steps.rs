@@ -4,7 +4,7 @@ use cucumber::gherkin::Table;
 use cucumber::{codegen::Regex, gherkin::Step, then, when};
 use futures::{select_biased, FutureExt, StreamExt};
 use pubnub::core::RequestRetryPolicy;
-use std::fs::{read_to_string, File};
+use std::fs::read_to_string;
 
 /// Extract list of events and invocations from log.
 fn events_and_invocations_history() -> Vec<Vec<String>> {
