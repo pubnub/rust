@@ -156,3 +156,8 @@ required-features = ["default", "parse_token", "access"]
 [[example]]
 name = "pam_blocking"
 required-features = ["default", "blocking", "access"]
+
+[[example]]
+name = "subscribe"
+required-features = ["default", "subscribe"]
+
