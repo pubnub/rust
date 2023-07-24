@@ -30,45 +30,52 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
 
     println!("running!");
 
-    client
+    let subscription = client
         .subscribe()
-        .channels(["hello".into(), "world".into()].to_vec())
+        .channels(["my_channel".into(), "other_channel".into()].to_vec())
         .heartbeat(10)
         .filter_expression("some_filter")
-        .execute()?
-        .stream()
-        .for_each(|event| async move {
-            match event {
-                SubscribeStreamEvent::Update(update) => {
-                    println!("update: {:?}", update);
-                    match update {
-                        Update::Message(message) | Update::Signal(message) => {
-                            // Deserialize the message payload as you wish
-                            match serde_json::from_slice::<Message>(&message.data) {
-                                Ok(message) => println!("defined message: {:?}", message),
-                                Err(_) => {
-                                    println!("other message: {:?}", String::from_utf8(message.data))
-                                }
+        .execute()?;
+
+    tokio::spawn(subscription.stream().for_each(|event| async move {
+        match event {
+            SubscribeStreamEvent::Update(update) => {
+                println!("\nupdate: {:?}", update);
+                match update {
+                    Update::Message(message) | Update::Signal(message) => {
+                        // Deserialize the message payload as you wish
+                        match serde_json::from_slice::<Message>(&message.data) {
+                            Ok(message) => println!("defined message: {:?}", message),
+                            Err(_) => {
+                                println!("other message: {:?}", String::from_utf8(message.data))
                             }
                         }
-                        Update::Presence(presence) => {
-                            println!("presence: {:?}", presence)
-                        }
-                        Update::Object(object) => {
-                            println!("object: {:?}", object)
-                        }
-                        Update::MessageAction(action) => {
-                            println!("message action: {:?}", action)
-                        }
-                        Update::File(file) => {
-                            println!("file: {:?}", file)
-                        }
+                    }
+                    Update::Presence(presence) => {
+                        println!("presence: {:?}", presence)
+                    }
+                    Update::Object(object) => {
+                        println!("object: {:?}", object)
+                    }
+                    Update::MessageAction(action) => {
+                        println!("message action: {:?}", action)
+                    }
+                    Update::File(file) => {
+                        println!("file: {:?}", file)
                     }
                 }
-                SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
             }
-        })
-        .await;
+            SubscribeStreamEvent::Status(status) => println!("\nstatus: {:?}", status),
+        }
+    }));
+
+    // Sleep for a minute. Now you can send messages to the channels
+    // "my_channel" and "other_channel" and see them printed in the console.
+    // You can use the publish example to send messages.
+    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+
+    // You can also cancel the subscription at any time.
+    subscription.unsubscribe().await;
 
     Ok(())
 }
