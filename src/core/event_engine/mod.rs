@@ -35,8 +35,6 @@ pub(crate) use transition::Transition;
 
 pub(crate) mod transition;
 
-pub(crate) mod effect_execution;
-
 /// State machine's event engine.
 ///
 /// [`EventEngine`] is the core of state machines used in PubNub client and
