@@ -4,7 +4,7 @@ use cucumber::gherkin::Table;
 use cucumber::{codegen::Regex, gherkin::Step, then, when};
 use futures::{select_biased, FutureExt, StreamExt};
 use pubnub::core::RequestRetryPolicy;
-use std::fs::read_to_string;
+use std::fs::{read_to_string, File};
 
 /// Extract list of events and invocations from log.
 fn events_and_invocations_history() -> Vec<Vec<String>> {
@@ -109,7 +109,7 @@ async fn receive_message(world: &mut PubNubWorld) {
 
 #[then("I receive an error in my subscribe response")]
 async fn receive_an_error_subscribe_retry(world: &mut PubNubWorld) {
-    let mut subscription = world.subscription.clone().unwrap().stream();
+    let mut subscription = world.subscription.clone().unwrap().message_stream();
 
     select_biased! {
         _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)).fuse() => log::debug!("One \
@@ -139,20 +139,46 @@ async fn receive_an_error_subscribe_retry(world: &mut PubNubWorld) {
             "RECEIVE_RECONNECT_FAILURE"
         }
     };
+    let give_up_operation_name = {
+        if handshake_test {
+            "HANDSHAKE_RECONNECT_GIVEUP"
+        } else {
+            "RECEIVE_RECONNECT_GIVEUP"
+        }
+    };
 
     assert_eq!(
         event_occurrence_count(history.clone(), normal_operation_name.into()),
         1
     );
     assert_eq!(
-        event_occurrence_count(history, reconnect_operation_name.into()),
+        event_occurrence_count(history.clone(), reconnect_operation_name.into()),
         expected_retry_count - 1
+    );
+    assert_eq!(
+        event_occurrence_count(history, give_up_operation_name.into()),
+        1
     );
 }
 
 #[then("I observe the following:")]
 async fn event_engine_history(_world: &mut PubNubWorld, step: &Step) {
+    use std::io::Write;
+
     let history = events_and_invocations_history();
+
+    let mut ff = File::create("tests/logs/history.txt").unwrap();
+    writeln!(
+        ff,
+        "[\n{:?}\n]",
+        history
+            .clone()
+            .iter()
+            .map(|pair| format!("({})", pair.join(",")))
+            .collect::<Vec<String>>()
+            .join(",\n")
+    )
+    .unwrap();
 
     if let Some(table) = step.table.as_ref() {
         match_history_to_feature(history, table);

@@ -407,7 +407,7 @@ impl Subscription {
                     VecDeque::<SubscribeStatus>::with_capacity(updates_len),
                     |mut acc, event| {
                         if let SubscribeStreamEvent::Status(update) = event {
-                            acc.push_back(*update);
+                            acc.push_back(update.clone());
                         }
                         acc
                     },
@@ -481,7 +481,7 @@ impl Subscription {
             if let Some(stream) = common_stream.clone() {
                 let mut updates_slot = stream.updates.write();
                 let updates_len = updates_slot.len();
-                updates_slot.push_back(SubscribeStreamEvent::Status(status));
+                updates_slot.push_back(SubscribeStreamEvent::Status(status.clone()));
                 updates_slot
                     .len()
                     .ne(&updates_len)
@@ -491,7 +491,7 @@ impl Subscription {
             if let Some(stream) = stream.clone() {
                 let mut updates_slot = stream.updates.write();
                 let updates_len = updates_slot.len();
-                updates_slot.push_back(status);
+                updates_slot.push_back(status.clone());
                 updates_slot
                     .len()
                     .ne(&updates_len)

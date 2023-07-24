@@ -46,7 +46,7 @@ impl SubscriptionManager {
 
     pub fn notify_new_status(&self, status: &SubscribeStatus) {
         self.subscribers.read().iter().for_each(|subscription| {
-            subscription.handle_status(*status);
+            subscription.handle_status(status.clone());
         });
     }
 

@@ -109,7 +109,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::EmitStatus(status) => Some(SubscribeEffect::EmitStatus {
-                status: *status,
+                status: status.clone(),
                 executor: self.emit_status.clone(),
             }),
             SubscribeEffectInvocation::EmitMessages(messages) => {

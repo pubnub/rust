@@ -317,7 +317,7 @@ impl Effect for SubscribeEffect {
                 .await
             }
             SubscribeEffect::EmitStatus { status, executor } => {
-                emit_status::execute(*status, executor).await
+                emit_status::execute(status.clone(), executor).await
             }
             SubscribeEffect::EmitMessages { updates, executor } => {
                 emit_messagess::execute(updates.clone(), executor).await

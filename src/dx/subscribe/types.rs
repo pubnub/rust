@@ -84,7 +84,7 @@ pub struct SubscribeCursor {
 }
 
 /// Subscription statuses.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SubscribeStatus {
     /// Successfully connected and receiving real-time updates.
     Connected,
@@ -95,6 +95,9 @@ pub enum SubscribeStatus {
 
     /// Real-time updates receive stopped.
     Disconnected,
+
+    /// Connection attempt failed.
+    ConnectedError(PubNubError),
 }
 
 /// Presence update information.
@@ -523,6 +526,7 @@ impl core::fmt::Display for SubscribeStatus {
             Self::Connected => write!(f, "Connected"),
             Self::Reconnected => write!(f, "Reconnected"),
             Self::Disconnected => write!(f, "Disconnected"),
+            Self::ConnectedError(err) => write!(f, "ConnectionError({err:?})"),
         }
     }
 }

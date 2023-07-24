@@ -131,6 +131,12 @@ pub(crate) enum SubscribeEvent {
     ///
     /// [`PubNub`]: https://www.pubnub.com/
     Reconnect,
+
+    /// Unsubscribe from all channels and groups.
+    ///
+    /// Emitted when explicitly requested by user to leave all channels and
+    /// groups.
+    UnsubscribeAll,
 }
 
 impl Event for SubscribeEvent {
@@ -150,6 +156,7 @@ impl Event for SubscribeEvent {
             SubscribeEvent::ReceiveReconnectGiveUp { .. } => "RECEIVE_RECONNECT_GIVEUP",
             SubscribeEvent::Disconnect => "DISCONNECT",
             SubscribeEvent::Reconnect => "RECONNECT",
+            SubscribeEvent::UnsubscribeAll => "UNSUBSCRIBE_ALL",
         }
     }
 }

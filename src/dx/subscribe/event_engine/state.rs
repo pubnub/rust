@@ -235,6 +235,13 @@ impl SubscribeState {
                 },
                 None,
             )),
+            Self::HandshakeStopped { .. } => Some(self.transition_to(
+                Self::HandshakeStopped {
+                    channels: channels.clone(),
+                    channel_groups: channel_groups.clone(),
+                },
+                None,
+            )),
             Self::Receiving { cursor, .. }
             | Self::ReceiveReconnecting { cursor, .. }
             | Self::ReceiveFailed { cursor, .. } => Some(self.transition_to(
@@ -245,7 +252,14 @@ impl SubscribeState {
                 },
                 None,
             )),
-            _ => None,
+            Self::ReceiveStopped { cursor, .. } => Some(self.transition_to(
+                Self::ReceiveStopped {
+                    channels: channels.clone(),
+                    channel_groups: channel_groups.clone(),
+                    cursor: cursor.clone(),
+                },
+                None,
+            )),
         }
     }
 
@@ -274,6 +288,16 @@ impl SubscribeState {
                 },
                 None,
             )),
+            Self::HandshakeStopped { .. } | Self::ReceiveStopped { .. } => {
+                Some(self.transition_to(
+                    Self::ReceiveStopped {
+                        channels: channels.clone(),
+                        channel_groups: channel_groups.clone(),
+                        cursor: cursor.clone(),
+                    },
+                    None,
+                ))
+            }
             _ => None,
         }
     }
@@ -375,7 +399,9 @@ impl SubscribeState {
                     channel_groups: channel_groups.clone(),
                     reason: reason.clone(),
                 },
-                None,
+                Some(vec![EmitStatus(SubscribeStatus::ConnectedError(
+                    reason.clone(),
+                ))]),
             )),
             _ => None,
         }
@@ -431,7 +457,7 @@ impl SubscribeState {
                     channels: channels.clone(),
                     channel_groups: channel_groups.clone(),
                     cursor: cursor.clone(),
-                    attempts: 0,
+                    attempts: 1,
                     reason: reason.clone(),
                 },
                 None,
@@ -583,6 +609,14 @@ impl SubscribeState {
             _ => None,
         }
     }
+
+    /// Handle unsubscribe all event.
+    fn unsubscribe_all_transition(&self) -> Option<Transition<Self, SubscribeEffectInvocation>> {
+        Some(self.transition_to(
+            Self::Unsubscribed,
+            Some(vec![EmitStatus(SubscribeStatus::Disconnected)]),
+        ))
+    }
 }
 
 impl State for SubscribeState {
@@ -683,6 +717,7 @@ impl State for SubscribeState {
             }
             SubscribeEvent::Disconnect => self.disconnect_transition(),
             SubscribeEvent::Reconnect => self.reconnect_transition(),
+            SubscribeEvent::UnsubscribeAll => self.unsubscribe_all_transition(),
         }
     }
 
