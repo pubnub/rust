@@ -1,9 +1,9 @@
-use crate::lib::core::future::Future;
+//! This module contains the task spawning trait used in the PubNub client.
+//!
+//! The [`Spawner`] trait is used to spawn async tasks in work of the PubNub
+//! client.
 
-/// This module contains the task spawning trait used in the PubNub client.
-///
-/// The [`Spawner`] trait is used to spawn async tasks in work of the PubNub
-/// client.
+use crate::lib::core::future::Future;
 
 /// PubNub spawner trait.
 ///

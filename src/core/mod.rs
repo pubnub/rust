@@ -62,7 +62,7 @@ pub(crate) mod event_engine;
 #[cfg(feature = "event_engine")]
 pub use runtime::Runtime;
 #[cfg(feature = "event_engine")]
-pub(crate) mod runtime;
+pub mod runtime;
 
 pub(crate) mod utils;
 

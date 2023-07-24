@@ -77,18 +77,18 @@ where
     /// #      })
     /// #      .with_user_id("user_id")
     /// #      .build()?;
-    ///    client
-    ///        .subscribe()
-    ///        .channels(["hello".into(), "world".into()].to_vec())
-    ///        .execute()?
-    ///        .stream()
-    ///        .for_each(|event| async move {
-    ///            match event {
-    ///                SubscribeStreamEvent::Update(update) => println!("update: {:?}", update),
-    ///                SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
-    ///            }
-    ///        })
-    ///        .await;
+    /// client
+    ///     .subscribe()
+    ///     .channels(["hello".into(), "world".into()].to_vec())
+    ///     .execute()?
+    ///     .stream()
+    ///     .for_each(|event| async move {
+    ///         match event {
+    ///             SubscribeStreamEvent::Update(update) => println!("update: {:?}", update),
+    ///             SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
+    ///         }
+    ///     })
+    ///     .await;
     /// # Ok(())
     /// # }
     ///
@@ -110,6 +110,39 @@ where
     /// Listeners configure [`PubNubClient`] to receive real-time updates for
     /// specified list of channels and groups.
     ///
+    /// ```no_run // Starts listening for real-time updates
+    /// use futures::StreamExt;
+    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// #
+    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #      .with_keyset(Keyset {
+    /// #          subscribe_key: "demo",
+    /// #          publish_key: Some("demo"),
+    /// #          secret_key: None,
+    /// #      })
+    /// #      .with_user_id("user_id")
+    /// #      .build()?;
+    /// client
+    ///     .subscribe()
+    ///     .channels(["hello".into(), "world".into()].to_vec())
+    ///     .execute()?
+    ///     .stream()
+    ///     .for_each(|event| async move {
+    ///         match event {
+    ///             SubscribeStreamEvent::Update(update) => println!("update: {:?}", update),
+    ///             SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
+    ///         }
+    ///     })
+    ///    .await;
+    /// # Ok(())
+    /// # }
+    ///
+    /// ```
+    ///
     /// Instance of [`SubscriptionWithDeserializerBuilder`] returned.
     /// [`PubNubClient`]: crate::PubNubClient
     #[cfg(all(feature = "tokio", not(feature = "serde")))]
@@ -126,6 +159,50 @@ where
     ///
     /// It takes custom runtime which will be used for detached tasks spawning
     /// and delayed task execution.
+    /// ```no_run // Starts listening for real-time updates
+    /// use futures::StreamExt;
+    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    /// use pubnub::core::runtime::Runtime;
+    /// use std::future::Future;
+    ///
+    /// #[derive(Clone)]
+    /// struct MyRuntime;
+    ///
+    /// impl Runtime for MyRuntime {
+    ///    fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static) {
+    ///       // spawn the Future
+    ///       // e.g. tokio::spawn(future);
+    ///    }
+    /// }
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// #
+    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #      .with_keyset(Keyset {
+    /// #          subscribe_key: "demo",
+    /// #          publish_key: Some("demo"),
+    /// #          secret_key: None,
+    /// #      })
+    /// #      .with_user_id("user_id")
+    /// #      .build()?;
+    ///
+    /// client
+    ///     .subscribe_with_runtime(MyRuntime)
+    ///     .channels(["hello".into(), "world".into()].to_vec())
+    ///     .execute()?
+    ///     .stream()
+    ///     .for_each(|event| async move {
+    ///         match event {
+    ///             SubscribeStreamEvent::Update(update) => println!("update: {:?}", update),
+    ///             SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
+    ///         }
+    ///     })
+    ///     .await;
+    /// # Ok(())
+    /// # }
+    ///
+    /// ```
     ///
     /// Instance of [`SubscriptionBuilder`] returned.
     /// [`PubNubClient`]: crate::PubNubClient
@@ -160,6 +237,50 @@ where
     ///
     /// It takes custom runtime which will be used for detached tasks spawning
     /// and delayed task execution.
+    /// ```no_run // Starts listening for real-time updates
+    /// use futures::StreamExt;
+    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    /// use pubnub::core::runtime::Runtime;
+    /// use std::future::Future;
+    ///
+    /// #[derive(Clone)]
+    /// struct MyRuntime;
+    ///
+    /// impl Runtime for MyRuntime {
+    ///    fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static) {
+    ///       // spawn the Future
+    ///       // e.g. tokio::spawn(future);
+    ///    }
+    /// }
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// #
+    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #      .with_keyset(Keyset {
+    /// #          subscribe_key: "demo",
+    /// #          publish_key: Some("demo"),
+    /// #          secret_key: None,
+    /// #      })
+    /// #      .with_user_id("user_id")
+    /// #      .build()?;
+    ///
+    /// client
+    ///     .subscribe_with_runtime(MyRuntime)
+    ///     .channels(["hello".into(), "world".into()].to_vec())
+    ///     .execute()?
+    ///     .stream()
+    ///     .for_each(|event| async move {
+    ///         match event {
+    ///             SubscribeStreamEvent::Update(update) => println!("update: {:?}", update),
+    ///             SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
+    ///         }
+    ///     })
+    ///     .await;
+    /// # Ok(())
+    /// # }
+    ///
+    /// ```
     ///
     /// Instance of [`SubscriptionWithDeserializerBuilder`] returned.
     /// [`PubNubClient`]: crate::PubNubClient
