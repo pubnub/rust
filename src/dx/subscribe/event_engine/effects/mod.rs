@@ -249,7 +249,6 @@ impl Effect for SubscribeEffect {
     type Invocation = SubscribeEffectInvocation;
 
     fn id(&self) -> String {
-        // TODO: Identifiers need to be unique, so we won't cancel wrong effect
         match self {
             SubscribeEffect::Handshake { .. } => "HANDSHAKE_EFFECT".into(),
             SubscribeEffect::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT".into(),
