@@ -260,7 +260,6 @@ mod should {
 
     #[tokio::test]
     async fn create_managed_effect() {
-        // TODO: now we remove it right away!
         let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
         let effect = dispatcher.dispatch(&TestInvocation::Two);
@@ -276,7 +275,6 @@ mod should {
 
     #[test]
     fn cancel_managed_effect() {
-        // TODO: now we remove it right away!
         let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
         dispatcher.dispatch(&TestInvocation::Three);
