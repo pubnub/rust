@@ -71,7 +71,8 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
 
     // Sleep for a minute. Now you can send messages to the channels
     // "my_channel" and "other_channel" and see them printed in the console.
-    // You can use the publish example to send messages.
+    // You can use the publish example or [PubNub console](https://www.pubnub.com/docs/console/)
+    // to send messages.
     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
 
     // You can also cancel the subscription at any time.
