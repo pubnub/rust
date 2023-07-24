@@ -27,7 +27,7 @@ pub(crate) struct SubscriptionManager {
     /// Subscription event engine.
     ///
     /// State machine which is responsible for subscription loop maintenance.
-    subscribe_event_engine: RwLock<Arc<SubscribeEventEngine>>,
+    subscribe_event_engine: Arc<SubscribeEventEngine>,
 
     /// List of registered subscribers.
     ///
@@ -39,7 +39,7 @@ pub(crate) struct SubscriptionManager {
 impl SubscriptionManager {
     pub fn new(subscribe_event_engine: Arc<SubscribeEventEngine>) -> Self {
         Self {
-            subscribe_event_engine: RwLock::new(subscribe_event_engine),
+            subscribe_event_engine,
             subscribers: Default::default(),
         }
     }
@@ -89,7 +89,6 @@ impl SubscriptionManager {
             .collect::<Vec<_>>();
 
         self.subscribe_event_engine
-            .write()
             .process(&SubscribeEvent::SubscriptionChanged {
                 channels: (!channels.is_empty()).then_some(channels),
                 channel_groups: (!channel_groups.is_empty()).then_some(channel_groups),
