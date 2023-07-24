@@ -414,13 +414,48 @@ impl<T> PubNubClientInstance<T> where T: crate::core::blocking::Transport {}
 mod should {
     use super::*;
     use crate::{
-        transport::{middleware::PubNubMiddleware, TransportReqwest},
-        Keyset, PubNubClientBuilder,
+        core::{TransportRequest, TransportResponse},
+        Keyset, PubNubClientBuilder, PubNubGenericClient,
     };
 
-    #[allow(dead_code)]
-    fn client() -> PubNubClientInstance<PubNubMiddleware<TransportReqwest>> {
-        PubNubClientBuilder::with_reqwest_transport()
+    struct MockTransport;
+
+    #[async_trait::async_trait]
+    impl crate::core::Transport for MockTransport {
+        async fn send(&self, _request: TransportRequest) -> Result<TransportResponse, PubNubError> {
+            Ok(TransportResponse {
+                status: 200,
+                headers: [].into(),
+                body: Some(
+                    r#"{
+                        "t": {
+                            "t": "15628652479932717",
+                            "r": 4
+                        },
+                        "m": [
+                            { "a": "1",
+                            "f": 514,
+                            "i": "pn-0ca50551-4bc8-446e-8829-c70b704545fd",
+                            "s": 1,
+                            "p": {
+                            "t": "15628652479933927",
+                            "r": 4
+                            },
+                            "k": "demo",
+                            "c": "my-channel",
+                            "d": "my message",
+                            "b": "my-channel"
+                            }
+                        ]
+                    }"#
+                    .into(),
+                ),
+            })
+        }
+    }
+
+    fn client() -> PubNubGenericClient<MockTransport> {
+        PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 subscribe_key: "demo",
                 publish_key: Some("demo"),
@@ -432,60 +467,25 @@ mod should {
     }
 
     #[tokio::test]
-    #[cfg(feature = "std")]
     async fn create_builder() {
         let _ = client().subscribe();
     }
 
     #[tokio::test]
-    #[cfg(feature = "std")]
-    async fn make_handshake() {
-        let _subscription = client()
+    async fn subscribe() {
+        env_logger::init();
+        let subscription = client()
             .subscribe()
-            .channels(["hello".into(), "world".into()].to_vec())
-            .execute();
+            .channels(["world".into()].to_vec())
+            .execute()
+            .unwrap();
 
-        // if let Ok(subscription) = subscription {
-        //     subscription
-        //         .for_each(|data| async {
-        //             match data {
-        //                 Ok(update) => println!("~~~> Update: {:?}", update),
-        //                 Err(err) => println!("~~~> Error:P{}", err),
-        //             };
-        //         })
-        //         .await
-        // }
-        // let response = client()
-        //     .subscribe()
-        //     .channels(["hello".into(), "world".into()].to_vec())
-        //     .execute()
-        //     .await;
-        //
-        // assert!(response.is_ok(), "Request should success");
-        // if let Ok(result) = response {
-        //     assert_ne!(result.cursor.timetoken, "0");
-        //     assert_ne!(result.cursor.region, 0);
-        //     assert_eq!(result.messages.len(), 0);
-        // } else {
-        //     panic!("Handshake request did fail.");
-        // }
+        use futures::StreamExt;
+        let status = subscription.stream().next().await.unwrap();
+
+        assert!(matches!(
+            status,
+            SubscribeStreamEvent::Status(SubscribeStatus::Connected)
+        ));
     }
-
-    // TODO: add possibility to cancel subscription
-    //    #[tokio::test]
-    //    async fn cancel_effect() {
-    //        let mut client = client();
-    //
-    //        let subscription = client
-    //            .subscribe()
-    //            .channels(["hello".into(), "world".into()].to_vec())
-    //            .build()
-    //            .unwrap();
-    //
-    //        subscription.cancel().await;
-    //
-    //        let error = subscription.stream().await.unwrap_err();
-    //
-    //        assert!(matches!(error, PubNubError::EffectCanceled));
-    //    }
 }
