@@ -24,7 +24,7 @@ use crate::{
     },
 };
 use derive_builder::Builder;
-use futures::{select_biased, Future, FutureExt};
+use futures::{select_biased, FutureExt};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -165,46 +165,43 @@ where
     T: Transport,
 {
     /// Build and call request.
-    #[allow(clippy::manual_async_fn)]
-    pub fn execute<D>(
+    pub async fn execute<D>(
         self,
         deserializer: Arc<D>,
         cancel_task: CancellationTask,
-    ) -> impl Future<Output = Result<SubscribeResult, PubNubError>>
+    ) -> Result<SubscribeResult, PubNubError>
     where
         D: Deserializer<SubscribeResponseBody> + ?Sized,
     {
-        async move {
-            // Build request instance and report errors if any.
-            let request = self
-                .build()
-                .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+        // Build request instance and report errors if any.
+        let request = self
+            .build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
 
-            let transport_request = request.transport_request();
-            let client = request.pubnub_client.clone();
+        let transport_request = request.transport_request();
+        let client = request.pubnub_client.clone();
 
-            select_biased! {
-                _ = cancel_task.wait_for_cancel().fuse() => {
-                    Err(PubNubError::EffectCanceled)
-                },
-                result = client
-                    .transport
-                    .send(transport_request)
-                    .fuse() => {
-                        result?
-                            .body
-                            .map(|bytes|deserializer.deserialize(&bytes))
-                            .map_or(
-                                Err(PubNubError::general_api_error(
-                                    "No body in the response!",
-                                    None,
-                                )),
-                                |response_body| {
-                                    response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
-                                },
-                            )
-                    }
-            }
+        select_biased! {
+            _ = cancel_task.wait_for_cancel().fuse() => {
+                Err(PubNubError::EffectCanceled)
+            },
+            result = client
+                .transport
+                .send(transport_request)
+                .fuse() => {
+                    result?
+                        .body
+                        .map(|bytes|deserializer.deserialize(&bytes))
+                        .map_or(
+                            Err(PubNubError::general_api_error(
+                                "No body in the response!",
+                                None,
+                            )),
+                            |response_body| {
+                                response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
+                            },
+                        )
+                }
         }
     }
 }
