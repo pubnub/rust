@@ -12,6 +12,7 @@
 //! This one is used only for special cases when you need to have full control
 //! over subscription process or you need more compact subscription solution.
 
+use crate::dx::pubnub_client::PubNubClientInstance;
 use crate::dx::subscribe::Update;
 use crate::lib::alloc::{collections::VecDeque, sync::Arc};
 use crate::{
@@ -48,7 +49,7 @@ where
     ///
     /// This field is used to get [`Transport`] to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
-    pub(in crate::dx::subscribe) pubnub_client: PubNubGenericClient<T>,
+    pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T>,
 
     /// Channels from which real-time updates should be received.
     ///
@@ -152,7 +153,7 @@ where
     ///
     /// It creates a subscription object that can be used to get messages from
     /// PubNub.
-    fn execute_blocking(self) -> Result<RawSubscription<D, T>, PubNubError> {
+    pub fn execute(self) -> Result<RawSubscription<D, T>, PubNubError> {
         self.build_internal()
             .map_err(|e| PubNubError::SubscribeInitialization {
                 details: e.to_string(),
@@ -172,7 +173,7 @@ where
     ///
     /// It creates a subscription object that can be used to get messages from
     /// PubNub.
-    fn execute(self) -> Result<RawSubscription<D, T>, PubNubError> {
+    pub fn execute_blocking(self) -> Result<RawSubscription<D, T>, PubNubError> {
         self.build_internal()
             .map_err(|e| PubNubError::SubscribeInitialization {
                 details: e.to_string(),
@@ -330,6 +331,7 @@ mod should {
             blocking, Deserializer, PubNubError, Transport, TransportRequest, TransportResponse,
         },
         dx::subscribe::{result::APISuccessBody, SubscribeResponseBody},
+        transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder, PubNubGenericClient,
     };
 
@@ -363,7 +365,7 @@ mod should {
         }
     }
 
-    fn client() -> PubNubGenericClient<MockTransport> {
+    fn client() -> PubNubClientInstance<PubNubMiddleware<MockTransport>> {
         PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 subscribe_key: "demo",
@@ -375,8 +377,8 @@ mod should {
             .unwrap()
     }
 
-    fn sut() -> RawSubscriptionBuilder<MockDeserializer, MockTransport> {
-        let mut sut = RawSubscriptionBuilder::<MockDeserializer, MockTransport>::default();
+    fn sut() -> RawSubscriptionBuilder<MockDeserializer, PubNubMiddleware<MockTransport>> {
+        let mut sut = RawSubscriptionBuilder::default();
 
         sut.pubnub_client = Some(client());
         sut.deserializer = Some(Arc::new(MockDeserializer));

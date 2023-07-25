@@ -21,7 +21,7 @@ pub use types::{
 pub mod types;
 
 use crate::{
-    core::{event_engine::EventEngine, runtime::Runtime, PubNubError, Transport},
+    core::{blocking, event_engine::EventEngine, runtime::Runtime, PubNubError, Transport},
     dx::{pubnub_client::PubNubClientInstance, subscribe::result::SubscribeResult},
     lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
 };
@@ -40,6 +40,8 @@ pub mod builders;
 
 #[doc(inline)]
 use cancel::CancellationTask;
+
+use self::raw::RawSubscriptionBuilder;
 mod cancel;
 
 #[allow(dead_code)]
@@ -308,6 +310,15 @@ where
         }
     }
 
+    #[cfg(feature = "serde")]
+    pub fn subscribe_raw(&self) -> RawSubscriptionBuilder<SerdeDeserializer, T> {
+        RawSubscriptionBuilder {
+            pubnub_client: Some(self.clone()),
+            deserializer: Some(Arc::new(SerdeDeserializer)),
+            ..Default::default()
+        }
+    }
+
     pub(crate) fn subscription_manager<R>(&mut self, runtime: R) -> SubscriptionManager
     where
         R: Runtime + 'static,
@@ -413,7 +424,19 @@ impl<T> PubNubClientInstance<T> {
 }
 
 #[cfg(feature = "blocking")]
-impl<T> PubNubClientInstance<T> where T: crate::core::blocking::Transport {}
+impl<T> PubNubClientInstance<T>
+where
+    T: blocking::Transport + Send + Sync,
+{
+    #[cfg(feature = "serde")]
+    pub fn subscribe_raw_blocking(&self) -> RawSubscriptionBuilder<SerdeDeserializer, T> {
+        RawSubscriptionBuilder {
+            pubnub_client: Some(self.clone()),
+            deserializer: Some(Arc::new(SerdeDeserializer)),
+            ..Default::default()
+        }
+    }
+}
 
 #[cfg(test)]
 mod should {
@@ -431,8 +454,24 @@ mod should {
             Ok(TransportResponse {
                 status: 200,
                 headers: [].into(),
-                body: Some(
-                    r#"{
+                body: generate_body(),
+            })
+        }
+    }
+
+    impl blocking::Transport for MockTransport {
+        fn send(&self, _req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+            Ok(TransportResponse {
+                status: 200,
+                headers: [].into(),
+                body: generate_body(),
+            })
+        }
+    }
+
+    fn generate_body() -> Option<Vec<u8>> {
+        Some(
+            r#"{
                         "t": {
                             "t": "15628652479932717",
                             "r": 4
@@ -453,10 +492,8 @@ mod should {
                             }
                         ]
                     }"#
-                    .into(),
-                ),
-            })
-        }
+            .into(),
+        )
     }
 
     fn client() -> PubNubGenericClient<MockTransport> {
@@ -502,20 +539,20 @@ mod should {
             .unwrap();
 
         use futures::StreamExt;
-        let message = subscription.stream().next().await;
+        let message = subscription.stream().boxed().next().await;
 
         assert!(message.is_some());
     }
 
     #[test]
-    fn subscribe_raw() {
+    fn subscribe_raw_blocking() {
         let subscription = client()
             .subscribe_raw_blocking()
             .channels(["world".into()].to_vec())
             .execute()
             .unwrap();
 
-        let message = subscription.iter().next().await;
+        let message = subscription.iter().next();
 
         assert!(message.is_some());
     }
