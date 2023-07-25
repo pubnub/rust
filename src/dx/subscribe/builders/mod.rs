@@ -15,6 +15,8 @@ pub use subscription::{SubscriptionBuilder, SubscriptionBuilderError};
 #[allow(missing_docs)]
 pub mod subscription;
 
+pub mod raw;
+
 /// Validate [`PubNubClientInstance`] configuration.
 ///
 /// Check whether if the [`PubNubConfig`] contains all the required fields set

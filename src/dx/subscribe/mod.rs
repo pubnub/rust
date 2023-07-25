@@ -308,18 +308,6 @@ where
         }
     }
 
-    /// Create subscribe request builder.
-    /// This method is used to create events stream for real-time updates on
-    /// passed list of channels and groups.
-    ///
-    /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T> {
-        SubscribeRequestBuilder {
-            pubnub_client: Some(self.clone()),
-            ..Default::default()
-        }
-    }
-
     pub(crate) fn subscription_manager<R>(&mut self, runtime: R) -> SubscriptionManager
     where
         R: Runtime + 'static,
@@ -383,7 +371,9 @@ where
 
         let cancel_task = CancellationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
 
-        request.execute(deserializer, cancel_task).boxed()
+        request
+            .execute_with_cancel(deserializer, cancel_task)
+            .boxed()
     }
 
     fn emit_status(client: Self, status: &SubscribeStatus) {
@@ -404,6 +394,20 @@ where
 
         if let Some(manager) = client.subscription.read().as_ref() {
             manager.subscription_manager.notify_new_messages(messages)
+        }
+    }
+}
+
+impl<T> PubNubClientInstance<T> {
+    /// Create subscribe request builder.
+    /// This method is used to create events stream for real-time updates on
+    /// passed list of channels and groups.
+    ///
+    /// Instance of [`SubscribeRequestBuilder`] returned.
+    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T> {
+        SubscribeRequestBuilder {
+            pubnub_client: Some(self.clone()),
+            ..Default::default()
         }
     }
 }

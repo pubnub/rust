@@ -6,6 +6,7 @@
 use crate::dx::subscribe::SubscribeResponseBody;
 use crate::{
     core::{
+        blocking,
         utils::encoding::join_url_encoded,
         Deserializer, PubNubError, Transport, {TransportMethod, TransportRequest},
     },
@@ -41,10 +42,7 @@ use futures::{select_biased, FutureExt};
     no_std
 )]
 #[allow(dead_code, missing_docs)]
-pub(crate) struct SubscribeRequest<T>
-where
-    T: Transport + Send,
-{
+pub(crate) struct SubscribeRequest<T> {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
     pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T>,
@@ -93,10 +91,7 @@ where
     pub(in crate::dx::subscribe) filter_expression: Option<String>,
 }
 
-impl<T> SubscribeRequest<T>
-where
-    T: Transport,
-{
+impl<T> SubscribeRequest<T> {
     /// Create transport request from the request builder.
     pub(in crate::dx::subscribe) fn transport_request(&self) -> TransportRequest {
         let sub_key = &self.pubnub_client.config.subscribe_key;
@@ -138,10 +133,7 @@ where
     }
 }
 
-impl<T> SubscribeRequestBuilder<T>
-where
-    T: Transport,
-{
+impl<T> SubscribeRequestBuilder<T> {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
@@ -165,11 +157,7 @@ where
     T: Transport,
 {
     /// Build and call request.
-    pub async fn execute<D>(
-        self,
-        deserializer: Arc<D>,
-        cancel_task: CancellationTask,
-    ) -> Result<SubscribeResult, PubNubError>
+    pub async fn execute<D>(self, deserializer: Arc<D>) -> Result<SubscribeResult, PubNubError>
     where
         D: Deserializer<SubscribeResponseBody> + ?Sized,
     {
@@ -181,28 +169,71 @@ where
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
 
+        client
+            .transport
+            .send(transport_request)
+            .await?
+            .body
+            .map(|bytes| deserializer.deserialize(&bytes))
+            .map_or(
+                Err(PubNubError::general_api_error(
+                    "No body in the response!",
+                    None,
+                )),
+                |response_body| {
+                    response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
+                },
+            )
+    }
+
+    pub async fn execute_with_cancel<D>(
+        self,
+        deserializer: Arc<D>,
+        cancel_task: CancellationTask,
+    ) -> Result<SubscribeResult, PubNubError>
+    where
+        D: Deserializer<SubscribeResponseBody> + ?Sized,
+    {
         select_biased! {
             _ = cancel_task.wait_for_cancel().fuse() => {
                 Err(PubNubError::EffectCanceled)
             },
-            result = client
-                .transport
-                .send(transport_request)
-                .fuse() => {
-                    result?
-                        .body
-                        .map(|bytes|deserializer.deserialize(&bytes))
-                        .map_or(
-                            Err(PubNubError::general_api_error(
-                                "No body in the response!",
-                                None,
-                            )),
-                            |response_body| {
-                                response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
-                            },
-                        )
-                }
+            result = self.execute(deserializer).fuse() => result
         }
+    }
+}
+
+impl<T> SubscribeRequestBuilder<T>
+where
+    T: blocking::Transport,
+{
+    /// Build and call request.
+    pub fn execute_blocking<D>(self, deserializer: Arc<D>) -> Result<SubscribeResult, PubNubError>
+    where
+        D: Deserializer<SubscribeResponseBody> + ?Sized,
+    {
+        // Build request instance and report errors if any.
+        let request = self
+            .build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+
+        let transport_request = request.transport_request();
+        let client = request.pubnub_client.clone();
+
+        client
+            .transport
+            .send(transport_request)?
+            .body
+            .map(|bytes| deserializer.deserialize(&bytes))
+            .map_or(
+                Err(PubNubError::general_api_error(
+                    "No body in the response!",
+                    None,
+                )),
+                |response_body| {
+                    response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
+                },
+            )
     }
 }
 
@@ -243,7 +274,7 @@ mod should {
             .unwrap()
             .subscribe_request()
             .channels(vec!["test".into()])
-            .execute(Arc::new(SerdeDeserializer), cancel_task)
+            .execute_with_cancel(Arc::new(SerdeDeserializer), cancel_task)
             .await;
 
         assert!(matches!(result, Err(PubNubError::EffectCanceled)));
