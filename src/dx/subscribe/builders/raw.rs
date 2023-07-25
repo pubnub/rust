@@ -16,9 +16,7 @@ use crate::dx::subscribe::Update;
 use crate::lib::alloc::{collections::VecDeque, sync::Arc};
 use crate::{
     core::{blocking, Deserializer, PubNubError, Transport},
-    dx::subscribe::{
-        SubscribeCursor, SubscribeResponseBody,
-    },
+    dx::subscribe::{SubscribeCursor, SubscribeResponseBody},
     PubNubGenericClient,
 };
 use derive_builder::Builder;
@@ -92,6 +90,10 @@ where
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
     pub(in crate::dx::subscribe) deserializer: Arc<D>,
 
+    /// Heartbeat interval.
+    ///
+    /// Interval in seconds that informs the server that the client should
+    /// be considered alive.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -99,6 +101,10 @@ where
     )]
     pub(in crate::dx::subscribe) heartbeat: Option<u32>,
 
+    /// Expression used to filter received messages.
+    ///
+    /// Expression used to filter received messages before they are delivered
+    /// to the client.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option, into),

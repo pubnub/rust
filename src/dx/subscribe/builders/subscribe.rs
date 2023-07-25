@@ -41,7 +41,6 @@ use futures::{select_biased, FutureExt};
     build_fn(vis = "pub(in crate::dx::subscribe)", validate = "Self::validate"),
     no_std
 )]
-#[allow(dead_code, missing_docs)]
 pub(crate) struct SubscribeRequest<T> {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
@@ -76,6 +75,10 @@ pub(crate) struct SubscribeRequest<T> {
     )]
     pub(in crate::dx::subscribe) cursor: SubscribeCursor,
 
+    /// Heartbeat interval.
+    ///
+    /// Interval in seconds that informs the server that the client should
+    /// be considered alive.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(skip),
@@ -83,6 +86,10 @@ pub(crate) struct SubscribeRequest<T> {
     )]
     pub(in crate::dx::subscribe) heartbeat: u32,
 
+    /// Expression used to filter received messages.
+    ///
+    /// Expression used to filter received messages before they are delivered
+    /// to the client.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
