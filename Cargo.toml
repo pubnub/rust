@@ -158,6 +158,10 @@ name = "pam_blocking"
 required-features = ["default", "blocking", "access"]
 
 [[example]]
+name = "custom_origin"
+required-features = ["default"]
+
+[[example]]
 name = "subscribe"
 required-features = ["default", "subscribe"]
 
