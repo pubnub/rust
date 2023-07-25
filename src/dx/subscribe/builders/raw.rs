@@ -17,7 +17,7 @@ use crate::lib::alloc::{collections::VecDeque, sync::Arc};
 use crate::{
     core::{blocking, Deserializer, PubNubError, Transport},
     dx::subscribe::{
-        SubscribeCursor, SubscribeResponseBody, SubscribeStreamEvent, SubscriptionParams,
+        SubscribeCursor, SubscribeResponseBody,
     },
     PubNubGenericClient,
 };
@@ -342,7 +342,7 @@ mod should {
 
     #[async_trait::async_trait]
     impl Transport for MockTransport {
-        async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+        async fn send(&self, _req: TransportRequest) -> Result<TransportResponse, PubNubError> {
             // Send your request here
 
             Ok(TransportResponse::default())
@@ -350,7 +350,7 @@ mod should {
     }
 
     impl blocking::Transport for MockTransport {
-        fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+        fn send(&self, _req: TransportRequest) -> Result<TransportResponse, PubNubError> {
             // Send your request here
 
             Ok(TransportResponse::default())
