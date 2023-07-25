@@ -310,15 +310,6 @@ where
         }
     }
 
-    #[cfg(feature = "serde")]
-    pub fn subscribe_raw(&self) -> RawSubscriptionBuilder<SerdeDeserializer, T> {
-        RawSubscriptionBuilder {
-            pubnub_client: Some(self.clone()),
-            deserializer: Some(Arc::new(SerdeDeserializer)),
-            ..Default::default()
-        }
-    }
-
     pub(crate) fn subscription_manager<R>(&mut self, runtime: R) -> SubscriptionManager
     where
         R: Runtime + 'static,
@@ -410,6 +401,15 @@ where
 }
 
 impl<T> PubNubClientInstance<T> {
+    #[cfg(feature = "serde")]
+    pub fn subscribe_raw(&self) -> RawSubscriptionBuilder<SerdeDeserializer, T> {
+        RawSubscriptionBuilder {
+            pubnub_client: Some(self.clone()),
+            deserializer: Some(Arc::new(SerdeDeserializer)),
+            ..Default::default()
+        }
+    }
+
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
     /// passed list of channels and groups.
@@ -418,21 +418,6 @@ impl<T> PubNubClientInstance<T> {
     pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T> {
         SubscribeRequestBuilder {
             pubnub_client: Some(self.clone()),
-            ..Default::default()
-        }
-    }
-}
-
-#[cfg(feature = "blocking")]
-impl<T> PubNubClientInstance<T>
-where
-    T: blocking::Transport + Send + Sync,
-{
-    #[cfg(feature = "serde")]
-    pub fn subscribe_raw_blocking(&self) -> RawSubscriptionBuilder<SerdeDeserializer, T> {
-        RawSubscriptionBuilder {
-            pubnub_client: Some(self.clone()),
-            deserializer: Some(Arc::new(SerdeDeserializer)),
             ..Default::default()
         }
     }
