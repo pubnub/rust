@@ -313,12 +313,17 @@ mod should {
     #[derive(Clone)]
     struct TestRuntime {}
 
+    #[async_trait::async_trait]
     impl Runtime for TestRuntime {
         fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static)
         where
             R: Send + 'static,
         {
             tokio::spawn(future);
+        }
+
+        async fn sleep(self, delay: u64) {
+            tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
         }
     }
 

@@ -3,7 +3,7 @@
 //! The [`Spawner`] trait is used to spawn async tasks in work of the PubNub
 //! client.
 
-use crate::lib::core::future::Future;
+use crate::lib::{alloc::boxed::Box, core::future::Future};
 
 /// PubNub spawner trait.
 ///
@@ -19,13 +19,19 @@ use crate::lib::core::future::Future;
 /// #[derive(Clone)]
 /// struct MyRuntime;
 ///
+/// #[async_trait::async_trait]
 /// impl Runtime for MyRuntime {
 ///    fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static) {
 ///       // spawn the Future
 ///       // e.g. tokio::spawn(future);
 ///    }
+///    
+///    async fn sleep(self, _delay: u64) {
+///       // e.g. tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
+///    }
 /// }
 /// ```
+#[async_trait::async_trait]
 pub trait Runtime: Clone + Send {
     /// Spawn a task.
     ///
@@ -33,4 +39,9 @@ pub trait Runtime: Clone + Send {
     fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static)
     where
         R: Send + 'static;
+
+    /// Put current task to "sleep".
+    ///
+    /// Sleep current task for specified amount of time (in seconds).
+    async fn sleep(self, delay: u64);
 }

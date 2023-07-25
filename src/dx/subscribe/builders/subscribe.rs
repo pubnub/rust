@@ -15,6 +15,7 @@ use crate::{
     },
     lib::{
         alloc::{
+            boxed::Box,
             format,
             string::{String, ToString},
             sync::Arc,
@@ -24,6 +25,7 @@ use crate::{
     },
 };
 use derive_builder::Builder;
+use futures::future::BoxFuture;
 use futures::{select_biased, FutureExt};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
@@ -165,18 +167,20 @@ where
     T: Transport,
 {
     /// Build and call request.
-    pub async fn execute<D>(
+    pub async fn execute<D, F>(
         self,
         deserializer: Arc<D>,
+        delay: Arc<F>,
         cancel_task: CancellationTask,
     ) -> Result<SubscribeResult, PubNubError>
     where
         D: Deserializer<SubscribeResponseBody> + ?Sized,
+        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
     {
         // Build request instance and report errors if any.
         let request = self
             .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
@@ -185,33 +189,56 @@ where
             _ = cancel_task.wait_for_cancel().fuse() => {
                 Err(PubNubError::EffectCanceled)
             },
-            result = client
-                .transport
-                .send(transport_request)
-                .fuse() => {
-                    result?
-                        .body
-                        .map(|bytes|deserializer.deserialize(&bytes))
-                        .map_or(
+            response = async {
+                // Postpone request execution if required.
+                delay().await;
+
+                // Request configured endpoint.
+                let response = client.transport.send(transport_request).await?;
+                response
+                    .clone()
+                    .body
+                    .map(|bytes| {
+                        let deserialize_result = deserializer.deserialize(&bytes);
+                        if deserialize_result.is_err() && response.status >= 500 {
                             Err(PubNubError::general_api_error(
-                                "No body in the response!",
+                                "Unexpected service response",
                                 None,
-                            )),
-                            |response_body| {
-                                response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
-                            },
-                        )
-                }
+                                Some(Box::new(response.clone()))
+                            ))
+                        } else {
+                            deserialize_result
+                        }
+                    })
+                    .map_or(
+                        Err(PubNubError::general_api_error(
+                            "No body in the response!",
+                            None,
+                            Some(Box::new(response.clone()))
+                        )),
+                        |response_body| {
+                            response_body.and_then::<SubscribeResult, _>(|body| {
+                                body.try_into().map_err(|response_error: PubNubError| {
+                                    response_error.attach_response(response)
+                                })
+                            })
+                        },
+                    )
+            }.fuse() => {
+                response
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod should {
-    use crate::providers::deserialization_serde::SerdeDeserializer;
-    use crate::{core::TransportResponse, PubNubClientBuilder};
-
     use super::*;
+    use crate::{
+        core::TransportResponse, providers::deserialization_serde::SerdeDeserializer,
+        PubNubClientBuilder,
+    };
+    use futures::future::ready;
 
     #[tokio::test]
     async fn be_able_to_cancel_subscribe_call() {
@@ -243,7 +270,11 @@ mod should {
             .unwrap()
             .subscribe_request()
             .channels(vec!["test".into()])
-            .execute(Arc::new(SerdeDeserializer), cancel_task)
+            .execute(
+                Arc::new(SerdeDeserializer),
+                Arc::new(|| ready(()).boxed()),
+                cancel_task,
+            )
             .await;
 
         assert!(matches!(result, Err(PubNubError::EffectCanceled)));

@@ -20,15 +20,16 @@ pub(crate) async fn execute(
     retry_policy: &RequestRetryPolicy,
     executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
+    if !retry_policy.retriable(&attempt, Some(&reason)) {
+        return vec![SubscribeEvent::ReceiveReconnectGiveUp { reason }];
+    }
+
     info!(
         "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
         cursor.timetoken,
         channels.as_ref().unwrap_or(&Vec::new()),
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
-    let _retry_policy = retry_policy.clone();
-
-    // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
     executor(SubscriptionParams {
         channels,
@@ -42,22 +43,9 @@ pub(crate) async fn execute(
         |error| {
             log::debug!("Receive reconnection error: {:?}", error);
 
-            match error {
-                PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
-                    if !retry_policy.retriable(attempt, status) =>
-                {
-                    vec![SubscribeEvent::ReceiveReconnectGiveUp { reason: error }]
-                }
-                _ if !matches!(error, PubNubError::EffectCanceled)
-                    && !retry_policy.retriable(attempt, 500) =>
-                {
-                    vec![SubscribeEvent::ReceiveReconnectGiveUp { reason: error }]
-                }
-                _ if !matches!(error, PubNubError::EffectCanceled) => {
-                    vec![SubscribeEvent::ReceiveReconnectFailure { reason: error }]
-                }
-                _ => vec![],
-            }
+            (!matches!(error, PubNubError::EffectCanceled))
+                .then(|| vec![SubscribeEvent::ReceiveReconnectFailure { reason: error }])
+                .unwrap_or(vec![])
         },
         |subscribe_result| {
             vec![SubscribeEvent::ReceiveReconnectSuccess {
@@ -72,7 +60,11 @@ pub(crate) async fn execute(
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{core::PubNubError, dx::subscribe::result::SubscribeResult};
+    use crate::{
+        core::{PubNubError, TransportResponse},
+        dx::subscribe::result::SubscribeResult,
+        lib::alloc::boxed::Box,
+    };
     use futures::FutureExt;
 
     #[tokio::test]
@@ -85,7 +77,10 @@ mod should {
                 params.reason,
                 Some(PubNubError::Transport {
                     details: "test".into(),
-                    status: 500
+                    response: Some(Box::new(TransportResponse {
+                        status: 500,
+                        ..Default::default()
+                    })),
                 })
             );
             assert_eq!(params.cursor, Some(&Default::default()));
@@ -107,7 +102,10 @@ mod should {
             10,
             PubNubError::Transport {
                 details: "test".into(),
-                status: 500,
+                response: Some(Box::new(TransportResponse {
+                    status: 500,
+                    ..Default::default()
+                })),
             },
             "id",
             &RequestRetryPolicy::None,
@@ -128,7 +126,10 @@ mod should {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),
-                    status: 500,
+                    response: Some(Box::new(TransportResponse {
+                        status: 500,
+                        ..Default::default()
+                    })),
                 })
             }
             .boxed()
@@ -141,10 +142,16 @@ mod should {
             10,
             PubNubError::Transport {
                 details: "test".into(),
-                status: 500,
+                response: Some(Box::new(TransportResponse {
+                    status: 500,
+                    ..Default::default()
+                })),
             },
             "id",
-            &RequestRetryPolicy::None,
+            &RequestRetryPolicy::Linear {
+                delay: 0,
+                max_retry: 1,
+            },
             &mock_receive_function,
         )
         .await;

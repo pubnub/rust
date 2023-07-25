@@ -85,7 +85,7 @@ impl Transport for TransportReqwest {
             .await
             .map_err(|e| PubNubError::Transport {
                 details: e.to_string(),
-                status: 400,
+                response: None,
             })?;
 
         let headers = result.headers().clone();
@@ -95,7 +95,11 @@ impl Transport for TransportReqwest {
             .await
             .map_err(|e| PubNubError::Transport {
                 details: e.to_string(),
-                status: status.into(),
+                response: Some(Box::new(TransportResponse {
+                    status: status.into(),
+                    headers: extract_headers(&headers),
+                    body: None,
+                })),
             })
             .and_then(|bytes| create_result(status, bytes, &headers))
     }
@@ -160,7 +164,7 @@ impl TransportReqwest {
             .body
             .ok_or(PubNubError::Transport {
                 details: "Body should not be empty for POST".into(),
-                status: 400,
+                response: None,
             })
             .map(|vec_bytes| self.reqwest_client.post(url).body(vec_bytes))
     }
@@ -181,12 +185,12 @@ fn prepare_headers(request_headers: &HashMap<String, String>) -> Result<HeaderMa
             let name =
                 TryFrom::try_from(k).map_err(|err: InvalidHeaderName| PubNubError::Transport {
                     details: err.to_string(),
-                    status: 400,
+                    response: None,
                 })?;
             let value: HeaderValue =
                 TryFrom::try_from(v).map_err(|err: InvalidHeaderValue| PubNubError::Transport {
                     details: err.to_string(),
-                    status: 400,
+                    response: None,
                 })?;
             Ok((name, value))
         })
@@ -207,25 +211,26 @@ fn prepare_url(hostname: &str, path: &str, query_params: &HashMap<String, String
     qp
 }
 
+fn extract_headers(headers: &HeaderMap) -> HashMap<String, String> {
+    headers
+        .iter()
+        .fold(HashMap::new(), |mut acc, (name, value)| {
+            if let Ok(value) = value.to_str() {
+                acc.insert(name.to_string(), value.to_string());
+            }
+            acc
+        })
+}
+
 fn create_result(
     status: StatusCode,
     body: Bytes,
     headers: &HeaderMap,
 ) -> Result<TransportResponse, PubNubError> {
-    let headers: HashMap<String, String> =
-        headers
-            .iter()
-            .fold(HashMap::new(), |mut acc, (name, value)| {
-                if let Ok(value) = value.to_str() {
-                    acc.insert(name.to_string(), value.to_string());
-                }
-                acc
-            });
-
     Ok(TransportResponse {
         status: status.as_u16(),
         body: (!body.is_empty()).then(|| body.to_vec()),
-        headers,
+        headers: extract_headers(headers),
     })
 }
 
@@ -278,12 +283,16 @@ pub mod blocking {
 
     use log::info;
 
+    use crate::transport::reqwest::extract_headers;
     use crate::{
         core::{
             transport::PUBNUB_DEFAULT_BASE_URL, PubNubError, TransportMethod, TransportRequest,
             TransportResponse,
         },
-        lib::alloc::string::{String, ToString},
+        lib::alloc::{
+            boxed::Box,
+            string::{String, ToString},
+        },
         transport::reqwest::{create_result, prepare_headers, prepare_url},
         PubNubClientBuilder,
     };
@@ -336,7 +345,7 @@ pub mod blocking {
                 .send()
                 .map_err(|e| PubNubError::Transport {
                     details: e.to_string(),
-                    status: 400,
+                    response: None,
                 })?;
 
             let headers = result.headers().clone();
@@ -345,7 +354,11 @@ pub mod blocking {
                 .bytes()
                 .map_err(|e| PubNubError::Transport {
                     details: e.to_string(),
-                    status: status.into(),
+                    response: Some(Box::new(TransportResponse {
+                        status: status.into(),
+                        headers: extract_headers(&headers),
+                        body: None,
+                    })),
                 })
                 .and_then(|bytes| create_result(status, bytes, &headers))
         }

@@ -92,7 +92,7 @@ mod should {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),
-                    status: 500,
+                    response: None,
                 })
             }
             .boxed()

@@ -4,8 +4,8 @@
 //! The `PublishResult` type is used to represent the result of a publish operation.
 
 use crate::{
-    core::{APIErrorBody, PubNubError},
-    lib::alloc::string::String,
+    core::{APIErrorBody, PubNubError, TransportResponse},
+    lib::alloc::{boxed::Box, string::String},
 };
 
 /// The result of a publish operation.
@@ -46,17 +46,24 @@ pub enum PublishResponseBody {
 
 pub(super) fn body_to_result(
     body: PublishResponseBody,
-    status: u16,
+    response: TransportResponse,
 ) -> Result<PublishResult, PubNubError> {
     match body {
         PublishResponseBody::SuccessResponse(error_indicator, message, timetoken) => {
             if error_indicator == 1 {
                 Ok(PublishResult { timetoken })
             } else {
-                Err(PubNubError::general_api_error(message, Some(status)))
+                Err(PubNubError::general_api_error(
+                    message,
+                    Some(response.status),
+                    Some(Box::new(response)),
+                ))
             }
         }
-        PublishResponseBody::ErrorResponse(resp) => Err(resp.into()),
+        PublishResponseBody::ErrorResponse(resp) => {
+            let error: PubNubError = resp.into();
+            Err(error.attach_response(response))
+        }
     }
 }
 
@@ -68,7 +75,14 @@ mod should {
     fn parse_publish_response() {
         let body =
             PublishResponseBody::SuccessResponse(1, "Sent".into(), "15815800000000000".into());
-        let result = body_to_result(body, 200).unwrap();
+        let result = body_to_result(
+            body,
+            TransportResponse {
+                status: 200,
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
         assert_eq!(result.timetoken, "15815800000000000");
     }
@@ -82,7 +96,13 @@ mod should {
             service: "service".into(),
             message: "error".into(),
         });
-        let result = body_to_result(body, status);
+        let result = body_to_result(
+            body,
+            TransportResponse {
+                status,
+                ..Default::default()
+            },
+        );
 
         assert!(result.is_err());
     }

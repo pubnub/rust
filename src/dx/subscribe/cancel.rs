@@ -24,7 +24,7 @@ impl CancellationTask {
                 .await
                 .map_err(|err| PubNubError::Transport {
                     details: format!("Cancellation pipe failed: {err}"),
-                    status: 400,
+                    response: None,
                 })?
                 .eq(&self.id)
             {
