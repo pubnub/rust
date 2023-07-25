@@ -40,7 +40,7 @@ use uuid::Uuid;
     build_fn(private, name = "build_internal", validate = "Self::validate"),
     no_std
 )]
-pub struct RawSubscriptionRef<D, T>
+pub struct RawSubscription<D, T>
 where
     D: Deserializer<SubscribeResponseBody>,
 {
@@ -152,7 +152,7 @@ where
     ///
     /// It creates a subscription object that can be used to get messages from
     /// PubNub.
-    fn execute_blocking(self) -> Result<RawSubscriptionRef<D, T>, PubNubError> {
+    fn execute_blocking(self) -> Result<RawSubscription<D, T>, PubNubError> {
         self.build_internal()
             .map_err(|e| PubNubError::SubscribeInitialization {
                 details: e.to_string(),
@@ -172,7 +172,7 @@ where
     ///
     /// It creates a subscription object that can be used to get messages from
     /// PubNub.
-    fn execute(self) -> Result<RawSubscriptionRef<D, T>, PubNubError> {
+    fn execute(self) -> Result<RawSubscription<D, T>, PubNubError> {
         self.build_internal()
             .map_err(|e| PubNubError::SubscribeInitialization {
                 details: e.to_string(),
@@ -180,7 +180,7 @@ where
     }
 }
 
-impl<D, T> RawSubscriptionRef<D, T>
+impl<D, T> RawSubscription<D, T>
 where
     D: Deserializer<SubscribeResponseBody>,
     T: Transport + 'static,
@@ -240,7 +240,7 @@ where
     }
 }
 
-impl<D, T> RawSubscriptionRef<D, T>
+impl<D, T> RawSubscription<D, T>
 where
     D: Deserializer<SubscribeResponseBody>,
     T: blocking::Transport,
@@ -313,7 +313,7 @@ struct SubscriptionContext<D, T>
 where
     D: Deserializer<SubscribeResponseBody>,
 {
-    subscription: RawSubscriptionRef<D, T>,
+    subscription: RawSubscription<D, T>,
     cursor: SubscribeCursor,
     messages: VecDeque<Result<Update, PubNubError>>,
 }

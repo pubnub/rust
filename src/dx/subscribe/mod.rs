@@ -478,7 +478,6 @@ mod should {
 
     #[tokio::test]
     async fn subscribe() {
-        env_logger::init();
         let subscription = client()
             .subscribe()
             .channels(["world".into()].to_vec())
@@ -492,5 +491,32 @@ mod should {
             status,
             SubscribeStreamEvent::Status(SubscribeStatus::Connected)
         ));
+    }
+
+    #[tokio::test]
+    async fn subscribe_raw() {
+        let subscription = client()
+            .subscribe_raw()
+            .channels(["world".into()].to_vec())
+            .execute()
+            .unwrap();
+
+        use futures::StreamExt;
+        let message = subscription.stream().next().await;
+
+        assert!(message.is_some());
+    }
+
+    #[test]
+    fn subscribe_raw() {
+        let subscription = client()
+            .subscribe_raw_blocking()
+            .channels(["world".into()].to_vec())
+            .execute()
+            .unwrap();
+
+        let message = subscription.iter().next().await;
+
+        assert!(message.is_some());
     }
 }
