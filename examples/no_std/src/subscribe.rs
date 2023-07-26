@@ -21,6 +21,7 @@ use pubnub::{
         transport_response::TransportResponse,
         PubNubError,
     },
+    dx::subscribe::Update,
     Keyset, PubNubClientBuilder,
 };
 use serde::Serialize;
@@ -95,6 +96,11 @@ pub extern "C" fn main(_argc: isize, _argv: *const *const u8) -> usize {
     publish_example().map(|_| 0).unwrap()
 }
 
+// In standard subscribe examples we use `println` macro to print the result of the operation
+// and it shows the idea of the example. `no_std` does not support `println` macro,
+// so we're using `do_a_thing` function instead.
+fn do_a_thing<T>(_: T) {}
+
 // As `no_std` does not support `Error` trait, we use `PubNubError` instead.
 // In your program, you should handle the error properly for your use case.
 fn publish_example() -> Result<(), PubNubError> {
@@ -125,27 +131,11 @@ fn publish_example() -> Result<(), PubNubError> {
         .iter()
         .try_for_each(|update| {
             match update? {
-                Update::Message(message) | Update::Signal(message) => {
-                    // Deserialize the message payload as you wish
-                    match serde_json::from_slice::<Message>(&message.data) {
-                        Ok(message) => println!("defined message: {:?}", message),
-                        Err(_) => {
-                            println!("other message: {:?}", String::from_utf8(message.data))
-                        }
-                    }
-                }
-                Update::Presence(presence) => {
-                    println!("presence: {:?}", presence)
-                }
-                Update::Object(object) => {
-                    println!("object: {:?}", object)
-                }
-                Update::MessageAction(action) => {
-                    println!("message action: {:?}", action)
-                }
-                Update::File(file) => {
-                    println!("file: {:?}", file)
-                }
+                Update::Message(message) | Update::Signal(message) => do_a_thing(message),
+                Update::Presence(presence) => do_a_thing(presence),
+                Update::Object(object) => do_a_thing(object),
+                Update::MessageAction(action) => do_a_thing(action),
+                Update::File(file) => do_a_thing(file),
             };
 
             // Make proper error handling here
