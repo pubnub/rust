@@ -7,6 +7,7 @@ pub(crate) mod event_engine;
 #[cfg(feature = "std")]
 use event_engine::{SubscribeEffectHandler, SubscribeState};
 
+#[cfg(feature = "std")]
 use futures::{future::BoxFuture, FutureExt};
 
 #[cfg(feature = "serde")]

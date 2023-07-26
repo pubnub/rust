@@ -14,6 +14,6 @@ getrandom = { version = "0.2", default_features = false, features = ["custom"] }
 name = "publish"
 path = "src/publish.rs"
 
-#[[bin]]
-#name = "subscribe"
-#path = "src/subscribe.rs"
+[[bin]]
+name = "subscribe"
+path = "src/subscribe.rs"

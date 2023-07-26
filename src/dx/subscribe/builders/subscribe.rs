@@ -27,6 +27,8 @@ use crate::{
     },
 };
 use derive_builder::Builder;
+
+#[cfg(feature = "std")]
 use futures::{select_biased, FutureExt};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
