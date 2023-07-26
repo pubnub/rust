@@ -56,12 +56,12 @@ pub mod serialize;
 pub use cryptor::Cryptor;
 pub mod cryptor;
 
-#[cfg(feature = "event_engine")]
+#[cfg(all(feature = "std", feature = "subscribe"))]
 pub(crate) mod event_engine;
 
-#[cfg(feature = "event_engine")]
+#[cfg(all(feature = "std", feature = "subscribe"))]
 pub use runtime::Runtime;
-#[cfg(feature = "event_engine")]
+#[cfg(all(feature = "std", feature = "subscribe"))]
 pub mod runtime;
 
 pub(crate) mod utils;

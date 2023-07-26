@@ -2,7 +2,9 @@
 //!
 //! Allows subscribe to real-time updates from channels and groups.
 
+#[cfg(feature = "std")]
 pub(crate) mod event_engine;
+#[cfg(feature = "std")]
 use event_engine::{SubscribeEffectHandler, SubscribeState};
 
 use futures::{future::BoxFuture, FutureExt};
@@ -21,30 +23,37 @@ pub use types::{
 pub mod types;
 
 use crate::{
-    core::{blocking, event_engine::EventEngine, runtime::Runtime, PubNubError, Transport},
+    core::{blocking, PubNubError, Transport},
     dx::{pubnub_client::PubNubClientInstance, subscribe::result::SubscribeResult},
     lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
 };
 
+#[cfg(feature = "std")]
+use crate::core::{event_engine::EventEngine, runtime::Runtime};
+
+#[cfg(feature = "std")]
 pub(crate) use subscription_manager::SubscriptionManager;
+#[cfg(feature = "std")]
 pub(crate) mod subscription_manager;
 
+#[cfg(feature = "std")]
 pub(crate) use subscription_configuration::{
     SubscriptionConfiguration, SubscriptionConfigurationRef,
 };
+#[cfg(feature = "std")]
 pub(crate) mod subscription_configuration;
 
 #[doc(inline)]
 pub use builders::*;
 pub mod builders;
 
+#[cfg(feature = "std")]
 #[doc(inline)]
 use cancel::CancellationTask;
-
-use self::raw::RawSubscriptionBuilder;
+#[cfg(feature = "std")]
 mod cancel;
 
-#[allow(dead_code)]
+use self::raw::RawSubscriptionBuilder;
 pub(crate) struct SubscriptionParams<'execution> {
     channels: &'execution Option<Vec<String>>,
     channel_groups: &'execution Option<Vec<String>>,
@@ -54,6 +63,7 @@ pub(crate) struct SubscriptionParams<'execution> {
     effect_id: &'execution str,
 }
 
+#[cfg(feature = "std")]
 impl<T> PubNubClientInstance<T>
 where
     T: Transport + Send + 'static,
@@ -532,9 +542,9 @@ mod should {
     #[test]
     fn subscribe_raw_blocking() {
         let subscription = client()
-            .subscribe_raw_blocking()
+            .subscribe_raw()
             .channels(["world".into()].to_vec())
-            .execute()
+            .execute_blocking()
             .unwrap();
 
         let message = subscription.iter().next();

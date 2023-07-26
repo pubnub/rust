@@ -3,6 +3,8 @@
 //! This module has all the builders for subscription to real-time updates from
 //! a list of channels and channel groups.
 
+#[cfg(feature = "std")]
+use crate::dx::subscribe::cancel::CancellationTask;
 use crate::dx::subscribe::SubscribeResponseBody;
 use crate::{
     core::{
@@ -12,7 +14,7 @@ use crate::{
     },
     dx::{
         pubnub_client::PubNubClientInstance,
-        subscribe::{builders, cancel::CancellationTask, result::SubscribeResult, SubscribeCursor},
+        subscribe::{builders, result::SubscribeResult, SubscribeCursor},
     },
     lib::{
         alloc::{
@@ -193,6 +195,7 @@ where
             )
     }
 
+    #[cfg(feature = "std")]
     pub async fn execute_with_cancel<D>(
         self,
         deserializer: Arc<D>,

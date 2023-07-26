@@ -6,13 +6,14 @@ use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String}
 pub(crate) use subscribe::SubscribeRequestBuilder;
 pub(crate) mod subscribe;
 
-#[cfg(not(feature = "serde"))]
+#[cfg(all(not(feature = "serde"), feature = "std"))]
 #[doc(inline)]
 pub(crate) use subscription::SubscriptionWithDeserializerBuilder;
 
+#[cfg(feature = "std")]
 #[doc(inline)]
 pub use subscription::{SubscriptionBuilder, SubscriptionBuilderError};
-#[allow(missing_docs)]
+#[cfg(feature = "std")]
 pub mod subscription;
 
 pub mod raw;

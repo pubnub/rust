@@ -14,11 +14,12 @@
 
 use crate::dx::pubnub_client::PubNubClientInstance;
 use crate::dx::subscribe::Update;
-use crate::lib::alloc::{collections::VecDeque, sync::Arc};
+use crate::lib::alloc::{
+    collections::VecDeque, string::String, string::ToString, sync::Arc, vec::Vec,
+};
 use crate::{
     core::{blocking, Deserializer, PubNubError, Transport},
     dx::subscribe::{SubscribeCursor, SubscribeResponseBody},
-    PubNubGenericClient,
 };
 use derive_builder::Builder;
 use uuid::Uuid;
