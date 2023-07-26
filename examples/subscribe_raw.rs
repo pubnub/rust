@@ -1,8 +1,8 @@
 // This example blocks so it never finishes.
 // You have to stop it manually.
 
-use futures::{StreamExt, TryStreamExt};
-use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+use futures::TryStreamExt;
+use pubnub::subscribe::Update;
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Deserialize;
 use std::env;

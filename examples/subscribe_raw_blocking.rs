@@ -2,7 +2,7 @@
 // You have to stop it manually.
 
 use pubnub::core::PubNubError;
-use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+use pubnub::subscribe::Update;
 use pubnub::{Keyset, PubNubClientBuilder};
 use serde::Deserialize;
 use std::env;
