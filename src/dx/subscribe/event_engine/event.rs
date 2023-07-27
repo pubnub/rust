@@ -1,3 +1,4 @@
+use crate::dx::subscribe::result::Update;
 use crate::{
     core::{event_engine::Event, PubNubError},
     dx::subscribe::SubscribeCursor,
@@ -9,6 +10,7 @@ use crate::{
 /// Subscribe state machine behaviour depends from external events which it
 /// receives.
 #[allow(dead_code)]
+#[derive(Debug)]
 pub(crate) enum SubscribeEvent {
     /// Current list of channels / groups has been changed.
     ///
@@ -77,7 +79,7 @@ pub(crate) enum SubscribeEvent {
     /// [`PubNub`]: https://www.pubnub.com/
     ReceiveSuccess {
         cursor: SubscribeCursor,
-        messages: Vec<String>,
+        messages: Vec<Update>,
     },
 
     /// Receive updates completed with error.
@@ -97,7 +99,7 @@ pub(crate) enum SubscribeEvent {
     /// [`PubNub`]: https://www.pubnub.com/
     ReceiveReconnectSuccess {
         cursor: SubscribeCursor,
-        messages: Vec<String>,
+        messages: Vec<Update>,
     },
 
     /// Receive updates reconnect completed with error.
@@ -129,6 +131,12 @@ pub(crate) enum SubscribeEvent {
     ///
     /// [`PubNub`]: https://www.pubnub.com/
     Reconnect,
+
+    /// Unsubscribe from all channels and groups.
+    ///
+    /// Emitted when explicitly requested by user to leave all channels and
+    /// groups.
+    UnsubscribeAll,
 }
 
 impl Event for SubscribeEvent {
@@ -148,6 +156,7 @@ impl Event for SubscribeEvent {
             SubscribeEvent::ReceiveReconnectGiveUp { .. } => "RECEIVE_RECONNECT_GIVEUP",
             SubscribeEvent::Disconnect => "DISCONNECT",
             SubscribeEvent::Reconnect => "RECONNECT",
+            SubscribeEvent::UnsubscribeAll => "UNSUBSCRIBE_ALL",
         }
     }
 }

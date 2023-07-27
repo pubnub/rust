@@ -5,12 +5,12 @@
 use crate::{
     core::{
         error::PubNubError,
-        headers::{APPLICATION_JSON, CONTENT_TYPE},
+        utils::headers::{APPLICATION_JSON, CONTENT_TYPE},
         Deserializer, Serializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, pubnub_client::PubNubClientInstance},
     lib::{
-        alloc::{format, string::ToString, vec},
+        alloc::{boxed::Box, format, string::ToString, vec},
         collections::HashMap,
     },
 };
@@ -34,7 +34,7 @@ use derive_builder::Builder;
 pub struct GrantTokenRequest<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'dl> Deserializer<'dl, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
@@ -132,7 +132,7 @@ where
 impl<'pa, T, S, D> GrantTokenRequest<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
@@ -153,7 +153,7 @@ where
 impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Validate user-provided data for request builder.
     ///
@@ -168,32 +168,47 @@ impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     T: Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Build and call request.
     pub async fn execute(self) -> Result<GrantTokenResult, PubNubError> {
         // Build request instance and report errors if any.
         let request = self
             .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
         let deserializer = request.deserializer;
 
-        client
-            .transport
-            .send(transport_request)
-            .await?
+        let response = client.transport.send(transport_request).await?;
+        response
+            .clone()
             .body
-            .map(|bytes| deserializer.deserialize(&bytes))
+            .map(|bytes| {
+                let deserialize_result = deserializer.deserialize(&bytes);
+                if deserialize_result.is_err() && response.status >= 500 {
+                    Err(PubNubError::general_api_error(
+                        "Unexpected service response",
+                        None,
+                        Some(Box::new(response.clone())),
+                    ))
+                } else {
+                    deserialize_result
+                }
+            })
             .map_or(
                 Err(PubNubError::general_api_error(
                     "No body in the response!",
                     None,
+                    Some(Box::new(response.clone())),
                 )),
                 |response_body| {
-                    response_body.and_then::<GrantTokenResult, _>(|body| body.try_into())
+                    response_body.and_then::<GrantTokenResult, _>(|body| {
+                        body.try_into().map_err(|response_error: PubNubError| {
+                            response_error.attach_response(response)
+                        })
+                    })
                 },
             )
     }
@@ -204,7 +219,7 @@ impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     T: crate::core::blocking::Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Execute the request and return the result.
     ///
@@ -243,24 +258,40 @@ where
         // Build request instance and report errors if any.
         let request = self
             .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
         let deserializer = request.deserializer;
 
-        client
-            .transport
-            .send(transport_request)?
+        let response = client.transport.send(transport_request)?;
+        response
             .body
-            .map(|bytes| deserializer.deserialize(&bytes))
+            .as_ref()
+            .map(|bytes| {
+                let deserialize_result = deserializer.deserialize(bytes);
+                if deserialize_result.is_err() && response.status >= 500 {
+                    Err(PubNubError::general_api_error(
+                        "Unexpected service response",
+                        None,
+                        Some(Box::new(response.clone())),
+                    ))
+                } else {
+                    deserialize_result
+                }
+            })
             .map_or(
                 Err(PubNubError::general_api_error(
                     "No body in the response!",
                     None,
+                    Some(Box::new(response.clone())),
                 )),
                 |response_body| {
-                    response_body.and_then::<GrantTokenResult, _>(|body| body.try_into())
+                    response_body.and_then::<GrantTokenResult, _>(|body| {
+                        body.try_into().map_err(|response_error: PubNubError| {
+                            response_error.attach_response(response)
+                        })
+                    })
                 },
             )
     }
@@ -278,7 +309,7 @@ impl<T> GrantTokenRequestWithSerializerBuilder<T> {
         serializer: S,
     ) -> GrantTokenRequestWithDeserializerBuilder<T, S>
     where
-        D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+        D: Deserializer<GrantTokenResponseBody>,
         S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
     {
         GrantTokenRequestWithDeserializerBuilder {
@@ -304,7 +335,7 @@ where
         deserializer: D,
     ) -> GrantTokenRequestBuilder<'builder, T, S, D>
     where
-        D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+        D: Deserializer<GrantTokenResponseBody>,
     {
         GrantTokenRequestBuilder {
             pubnub_client: Some(self.pubnub_client),

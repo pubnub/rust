@@ -2,7 +2,14 @@ target
 Cargo.lock
 tests/features
 tests/reports
+tests/logs
 
 # GitHub Actions #
 ##################
 .github/.release
+
+# IDE
+.idea
+
+# OS
+.DS_Store

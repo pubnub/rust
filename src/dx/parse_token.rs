@@ -12,7 +12,6 @@ use crate::{
             string::{String, ToString},
         },
         collections::HashMap,
-        core::ops::Deref,
     },
 };
 use base64::{engine::general_purpose, Engine};
@@ -23,8 +22,10 @@ use ciborium::de::from_reader;
 struct CiboriumDeserializer;
 
 #[cfg(feature = "serde")]
-impl<'de> Deserializer<'de, Token> for CiboriumDeserializer {
-    fn deserialize(&self, bytes: &'de [u8]) -> Result<Token, PubNubError> {
+impl Deserializer<Token> for CiboriumDeserializer {
+    fn deserialize(&self, bytes: &[u8]) -> Result<Token, PubNubError> {
+        use crate::lib::core::ops::Deref;
+
         from_reader(bytes.deref()).map_err(|e| PubNubError::TokenDeserialization {
             details: e.to_string(),
         })
@@ -46,7 +47,7 @@ pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
 /// resources.
 pub fn parse_token_with<D>(token: &str, deserializer: D) -> Result<Token, PubNubError>
 where
-    D: for<'de> Deserializer<'de, Token>,
+    D: Deserializer<Token>,
 {
     let token_bytes = general_purpose::URL_SAFE
         .decode(format!("{token}{}", "=".repeat(token.len() % 4)).as_bytes())
@@ -54,7 +55,7 @@ where
             details: e.to_string(),
         })?;
 
-    deserializer.deserialize(token_bytes.deref())
+    deserializer.deserialize(&token_bytes)
 }
 
 /// Version based access token.
@@ -198,7 +199,10 @@ pub enum MetaValue {
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::dx::parse_token::MetaValue::{Float, Integer, Null, String};
+    use crate::{
+        dx::parse_token::MetaValue::{Float, Integer, Null, String},
+        lib::core::ops::Deref,
+    };
 
     impl PartialEq for MetaValue {
         fn eq(&self, other: &Self) -> bool {

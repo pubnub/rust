@@ -1,43 +1,17 @@
+use async_channel::Sender;
+
+use crate::core::RequestRetryPolicy;
 use crate::{
-    core::{event_engine::EffectHandler, PubNubError},
-    dx::subscribe::{
-        event_engine::{SubscribeEffect, SubscribeEffectInvocation},
-        SubscribeCursor, SubscribeStatus,
+    core::event_engine::EffectHandler,
+    dx::subscribe::event_engine::{
+        effects::{EmitMessagesEffectExecutor, EmitStatusEffectExecutor, SubscribeEffectExecutor},
+        SubscribeEffect, SubscribeEffectInvocation,
     },
-    lib::alloc::{string::String, vec::Vec},
+    lib::{
+        alloc::{string::String, sync::Arc},
+        core::fmt::{Debug, Formatter, Result},
+    },
 };
-
-use super::SubscribeEvent;
-
-pub(crate) type HandshakeFunction = fn(
-    channels: &Option<Vec<String>>,
-    channel_groups: &Option<Vec<String>>,
-    attempt: u8,
-    reason: Option<PubNubError>,
-) -> Result<Vec<SubscribeEvent>, PubNubError>;
-
-pub(crate) type ReceiveFunction = fn(
-    channels: &Option<Vec<String>>,
-    channel_groups: &Option<Vec<String>>,
-    cursor: &SubscribeCursor,
-    attempt: u8,
-    reason: Option<PubNubError>,
-) -> Result<Vec<SubscribeEvent>, PubNubError>;
-
-pub(crate) type EmitFunction = fn(data: EmitData) -> Result<(), PubNubError>;
-
-/// Data emitted by subscription.
-///
-/// This data is emitted by subscription and is used to create subscription
-/// events.
-pub(crate) enum EmitData {
-    /// Status emitted by subscription.
-    SubscribeStatus(SubscribeStatus),
-
-    /// Messages emitted by subscription.
-    /// TODO: Replace String with Message type
-    Messages(Vec<String>),
-}
 
 /// Subscription effect handler.
 ///
@@ -45,24 +19,38 @@ pub(crate) enum EmitData {
 /// effect invocation.
 #[allow(dead_code)]
 pub(crate) struct SubscribeEffectHandler {
-    /// Handshake function pointer.
-    handshake: HandshakeFunction,
+    /// Subscribe call function pointer.
+    subscribe_call: Arc<SubscribeEffectExecutor>,
 
-    /// Receive updates function pointer.
-    receive: ReceiveFunction,
+    /// Emit status function pointer.
+    emit_status: Arc<EmitStatusEffectExecutor>,
 
-    /// Emit data function pointer.
-    emit: EmitFunction,
+    /// Emit messages function pointer.
+    emit_messages: Arc<EmitMessagesEffectExecutor>,
+
+    /// Retry policy.
+    retry_policy: RequestRetryPolicy,
+
+    /// Cancellation channel.
+    cancellation_channel: Sender<String>,
 }
 
 impl SubscribeEffectHandler {
     /// Create subscribe event handler.
     #[allow(dead_code)]
-    pub fn new(handshake: HandshakeFunction, receive: ReceiveFunction, emit: EmitFunction) -> Self {
+    pub fn new(
+        subscribe_call: Arc<SubscribeEffectExecutor>,
+        emit_status: Arc<EmitStatusEffectExecutor>,
+        emit_messages: Arc<EmitMessagesEffectExecutor>,
+        retry_policy: RequestRetryPolicy,
+        cancellation_channel: Sender<String>,
+    ) -> Self {
         SubscribeEffectHandler {
-            handshake,
-            receive,
-            emit,
+            subscribe_call,
+            emit_status,
+            emit_messages,
+            retry_policy,
+            cancellation_channel,
         }
     }
 }
@@ -76,7 +64,8 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             } => Some(SubscribeEffect::Handshake {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
-                executor: self.handshake,
+                executor: self.subscribe_call.clone(),
+                cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::HandshakeReconnect {
                 channels,
@@ -88,7 +77,9 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 channel_groups: channel_groups.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
-                executor: self.handshake,
+                retry_policy: self.retry_policy.clone(),
+                executor: self.subscribe_call.clone(),
+                cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::Receive {
                 channels,
@@ -97,8 +88,9 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             } => Some(SubscribeEffect::Receive {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
-                cursor: *cursor,
-                executor: self.receive,
+                cursor: cursor.clone(),
+                executor: self.subscribe_call.clone(),
+                cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::ReceiveReconnect {
                 channels,
@@ -109,26 +101,30 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             } => Some(SubscribeEffect::ReceiveReconnect {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
-                cursor: *cursor,
+                cursor: cursor.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
-                executor: self.receive,
+                retry_policy: self.retry_policy.clone(),
+                executor: self.subscribe_call.clone(),
+                cancellation_channel: self.cancellation_channel.clone(),
             }),
-            SubscribeEffectInvocation::EmitStatus(status) => {
-                // TODO: Provide emit status effect
-                Some(SubscribeEffect::EmitStatus {
-                    status: *status,
-                    executor: self.emit,
-                })
-            }
+            SubscribeEffectInvocation::EmitStatus(status) => Some(SubscribeEffect::EmitStatus {
+                status: status.clone(),
+                executor: self.emit_status.clone(),
+            }),
             SubscribeEffectInvocation::EmitMessages(messages) => {
-                // TODO: Provide emit messages effect
                 Some(SubscribeEffect::EmitMessages {
-                    messages: messages.clone(),
-                    executor: self.emit,
+                    updates: messages.clone(),
+                    executor: self.emit_messages.clone(),
                 })
             }
             _ => None,
         }
+    }
+}
+
+impl Debug for SubscribeEffectHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "SubscribeEffectHandler {{}}")
     }
 }

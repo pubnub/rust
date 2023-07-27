@@ -1,15 +1,17 @@
+use crate::core::runtime::Runtime;
 use crate::{
     core::event_engine::{Effect, EffectHandler, EffectInvocation},
-    lib::alloc::{rc::Rc, vec, vec::Vec},
+    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
-use phantom_type::PhantomType;
+use async_channel::Receiver;
 use spin::rwlock::RwLock;
 
 /// State machine effects dispatcher.
+#[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct EffectDispatcher<EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF>,
+    EI: EffectInvocation<Effect = EF> + Send + Sync,
     EH: EffectHandler<EI, EF>,
     EF: Effect<Invocation = EI>,
 {
@@ -24,53 +26,97 @@ where
     /// State machines may have some effects that are exclusive and can only run
     /// one type of them at once. The dispatcher handles such effects
     /// and cancels them when required.
-    managed: RwLock<Vec<Rc<EF>>>,
+    managed: Arc<RwLock<Vec<Arc<EF>>>>,
 
-    _invocation: PhantomType<EI>,
+    /// `Effect invocation` handling channel.
+    ///
+    /// Channel is used to receive submitted `invocations` for new effects
+    /// execution.
+    invocations_channel: Receiver<EI>,
+
+    /// Whether dispatcher already started or not.
+    started: RwLock<bool>,
 }
 
 impl<EH, EF, EI> EffectDispatcher<EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF>,
-    EH: EffectHandler<EI, EF>,
-    EF: Effect<Invocation = EI>,
+    EI: EffectInvocation<Effect = EF> + Send + Sync + 'static,
+    EH: EffectHandler<EI, EF> + Send + Sync + 'static,
+    EF: Effect<Invocation = EI> + 'static,
 {
     /// Create new effects dispatcher.
-    pub fn new(handler: EH) -> Self {
+    pub fn new(handler: EH, channel: Receiver<EI>) -> Self {
         EffectDispatcher {
             handler,
-            managed: RwLock::new(vec![]),
-            _invocation: Default::default(),
+            managed: Arc::new(RwLock::new(vec![])),
+            invocations_channel: channel,
+            started: RwLock::new(false),
         }
     }
 
-    /// Dispatch effect associated with `invocation`.
-    pub fn dispatch<F>(&self, invocation: &EI, mut f: F)
+    /// Prepare dispatcher for `invocations` processing.
+    pub fn start<C, R>(self: &Arc<Self>, completion: C, runtime: R)
     where
-        F: FnMut(Option<Vec<EI::Event>>),
+        R: Runtime + 'static,
+        C: Fn(Vec<<EI as EffectInvocation>::Event>) + Clone + Send + 'static,
     {
+        let mut started_slot = self.started.write();
+        let runtime_clone = runtime.clone();
+        let cloned_self = self.clone();
+
+        runtime.spawn(async move {
+            log::info!("Subscribe engine has started!");
+
+            loop {
+                match cloned_self.invocations_channel.recv().await {
+                    Ok(invocation) => {
+                        log::debug!("Received invocation: {}", invocation.id());
+
+                        let effect = cloned_self.dispatch(&invocation);
+                        let task_completition = completion.clone();
+
+                        if let Some(effect) = effect {
+                            log::debug!("Dispatched effect: {}", effect.id());
+                            let cloned_self = cloned_self.clone();
+
+                            runtime_clone.spawn(async move {
+                                let events = effect.run().await;
+
+                                if invocation.managed() {
+                                    cloned_self.remove_managed_effect(effect.id());
+                                }
+
+                                task_completition(events);
+                            });
+                        }
+                    }
+                    Err(err) => {
+                        log::error!("Receive error: {err:?}");
+                    }
+                }
+            }
+        });
+
+        *started_slot = true;
+    }
+
+    /// Dispatch effect associated with `invocation`.
+    pub fn dispatch(&self, invocation: &EI) -> Option<Arc<EF>> {
         if let Some(effect) = self.handler.create(invocation) {
-            let effect = Rc::new(effect);
+            let effect = Arc::new(effect);
 
             if invocation.managed() {
                 let mut managed = self.managed.write();
                 managed.push(effect.clone());
             }
 
-            // Placeholder for effect invocation.
-            effect.run(|events| {
-                // Try remove effect from list of managed.
-                self.remove_managed_effect(&effect);
+            Some(effect)
+        } else {
+            if invocation.cancelling() {
+                self.cancel_effect(invocation);
+            }
 
-                // Notify about effect run completion.
-                // Placeholder for effect events processing (pass to effects handler).
-                f(events);
-            });
-        } else if invocation.cancelling() {
-            self.cancel_effect(invocation);
-
-            // Placeholder for effect events processing (pass to effects handler).
-            f(None);
+            None
         }
     }
 
@@ -86,9 +132,10 @@ where
     }
 
     /// Remove managed effect.
-    fn remove_managed_effect(&self, effect: &EF) {
+    #[allow(dead_code)]
+    fn remove_managed_effect(&self, effect_id: String) {
         let mut managed = self.managed.write();
-        if let Some(position) = managed.iter().position(|ef| ef.id() == effect.id()) {
+        if let Some(position) = managed.iter().position(|ef| ef.id() == effect_id) {
             managed.remove(position);
         }
     }
@@ -98,8 +145,9 @@ where
 mod should {
     use super::*;
     use crate::core::event_engine::Event;
+    use std::future::Future;
 
-    enum TestEvent {}
+    struct TestEvent;
 
     impl Event for TestEvent {
         fn id(&self) -> &str {
@@ -113,6 +161,7 @@ mod should {
         Three,
     }
 
+    #[async_trait::async_trait]
     impl Effect for TestEffect {
         type Invocation = TestInvocation;
 
@@ -124,14 +173,8 @@ mod should {
             }
         }
 
-        fn run<F>(&self, mut f: F)
-        where
-            F: FnMut(Option<Vec<TestEvent>>),
-        {
-            match self {
-                Self::Three => {}
-                _ => f(None),
-            }
+        async fn run(&self) -> Vec<TestEvent> {
+            vec![]
         }
 
         fn cancel(&self) {
@@ -188,73 +231,66 @@ mod should {
         }
     }
 
-    #[test]
-    fn run_not_managed_effect() {
-        let mut called = false;
-        let dispatcher = EffectDispatcher::new(TestEffectHandler {});
-        dispatcher.dispatch(&TestInvocation::One, |_| {
-            called = true;
-        });
+    #[derive(Clone)]
+    struct TestRuntime {}
 
-        assert!(called, "Expected to call effect for TestInvocation::One");
+    #[async_trait::async_trait]
+    impl Runtime for TestRuntime {
+        fn spawn<R>(&self, _future: impl Future<Output = R> + Send + 'static)
+        where
+            R: Send + 'static,
+        {
+            // Do nothing.
+        }
+
+        async fn sleep(self, _delay: u64) {
+            // Do nothing.
+        }
+    }
+
+    #[test]
+    fn create_not_managed_effect() {
+        let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
+        let effect = dispatcher.dispatch(&TestInvocation::One);
+
         assert_eq!(
             dispatcher.managed.read().len(),
             0,
             "Non managed effects shouldn't be stored"
         );
+
+        assert!(effect.unwrap().id() == "EFFECT_ONE");
     }
 
-    #[test]
-    fn run_managed_effect() {
-        let mut called = false;
-        let dispatcher = EffectDispatcher::new(TestEffectHandler {});
-        dispatcher.dispatch(&TestInvocation::Two, |_| {
-            called = true;
-        });
+    #[tokio::test]
+    async fn create_managed_effect() {
+        let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
+        let effect = dispatcher.dispatch(&TestInvocation::Two);
 
-        assert!(called, "Expected to call effect for TestInvocation::Two");
         assert_eq!(
             dispatcher.managed.read().len(),
-            0,
+            1,
             "Managed effect should be removed on completion"
         );
+
+        assert!(effect.unwrap().id() == "EFFECT_TWO");
     }
 
     #[test]
     fn cancel_managed_effect() {
-        let mut called_managed = false;
-        let mut cancelled_managed = false;
-        let dispatcher = EffectDispatcher::new(TestEffectHandler {});
-        dispatcher.dispatch(&TestInvocation::Three, |_| {
-            called_managed = true;
-        });
+        let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
+        let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
+        dispatcher.dispatch(&TestInvocation::Three);
+        let cancelation_effect = dispatcher.dispatch(&TestInvocation::CancelThree);
 
-        assert!(
-            !called_managed,
-            "Expected that effect for TestInvocation::Three won't be called"
-        );
-        assert_eq!(
-            dispatcher.managed.read().len(),
-            1,
-            "Managed effect shouldn't complete run because doesn't have completion call"
-        );
-
-        dispatcher.dispatch(&TestInvocation::CancelThree, |_| {
-            cancelled_managed = true;
-        });
-
-        assert!(
-            cancelled_managed,
-            "Expected to call effect for TestInvocation::CancelThree"
-        );
-        assert!(
-            !called_managed,
-            "Expected that effect for TestInvocation::Three won't be called"
-        );
         assert_eq!(
             dispatcher.managed.read().len(),
             0,
             "Managed effect should be cancelled"
         );
+
+        assert!(cancelation_effect.is_none());
     }
 }

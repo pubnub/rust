@@ -14,10 +14,10 @@ build = "build.rs"
 [features]
 
 # Enables all non-conflicting features
-full = ["publish", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std"]
+full = ["publish", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
-default = ["publish", "serde", "reqwest", "aescbc", "std", "blocking"]
+default = ["publish", "subscribe", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]
 
 # [PubNub features]
 
@@ -41,6 +41,9 @@ serde = ["dep:serde", "dep:serde_json", "hashbrown/serde"]
 ## Enables reqwest implementation for transport layer
 reqwest = ["dep:reqwest", "dep:bytes"]
 
+## Enables tokio runtime for subscribe loop
+tokio = ["dep:tokio"]
+
 ## Enables blocking implementation for transport layer
 blocking = ["reqwest?/blocking"]
 
@@ -61,23 +64,25 @@ extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"]
 
 # [Internal features] (not intended for use outside of the library)
 contract_test = ["parse_token", "publish", "access"]
-full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
+full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "tokio"]
 full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
 pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
 mock_getrandom = ["getrandom/custom"]
 event_engine = []
 # TODO: temporary treated as internal until we officially release it
-subscribe = ["event_engine"]
+futures = ["dep:futures"]
+futures_tokio = ["dep:tokio"]
+subscribe = ["event_engine", "futures", "futures_tokio", "dep:async-channel"]
 
 [dependencies]
 async-trait = "0.1"
 log = "0.4"
-hashbrown = "0.13"
+hashbrown = "0.14.0"
 spin = "0.9"
 phantom-type = { version = "0.4.2", default-features = false }
 percent-encoding = { version = "2.1", default-features = false }
 base64 = { version = "0.21", features = ["alloc"], default-features = false }
-derive_builder = {version = "0.12", default-features = false }
+derive_builder = { version = "0.12", default-features = false }
 uuid = { version = "1.3", features = ["v4"], default-features = false }
 snafu = { version = "0.7", features = ["rust_1_46"], default-features = false }
 rand = { version = "0.8.5", default-features = false }
@@ -93,7 +98,7 @@ serde_json = { version = "1.0", optional = true, features = ["alloc"] ,default-f
 
 # reqwest
 reqwest = { version = "0.11", optional = true }
-bytes = {version = "1.4", default-features = false, optional = true }
+bytes = { version = "1.4", default-features = false, optional = true }
 
 # crypto
 aes = { version = "0.8.2", optional = true }
@@ -103,6 +108,11 @@ getrandom = { version = "0.2", optional = true }
 # parse_token
 ciborium = { version = "0.2.1", default-features = false, optional = true }
 
+# subscribe
+tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "time"] }
+futures = { version = "0.3.28", optional = true }
+async-channel = { version = "1.8", optional = true }
+
 # extra_platforms
 portable-atomic = { version = "1.3", optional = true, default-features = false, features = ["require-cas", "critical-section"] }
 
@@ -111,14 +121,13 @@ getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 async-trait = "0.1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 wiremock = "0.5"
 env_logger = "0.10"
-cucumber = { version = "0.19", features = ["output-junit"] }
-futures = "0.3"
+cucumber = { version = "0.20.0", features = ["output-junit"] }
 reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
-hashbrown = { version = "0.13", features = ["serde"] }
+hashbrown = { version = "0.14.0", features = ["serde"] }
 getrandom = { version = "0.2", features = ["custom"] }
 
 [build-dependencies]
@@ -151,4 +160,8 @@ required-features = ["default", "blocking", "access"]
 [[example]]
 name = "custom_origin"
 required-features = ["default"]
+
+[[example]]
+name = "subscribe"
+required-features = ["default", "subscribe"]
 

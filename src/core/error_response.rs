@@ -11,7 +11,7 @@ use crate::lib::{
         string::{String, ToString},
         vec::Vec,
     },
-    collections::hash_map::HashMap,
+    collections::HashMap,
 };
 
 /// Implementation for [`APIError`] to create struct from service error response
@@ -24,6 +24,7 @@ impl From<APIErrorBody> for PubNubError {
             service: value.service(),
             affected_channels: value.affected_channels(),
             affected_channel_groups: value.affected_channel_groups(),
+            response: None,
         }
     }
 }

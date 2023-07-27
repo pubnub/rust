@@ -1,41 +1,54 @@
-use crate::dx::subscribe::event_engine::effect_handler::EmitData;
-use crate::dx::subscribe::event_engine::{effect_handler::EmitFunction, SubscribeEvent};
-use crate::lib::alloc::{borrow::ToOwned, string::String, vec, vec::Vec};
+use crate::{
+    dx::subscribe::{
+        event_engine::{effects::EmitMessagesEffectExecutor, SubscribeEvent},
+        result::Update,
+    },
+    lib::alloc::{sync::Arc, vec, vec::Vec},
+};
+use log::info;
 
-pub(super) fn execute(messages: &[String], executor: EmitFunction) -> Option<Vec<SubscribeEvent>> {
-    // TODO: is this clone needed?
-    executor(EmitData::Messages(messages.to_owned()))
-        .map(|_| vec![])
-        .ok()
+pub(super) async fn execute(
+    updates: Vec<Update>,
+    executor: &Arc<EmitMessagesEffectExecutor>,
+) -> Vec<SubscribeEvent> {
+    info!("Emit updates: {updates:?}");
+
+    executor(updates);
+
+    vec![]
 }
 
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::core::PubNubError;
+    use crate::dx::subscribe::types::Message;
 
-    #[test]
-    fn emit_status() {
-        fn mock_handshake_function(data: EmitData) -> Result<(), PubNubError> {
-            assert!(matches!(data, EmitData::Messages(_)));
+    #[tokio::test]
+    async fn emit_expected_status() {
+        let message = Message {
+            sender: Some("test-user".into()),
+            timestamp: 1234567890,
+            channel: "test".to_string(),
+            subscription: "test-group".to_string(),
+            data: vec![],
+            r#type: None,
+            space_id: None,
+            decryption_error: None,
+        };
 
-            Ok(())
-        }
+        let emit_message_function: Arc<EmitMessagesEffectExecutor> = Arc::new(|updates| {
+            let emitted_update = updates.first().expect("update should be passed");
+            assert!(matches!(emitted_update, Update::Message(_)));
 
-        let result = execute(&[], mock_handshake_function);
+            if let Update::Message(message) = emitted_update {
+                assert_eq!(*message, message.clone());
+            }
+        });
 
-        assert!(result.is_some());
-        assert!(result.unwrap().is_empty())
-    }
-
-    #[test]
-    fn return_emit_failure_event_on_err() {
-        fn mock_handshake_function(_data: EmitData) -> Result<(), PubNubError> {
-            Err(PubNubError::Transport {
-                details: "test".into(),
-            })
-        }
-
-        assert!(execute(&[], mock_handshake_function).is_none());
+        execute(
+            vec![Update::Message(message.clone())],
+            &emit_message_function,
+        )
+        .await;
     }
 }
