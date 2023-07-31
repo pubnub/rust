@@ -58,6 +58,8 @@ use cancel::CancellationTask;
 mod cancel;
 
 use self::raw::RawSubscriptionBuilder;
+#[cfg(not(feature = "std"))]
+use self::raw::RawSubscriptionWithDeserializerBuilder;
 
 #[derive(Clone)]
 pub(crate) struct SubscriptionParams<'execution> {
@@ -531,11 +533,9 @@ impl<T> PubNubClientInstance<T> {
     /// Instance of [`SubscriptionBuilder`] returned.
     /// [`PubNubClient`]: crate::PubNubClient
     #[cfg(not(feature = "serde"))]
-    pub fn subscribe_raw(&self) -> RawSubscriptionBuilder<SerdeDeserializer, T> {
-        RawSubscriptionBuilder {
-            pubnub_client: Some(self.clone()),
-            deserializer: Some(Arc::new(SerdeDeserializer)),
-            ..Default::default()
+    pub fn subscribe_raw(&self) -> RawSubscriptionWithDeserializerBuilder<T> {
+        RawSubscriptionWithDeserializerBuilder {
+            client: self.clone(),
         }
     }
 
