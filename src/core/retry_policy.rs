@@ -93,12 +93,6 @@ impl RequestRetryPolicy {
     pub(crate) fn retry_delay(&self, _attempt: &u8, _error: Option<&PubNubError>) -> Option<u64> {
         None
     }
-
-    #[cfg(not(feature = "std"))]
-    #[allow(dead_code)]
-    pub(crate) fn retry_delay(&self, _attempt: &u8, _response: &TransportResponse) -> Option<u32> {
-        None
-    }
 }
 
 impl Default for RequestRetryPolicy {
