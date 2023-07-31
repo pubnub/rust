@@ -16,10 +16,17 @@ use crate::{
 };
 use base64::{engine::general_purpose, Engine};
 
+/// Subscription event.
+///
+/// This enum provides two variants: [`SubscribeStreamEvent::Status`] and
+/// [`SubscribeStreamEvent::Update`]. First one is used to deliver subscription
+/// status updates and second one is used to deliver real-time updates.
 #[derive(Debug, Clone)]
-#[allow(dead_code, missing_docs)]
 pub enum SubscribeStreamEvent {
+    /// Subscription status update.
     Status(SubscribeStatus),
+
+    /// Real-time update.
     Update(Update),
 }
 

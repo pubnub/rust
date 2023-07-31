@@ -43,7 +43,6 @@ use futures::{select_biased, FutureExt};
     build_fn(vis = "pub(in crate::dx::subscribe)", validate = "Self::validate"),
     no_std
 )]
-#[allow(dead_code, missing_docs)]
 pub(crate) struct SubscribeRequest<T> {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]

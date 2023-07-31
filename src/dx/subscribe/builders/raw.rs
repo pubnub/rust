@@ -324,6 +324,11 @@ where
     messages: VecDeque<Result<Update, PubNubError>>,
 }
 
+/// Iterator over messages received from PubNub.
+///
+/// This iterator is returned by [`RawSubscription::iter`] method.
+/// It loops the subscribe calls and iterator over messages from PubNub.
+/// It can be used to get messages from PubNub.
 pub struct RawSubscriptionIter<D, T>(SubscriptionContext<D, T>)
 where
     D: Deserializer<SubscribeResponseBody>;
