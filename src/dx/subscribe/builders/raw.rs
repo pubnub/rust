@@ -337,7 +337,7 @@ mod should {
         },
         dx::subscribe::{result::APISuccessBody, SubscribeResponseBody},
         transport::middleware::PubNubMiddleware,
-        Keyset, PubNubClientBuilder, PubNubGenericClient,
+        Keyset, PubNubClientBuilder,
     };
 
     struct MockDeserializer;
