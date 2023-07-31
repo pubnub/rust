@@ -491,6 +491,54 @@ impl<T> PubNubClientInstance<T> {
         }
     }
 
+    /// Create subscription listener.
+    ///
+    /// Listeners configure [`PubNubClient`] to receive real-time updates for
+    /// specified list of channels and groups.
+    ///
+    /// ```no_run // Starts listening for real-time updates
+    /// use futures::StreamExt;
+    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// #
+    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #      .with_keyset(Keyset {
+    /// #          subscribe_key: "demo",
+    /// #          publish_key: Some("demo"),
+    /// #          secret_key: None,
+    /// #      })
+    /// #      .with_user_id("user_id")
+    /// #      .build()?;
+    /// client
+    ///     .subscribe_raw()
+    ///     .channels(["hello".into(), "world".into()].to_vec())
+    ///     .execute()?
+    ///     .stream()
+    ///     .for_each(|update| async move {
+    ///           println!("Received update: {:?}", update);
+    ///     })
+    ///     .await;
+    /// # Ok(())
+    /// # }
+    ///
+    /// ```
+    ///
+    /// For more examples see our [examples directory](https://github.com/pubnub/rust/tree/master/examples).
+    ///
+    /// Instance of [`SubscriptionBuilder`] returned.
+    /// [`PubNubClient`]: crate::PubNubClient
+    #[cfg(not(feature = "serde"))]
+    pub fn subscribe_raw(&self) -> RawSubscriptionBuilder<SerdeDeserializer, T> {
+        RawSubscriptionBuilder {
+            pubnub_client: Some(self.clone()),
+            deserializer: Some(Arc::new(SerdeDeserializer)),
+            ..Default::default()
+        }
+    }
+
     /// Create subscribe request builder.
     /// This method is used to create events stream for real-time updates on
     /// passed list of channels and groups.

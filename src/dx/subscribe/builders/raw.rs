@@ -114,6 +114,27 @@ where
     pub(in crate::dx::subscribe) filter_expression: Option<String>,
 }
 
+/// [`RawSubscriptionWithDeserializerBuilder`] is used to configure a subscription
+/// listener with a custom deserializer.
+pub struct RawSubscriptionWithDeserializerBuilder<T> {
+    /// Subscription module configuration.
+    pub(in crate::dx::subscribe) client: PubNubClientInstance<T>,
+}
+
+impl<T> RawSubscriptionWithDeserializerBuilder<T> {
+    /// Create a new [`RawSubscriptionWithDeserializerBuilder`] instance.
+    pub fn deserialize_with<D>(self, deserializer: D) -> RawSubscriptionBuilder<D, T>
+    where
+        D: Deserializer<SubscribeResponseBody>,
+    {
+        RawSubscriptionBuilder {
+            pubnub_client: Some(self.client),
+            deserializer: Some(Arc::new(deserializer)),
+            ..Default::default()
+        }
+    }
+}
+
 impl<D, T> RawSubscriptionBuilder<D, T>
 where
     D: Deserializer<SubscribeResponseBody>,
