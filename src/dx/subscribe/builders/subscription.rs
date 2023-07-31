@@ -211,16 +211,6 @@ pub struct SubscriptionRef {
     )]
     pub(in crate::dx::subscribe) updates: RwLock<VecDeque<SubscribeStreamEvent>>,
 
-    /// Subscription stream waker.
-    ///
-    /// Handler used each time when new data available for a stream listener.
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        setter(custom),
-        default = "RwLock::new(None)"
-    )]
-    waker: RwLock<Option<Waker>>,
-
     /// General subscription stream.
     ///
     /// Stream used to deliver all real-time updates.
