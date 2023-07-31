@@ -34,8 +34,12 @@ pub mod transport_request;
 pub use transport_response::TransportResponse;
 pub mod transport_response;
 
+// TODO: Retry policy can be implemented for `no_std` subscribe
+//      when `no_std` event engine is implemented.
 #[doc(inline)]
+#[cfg(feature = "std")]
 pub use retry_policy::RequestRetryPolicy;
+#[cfg(feature = "std")]
 pub mod retry_policy;
 
 #[doc(inline)]

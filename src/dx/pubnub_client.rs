@@ -11,7 +11,7 @@ use crate::core::Cryptor;
 #[cfg(all(feature = "subscribe", feature = "std"))]
 use crate::dx::subscribe::SubscriptionConfiguration;
 use crate::{
-    core::{PubNubError, RequestRetryPolicy, Transport},
+    core::{PubNubError, Transport},
     lib::{
         alloc::{
             string::{String, ToString},
@@ -24,6 +24,10 @@ use crate::{
 use derive_builder::Builder;
 use log::info;
 use spin::{Mutex, RwLock};
+
+// TODO: Retry policy would be implemented for `no_std` event engine
+#[cfg(feature = "std")]
+use crate::core::RequestRetryPolicy;
 
 /// PubNub client
 ///
@@ -411,6 +415,7 @@ impl<T> PubNubClientConfigBuilder<T> {
     /// It returns [`PubNubClientConfigBuilder`] that you can use to set the
     /// configuration for the client. This is a part the
     /// [`PubNubClientConfigBuilder`].
+    #[cfg(feature = "std")]
     pub fn with_retry_policy(mut self, policy: RequestRetryPolicy) -> Self {
         if let Some(configuration) = self.config.as_mut() {
             configuration.retry_policy = policy;
@@ -494,6 +499,7 @@ pub struct PubNubConfig {
     pub(crate) auth_key: Option<Arc<String>>,
 
     /// Request retry policy
+    #[cfg(feature = "std")]
     pub(crate) retry_policy: RequestRetryPolicy,
 }
 
@@ -725,6 +731,7 @@ where
                 secret_key,
                 user_id: Arc::new(user_id.into()),
                 auth_key: None,
+                #[cfg(feature = "std")]
                 retry_policy: Default::default(),
             }),
             ..Default::default()
