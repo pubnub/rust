@@ -332,8 +332,19 @@ where
 
             let response = response.expect("Should be Ok");
 
+            let messages: Vec<_> = if let Some(cryptor) = &ctx.subscription.pubnub_client.cryptor {
+                response
+                    .messages
+                    .into_iter()
+                    .map(|update| update.decrypt(cryptor))
+                    .map(Ok)
+                    .collect()
+            } else {
+                response.messages.into_iter().map(Ok).collect()
+            };
+
             ctx.cursor = response.cursor;
-            ctx.messages.extend(response.messages.into_iter().map(Ok));
+            ctx.messages.extend(messages);
         }
 
         Some(ctx.messages.pop_front().expect("Shouldn't be empty!"))
