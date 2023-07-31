@@ -141,7 +141,7 @@ async fn main() {
 
     let report =
         read_to_string("tests/reports/report-required.xml").expect("Unable to load reports");
-    if report.contains("✘") {
+    if report.contains('✘') {
         process::exit(1)
     }
 }

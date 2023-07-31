@@ -388,12 +388,11 @@ mod should {
     }
 
     fn sut() -> RawSubscriptionBuilder<MockDeserializer, PubNubMiddleware<MockTransport>> {
-        let mut sut = RawSubscriptionBuilder::default();
-
-        sut.pubnub_client = Some(client());
-        sut.deserializer = Some(Arc::new(MockDeserializer));
-
-        sut
+        RawSubscriptionBuilder {
+            pubnub_client: Some(client()),
+            deserializer: Some(Arc::new(MockDeserializer)),
+            ..Default::default()
+        }
     }
 
     #[test]
