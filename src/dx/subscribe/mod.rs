@@ -57,8 +57,9 @@ use cancel::CancellationTask;
 #[cfg(feature = "std")]
 mod cancel;
 
+#[cfg(feature = "serde")]
 use self::raw::RawSubscriptionBuilder;
-#[cfg(not(feature = "std"))]
+#[cfg(not(feature = "serde"))]
 use self::raw::RawSubscriptionWithDeserializerBuilder;
 
 #[derive(Clone)]
