@@ -106,8 +106,8 @@ getrandom = { version = "0.2", optional = true }
 ciborium = { version = "0.2.1", default-features = false, optional = true }
 
 # subscribe
-tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros"] }
 futures = { version = "0.3.28", default-features = false, optional = true }
+tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "time"] }
 async-channel = { version = "1.8", optional = true }
 
 # extra_platforms
@@ -118,7 +118,7 @@ getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 async-trait = "0.1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 wiremock = "0.5"
 env_logger = "0.10"
 cucumber = { version = "0.20.0", features = ["output-junit"] }
@@ -153,6 +153,10 @@ required-features = ["default", "parse_token", "access"]
 [[example]]
 name = "pam_blocking"
 required-features = ["default", "blocking", "access"]
+
+[[example]]
+name = "custom_origin"
+required-features = ["default"]
 
 [[example]]
 name = "subscribe"

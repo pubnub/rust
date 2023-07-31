@@ -18,14 +18,15 @@ pub(super) async fn execute(
     retry_policy: &RequestRetryPolicy,
     executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
+    if !retry_policy.retriable(&attempt, Some(&reason)) {
+        return vec![SubscribeEvent::HandshakeReconnectGiveUp { reason }];
+    }
+
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
         channels.as_ref().unwrap_or(&Vec::new()),
         channel_groups.as_ref().unwrap_or(&Vec::new()),
     );
-    let _retry_policy = retry_policy.clone();
-
-    // TODO: If retriable (`std` environment) we need to delay next call to the PubNub.
 
     executor(SubscriptionParams {
         channels,
@@ -39,22 +40,9 @@ pub(super) async fn execute(
         |error| {
             log::error!("Handshake reconnection error: {:?}", error);
 
-            match error {
-                PubNubError::Transport { status, .. } | PubNubError::API { status, .. }
-                    if !retry_policy.retriable(attempt, status) =>
-                {
-                    vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
-                }
-                _ if !matches!(error, PubNubError::EffectCanceled)
-                    && !retry_policy.retriable(attempt, 500) =>
-                {
-                    vec![SubscribeEvent::HandshakeReconnectGiveUp { reason: error }]
-                }
-                _ if !matches!(error, PubNubError::EffectCanceled) => {
-                    vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }]
-                }
-                _ => vec![],
-            }
+            (!matches!(error, PubNubError::EffectCanceled))
+                .then(|| vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }])
+                .unwrap_or(vec![])
         },
         |subscribe_result| {
             vec![SubscribeEvent::HandshakeReconnectSuccess {
@@ -82,7 +70,7 @@ mod should {
                 params.reason.unwrap(),
                 PubNubError::Transport {
                     details: "test".into(),
-                    status: 500
+                    response: None
                 }
             );
             assert_eq!(params.effect_id, "id");
@@ -102,10 +90,13 @@ mod should {
             1,
             PubNubError::Transport {
                 details: "test".into(),
-                status: 500,
+                response: None,
             },
             "id",
-            &RequestRetryPolicy::None,
+            &RequestRetryPolicy::Linear {
+                delay: 0,
+                max_retry: 1,
+            },
             &mock_handshake_function,
         )
         .await;
@@ -123,7 +114,7 @@ mod should {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),
-                    status: 500,
+                    response: None,
                 })
             }
             .boxed()
@@ -135,7 +126,7 @@ mod should {
             1,
             PubNubError::Transport {
                 details: "test".into(),
-                status: 500,
+                response: None,
             },
             "id",
             &RequestRetryPolicy::None,

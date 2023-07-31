@@ -234,11 +234,16 @@ mod should {
     #[derive(Clone)]
     struct TestRuntime {}
 
+    #[async_trait::async_trait]
     impl Runtime for TestRuntime {
         fn spawn<R>(&self, _future: impl Future<Output = R> + Send + 'static)
         where
             R: Send + 'static,
         {
+            // Do nothing.
+        }
+
+        async fn sleep(self, _delay: u64) {
             // Do nothing.
         }
     }

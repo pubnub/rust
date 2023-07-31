@@ -16,6 +16,19 @@ use crate::providers::deserialization_serde::SerdeDeserializer;
 pub use result::{SubscribeResponseBody, Update};
 pub mod result;
 
+use event_engine::{SubscribeEffectHandler, SubscribeState};
+
+use futures::{
+    future::{ready, BoxFuture},
+    FutureExt,
+};
+
+#[cfg(feature = "serde")]
+use crate::providers::deserialization_serde::SerdeDeserializer;
+
+pub use result::{SubscribeResponseBody, Update};
+pub mod result;
+
 #[doc(inline)]
 pub use types::{
     File, MessageAction, Object, Presence, SubscribeCursor, SubscribeMessageType, SubscribeStatus,
@@ -24,7 +37,7 @@ pub use types::{
 pub mod types;
 
 use crate::{
-    core::{blocking, PubNubError, Transport},
+    core::{event_engine::EventEngine, runtime::Runtime, PubNubError, Transport},
     dx::{pubnub_client::PubNubClientInstance, subscribe::result::SubscribeResult},
     lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
 };
@@ -55,6 +68,8 @@ use cancel::CancellationTask;
 mod cancel;
 
 use self::raw::RawSubscriptionBuilder;
+
+#[derive(Clone)]
 pub(crate) struct SubscriptionParams<'execution> {
     channels: &'execution Option<Vec<String>>,
     channel_groups: &'execution Option<Vec<String>>,
@@ -182,10 +197,15 @@ where
     /// #[derive(Clone)]
     /// struct MyRuntime;
     ///
+    /// #[async_trait::async_trait]
     /// impl Runtime for MyRuntime {
     ///    fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static) {
     ///       // spawn the Future
     ///       // e.g. tokio::spawn(future);
+    ///    }
+    ///    
+    ///    async fn sleep(self, _delay: u64) {
+    ///       // e.g. tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
     ///    }
     /// }
     /// # #[tokio::main]
@@ -223,7 +243,7 @@ where
     #[cfg(feature = "serde")]
     pub fn subscribe_with_runtime<R>(&self, runtime: R) -> SubscriptionBuilder
     where
-        R: Runtime + 'static,
+        R: Runtime + Send + Sync + 'static,
     {
         {
             // Initialize subscription module when it will be first required.
@@ -301,7 +321,7 @@ where
     #[cfg(not(feature = "serde"))]
     pub fn subscribe_with_runtime<R>(&self, runtime: R) -> SubscriptionWithDeserializerBuilder
     where
-        R: Runtime + 'static,
+        R: Runtime + Send + Sync + 'static,
     {
         {
             // Initialize subscription module when it will be first required.
@@ -321,28 +341,58 @@ where
         }
     }
 
+    /// Create subscribe request builder.
+    /// This method is used to create events stream for real-time updates on
+    /// passed list of channels and groups.
+    ///
+    /// Instance of [`SubscribeRequestBuilder`] returned.
+    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T> {
+        SubscribeRequestBuilder {
+            pubnub_client: Some(self.clone()),
+            ..Default::default()
+        }
+    }
+
     pub(crate) fn subscription_manager<R>(&mut self, runtime: R) -> SubscriptionManager
     where
-        R: Runtime + 'static,
+        R: Runtime + Send + Sync + 'static,
     {
         let channel_bound = 10; // TODO: Think about this value
         let emit_messages_client = self.clone();
         let emit_status_client = self.clone();
         let subscribe_client = self.clone();
-        let retry_policy = self.config.clone().retry_policy;
+        let request_retry_delay_policy = self.config.retry_policy.clone();
+        let request_retry_policy = self.config.retry_policy.clone();
+        let runtime_sleep = runtime.clone();
 
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
 
         let engine = EventEngine::new(
             SubscribeEffectHandler::new(
                 Arc::new(move |params| {
-                    Self::subscribe_call(subscribe_client.clone(), cancel_rx.clone(), params)
+                    let delay_in_secs = request_retry_delay_policy
+                        .retry_delay(&params.attempt, params.reason.as_ref());
+                    let inner_runtime_sleep = runtime_sleep.clone();
+
+                    Self::subscribe_call(
+                        subscribe_client.clone(),
+                        params.clone(),
+                        Arc::new(move || {
+                            if let Some(de) = delay_in_secs {
+                                // let rt = inner_runtime_sleep.clone();
+                                inner_runtime_sleep.clone().sleep(de).boxed()
+                            } else {
+                                ready(()).boxed()
+                            }
+                        }),
+                        cancel_rx.clone(),
+                    )
                 }),
                 Arc::new(move |status| Self::emit_status(emit_status_client.clone(), &status)),
                 Arc::new(Box::new(move |updates| {
                     Self::emit_messages(emit_messages_client.clone(), updates)
                 })),
-                retry_policy,
+                request_retry_policy,
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,
@@ -352,12 +402,15 @@ where
         SubscriptionManager::new(engine)
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn subscribe_call(
+    pub(crate) fn subscribe_call<F>(
         client: Self,
-        cancel_rx: async_channel::Receiver<String>,
         params: SubscriptionParams,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
+        delay: Arc<F>,
+        cancel_rx: async_channel::Receiver<String>,
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
+    where
+        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
+    {
         let mut request = client
             .subscribe_request()
             .cursor(params.cursor.cloned().unwrap_or_default()); // TODO: is this clone required?
@@ -384,9 +437,7 @@ where
 
         let cancel_task = CancellationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
 
-        request
-            .execute_with_cancel(deserializer, cancel_task)
-            .boxed()
+        request.execute(deserializer, delay, cancel_task).boxed()
     }
 
     fn emit_status(client: Self, status: &SubscribeStatus) {

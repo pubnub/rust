@@ -8,11 +8,9 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 //!
-use crate::core::TransportResponse;
+use crate::core::PubNubError;
 
 /// Request retry policy.
-///
-///
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RequestRetryPolicy {
     /// Requests shouldn't be tried again.
@@ -21,7 +19,7 @@ pub enum RequestRetryPolicy {
     /// Retry the request after the same amount of time.
     Linear {
         /// The delay between failed retry attempts.
-        delay: u32,
+        delay: u64,
 
         /// Number of times a request can be retried.
         max_retry: u8,
@@ -30,10 +28,10 @@ pub enum RequestRetryPolicy {
     /// Retry the request using exponential amount of time.
     Exponential {
         /// Minimum delay between failed retry attempts.
-        min_delay: u32,
+        min_delay: u64,
 
         /// Maximum delay between failed retry attempts.
-        max_delay: u32,
+        max_delay: u64,
 
         /// Number of times a request can be retried.
         max_retry: u8,
@@ -42,43 +40,58 @@ pub enum RequestRetryPolicy {
 
 impl RequestRetryPolicy {
     /// Check whether next retry `attempt` is allowed.
-    pub(crate) fn retriable(&self, attempt: u8, status_code: u16) -> bool {
-        match status_code {
-            429 => true,
-            500..=599 => match self {
-                Self::Linear { max_retry, .. } | Self::Exponential { max_retry, .. } => {
-                    attempt.lt(max_retry)
-                }
-                _ => false,
-            },
+    pub(crate) fn retriable(&self, attempt: &u8, error: Option<&PubNubError>) -> bool {
+        if self.reached_max_retry(attempt) {
+            return false;
+        }
+
+        error
+            .and_then(|e| e.transport_response())
+            .map(|response| matches!(response.status, 429 | 500..=599))
+            .unwrap_or(!matches!(self, RequestRetryPolicy::None))
+    }
+
+    /// Check whether reached maximum retry count or not.
+    pub(crate) fn reached_max_retry(&self, attempt: &u8) -> bool {
+        match self {
+            Self::Linear { max_retry, .. } | Self::Exponential { max_retry, .. } => {
+                attempt.gt(max_retry)
+            }
             _ => false,
         }
     }
 
     #[cfg(feature = "std")]
-    #[allow(dead_code)]
-    pub(crate) fn retry_delay(&self, attempt: &u8, response: &TransportResponse) -> Option<u32> {
-        match response.status {
-            // Respect service requested delay.
-            429 => (!matches!(self, Self::None))
-                .then(|| response.headers.get("retry-after"))
-                .flatten()
-                .and_then(|value| value.parse::<u32>().ok()),
-            500..=599 => match self {
-                Self::None => None,
-                Self::Linear { delay, .. } => {
-                    self.retriable(*attempt, response.status).then_some(*delay)
-                }
-                Self::Exponential {
-                    min_delay,
-                    max_delay,
-                    ..
-                } => self
-                    .retriable(*attempt, response.status)
-                    .then_some((*min_delay).pow((*attempt).into()).min(*max_delay)),
-            },
-            _ => None,
+    pub(crate) fn retry_delay(&self, attempt: &u8, error: Option<&PubNubError>) -> Option<u64> {
+        if !self.retriable(attempt, error) {
+            return None;
         }
+
+        error
+            .and_then(|err| err.transport_response())
+            .map(|response| match response.status {
+                // Respect service requested delay.
+                429 => (!matches!(self, Self::None))
+                    .then(|| response.headers.get("retry-after"))
+                    .flatten()
+                    .and_then(|value| value.parse::<u64>().ok()),
+                500..=599 => match self {
+                    Self::None => None,
+                    Self::Linear { delay, .. } => Some(*delay),
+                    Self::Exponential {
+                        min_delay,
+                        max_delay,
+                        ..
+                    } => Some((*min_delay).pow((*attempt).into()).min(*max_delay)),
+                },
+                _ => None,
+            })
+            .unwrap_or(None)
+    }
+
+    #[cfg(not(feature = "std"))]
+    pub(crate) fn retry_delay(&self, _attempt: &u8, _error: Option<&PubNubError>) -> Option<u64> {
+        None
     }
 
     #[cfg(not(feature = "std"))]
@@ -97,7 +110,10 @@ impl Default for RequestRetryPolicy {
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::lib::collections::HashMap;
+    use crate::{
+        core::TransportResponse,
+        lib::{alloc::boxed::Box, collections::HashMap},
+    };
 
     fn client_error_response() -> TransportResponse {
         TransportResponse {
@@ -133,7 +149,14 @@ mod should {
         #[test]
         fn return_none_delay_for_client_error_response() {
             assert_eq!(
-                RequestRetryPolicy::None.retry_delay(&1, &client_error_response()),
+                RequestRetryPolicy::None.retry_delay(
+                    &1,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(client_error_response()))
+                    ))
+                ),
                 None
             );
         }
@@ -141,7 +164,14 @@ mod should {
         #[test]
         fn return_none_delay_for_server_error_response() {
             assert_eq!(
-                RequestRetryPolicy::None.retry_delay(&1, &server_error_response()),
+                RequestRetryPolicy::None.retry_delay(
+                    &1,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 None
             );
         }
@@ -149,7 +179,14 @@ mod should {
         #[test]
         fn return_none_delay_for_too_many_requests_error_response() {
             assert_eq!(
-                RequestRetryPolicy::None.retry_delay(&1, &too_many_requests_error_response()),
+                RequestRetryPolicy::None.retry_delay(
+                    &1,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(too_many_requests_error_response()))
+                    ))
+                ),
                 None
             );
         }
@@ -165,42 +202,83 @@ mod should {
                 max_retry: 5,
             };
 
-            assert_eq!(policy.retry_delay(&1, &client_error_response()), None);
+            assert_eq!(
+                policy.retry_delay(
+                    &1,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(client_error_response()))
+                    ))
+                ),
+                None
+            );
         }
 
         #[test]
         fn return_same_delay_for_server_error_response() {
-            let expected_delay = 10;
+            let expected_delay: u64 = 10;
             let policy = RequestRetryPolicy::Linear {
                 delay: expected_delay,
                 max_retry: 5,
             };
 
             assert_eq!(
-                policy.retry_delay(&1, &server_error_response()),
+                policy.retry_delay(
+                    &1,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 Some(expected_delay)
             );
 
             assert_eq!(
-                policy.retry_delay(&2, &server_error_response()),
+                policy.retry_delay(
+                    &2,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 Some(expected_delay)
             );
         }
 
         #[test]
         fn return_none_delay_when_reach_max_retry_for_server_error_response() {
-            let expected_delay = 10;
+            let expected_delay: u64 = 10;
             let policy = RequestRetryPolicy::Linear {
                 delay: expected_delay,
                 max_retry: 3,
             };
 
             assert_eq!(
-                policy.retry_delay(&2, &server_error_response()),
+                policy.retry_delay(
+                    &2,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 Some(expected_delay)
             );
 
-            assert_eq!(policy.retry_delay(&3, &server_error_response()), None);
+            assert_eq!(
+                policy.retry_delay(
+                    &4,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
+                None
+            );
         }
 
         #[test]
@@ -212,7 +290,14 @@ mod should {
 
             // 150 is from 'server_error_response' `Retry-After` header.
             assert_eq!(
-                policy.retry_delay(&2, &too_many_requests_error_response()),
+                policy.retry_delay(
+                    &2,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(too_many_requests_error_response()))
+                    ))
+                ),
                 Some(150)
             );
         }
@@ -230,7 +315,17 @@ mod should {
                 max_retry: 2,
             };
 
-            assert_eq!(policy.retry_delay(&1, &client_error_response()), None);
+            assert_eq!(
+                policy.retry_delay(
+                    &1,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(client_error_response()))
+                    ))
+                ),
+                None
+            );
         }
 
         #[test]
@@ -243,12 +338,26 @@ mod should {
             };
 
             assert_eq!(
-                policy.retry_delay(&1, &server_error_response()),
+                policy.retry_delay(
+                    &1,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 Some(expected_delay)
             );
 
             assert_eq!(
-                policy.retry_delay(&2, &server_error_response()),
+                policy.retry_delay(
+                    &2,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 Some(expected_delay.pow(2))
             );
         }
@@ -263,11 +372,28 @@ mod should {
             };
 
             assert_eq!(
-                policy.retry_delay(&2, &server_error_response()),
+                policy.retry_delay(
+                    &2,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 Some(expected_delay.pow(2))
             );
 
-            assert_eq!(policy.retry_delay(&3, &server_error_response()), None);
+            assert_eq!(
+                policy.retry_delay(
+                    &4,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
+                None
+            );
         }
 
         #[test]
@@ -281,12 +407,26 @@ mod should {
             };
 
             assert_eq!(
-                policy.retry_delay(&1, &server_error_response()),
+                policy.retry_delay(
+                    &1,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 Some(expected_delay)
             );
 
             assert_eq!(
-                policy.retry_delay(&2, &server_error_response()),
+                policy.retry_delay(
+                    &2,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(server_error_response()))
+                    ))
+                ),
                 Some(max_delay)
             );
         }
@@ -301,7 +441,14 @@ mod should {
 
             // 150 is from 'server_error_response' `Retry-After` header.
             assert_eq!(
-                policy.retry_delay(&2, &too_many_requests_error_response()),
+                policy.retry_delay(
+                    &2,
+                    Some(&PubNubError::general_api_error(
+                        "test",
+                        None,
+                        Some(Box::new(too_many_requests_error_response()))
+                    ))
+                ),
                 Some(150)
             );
         }

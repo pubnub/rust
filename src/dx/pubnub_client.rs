@@ -195,7 +195,6 @@ pub type PubNubClient = PubNubGenericClient<crate::transport::TransportReqwest>;
 ///
 /// This struct contains the actual client state.
 /// It shouldn't be used directly. Use [`PubNubGenericClient`] or [`PubNubClient`] instead.
-#[derive(Debug)]
 pub struct PubNubClientInstance<T> {
     pub(crate) inner: Arc<PubNubClientRef<T>>,
 }

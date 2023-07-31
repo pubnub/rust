@@ -277,7 +277,6 @@ pub struct Envelope {
 /// represented in different ways.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
-#[allow(dead_code)]
 pub enum EnvelopePayload {
     /// Presence change real-time update.
     ///

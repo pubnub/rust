@@ -34,6 +34,7 @@ use crate::{
     dx::pubnub_client::{PubNubClientInstance, PubNubConfig},
     lib::{
         alloc::{
+            boxed::Box,
             format,
             string::{String, ToString},
             sync::Arc,
@@ -111,7 +112,7 @@ where
     ) -> Result<PublishMessageContext<T, D, TransportRequest>, PubNubError> {
         let instance = self
             .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         PublishMessageContext::from(instance)
             .map_data(|client, _, params| {
@@ -284,7 +285,7 @@ where
         let pub_key = config
             .publish_key
             .as_ref()
-            .ok_or_else(|| PubNubError::general_api_error("Publish key is not set", None))?;
+            .ok_or_else(|| PubNubError::general_api_error("Publish key is not set", None, None))?;
         let sub_key = &config.subscribe_key;
 
         let mut m_vec = self.message.serialize()?;
@@ -427,16 +428,29 @@ where
 {
     response
         .body
-        .map(|body| deserializer.deserialize(&body))
+        .as_ref()
+        .map(|body| {
+            let deserialize_result = deserializer.deserialize(body);
+            if deserialize_result.is_err() && response.status >= 500 {
+                Err(PubNubError::general_api_error(
+                    "Unexpected service response",
+                    None,
+                    Some(Box::new(response.clone())),
+                ))
+            } else {
+                deserialize_result
+            }
+        })
         .transpose()
         .and_then(|body| {
             body.ok_or_else(|| {
                 PubNubError::general_api_error(
                     format!("No body in the response! Status code: {}", response.status),
                     None,
+                    Some(Box::new(response.clone())),
                 )
             })
-            .map(|body| body_to_result(body, response.status))
+            .map(|body| body_to_result(body, response))
         })?
 }
 

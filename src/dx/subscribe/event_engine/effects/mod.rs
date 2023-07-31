@@ -13,7 +13,7 @@ use crate::{
 use async_channel::Sender;
 use futures::future::BoxFuture;
 
-mod emit_messagess;
+mod emit_messages;
 mod emit_status;
 mod handshake;
 mod handshake_reconnection;
@@ -320,7 +320,7 @@ impl Effect for SubscribeEffect {
                 emit_status::execute(status.clone(), executor).await
             }
             SubscribeEffect::EmitMessages { updates, executor } => {
-                emit_messagess::execute(updates.clone(), executor).await
+                emit_messages::execute(updates.clone(), executor).await
             }
         }
     }

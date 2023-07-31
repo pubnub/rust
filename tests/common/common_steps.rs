@@ -91,11 +91,11 @@ impl Default for PAMState {
         Self {
             revoke_token_result: Err(PubNubError::Transport {
                 details: "This is default value".into(),
-                status: 400,
+                response: None,
             }),
             grant_token_result: Err(PubNubError::Transport {
                 details: "This is default value".into(),
-                status: 400,
+                response: None,
             }),
             resource_type: PAMCurrentResourceType::default(),
             resource_permissions: PAMPermissions::default(),
@@ -131,11 +131,11 @@ impl Default for PubNubWorld {
             },
             publish_result: Err(PubNubError::Transport {
                 details: "This is default value".into(),
-                status: 400,
+                response: None,
             }),
             subscription: Err(PubNubError::Transport {
                 details: "This is default value".into(),
-                status: 400,
+                response: None,
             }),
             is_succeed: false,
             pam_state: PAMState::default(),
