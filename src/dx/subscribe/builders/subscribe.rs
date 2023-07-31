@@ -79,7 +79,7 @@ pub(crate) struct SubscribeRequest<T> {
 
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
-        setter(skip),
+        setter(strip_option),
         default = "300"
     )]
     pub(in crate::dx::subscribe) heartbeat: u32,
@@ -124,6 +124,8 @@ impl<T> SubscribeRequest<T> {
             .as_ref()
             .filter(|e| !e.is_empty())
             .and_then(|e| query.insert("filter-expr".into(), e.into()));
+
+        query.insert("heartbeat".into(), self.heartbeat.to_string());
 
         TransportRequest {
             path: format!("/v2/subscribe/{sub_key}/{channels}/0"),

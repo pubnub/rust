@@ -22,7 +22,6 @@ use crate::{
     dx::subscribe::{SubscribeCursor, SubscribeResponseBody},
 };
 use derive_builder::Builder;
-use uuid::Uuid;
 
 /// Raw subscription that is responsible for getting messages from PubNub.
 ///
@@ -113,13 +112,6 @@ where
         default = "None"
     )]
     pub(in crate::dx::subscribe) filter_expression: Option<String>,
-
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        setter(custom),
-        default = "Uuid::new_v4().to_string()"
-    )]
-    pub(in crate::dx::subscribe) id: String,
 }
 
 impl<D, T> RawSubscriptionBuilder<D, T>
@@ -214,11 +206,17 @@ where
                     .subscription
                     .pubnub_client
                     .subscribe_request()
-                    .cursor(ctx.cursor.clone());
+                    .cursor(ctx.cursor.clone())
+                    .channels(ctx.subscription.channels.clone())
+                    .channel_groups(ctx.subscription.channel_groups.clone());
 
-                request = request.channels(ctx.subscription.channels.clone());
+                if let Some(heartbeat) = ctx.subscription.heartbeat {
+                    request = request.heartbeat(heartbeat);
+                }
 
-                request = request.channel_groups(ctx.subscription.channel_groups.clone());
+                if let Some(filter_expr) = ctx.subscription.filter_expression.clone() {
+                    request = request.filter_expression(filter_expr);
+                }
 
                 let deserializer = ctx.subscription.deserializer.clone();
 
@@ -287,11 +285,17 @@ where
                 .subscription
                 .pubnub_client
                 .subscribe_request()
-                .cursor(ctx.cursor.clone());
+                .cursor(ctx.cursor.clone())
+                .channels(ctx.subscription.channels.clone())
+                .channel_groups(ctx.subscription.channel_groups.clone());
 
-            request = request.channels(ctx.subscription.channels.clone());
+            if let Some(heartbeat) = ctx.subscription.heartbeat {
+                request = request.heartbeat(heartbeat);
+            }
 
-            request = request.channel_groups(ctx.subscription.channel_groups.clone());
+            if let Some(filter_expr) = ctx.subscription.filter_expression.clone() {
+                request = request.filter_expression(filter_expr);
+            }
 
             let deserializer = ctx.subscription.deserializer.clone();
 
