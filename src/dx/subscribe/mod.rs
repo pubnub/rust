@@ -26,16 +26,12 @@ pub use types::{
 };
 pub mod types;
 
-use crate::{
-    core::PubNubError,
-    dx::pubnub_client::PubNubClientInstance,
-    lib::alloc::{string::String, vec::Vec},
-};
+use crate::dx::pubnub_client::PubNubClientInstance;
 
 #[cfg(feature = "std")]
 use crate::{
-    core::Transport,
-    lib::alloc::{borrow::ToOwned, boxed::Box, sync::Arc},
+    core::{PubNubError, Transport},
+    lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
     subscribe::result::SubscribeResult,
 };
 
@@ -69,6 +65,7 @@ use self::raw::RawSubscriptionBuilder;
 #[cfg(not(feature = "serde"))]
 use self::raw::RawSubscriptionWithDeserializerBuilder;
 
+#[cfg(feature = "std")]
 #[derive(Clone)]
 pub(crate) struct SubscriptionParams<'execution> {
     channels: &'execution Option<Vec<String>>,

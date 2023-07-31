@@ -538,6 +538,7 @@ impl core::fmt::Display for SubscribeStatus {
     }
 }
 
+#[cfg(feature = "std")]
 impl Presence {
     /// Presence update channel.
     ///
@@ -574,6 +575,7 @@ impl Presence {
     }
 }
 
+#[cfg(feature = "std")]
 impl Object {
     /// Object channel name.
     ///

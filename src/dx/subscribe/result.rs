@@ -535,6 +535,7 @@ impl Envelope {
     }
 }
 
+#[cfg(feature = "std")]
 impl Update {
     /// Name of channel.
     ///
