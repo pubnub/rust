@@ -3,8 +3,6 @@
 //! This module has all the builders for subscription to real-time updates from
 //! a list of channels and channel groups.
 
-#[cfg(feature = "std")]
-use crate::dx::subscribe::cancel::CancellationTask;
 use crate::dx::subscribe::SubscribeResponseBody;
 use crate::{
     core::{
@@ -28,9 +26,8 @@ use crate::{
     },
 };
 use derive_builder::Builder;
-
-#[cfg(feature = "std")]
-use futures::{select_biased, FutureExt, future::BoxFuture};
+use futures::future::BoxFuture;
+use futures::{select_biased, FutureExt};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -40,12 +37,13 @@ use futures::{select_biased, FutureExt, future::BoxFuture};
 /// from the [`PubNub`] network.
 ///
 /// [`PubNub`]:https://www.pubnub.com/
-#[derive(Builder)]
+#[derive(Debug, Builder)]
 #[builder(
     pattern = "owned",
     build_fn(vis = "pub(in crate::dx::subscribe)", validate = "Self::validate"),
     no_std
 )]
+#[allow(dead_code, missing_docs)]
 pub(crate) struct SubscribeRequest<T> {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
@@ -80,10 +78,6 @@ pub(crate) struct SubscribeRequest<T> {
     )]
     pub(in crate::dx::subscribe) cursor: SubscribeCursor,
 
-    /// Heartbeat interval.
-    ///
-    /// Interval in seconds that informs the server that the client should
-    /// be considered alive.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(skip),
@@ -91,10 +85,6 @@ pub(crate) struct SubscribeRequest<T> {
     )]
     pub(in crate::dx::subscribe) heartbeat: u32,
 
-    /// Expression used to filter received messages.
-    ///
-    /// Expression used to filter received messages before they are delivered
-    /// to the client.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -168,8 +158,7 @@ impl<T> SubscribeRequestBuilder<T>
 where
     T: Transport,
 {
-    /// Build and call request.
-    pub async fn execute<D, F>(
+    pub async fn execute_with_cancel_and_delay<D, F>(
         self,
         deserializer: Arc<D>,
         delay: Arc<F>,
@@ -179,6 +168,41 @@ where
         D: Deserializer<SubscribeResponseBody> + ?Sized,
         F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
     {
+        select_biased! {
+            _ = cancel_task.wait_for_cancel().fuse() => {
+                Err(PubNubError::EffectCanceled)
+            },
+            response = self.execute_with_delay(deserializer, delay).fuse() => {
+                response
+            }
+        }
+    }
+
+    pub async fn execute_with_delay<D, F>(
+        self,
+        deserializer: Arc<D>,
+        delay: Arc<F>,
+    ) -> Result<SubscribeResult, PubNubError>
+    where
+        D: Deserializer<SubscribeResponseBody> + ?Sized,
+        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
+    {
+        // Postpone request execution if required.
+        delay().await;
+
+        self.execute(deserializer).await
+    }
+}
+
+impl<T> SubscribeRequestBuilder<T>
+where
+    T: Transport,
+{
+    /// Build and call request.
+    pub async fn execute<D>(self, deserializer: Arc<D>) -> Result<SubscribeResult, PubNubError>
+    where
+        D: Deserializer<SubscribeResponseBody> + ?Sized,
+    {
         // Build request instance and report errors if any.
         let request = self
             .build()
@@ -187,35 +211,37 @@ where
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
 
-                        let deserialize_result = deserializer.deserialize(&bytes);
-                        if deserialize_result.is_err() && response.status >= 500 {
-                            Err(PubNubError::general_api_error(
-                                "Unexpected service response",
-                                None,
-                                Some(Box::new(response.clone()))
-                            ))
-                        } else {
-                            deserialize_result
-                        }
+        // Request configured endpoint.
+        let response = client.transport.send(transport_request).await?;
+        response
+            .clone()
+            .body
+            .map(|bytes| {
+                let deserialize_result = deserializer.deserialize(&bytes);
+                if deserialize_result.is_err() && response.status >= 500 {
+                    Err(PubNubError::general_api_error(
+                        "Unexpected service response",
+                        None,
+                        Some(Box::new(response.clone())),
+                    ))
+                } else {
+                    deserialize_result
+                }
+            })
+            .map_or(
+                Err(PubNubError::general_api_error(
+                    "No body in the response!",
+                    None,
+                    Some(Box::new(response.clone())),
+                )),
+                |response_body| {
+                    response_body.and_then::<SubscribeResult, _>(|body| {
+                        body.try_into().map_err(|response_error: PubNubError| {
+                            response_error.attach_response(response)
+                        })
                     })
-                    .map_or(
-                        Err(PubNubError::general_api_error(
-                            "No body in the response!",
-                            None,
-                            Some(Box::new(response.clone()))
-                        )),
-                        |response_body| {
-                            response_body.and_then::<SubscribeResult, _>(|body| {
-                                body.try_into().map_err(|response_error: PubNubError| {
-                                    response_error.attach_response(response)
-                                })
-                            })
-                        },
-                    )
-            }.fuse() => {
-                response
-            }
-        }
+                },
+            )
     }
 }
 
@@ -227,21 +253,48 @@ where
     pub fn execute_blocking<D>(self, deserializer: Arc<D>) -> Result<SubscribeResult, PubNubError>
     where
         D: Deserializer<SubscribeResponseBody> + ?Sized,
-        client
-            .transport
-            .send(transport_request)?
+    {
+        // Build request instance and report errors if any.
+        let request = self
+            .build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
+
+        let transport_request = request.transport_request();
+        let client = request.pubnub_client.clone();
+
+        // Request configured endpoint.
+        let response = client.transport.send(transport_request)?;
+        response
+            .clone()
             .body
-            .map(|bytes| deserializer.deserialize(&bytes))
+            .map(|bytes| {
+                let deserialize_result = deserializer.deserialize(&bytes);
+                if deserialize_result.is_err() && response.status >= 500 {
+                    Err(PubNubError::general_api_error(
+                        "Unexpected service response",
+                        None,
+                        Some(Box::new(response.clone())),
+                    ))
+                } else {
+                    deserialize_result
+                }
+            })
             .map_or(
                 Err(PubNubError::general_api_error(
                     "No body in the response!",
                     None,
+                    Some(Box::new(response.clone())),
                 )),
                 |response_body| {
-                    response_body.and_then::<SubscribeResult, _>(|body| body.try_into())
+                    response_body.and_then::<SubscribeResult, _>(|body| {
+                        body.try_into().map_err(|response_error: PubNubError| {
+                            response_error.attach_response(response)
+                        })
+                    })
                 },
             )
-
+    }
+}
 
 #[cfg(test)]
 mod should {
@@ -282,7 +335,7 @@ mod should {
             .unwrap()
             .subscribe_request()
             .channels(vec!["test".into()])
-            .execute(
+            .execute_with_cancel_and_delay(
                 Arc::new(SerdeDeserializer),
                 Arc::new(|| ready(()).boxed()),
                 cancel_task,

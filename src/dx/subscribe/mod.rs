@@ -8,16 +8,6 @@ pub(crate) mod event_engine;
 use event_engine::{SubscribeEffectHandler, SubscribeState};
 
 #[cfg(feature = "std")]
-use futures::{future::BoxFuture, FutureExt};
-
-#[cfg(feature = "serde")]
-use crate::providers::deserialization_serde::SerdeDeserializer;
-
-pub use result::{SubscribeResponseBody, Update};
-pub mod result;
-
-use event_engine::{SubscribeEffectHandler, SubscribeState};
-
 use futures::{
     future::{ready, BoxFuture},
     FutureExt,
@@ -37,7 +27,7 @@ pub use types::{
 pub mod types;
 
 use crate::{
-    core::{event_engine::EventEngine, runtime::Runtime, PubNubError, Transport},
+    core::{PubNubError, Transport},
     dx::{pubnub_client::PubNubClientInstance, subscribe::result::SubscribeResult},
     lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
 };
@@ -341,18 +331,6 @@ where
         }
     }
 
-    /// Create subscribe request builder.
-    /// This method is used to create events stream for real-time updates on
-    /// passed list of channels and groups.
-    ///
-    /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T> {
-        SubscribeRequestBuilder {
-            pubnub_client: Some(self.clone()),
-            ..Default::default()
-        }
-    }
-
     pub(crate) fn subscription_manager<R>(&mut self, runtime: R) -> SubscriptionManager
     where
         R: Runtime + Send + Sync + 'static,
@@ -437,7 +415,9 @@ where
 
         let cancel_task = CancellationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
 
-        request.execute(deserializer, delay, cancel_task).boxed()
+        request
+            .execute_with_cancel_and_delay(deserializer, delay, cancel_task)
+            .boxed()
     }
 
     fn emit_status(client: Self, status: &SubscribeStatus) {
@@ -488,6 +468,7 @@ impl<T> PubNubClientInstance<T> {
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::core::blocking;
     use crate::{
         core::{TransportRequest, TransportResponse},
         Keyset, PubNubClientBuilder, PubNubGenericClient,

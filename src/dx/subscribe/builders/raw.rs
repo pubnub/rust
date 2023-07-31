@@ -226,7 +226,7 @@ where
 
                 if let Err(e) = response {
                     return Some((
-                        Err(PubNubError::general_api_error(e.to_string(), None)),
+                        Err(PubNubError::general_api_error(e.to_string(), None, None)),
                         ctx,
                     ));
                 }
@@ -298,7 +298,11 @@ where
             let response = request.execute_blocking(deserializer);
 
             if let Err(e) = response {
-                return Some(Err(PubNubError::general_api_error(e.to_string(), None)));
+                return Some(Err(PubNubError::general_api_error(
+                    e.to_string(),
+                    None,
+                    None,
+                )));
             }
 
             let response = response.expect("Should be Ok");
