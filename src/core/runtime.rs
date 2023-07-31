@@ -25,8 +25,6 @@ use crate::lib::{alloc::boxed::Box, core::future::Future};
 ///       // spawn the Future
 ///       // e.g. tokio::spawn(future);
 ///    }
-/// }
-/// ```
 ///    
 ///    async fn sleep(self, _delay: u64) {
 ///       // e.g. tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
