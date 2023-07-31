@@ -7,19 +7,23 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use crate::transport::middleware::SignatureKeySet;
+use crate::core::Cryptor;
+#[cfg(feature = "subscribe")]
+use crate::dx::subscribe::SubscriptionConfiguration;
 use crate::{
-    core::{PubNubError, Transport},
-    lib::alloc::{
-        string::{String, ToString},
-        sync::Arc,
+    core::{PubNubError, RequestRetryPolicy, Transport},
+    lib::{
+        alloc::{
+            string::{String, ToString},
+            sync::Arc,
+        },
+        core::ops::{Deref, DerefMut},
     },
-    lib::core::ops::Deref,
-    transport::middleware::PubNubMiddleware,
+    transport::middleware::{PubNubMiddleware, SignatureKeySet},
 };
 use derive_builder::Builder;
 use log::info;
-use spin::Mutex;
+use spin::{Mutex, RwLock};
 
 /// PubNub client
 ///
@@ -71,7 +75,7 @@ use spin::Mutex;
 /// #     }
 /// # }
 ///
-/// # fn main() -> Result<(), pubnub::core::PubNubError> {
+/// # fn main() -> Result<(), PubNubError> {
 /// // note that MyTransport must implement the `Transport` trait
 /// let transport = MyTransport::new();
 ///
@@ -152,7 +156,7 @@ pub type PubNubGenericClient<T> = PubNubClientInstance<PubNubMiddleware<T>>;
 /// #     }
 /// # }
 ///
-/// # fn main() -> Result<(), pubnub::core::PubNubError> {
+/// # fn main() -> Result<(), PubNubError> {
 /// // note that MyTransport must implement the `Transport` trait
 /// let transport = MyTransport::new();
 ///
@@ -191,7 +195,6 @@ pub type PubNubClient = PubNubGenericClient<crate::transport::TransportReqwest>;
 ///
 /// This struct contains the actual client state.
 /// It shouldn't be used directly. Use [`PubNubGenericClient`] or [`PubNubClient`] instead.
-#[derive(Debug)]
 pub struct PubNubClientInstance<T> {
     pub(crate) inner: Arc<PubNubClientRef<T>>,
 }
@@ -201,6 +204,13 @@ impl<T> Deref for PubNubClientInstance<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<T> DerefMut for PubNubClientInstance<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.inner)
+            .expect("Multiple mutable references to PubNubClientInstance are not allowed")
     }
 }
 
@@ -218,7 +228,7 @@ impl<T> Clone for PubNubClientInstance<T> {
 /// It's wrapped in `Arc` by [`PubNubClient`] and uses interior mutability for its internal state.
 ///
 /// Not intended to be used directly. Use [`PubNubClient`] instead.
-#[derive(Debug, Builder)]
+#[derive(Builder, Debug)]
 #[builder(
     pattern = "owned",
     name = "PubNubClientConfigBuilder",
@@ -229,6 +239,14 @@ impl<T> Clone for PubNubClientInstance<T> {
 pub struct PubNubClientRef<T> {
     /// Transport layer
     pub(crate) transport: T,
+
+    /// Data cryptor / decryptor
+    #[builder(
+        setter(custom, strip_option),
+        field(vis = "pub(crate)"),
+        default = "None"
+    )]
+    pub(crate) cryptor: Option<Arc<dyn Cryptor + Send + Sync>>,
 
     /// Instance ID
     #[builder(
@@ -250,7 +268,12 @@ pub struct PubNubClientRef<T> {
         field(vis = "pub(crate)"),
         default = "Arc::new(spin::RwLock::new(String::new()))"
     )]
-    pub(crate) auth_token: Arc<spin::RwLock<String>>,
+    pub(crate) auth_token: Arc<RwLock<String>>,
+
+    /// Subscription module configuration
+    #[cfg(feature = "subscribe")]
+    #[builder(setter(skip), field(vis = "pub(crate)"))]
+    pub(crate) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
 }
 
 impl<T> PubNubClientInstance<T> {
@@ -275,7 +298,7 @@ impl<T> PubNubClientInstance<T> {
     /// #     }
     /// # }
     ///
-    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// # fn main() -> Result<(), PubNubError> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
@@ -294,7 +317,7 @@ impl<T> PubNubClientInstance<T> {
     #[cfg(feature = "blocking")]
     pub fn with_blocking_transport(transport: T) -> PubNubClientBuilder<T>
     where
-        T: crate::core::blocking::Transport,
+        T: crate::core::blocking::Transport + Send + Sync,
     {
         PubNubClientBuilder {
             transport: Some(transport),
@@ -379,6 +402,39 @@ impl<T> PubNubClientConfigBuilder<T> {
         self
     }
 
+    /// Requests retry policy.
+    ///
+    /// The retry policy regulates the frequency of request retry attempts and the number of failed
+    /// attempts that should be retried.
+    ///
+    /// It returns [`PubNubClientConfigBuilder`] that you can use to set the
+    /// configuration for the client. This is a part the
+    /// [`PubNubClientConfigBuilder`].
+    pub fn with_retry_policy(mut self, policy: RequestRetryPolicy) -> Self {
+        if let Some(configuration) = self.config.as_mut() {
+            configuration.retry_policy = policy;
+        }
+
+        self
+    }
+
+    /// Data encryption / decryption
+    ///
+    /// Cryptor used by client when publish messages / signals and receive them as real-time updates
+    /// from subscription module.
+    ///
+    /// It returns [`PubNubClientConfigBuilder`] that you can use to set the
+    /// configuration for the client. This is a part the
+    /// [`PubNubClientConfigBuilder`].
+    pub fn with_cryptor<C>(mut self, cryptor: C) -> Self
+    where
+        C: Cryptor + Send + Sync + 'static,
+    {
+        self.cryptor = Some(Some(Arc::new(cryptor)));
+
+        self
+    }
+
     /// Build a [`PubNubClient`] from the builder
     pub fn build(self) -> Result<PubNubClientInstance<PubNubMiddleware<T>>, PubNubError> {
         self.build_internal()
@@ -386,7 +442,7 @@ impl<T> PubNubClientConfigBuilder<T> {
                 details: err.to_string(),
             })
             .and_then(|pre_build| {
-                let token = Arc::new(spin::RwLock::new(String::new()));
+                let token = Arc::new(RwLock::new(String::new()));
                 info!("Client Configuration: \n publish_key: {:?}\n subscribe_key: {}\n user_id: {}\n instance_id: {:?}", pre_build.config.publish_key, pre_build.config.subscribe_key, pre_build.config.user_id, pre_build.instance_id);
                 Ok(PubNubClientRef {
                     transport: PubNubMiddleware {
@@ -401,10 +457,16 @@ impl<T> PubNubClientConfigBuilder<T> {
                     next_seqn: pre_build.next_seqn,
                     auth_token: token,
                     config: pre_build.config,
+                    cryptor: pre_build.cryptor.clone(),
+
+                    #[cfg(feature = "subscribe")]
+                    subscription: Arc::new(RwLock::new(None)),
                 })
             })
-            .map(|client| PubNubClientInstance {
-                inner: Arc::new(client),
+            .map(|client| {
+                PubNubClientInstance {
+                    inner: Arc::new(client),
+                }
             })
     }
 }
@@ -429,6 +491,9 @@ pub struct PubNubConfig {
 
     /// Authorization key
     pub(crate) auth_key: Option<Arc<String>>,
+
+    /// Request retry policy
+    pub(crate) retry_policy: RequestRetryPolicy,
 }
 
 impl PubNubConfig {
@@ -541,7 +606,7 @@ impl<T> PubNubClientBuilder<T> {
     /// #     }
     /// # }
     ///
-    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// # fn main() -> Result<(), PubNubError> {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
@@ -559,7 +624,7 @@ impl<T> PubNubClientBuilder<T> {
     #[cfg(feature = "blocking")]
     pub fn with_blocking_transport(transport: T) -> PubNubClientBuilder<T>
     where
-        T: crate::core::blocking::Transport,
+        T: crate::core::blocking::Transport + Send + Sync,
     {
         PubNubClientBuilder {
             transport: Some(transport),
@@ -659,6 +724,7 @@ where
                 secret_key,
                 user_id: Arc::new(user_id.into()),
                 auth_key: None,
+                retry_policy: Default::default(),
             }),
             ..Default::default()
         }
@@ -719,7 +785,7 @@ mod should {
             type_name::<T>()
         }
 
-        let client = PubNubClientBuilder::with_transport(MockTransport::default())
+        let client = PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 subscribe_key: "",
                 publish_key: Some(""),
@@ -743,6 +809,7 @@ mod should {
             secret_key: Some("sec_key".into()),
             user_id: Arc::new("".into()),
             auth_key: None,
+            retry_policy: Default::default(),
         };
 
         assert!(config.signature_key_set().is_err());

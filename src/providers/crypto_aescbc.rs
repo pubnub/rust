@@ -71,6 +71,7 @@ pub enum AesCbcIv {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct AesCbcCrypto {
     cipher_key: Vec<u8>,
     iv: Option<Vec<u8>>,
@@ -117,7 +118,7 @@ impl AesCbcCrypto {
     fn estimated_enc_buffer_size(&self, source: &[u8]) -> usize {
         // Adding padding which include additional AES cipher block size.
         let padding = (AES_BLOCK_SIZE - source.len() % AES_BLOCK_SIZE) + AES_BLOCK_SIZE;
-        if !self.iv_constant {
+        if !&self.iv_constant {
             // Reserve more space to store random initialization vector.
             source.len() + padding + AES_BLOCK_SIZE
         } else {
@@ -131,7 +132,12 @@ impl AesCbcCrypto {
     /// type of used initialization vector.
     fn estimated_dec_buffer_size(&self, source: &[u8]) -> usize {
         // Subtract size of random initialization vector (if used).
-        source.len() - if !self.iv_constant { AES_BLOCK_SIZE } else { 0 }
+        source.len()
+            - if !&self.iv_constant {
+                AES_BLOCK_SIZE
+            } else {
+                0
+            }
     }
 
     /// Data encryption initialization vector.
@@ -197,7 +203,7 @@ impl Cryptor for AesCbcCrypto {
     /// # fn main() -> Result<(), PubNubError> {
     /// let cryptor = // AesCbcCrypto
     /// #    AesCbcCrypto::new("enigma", AesCbcIv::Random)?;
-    /// let encrypted_data = cryptor.encrypt("Hello world!".as_bytes());
+    /// let encrypted_data = cryptor.encrypt(Vec::from("Hello world!"));
     /// match encrypted_data {
     ///     Ok(data) => println!("Encrypted data: {:?}", data),
     ///     Err(err) => eprintln!("Data encryption error: {}", err.to_string())
@@ -209,14 +215,15 @@ impl Cryptor for AesCbcCrypto {
     /// # Errors
     /// Should return an [`PubNubError::Encryption`] if provided data can't
     /// be encrypted or underlying cryptor misconfigured.
-    fn encrypt<'en, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
-    where
-        T: Into<&'en [u8]>,
-    {
+    fn encrypt(&self, source: Vec<u8>) -> Result<Vec<u8>, PubNubError> {
         let iv = self.encryption_iv();
-        let data = source.into();
+        let data = source.as_slice();
         let mut buffer = vec![0u8; self.estimated_enc_buffer_size(data)];
-        let data_offset = if !self.iv_constant { AES_BLOCK_SIZE } else { 0 };
+        let data_offset = if !&self.iv_constant {
+            AES_BLOCK_SIZE
+        } else {
+            0
+        };
         let data_slice = &mut buffer[data_offset..];
 
         let result = Encryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
@@ -254,7 +261,7 @@ impl Cryptor for AesCbcCrypto {
     /// #     .decode("fRm/rMArHgQuIuhuJMbXV8JLOUqf5sP72lGC4EaW98nNhmJltQcmCol9XXWgeDJC")
     /// #     .expect("Valid base64 encoded string required.");
     /// let encrypted_data = // &[u8]
-    /// #    data_for_decryption.as_slice();
+    /// #    data_for_decryption;
     /// let decrypted_data = cryptor.decrypt(encrypted_data);
     /// match decrypted_data {
     ///     Ok(data) => println!("Decrypted data: {:?}", String::from_utf8(data)), // "Hello there 🙃"
@@ -267,14 +274,15 @@ impl Cryptor for AesCbcCrypto {
     /// # Errors
     /// Should return an [`PubNubError::Decryption`] if provided data can't
     /// be decrypted or underlying cryptor misconfigured.
-    fn decrypt<'de, T>(&self, source: T) -> Result<Vec<u8>, PubNubError>
-    where
-        T: Into<&'de [u8]>,
-    {
-        let data = source.into();
+    fn decrypt(&self, source: Vec<u8>) -> Result<Vec<u8>, PubNubError> {
+        let data = source.as_slice();
         let iv = self.decryption_iv(data);
         let mut buffer = vec![0u8; self.estimated_dec_buffer_size(data)];
-        let data_offset = if !self.iv_constant { AES_BLOCK_SIZE } else { 0 };
+        let data_offset = if !&self.iv_constant {
+            AES_BLOCK_SIZE
+        } else {
+            0
+        };
         let data_slice = &data[data_offset..];
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
@@ -327,10 +335,10 @@ mod it_should {
         let cryptor =
             AesCbcCrypto::new("enigma", AesCbcIv::Constant).expect("Cryptor should be created");
         let encrypted1 = cryptor
-            .encrypt("\"Hello there 🙃\"".as_bytes())
+            .encrypt(Vec::from("\"Hello there 🙃\""))
             .expect("Data should be encrypted");
         let encrypted2 = cryptor
-            .encrypt("\"Hello there 🙃\"".as_bytes())
+            .encrypt(Vec::from("\"Hello there 🙃\""))
             .expect("Data should be encrypted");
         assert_eq!(encrypted1, encrypted2);
         assert_ne!(
@@ -348,10 +356,10 @@ mod it_should {
         let cryptor =
             AesCbcCrypto::new("enigma", AesCbcIv::Random).expect("Cryptor should be created");
         let encrypted1 = cryptor
-            .encrypt("\"Hello there 🙃\"".as_bytes())
+            .encrypt(Vec::from("\"Hello there 🙃\""))
             .expect("Data should be encrypted");
         let encrypted2 = cryptor
-            .encrypt("\"Hello there 🙃\"".as_bytes())
+            .encrypt(Vec::from("\"Hello there 🙃\""))
             .expect("Data should be encrypted");
         assert_ne!(encrypted1, encrypted2);
         assert_ne!(encrypted1[0..AES_BLOCK_SIZE], encrypted2[0..AES_BLOCK_SIZE]);
@@ -365,7 +373,7 @@ mod it_should {
         let cryptor =
             AesCbcCrypto::new("enigma", AesCbcIv::Constant).expect("Cryptor should be created");
         let decrypted = cryptor
-            .decrypt(encrypted.as_slice())
+            .decrypt(encrypted)
             .expect("Data should be decrypted");
         assert_eq!(decrypted, "\"Hello there 🙃\"".as_bytes());
     }
@@ -381,10 +389,10 @@ mod it_should {
         let cryptor =
             AesCbcCrypto::new("enigma", AesCbcIv::Random).expect("Cryptor should be created");
         let decrypted1 = cryptor
-            .decrypt(encrypted1.as_slice())
+            .decrypt(encrypted1)
             .expect("Data should be decrypted");
         let decrypted2 = cryptor
-            .decrypt(encrypted2.as_slice())
+            .decrypt(encrypted2)
             .expect("Data should be decrypted");
         assert_eq!(decrypted1, "\"Hello there 🙃\"".as_bytes());
         assert_eq!(decrypted1, decrypted2);

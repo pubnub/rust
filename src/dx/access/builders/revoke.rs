@@ -5,14 +5,14 @@
 use crate::{
     core::{
         error::PubNubError,
-        headers::{APPLICATION_JSON, CONTENT_TYPE},
+        utils::{
+            encoding::url_encode,
+            headers::{APPLICATION_JSON, CONTENT_TYPE},
+        },
         Deserializer, Transport, TransportMethod, TransportRequest,
     },
     dx::{access::*, pubnub_client::PubNubClientInstance},
-    lib::{
-        alloc::{format, string::ToString},
-        encoding::url_encode,
-    },
+    lib::alloc::{boxed::Box, format, string::ToString},
 };
 use derive_builder::Builder;
 
@@ -34,7 +34,7 @@ use derive_builder::Builder;
 /// [`PubNubClient`]: crate::PubNubClient
 pub struct RevokeTokenRequest<T, D>
 where
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
@@ -69,7 +69,7 @@ pub struct RevokeTokenRequestWithDeserializerBuilder<T> {
 
 impl<T, D> RevokeTokenRequest<T, D>
 where
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
@@ -89,7 +89,7 @@ where
 
 impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Validate user-provided data for request builder.
     ///
@@ -103,32 +103,47 @@ where
 impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
     T: Transport,
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Build and call request.
     pub async fn execute(self) -> Result<RevokeTokenResult, PubNubError> {
         // Build request instance and report errors if any.
         let request = self
             .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
         let deserializer = request.deserializer;
 
-        client
-            .transport
-            .send(transport_request)
-            .await?
+        let response = client.transport.send(transport_request).await?;
+        response
+            .clone()
             .body
-            .map(|bytes| deserializer.deserialize(&bytes))
+            .map(|bytes| {
+                let deserialize_result = deserializer.deserialize(&bytes);
+                if deserialize_result.is_err() && response.status >= 500 {
+                    Err(PubNubError::general_api_error(
+                        "Unexpected service response",
+                        None,
+                        Some(Box::new(response.clone())),
+                    ))
+                } else {
+                    deserialize_result
+                }
+            })
             .map_or(
                 Err(PubNubError::general_api_error(
                     "No body in the response!",
                     None,
+                    Some(Box::new(response.clone())),
                 )),
                 |response_body| {
-                    response_body.and_then::<RevokeTokenResult, _>(|body| body.try_into())
+                    response_body.and_then::<RevokeTokenResult, _>(|body| {
+                        body.try_into().map_err(|response_error: PubNubError| {
+                            response_error.attach_response(response)
+                        })
+                    })
                 },
             )
     }
@@ -138,7 +153,7 @@ where
 impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
     T: crate::core::blocking::Transport,
-    D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+    D: Deserializer<RevokeTokenResponseBody>,
 {
     /// Execute the request and return the result.
     ///
@@ -170,24 +185,40 @@ where
         // Build request instance and report errors if any.
         let request = self
             .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
         let deserializer = request.deserializer;
 
-        client
-            .transport
-            .send(transport_request)?
+        let response = client.transport.send(transport_request)?;
+        response
             .body
-            .map(|bytes| deserializer.deserialize(&bytes))
+            .as_ref()
+            .map(|bytes| {
+                let deserialize_result = deserializer.deserialize(bytes);
+                if deserialize_result.is_err() && response.status >= 500 {
+                    Err(PubNubError::general_api_error(
+                        "Unexpected service response",
+                        None,
+                        Some(Box::new(response.clone())),
+                    ))
+                } else {
+                    deserialize_result
+                }
+            })
             .map_or(
                 Err(PubNubError::general_api_error(
                     "No body in the response!",
                     None,
+                    Some(Box::new(response.clone())),
                 )),
                 |response_body| {
-                    response_body.and_then::<RevokeTokenResult, _>(|body| body.try_into())
+                    response_body.and_then::<RevokeTokenResult, _>(|body| {
+                        body.try_into().map_err(|response_error: PubNubError| {
+                            response_error.attach_response(response)
+                        })
+                    })
                 },
             )
     }
@@ -202,7 +233,7 @@ impl<T> RevokeTokenRequestWithDeserializerBuilder<T> {
     /// Instance of [`RevokeTokenRequestBuilder`] returned.
     pub fn deserialize_with<D>(self, deserializer: D) -> RevokeTokenRequestBuilder<T, D>
     where
-        D: for<'de> Deserializer<'de, RevokeTokenResponseBody>,
+        D: Deserializer<RevokeTokenResponseBody>,
     {
         RevokeTokenRequestBuilder {
             pubnub_client: Some(self.pubnub_client),

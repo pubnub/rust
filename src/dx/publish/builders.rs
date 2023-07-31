@@ -107,7 +107,7 @@ where
 /// ```rust
 /// # use pubnub::{PubNubClientBuilder, Keyset};
 /// use pubnub::{
-///     dx::publish::PublishResponse,
+///     dx::publish::{PublishResponse, PublishResponseBody},
 ///     core::{Deserializer, PubNubError}
 /// };
 /// # #[tokio::main]
@@ -115,12 +115,11 @@ where
 ///
 /// struct MyDeserializer;
 ///
-/// impl<'de> Deserializer<'de, PublishResponseBody> for MyDeserializer {
-///    fn deserialize(&self, response: &'de [u8]) -> Result<PublishResponse, PubNubError> {
+/// impl Deserializer<PublishResponseBody> for MyDeserializer {
+///    fn deserialize(&self, response: &Vec<u8>) -> Result<PublishResponse, PubNubError> {
 ///    // ...
 ///    # Ok(PublishResponse)
 /// }
-///
 ///
 /// let mut pubnub = // PubNubClient
 /// # PubNubClientBuilder::with_reqwest_transport()
@@ -170,7 +169,7 @@ where
     /// [`PublishResponseBody`]: crate::core::publish::PublishResponseBody
     pub fn deserialize_with<D>(self, deserializer: D) -> PublishMessageViaChannelBuilder<T, M, D>
     where
-        for<'de> D: Deserializer<'de, PublishResponseBody>,
+        D: Deserializer<PublishResponseBody>,
     {
         PublishMessageViaChannelBuilder {
             pub_nub_client: Some(self.pub_nub_client),
@@ -221,7 +220,7 @@ where
 pub struct PublishMessageViaChannel<T, M, D>
 where
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     #[builder(setter(custom))]
     pub(super) pub_nub_client: PubNubClientInstance<T>,

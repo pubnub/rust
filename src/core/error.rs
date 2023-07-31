@@ -4,7 +4,10 @@
 //!
 //! [`pubnub`]: ../index.html
 
-use crate::lib::{alloc::string::String, alloc::vec::Vec};
+use crate::{
+    core::TransportResponse,
+    lib::alloc::{boxed::Box, string::String, vec::Vec},
+};
 use snafu::Snafu;
 
 /// PubNub error type
@@ -35,6 +38,9 @@ pub enum PubNubError {
     Transport {
         ///docs
         details: String,
+
+        /// Failed request HTTP status code.
+        response: Option<Box<TransportResponse>>,
     },
 
     /// this error is returned when the publication of the request fails
@@ -101,6 +107,17 @@ pub enum PubNubError {
         details: String,
     },
 
+    /// this error is returned when the event engine effect is canceled
+    #[snafu(display("Event engine effect has been canceled"))]
+    EffectCanceled,
+
+    /// this error is returned when the subscription initialization fails
+    #[snafu(display("Subscription initialization error: {details}"))]
+    SubscribeInitialization {
+        ///docs
+        details: String,
+    },
+
     ///this error is returned when REST API request can't be handled by service.
     #[snafu(display("REST API error: {message}"))]
     API {
@@ -118,6 +135,9 @@ pub enum PubNubError {
 
         /// List of channel groups which is affected by error.
         affected_channel_groups: Option<Vec<String>>,
+
+        /// Raw service response.
+        response: Option<Box<TransportResponse>>,
     },
 }
 
@@ -126,8 +146,12 @@ impl PubNubError {
     ///
     /// This function used to inform about not initialized request parameters or
     /// validation failure.
-    #[cfg(any(feature = "publish", feature = "access"))]
-    pub(crate) fn general_api_error<S>(message: S, status: Option<u16>) -> Self
+    #[cfg(any(feature = "publish", feature = "access", feature = "subscribe"))]
+    pub(crate) fn general_api_error<S>(
+        message: S,
+        status: Option<u16>,
+        response: Option<Box<TransportResponse>>,
+    ) -> Self
     where
         S: Into<String>,
     {
@@ -137,6 +161,48 @@ impl PubNubError {
             service: None,
             affected_channels: None,
             affected_channel_groups: None,
+            response,
+        }
+    }
+
+    /// Retrieve attached service response.
+    #[cfg(any(feature = "publish", feature = "access", feature = "subscribe"))]
+    pub(crate) fn transport_response(&self) -> Option<Box<TransportResponse>> {
+        match self {
+            PubNubError::API { response, .. } | PubNubError::Transport { response, .. } => {
+                response.clone()
+            }
+            _ => None,
+        }
+    }
+
+    /// Attach service response.
+    ///
+    /// For better understanding some errors may provide additional information
+    /// right from service response.
+    #[cfg(any(feature = "publish", feature = "access", feature = "subscribe"))]
+    pub(crate) fn attach_response(self, service_response: TransportResponse) -> Self {
+        match &self {
+            PubNubError::API {
+                status,
+                message,
+                service,
+                affected_channels,
+                affected_channel_groups,
+                ..
+            } => PubNubError::API {
+                status: *status,
+                message: message.clone(),
+                service: service.clone(),
+                affected_channels: affected_channels.clone(),
+                affected_channel_groups: affected_channel_groups.clone(),
+                response: Some(Box::new(service_response)),
+            },
+            PubNubError::Transport { details, .. } => PubNubError::Transport {
+                details: details.clone(),
+                response: Some(Box::new(service_response)),
+            },
+            _ => self,
         }
     }
 }

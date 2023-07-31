@@ -82,7 +82,7 @@ impl<'request> GrantTokenPayload<'request> {
     pub(super) fn new<T, S, D>(request: &'request GrantTokenRequest<'_, T, S, D>) -> Self
     where
         S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-        D: for<'ds> Deserializer<'ds, GrantTokenResponseBody>,
+        D: Deserializer<GrantTokenResponseBody>,
     {
         GrantTokenPayload {
             ttl: request.ttl,

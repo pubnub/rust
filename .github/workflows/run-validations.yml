@@ -48,27 +48,25 @@ jobs:
 
     - name: Run cargo check tool to check if the code are valid
       run: |
-       cargo check --workspace --all-targets --features="full" 
+        cargo check --workspace --all-targets --features="full"
     - name: Run cargo check tool to check if the raw domain code are valid
       run: |
-       cargo check --workspace --no-default-features --features="pubnub_only" 
+        cargo check --workspace --no-default-features --features="pubnub_only"
     - name: Run cargo check tool to check if the `no_std` code are valid 
       run: |
-       cargo check --workspace --all-targets --no-default-features --features="full_no_std"
-
+        cargo check --workspace --all-targets --no-default-features --features="full_no_std"
     - name: Run cargo clippy tool to check if all the best code practices are followed
       run: |
-       cargo clippy --workspace --all-targets --features="full" -- -D warnings
+        cargo clippy --workspace --all-targets --features="full" -- -D warnings
     - name: Run cargo clippy tool to check if all the best code practices are followed for raw domain code
       run: |
-       cargo clippy --workspace --no-default-features --features="pubnub_only" -- -D warnings
+        cargo clippy --workspace --no-default-features --features="pubnub_only" -- -D warnings
     - name: Run cargo clippy tool to check if all the best code practices are followed for `no_std` code
       run: |
-       cargo clippy --workspace --all-targets --no-default-features --features="full_no_std" -- -D warnings
-
+        cargo clippy --workspace --all-targets --no-default-features --features="full_no_std" -- -D warnings
     - name: Run cargo fmt tool to check if code are well formatted 
       run: |
-       cargo fmt --check --verbose --all
+        cargo fmt --check --verbose --all
 
   cargo-deny:
     name: Check Cargo crate dependencies

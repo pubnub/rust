@@ -1,98 +1,116 @@
-use crate::dx::subscribe::{
-    event_engine::{ReceiveFunction, SubscribeEvent},
-    SubscribeCursor,
+use crate::{
+    dx::subscribe::{
+        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
+        SubscribeCursor, SubscriptionParams,
+    },
+    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
-use crate::lib::alloc::{string::String, vec, vec::Vec};
+use futures::TryFutureExt;
+use log::info;
 
-pub(crate) fn execute(
+pub(crate) async fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     cursor: &SubscribeCursor,
-    executor: ReceiveFunction,
-) -> Option<Vec<SubscribeEvent>> {
-    Some(
-        executor(channels, channel_groups, cursor, 0, None)
-            .unwrap_or_else(|err| vec![SubscribeEvent::ReceiveFailure { reason: err }]),
+    effect_id: &str,
+    executor: &Arc<SubscribeEffectExecutor>,
+) -> Vec<SubscribeEvent> {
+    info!(
+        "Receive at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
+        cursor.timetoken,
+        channels.as_ref().unwrap_or(&Vec::new()),
+        channel_groups.as_ref().unwrap_or(&Vec::new()),
+    );
+
+    executor(SubscriptionParams {
+        channels,
+        channel_groups,
+        cursor: Some(cursor),
+        attempt: 0,
+        reason: None,
+        effect_id,
+    })
+    .map_ok_or_else(
+        |error| {
+            log::error!("Receive error: {:?}", error);
+            vec![SubscribeEvent::ReceiveFailure { reason: error }]
+        },
+        |subscribe_result| {
+            vec![SubscribeEvent::ReceiveSuccess {
+                cursor: subscribe_result.cursor,
+                messages: subscribe_result.messages,
+            }]
+        },
     )
+    .await
 }
 
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{core::PubNubError, dx::subscribe::SubscribeCursor};
+    use crate::{core::PubNubError, dx::subscribe::result::SubscribeResult};
+    use futures::FutureExt;
 
-    #[test]
-    fn receive_messages() {
-        fn mock_receive_function(
-            channels: &Option<Vec<String>>,
-            channel_groups: &Option<Vec<String>>,
-            cursor: &SubscribeCursor,
-            attempt: u8,
-            reason: Option<PubNubError>,
-        ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-            assert_eq!(channels, &Some(vec!["ch1".to_string()]));
-            assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
-            assert_eq!(attempt, 0);
-            assert_eq!(reason, None);
-            assert_eq!(
-                cursor,
-                &SubscribeCursor {
-                    timetoken: 0,
-                    region: 0
-                }
-            );
+    #[tokio::test]
+    async fn receive_messages() {
+        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |params| {
+            assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
+            assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
+            assert_eq!(params.attempt, 0);
+            assert_eq!(params.reason, None);
+            assert_eq!(params.cursor, Some(&Default::default()));
+            assert_eq!(params.effect_id, "id");
 
-            Ok(vec![SubscribeEvent::ReceiveSuccess {
-                cursor: SubscribeCursor {
-                    timetoken: 0,
-                    region: 0,
-                },
-                messages: vec![],
-            }])
-        }
+            async move {
+                Ok(SubscribeResult {
+                    cursor: Default::default(),
+                    messages: vec![],
+                })
+            }
+            .boxed()
+        });
 
         let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
-            &SubscribeCursor {
-                timetoken: 0,
-                region: 0,
-            },
-            mock_receive_function,
-        );
+            &Default::default(),
+            "id",
+            &mock_receive_function,
+        )
+        .await;
 
+        assert!(!result.is_empty());
         assert!(matches!(
-            result.unwrap().first().unwrap(),
-            &SubscribeEvent::ReceiveSuccess { .. }
-        ))
+            result.first().unwrap(),
+            SubscribeEvent::ReceiveSuccess { .. }
+        ));
     }
 
-    #[test]
-    fn return_handskahe_failure_event_on_err() {
-        fn mock_receive_function(
-            _channels: &Option<Vec<String>>,
-            _channel_groups: &Option<Vec<String>>,
-            _cursor: &SubscribeCursor,
-            _attempt: u8,
-            _reason: Option<PubNubError>,
-        ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-            Err(PubNubError::Transport {
-                details: "test".into(),
-            })
-        }
+    #[tokio::test]
+    async fn return_receive_failure_event_on_err() {
+        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
+            async move {
+                Err(PubNubError::Transport {
+                    details: "test".into(),
+                    response: None,
+                })
+            }
+            .boxed()
+        });
 
-        let binding = execute(
+        let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
-            &SubscribeCursor {
-                timetoken: 0,
-                region: 0,
-            },
-            mock_receive_function,
+            &Default::default(),
+            "id",
+            &mock_receive_function,
         )
-        .unwrap();
-        let result = &binding[0];
+        .await;
 
-        assert!(matches!(result, &SubscribeEvent::ReceiveFailure { .. }));
+        assert!(!result.is_empty());
+        assert!(matches!(
+            result.first().unwrap(),
+            SubscribeEvent::ReceiveFailure { .. }
+        ));
     }
 }

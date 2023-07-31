@@ -1,5 +1,8 @@
 //! Event Engine module
 
+use crate::lib::alloc::sync::Arc;
+use async_channel::Sender;
+use log::error;
 use spin::rwlock::RwLock;
 
 #[doc(inline)]
@@ -26,26 +29,34 @@ pub(crate) mod event;
 pub(crate) use state::State;
 pub(crate) mod state;
 
+use crate::core::runtime::Runtime;
 #[doc(inline)]
 pub(crate) use transition::Transition;
+
 pub(crate) mod transition;
 
 /// State machine's event engine.
 ///
 /// [`EventEngine`] is the core of state machines used in PubNub client and
 /// manages current system state and handles external events.
+#[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct EventEngine<S, EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF>,
+    EI: EffectInvocation<Effect = EF> + Send + Sync,
     EH: EffectHandler<EI, EF>,
     EF: Effect<Invocation = EI>,
-    S: State<State = S, Invocation = EI>,
+    S: State<State = S, Invocation = EI> + Send + Sync,
 {
     /// Effects dispatcher.
     ///
     /// Dispatcher responsible for effects invocation processing.
-    effect_dispatcher: EffectDispatcher<EH, EF, EI>,
+    effect_dispatcher: Arc<EffectDispatcher<EH, EF, EI>>,
+
+    /// `Effect invocation` submission channel.
+    ///
+    /// Channel is used to submit `invocations` for new effects execution.
+    effect_dispatcher_channel: Sender<EI>,
 
     /// Current event engine state.
     current_state: RwLock<S>,
@@ -53,18 +64,30 @@ where
 
 impl<S, EH, EF, EI> EventEngine<S, EH, EF, EI>
 where
-    EI: EffectInvocation<Effect = EF>,
-    EH: EffectHandler<EI, EF>,
-    EF: Effect<Invocation = EI>,
-    S: State<State = S, Invocation = EI>,
+    S: State<State = S, Invocation = EI> + Send + Sync + 'static,
+    EH: EffectHandler<EI, EF> + Send + Sync + 'static,
+    EF: Effect<Invocation = EI> + 'static,
+    EI: EffectInvocation<Effect = EF> + Send + Sync + 'static,
 {
     /// Create [`EventEngine`] with initial state for state machine.
     #[allow(dead_code)]
-    pub fn new(handler: EH, state: S) -> Self {
-        EventEngine {
-            effect_dispatcher: EffectDispatcher::new(handler),
+    pub fn new<R>(handler: EH, state: S, runtime: R) -> Arc<Self>
+    where
+        R: Runtime + 'static,
+    {
+        let (channel_tx, channel_rx) = async_channel::bounded::<EI>(100);
+
+        let effect_dispatcher = Arc::new(EffectDispatcher::new(handler, channel_rx));
+
+        let engine = Arc::new(EventEngine {
+            effect_dispatcher,
+            effect_dispatcher_channel: channel_tx,
             current_state: RwLock::new(state),
-        }
+        });
+
+        engine.start(runtime);
+
+        engine
     }
 
     /// Retrieve current engine state.
@@ -79,10 +102,15 @@ where
     /// new state if required.
     #[allow(dead_code)]
     pub fn process(&self, event: &EI::Event) {
-        let state = self.current_state.read();
-        if let Some(transition) = state.transition(event) {
-            drop(state);
-            self.process_transition(transition);
+        log::debug!("Processing event: {}", event.id());
+
+        let transition = {
+            let state = self.current_state.read();
+            state.transition(event)
+        };
+
+        if let Some(transition) = transition {
+            self.process_transition(transition)
         }
     }
 
@@ -97,20 +125,40 @@ where
             *writable_state = transition.state;
         }
 
-        transition.invocations.iter().for_each(|invocation| {
-            self.effect_dispatcher.dispatch(invocation, |events| {
-                if let Some(events) = events {
-                    events.iter().for_each(|event| self.process(event));
-                }
-            });
+        transition.invocations.into_iter().for_each(|invocation| {
+            if let Err(error) = self.effect_dispatcher_channel.send_blocking(invocation) {
+                error!("Unable dispatch invocation: {error:?}")
+            }
         });
+    }
+
+    /// Start state machine.
+    ///
+    /// This method is used to start state machine and perform initial State
+    /// transition.
+    fn start<R>(self: &Arc<Self>, runtime: R)
+    where
+        R: Runtime + 'static,
+    {
+        let engine_clone = self.clone();
+        let dispatcher = self.effect_dispatcher.clone();
+
+        dispatcher.start(
+            move |events| {
+                events.iter().for_each(|event| engine_clone.process(event));
+            },
+            runtime,
+        );
     }
 }
 
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::lib::alloc::{vec, vec::Vec};
+    use crate::lib::{
+        alloc::{vec, vec::Vec},
+        core::future::Future,
+    };
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestState {
@@ -190,12 +238,14 @@ mod should {
         }
     }
 
+    #[derive(Debug, PartialEq)]
     enum TestEffect {
         One,
         Two,
         Three,
     }
 
+    #[async_trait::async_trait]
     impl Effect for TestEffect {
         type Invocation = TestInvocation;
 
@@ -207,11 +257,9 @@ mod should {
             }
         }
 
-        fn run<F>(&self, mut f: F)
-        where
-            F: FnMut(Option<Vec<TestEvent>>),
-        {
-            f(None)
+        async fn run(&self) -> Vec<TestEvent> {
+            // Do nothing.
+            vec![]
         }
 
         fn cancel(&self) {
@@ -262,22 +310,40 @@ mod should {
         }
     }
 
-    #[test]
-    fn set_initial_state() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+    #[derive(Clone)]
+    struct TestRuntime {}
+
+    #[async_trait::async_trait]
+    impl Runtime for TestRuntime {
+        fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static)
+        where
+            R: Send + 'static,
+        {
+            tokio::spawn(future);
+        }
+
+        async fn sleep(self, delay: u64) {
+            tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
+        }
+    }
+
+    #[tokio::test]
+    async fn set_initial_state() {
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
         assert!(matches!(engine.current_state(), TestState::NotStarted));
     }
 
-    #[test]
-    fn transit_to_new_state() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+    #[tokio::test]
+    async fn transit_to_new_state() {
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
         engine.process(&TestEvent::One);
         assert!(matches!(engine.current_state(), TestState::Started));
     }
 
-    #[test]
-    fn transit_between_states() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+    #[tokio::test]
+    // #[ignore = "hangs forever"]
+    async fn transit_between_states() {
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
 
         engine.process(&TestEvent::One);
         assert!(matches!(engine.current_state(), TestState::Started));
@@ -295,9 +361,9 @@ mod should {
         ));
     }
 
-    #[test]
-    fn not_transit_for_unexpected_event() {
-        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted);
+    #[tokio::test]
+    async fn not_transit_for_unexpected_event() {
+        let engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
 
         engine.process(&TestEvent::One);
         assert!(matches!(engine.current_state(), TestState::Started));
@@ -305,5 +371,10 @@ mod should {
         engine.process(&TestEvent::Three);
         assert!(!matches!(engine.current_state(), TestState::Completed));
         assert!(matches!(engine.current_state(), TestState::Started));
+    }
+
+    #[tokio::test]
+    async fn run_effect() {
+        let _engine = EventEngine::new(TestEffectHandler {}, TestState::NotStarted, TestRuntime {});
     }
 }

@@ -55,6 +55,8 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           features-path: tests/features
       - name: Run acceptance tests
+        env:
+          RUST_LOG: debug
         run: |
           cargo test --features contract_test --test contract_test
       - name: Expose acceptance tests reports

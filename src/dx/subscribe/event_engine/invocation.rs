@@ -1,10 +1,13 @@
-use crate::dx::subscribe::event_engine::SubscribeEvent;
 use crate::{
     core::{event_engine::EffectInvocation, PubNubError},
-    dx::subscribe::{event_engine::SubscribeEffect, SubscribeCursor, SubscribeStatus},
+    dx::subscribe::{
+        event_engine::{SubscribeEffect, SubscribeEvent},
+        result::Update,
+        SubscribeCursor, SubscribeStatus,
+    },
     lib::{
         alloc::{string::String, vec::Vec},
-        core::fmt::{Formatter, Result},
+        core::fmt::{Display, Formatter, Result},
     },
 };
 
@@ -118,7 +121,7 @@ pub(crate) enum SubscribeEffectInvocation {
     EmitStatus(SubscribeStatus),
 
     /// Received updates notification effect invocation.
-    EmitMessages(Vec<String>),
+    EmitMessages(Vec<Update>),
 }
 
 impl EffectInvocation for SubscribeEffectInvocation {
@@ -127,16 +130,16 @@ impl EffectInvocation for SubscribeEffectInvocation {
 
     fn id(&self) -> &str {
         match self {
-            Self::Handshake { .. } => "Handshake",
-            Self::CancelHandshake => "CancelHandshake",
-            Self::HandshakeReconnect { .. } => "HandshakeReconnect",
-            Self::CancelHandshakeReconnect => "CancelHandshakeReconnect",
-            Self::Receive { .. } => "Receive",
-            Self::CancelReceive { .. } => "CancelReceive",
-            Self::ReceiveReconnect { .. } => "ReceiveReconnect",
-            Self::CancelReceiveReconnect { .. } => "CancelReceiveReconnect",
-            Self::EmitStatus(_status) => "EmitStatus",
-            Self::EmitMessages(_messages) => "EmitMessages",
+            Self::Handshake { .. } => "HANDSHAKE",
+            Self::CancelHandshake => "CANCEL_HANDSHAKE",
+            Self::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT",
+            Self::CancelHandshakeReconnect => "CANCEL_HANDSHAKE_RECONNECT",
+            Self::Receive { .. } => "RECEIVE_MESSAGES",
+            Self::CancelReceive { .. } => "CANCEL_RECEIVE_MESSAGES",
+            Self::ReceiveReconnect { .. } => "RECEIVE_RECONNECT",
+            Self::CancelReceiveReconnect { .. } => "CANCEL_RECEIVE_RECONNECT",
+            Self::EmitStatus(_status) => "EMIT_STATUS",
+            Self::EmitMessages(_messages) => "EMIT_MESSAGES",
         }
     }
 
@@ -172,19 +175,19 @@ impl EffectInvocation for SubscribeEffectInvocation {
     }
 }
 
-impl core::fmt::Display for SubscribeEffectInvocation {
+impl Display for SubscribeEffectInvocation {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Self::Handshake { .. } => write!(f, "Handshake"),
-            Self::CancelHandshake => write!(f, "CancelHandshake"),
-            Self::HandshakeReconnect { .. } => write!(f, "HandshakeReconnect"),
-            Self::CancelHandshakeReconnect => write!(f, "CancelHandshakeReconnect"),
-            Self::Receive { .. } => write!(f, "Receive"),
-            Self::CancelReceive { .. } => write!(f, "CancelReceive"),
-            Self::ReceiveReconnect { .. } => write!(f, "ReceiveReconnect"),
-            Self::CancelReceiveReconnect { .. } => write!(f, "CancelReceiveReconnect"),
-            Self::EmitStatus(status) => write!(f, "EmitStatus({})", status),
-            Self::EmitMessages(messages) => write!(f, "EmitMessages({:?})", messages),
+            Self::Handshake { .. } => write!(f, "HANDSHAKE"),
+            Self::CancelHandshake => write!(f, "CANCEL_HANDSHAKE"),
+            Self::HandshakeReconnect { .. } => write!(f, "HANDSHAKE_RECONNECT"),
+            Self::CancelHandshakeReconnect => write!(f, "CANCEL_HANDSHAKE_RECONNECT"),
+            Self::Receive { .. } => write!(f, "RECEIVE_MESSAGES"),
+            Self::CancelReceive { .. } => write!(f, "CANCEL_RECEIVE_MESSAGES"),
+            Self::ReceiveReconnect { .. } => write!(f, "RECEIVE_RECONNECT"),
+            Self::CancelReceiveReconnect { .. } => write!(f, "CANCEL_RECEIVE_RECONNECT"),
+            Self::EmitStatus(status) => write!(f, "EMIT_STATUS({})", status),
+            Self::EmitMessages(messages) => write!(f, "EMIT_MESSAGES({:?})", messages),
         }
     }
 }

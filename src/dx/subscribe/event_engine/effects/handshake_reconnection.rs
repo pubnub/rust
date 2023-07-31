@@ -1,52 +1,88 @@
-use crate::lib::alloc::{string::String, vec, vec::Vec};
 use crate::{
-    core::PubNubError,
-    dx::subscribe::event_engine::{effect_handler::HandshakeFunction, SubscribeEvent},
+    core::{PubNubError, RequestRetryPolicy},
+    dx::subscribe::{
+        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
+        SubscriptionParams,
+    },
+    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
+use futures::TryFutureExt;
+use log::info;
 
-pub(super) fn execute(
+pub(super) async fn execute(
     channels: &Option<Vec<String>>,
     channel_groups: &Option<Vec<String>>,
     attempt: u8,
     reason: PubNubError,
-    executor: HandshakeFunction,
-) -> Option<Vec<SubscribeEvent>> {
-    Some(
-        executor(channels, channel_groups, attempt, Some(reason))
-            .unwrap_or_else(|err| vec![SubscribeEvent::HandshakeReconnectFailure { reason: err }]),
+    effect_id: &str,
+    retry_policy: &RequestRetryPolicy,
+    executor: &Arc<SubscribeEffectExecutor>,
+) -> Vec<SubscribeEvent> {
+    if !retry_policy.retriable(&attempt, Some(&reason)) {
+        return vec![SubscribeEvent::HandshakeReconnectGiveUp { reason }];
+    }
+
+    info!(
+        "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
+        channels.as_ref().unwrap_or(&Vec::new()),
+        channel_groups.as_ref().unwrap_or(&Vec::new()),
+    );
+
+    executor(SubscriptionParams {
+        channels,
+        channel_groups,
+        cursor: None,
+        attempt,
+        reason: Some(reason),
+        effect_id,
+    })
+    .map_ok_or_else(
+        |error| {
+            log::error!("Handshake reconnection error: {:?}", error);
+
+            (!matches!(error, PubNubError::EffectCanceled))
+                .then(|| vec![SubscribeEvent::HandshakeReconnectFailure { reason: error }])
+                .unwrap_or(vec![])
+        },
+        |subscribe_result| {
+            vec![SubscribeEvent::HandshakeReconnectSuccess {
+                cursor: subscribe_result.cursor,
+            }]
+        },
     )
+    .await
 }
 
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{core::PubNubError, dx::subscribe::SubscribeCursor};
+    use crate::{core::PubNubError, dx::subscribe::result::SubscribeResult};
+    use futures::FutureExt;
 
-    #[test]
-    fn initialize_handshake_reconnect_attempt() {
-        fn mock_handshake_function(
-            channels: &Option<Vec<String>>,
-            channel_groups: &Option<Vec<String>>,
-            attempt: u8,
-            reason: Option<PubNubError>,
-        ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-            assert_eq!(channels, &Some(vec!["ch1".to_string()]));
-            assert_eq!(channel_groups, &Some(vec!["cg1".to_string()]));
-            assert_eq!(attempt, 1);
+    #[tokio::test]
+    async fn initialize_handshake_reconnect_attempt() {
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |params| {
+            assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
+            assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
+            assert_eq!(params.attempt, 1);
+            assert_eq!(params.cursor, None);
             assert_eq!(
-                reason.unwrap(),
+                params.reason.unwrap(),
                 PubNubError::Transport {
                     details: "test".into(),
+                    response: None
                 }
             );
+            assert_eq!(params.effect_id, "id");
 
-            Ok(vec![SubscribeEvent::HandshakeSuccess {
-                cursor: SubscribeCursor {
-                    timetoken: 0,
-                    region: 0,
-                },
-            }])
-        }
+            async move {
+                Ok(SubscribeResult {
+                    cursor: Default::default(),
+                    messages: vec![],
+                })
+            }
+            .boxed()
+        });
 
         let result = execute(
             &Some(vec!["ch1".to_string()]),
@@ -54,42 +90,54 @@ mod should {
             1,
             PubNubError::Transport {
                 details: "test".into(),
+                response: None,
             },
-            mock_handshake_function,
-        );
+            "id",
+            &RequestRetryPolicy::Linear {
+                delay: 0,
+                max_retry: 1,
+            },
+            &mock_handshake_function,
+        )
+        .await;
 
-        assert!(result.is_some());
-        assert!(!result.unwrap().is_empty())
+        assert!(!result.is_empty());
+        assert!(matches!(
+            result.first().unwrap(),
+            SubscribeEvent::HandshakeReconnectSuccess { .. }
+        ));
     }
 
-    #[test]
-    fn return_handskahe_failure_event_on_err() {
-        fn mock_handshake_function(
-            _channels: &Option<Vec<String>>,
-            _channel_groups: &Option<Vec<String>>,
-            _attempt: u8,
-            _reason: Option<PubNubError>,
-        ) -> Result<Vec<SubscribeEvent>, PubNubError> {
-            Err(PubNubError::Transport {
-                details: "test".into(),
-            })
-        }
+    #[tokio::test]
+    async fn return_handshake_reconnect_failure_event_on_err() {
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
+            async move {
+                Err(PubNubError::Transport {
+                    details: "test".into(),
+                    response: None,
+                })
+            }
+            .boxed()
+        });
 
-        let binding = execute(
+        let result = execute(
             &Some(vec!["ch1".to_string()]),
             &Some(vec!["cg1".to_string()]),
             1,
             PubNubError::Transport {
                 details: "test".into(),
+                response: None,
             },
-            mock_handshake_function,
+            "id",
+            &RequestRetryPolicy::None,
+            &mock_handshake_function,
         )
-        .unwrap();
-        let result = &binding[0];
+        .await;
 
+        assert!(!result.is_empty());
         assert!(matches!(
-            result,
-            &SubscribeEvent::HandshakeReconnectFailure { .. }
+            result.first().unwrap(),
+            SubscribeEvent::HandshakeReconnectGiveUp { .. }
         ));
     }
 }

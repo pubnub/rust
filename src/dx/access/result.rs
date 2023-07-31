@@ -39,7 +39,7 @@ pub enum GrantTokenResponseBody {
     /// It contains information about the service that gave the response and the
     /// data with the token that was generated.
     ///
-    /// #  Example
+    /// # Example
     /// ```json
     /// {
     ///   "status": 200,

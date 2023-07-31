@@ -1,4 +1,7 @@
+use cucumber::gherkin::Scenario;
 use cucumber::{given, then, World};
+use pubnub::core::RequestRetryPolicy;
+use pubnub::dx::subscribe::subscription::Subscription;
 use pubnub::{
     core::PubNubError,
     dx::{
@@ -88,9 +91,11 @@ impl Default for PAMState {
         Self {
             revoke_token_result: Err(PubNubError::Transport {
                 details: "This is default value".into(),
+                response: None,
             }),
             grant_token_result: Err(PubNubError::Transport {
                 details: "This is default value".into(),
+                response: None,
             }),
             resource_type: PAMCurrentResourceType::default(),
             resource_permissions: PAMPermissions::default(),
@@ -105,8 +110,11 @@ impl Default for PAMState {
 
 #[derive(Debug, World)]
 pub struct PubNubWorld {
+    pub scenario: Option<Scenario>,
     pub keyset: pubnub::Keyset<String>,
     pub publish_result: Result<PublishResult, PubNubError>,
+    pub subscription: Result<Subscription, PubNubError>,
+    pub retry_policy: Option<RequestRetryPolicy>,
     pub pam_state: PAMState,
     pub api_error: Option<PubNubError>,
     pub is_succeed: bool,
@@ -115,6 +123,7 @@ pub struct PubNubWorld {
 impl Default for PubNubWorld {
     fn default() -> Self {
         PubNubWorld {
+            scenario: None,
             keyset: Keyset::<String> {
                 subscribe_key: "demo".to_owned(),
                 publish_key: Some("demo".to_string()),
@@ -122,10 +131,16 @@ impl Default for PubNubWorld {
             },
             publish_result: Err(PubNubError::Transport {
                 details: "This is default value".into(),
+                response: None,
+            }),
+            subscription: Err(PubNubError::Transport {
+                details: "This is default value".into(),
+                response: None,
             }),
             is_succeed: false,
             pam_state: PAMState::default(),
             api_error: None,
+            retry_policy: None,
         }
     }
 }
@@ -137,18 +152,37 @@ impl PubNubWorld {
             transport.hostname = "http://localhost:8090".into();
             transport
         };
-        PubNubClientBuilder::with_transport(transport)
+
+        let mut builder = PubNubClientBuilder::with_transport(transport)
             .with_keyset(keyset)
-            .with_user_id("test")
-            .build()
-            .unwrap()
+            .with_user_id("test");
+
+        if let Some(retry_policy) = &self.retry_policy {
+            builder = builder.with_retry_policy(retry_policy.clone());
+        }
+
+        builder.build().unwrap()
     }
 }
 
 #[given("the demo keyset")]
+#[given("the demo keyset with event engine enabled")]
 fn set_keyset(world: &mut PubNubWorld) {
-    world.keyset.publish_key = Some("demo".to_string());
-    world.keyset.subscribe_key = "demo".to_string();
+    world.keyset = Keyset {
+        subscribe_key: "demo".into(),
+        publish_key: Some("demo".into()),
+        secret_key: None,
+    }
+}
+
+#[given(regex = r"^a (.*) reconnection policy with ([0-9]+) retries")]
+fn set_with_retries(world: &mut PubNubWorld, retry_type: String, max_retry: u8) {
+    if retry_type.eq("linear") {
+        world.retry_policy = Some(RequestRetryPolicy::Linear {
+            max_retry,
+            delay: 0,
+        })
+    }
 }
 
 #[given(regex = r"^I have a keyset with access manager enabled(.*)?")]
@@ -198,7 +232,7 @@ fn an_auth_error_is_returned(world: &mut PubNubWorld) {
 #[then(regex = r"^the error status code is (\d+)$")]
 #[given(regex = r"^the error status code is (\d+)$")]
 fn has_specific_error_code(world: &mut PubNubWorld, expected_status_code: u16) {
-    if let PubNubError::API { status, .. } = world.api_error.clone().unwrap() {
+    if let Some(PubNubError::API { status, .. }) = world.api_error.clone() {
         assert_eq!(status, expected_status_code);
     } else {
         panic!("API error is missing");

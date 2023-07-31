@@ -15,30 +15,35 @@ pub use result::{PublishResponseBody, PublishResult};
 pub mod result;
 
 #[doc(inline)]
-pub use builders::PublishMessageBuilder;
+pub use builders::{
+    PublishMessageBuilder, PublishMessageViaChannel, PublishMessageViaChannelBuilder,
+};
 pub mod builders;
 
 use self::result::body_to_result;
 
-use super::pubnub_client::PubNubConfig;
 use crate::{
     core::{
-        headers::{APPLICATION_JSON, CONTENT_TYPE},
-        Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
-        TransportResponse,
+        utils::{
+            encoding::{url_encode, url_encode_extended, UrlEncodeExtension},
+            headers::{APPLICATION_JSON, CONTENT_TYPE},
+        },
+        Cryptor, Deserializer, PubNubError, Serialize, Transport, TransportMethod,
+        TransportRequest, TransportResponse,
     },
-    dx::pubnub_client::PubNubClientInstance,
+    dx::pubnub_client::{PubNubClientInstance, PubNubConfig},
     lib::{
         alloc::{
+            boxed::Box,
             format,
             string::{String, ToString},
+            sync::Arc,
         },
         collections::HashMap,
         core::ops::Not,
-        encoding::url_encode,
     },
 };
-use builders::{PublishMessageViaChannel, PublishMessageViaChannelBuilder};
+use base64::{engine::general_purpose, Engine as _};
 
 impl<T> PubNubClientInstance<T> {
     /// Create a new publish message builder.
@@ -100,17 +105,19 @@ impl<T> PubNubClientInstance<T> {
 impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     fn prepare_context_with_request(
         self,
     ) -> Result<PublishMessageContext<T, D, TransportRequest>, PubNubError> {
         let instance = self
             .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None))?;
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         PublishMessageContext::from(instance)
-            .map_data(|client, _, params| params.create_transport_request(&client.config))
+            .map_data(|client, _, params| {
+                params.create_transport_request(&client.config, &client.cryptor.clone())
+            })
             .map(|ctx| {
                 Ok(PublishMessageContext {
                     client: ctx.client,
@@ -125,7 +132,7 @@ impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
@@ -169,7 +176,7 @@ where
                 }
             })
             .await
-            .map_data(|_, deserializer, resposne| response_to_result(deserializer, resposne?))
+            .map_data(|_, deserializer, response| response_to_result(deserializer, response?))
             .data
     }
 
@@ -186,7 +193,7 @@ impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     T: crate::core::blocking::Transport,
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
@@ -271,17 +278,25 @@ where
     fn create_transport_request(
         self,
         config: &PubNubConfig,
+        cryptor: &Option<Arc<dyn Cryptor + Send + Sync>>,
     ) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
 
         let pub_key = config
             .publish_key
             .as_ref()
-            .ok_or_else(|| PubNubError::general_api_error("Publish key is not set", None))?;
+            .ok_or_else(|| PubNubError::general_api_error("Publish key is not set", None, None))?;
         let sub_key = &config.subscribe_key;
 
+        let mut m_vec = self.message.serialize()?;
+        if let Some(cryptor) = cryptor {
+            if let Ok(encrypted) = cryptor.encrypt(m_vec.to_vec()) {
+                m_vec = format!("\"{}\"", general_purpose::STANDARD.encode(encrypted)).into_bytes();
+            }
+        }
+
         if self.use_post {
-            self.message.serialize().map(|m_vec| TransportRequest {
+            Ok(TransportRequest {
                 path: format!(
                     "/publish/{pub_key}/{sub_key}/0/{}/0",
                     url_encode(self.channel.as_bytes())
@@ -292,12 +307,9 @@ where
                 headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             })
         } else {
-            self.message
-                .serialize()
-                .and_then(|m_vec| {
-                    String::from_utf8(m_vec).map_err(|e| PubNubError::Serialization {
-                        details: e.to_string(),
-                    })
+            String::from_utf8(m_vec)
+                .map_err(|e| PubNubError::Serialization {
+                    details: e.to_string(),
                 })
                 .map(|m_str| TransportRequest {
                     path: format!(
@@ -305,7 +317,7 @@ where
                         pub_key,
                         sub_key,
                         url_encode(self.channel.as_bytes()),
-                        url_encode(m_str.as_bytes())
+                        url_encode_extended(m_str.as_bytes(), UrlEncodeExtension::NonChannelPath)
                     ),
                     method: TransportMethod::Get,
                     query_parameters: query_params,
@@ -325,7 +337,7 @@ impl<T, D, M> From<PublishMessageViaChannel<T, M, D>>
     for PublishMessageContext<T, D, PublishMessageParams<M>>
 where
     M: Serialize,
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     fn from(value: PublishMessageViaChannel<T, M, D>) -> Self {
         Self {
@@ -349,7 +361,7 @@ where
 
 impl<T, D, X> PublishMessageContext<T, D, X>
 where
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     fn map_data<F, Y>(self, f: F) -> PublishMessageContext<T, D, Y>
     where
@@ -412,30 +424,43 @@ fn response_to_result<D>(
     response: TransportResponse,
 ) -> Result<PublishResult, PubNubError>
 where
-    D: for<'de> Deserializer<'de, PublishResponseBody>,
+    D: Deserializer<PublishResponseBody>,
 {
     response
         .body
-        .map(|body| deserializer.deserialize(&body))
+        .as_ref()
+        .map(|body| {
+            let deserialize_result = deserializer.deserialize(body);
+            if deserialize_result.is_err() && response.status >= 500 {
+                Err(PubNubError::general_api_error(
+                    "Unexpected service response",
+                    None,
+                    Some(Box::new(response.clone())),
+                ))
+            } else {
+                deserialize_result
+            }
+        })
         .transpose()
         .and_then(|body| {
             body.ok_or_else(|| {
                 PubNubError::general_api_error(
                     format!("No body in the response! Status code: {}", response.status),
                     None,
+                    Some(Box::new(response.clone())),
                 )
             })
-            .map(|body| body_to_result(body, response.status))
+            .map(|body| body_to_result(body, response))
         })?
 }
 
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::lib::alloc::{boxed::Box, sync::Arc, vec};
     use crate::{
         core::TransportResponse,
         dx::pubnub_client::{PubNubClientInstance, PubNubClientRef, PubNubConfig},
+        lib::alloc::{sync::Arc, vec},
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };
@@ -459,7 +484,7 @@ mod should {
             }
         }
 
-        PubNubClientBuilder::with_transport(MockTransport::default())
+        PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 publish_key: Some(""),
                 subscribe_key: "",
@@ -489,7 +514,7 @@ mod should {
 
         let result = client
             .publish_message("First message")
-            .channel("Iguess")
+            .channel("IGuess")
             .replicate(true)
             .execute()
             .await;
@@ -531,19 +556,18 @@ mod should {
     fn verify_seqn_is_incrementing() {
         let client = client();
 
-        let received_seqns = vec![
-            client.publish_message("meess").seqn,
-            client.publish_message("meess").seqn,
+        let received_sequence_numbers = vec![
+            client.publish_message("message").seqn,
+            client.publish_message("message").seqn,
         ];
 
-        assert_eq!(vec![1, 2], received_seqns);
+        assert_eq!(vec![1, 2], received_sequence_numbers);
     }
 
     #[tokio::test]
     async fn return_err_if_publish_key_is_not_provided() {
         let client = {
             let default_client = client();
-
             let ref_client = Arc::try_unwrap(default_client.inner).unwrap();
 
             PubNubClientInstance {
@@ -558,7 +582,7 @@ mod should {
         };
 
         assert!(client
-            .publish_message("meess")
+            .publish_message("message")
             .channel("chan")
             .execute()
             .await
@@ -581,7 +605,10 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                url_encode(format!("\"{}\"", message).as_bytes())
+                url_encode_extended(
+                    format!("\"{}\"", message).as_bytes(),
+                    UrlEncodeExtension::NonChannelPath
+                )
             ),
             result.data.path
         );
@@ -603,7 +630,10 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                url_encode("{\"a\":\"b\"}".as_bytes())
+                url_encode_extended(
+                    "{\"a\":\"b\"}".as_bytes(),
+                    UrlEncodeExtension::NonChannelPath
+                )
             ),
             result.data.path
         );
@@ -646,7 +676,10 @@ mod should {
             format!(
                 "/publish///0/{}/0/{}",
                 channel,
-                url_encode("{\"number\":7}".as_bytes())
+                url_encode_extended(
+                    "{\"number\":7}".as_bytes(),
+                    UrlEncodeExtension::NonChannelPath
+                )
             ),
             result.data.path
         );
@@ -696,7 +729,7 @@ mod should {
             }
         }
 
-        let client = PubNubClientBuilder::with_transport(MockTransport::default())
+        let client = PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 publish_key: Some(""),
                 subscribe_key: "",

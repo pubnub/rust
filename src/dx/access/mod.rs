@@ -34,7 +34,7 @@ pub use permissions::*;
 pub mod permissions;
 
 use crate::dx::pubnub_client::PubNubClientInstance;
-use crate::lib::alloc::{boxed::Box, string::String};
+use crate::lib::alloc::string::String;
 #[cfg(feature = "serde")]
 use crate::providers::{
     deserialization_serde::SerdeDeserializer, serialization_serde::SerdeSerializer,

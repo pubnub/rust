@@ -225,41 +225,6 @@ mod lib {
             pub(crate) use std::collections::HashMap;
         }
     }
-
-    #[cfg(any(feature = "publish", feature = "access"))]
-    pub(crate) mod encoding {
-        use super::alloc::string::{String, ToString};
-        use percent_encoding::{percent_encode, AsciiSet, CONTROLS};
-
-        /// https://url.spec.whatwg.org/#fragment-percent-encode-set
-        const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
-
-        /// https://url.spec.whatwg.org/#path-percent-encode-set
-        const PATH: &AsciiSet = &FRAGMENT.add(b'#').add(b'?').add(b'{').add(b'}');
-
-        /// https://url.spec.whatwg.org/#userinfo-percent-encode-set
-        pub(crate) const USERINFO: &AsciiSet = &PATH
-            .add(b'/')
-            .add(b':')
-            .add(b';')
-            .add(b'=')
-            .add(b'@')
-            .add(b'[')
-            .add(b'\\')
-            .add(b']')
-            .add(b'^')
-            .add(b'|');
-
-        /// `+` sign needed by PubNub API
-        pub(crate) const PUBNUB_SET: &AsciiSet = &USERINFO.add(b'+');
-
-        /// `percent_encoding` crate recommends you to create your own set for encoding.
-        /// To be consistent in the whole codebase - we created a function that can be used
-        /// for encoding related stuff.
-        pub(crate) fn url_encode(data: &[u8]) -> String {
-            percent_encode(data, PUBNUB_SET).to_string()
-        }
-    }
 }
 
 // Mocking random for checking if `no_std` compiles.

@@ -3,7 +3,7 @@
 //! This module contains the `Deserialize` trait which is used to implement
 //! deserialization of Rust data structures.
 
-use super::PubNubError;
+use crate::core::PubNubError;
 
 /// Trait for deserializing Rust data structures.
 ///
@@ -30,8 +30,8 @@ use super::PubNubError;
 ///
 /// struct MyDeserializer;
 ///
-/// impl<'de> Deserializer<'de, PublishResult> for MyDeserializer {
-///    fn deserialize(&self, bytes: &'de [u8]) -> Result<PublishResult, PubNubError> {
+/// impl Deserializer<PublishResult> for MyDeserializer {
+///    fn deserialize(&self, bytes: &[u8]) -> Result<PublishResult, PubNubError> {
 ///         // ...
 ///         # unimplemented!()
 ///    }
@@ -42,8 +42,8 @@ use super::PubNubError;
 /// [`PublishResponseBody`]: ../../dx/publish/result/enum.PublishResponseBody.html
 /// [`GrantTokenResponseBody`]: ../../dx/access/result/enum.GrantTokenResponseBody.html
 /// [`RevokeTokenResponseBody`]: ../../dx/access/result/enum.RevokeTokenResponseBody.html
-pub trait Deserializer<'de, T> {
-    /// Deserialize a `&[u8]` into a `Result<T, PubNubError>`.
+pub trait Deserializer<T>: Send + Sync {
+    /// Deserialize a `&Vec<u8>` into a `Result<T, PubNubError>`.
     ///
     /// # Errors
     ///
@@ -51,5 +51,5 @@ pub trait Deserializer<'de, T> {
     /// deserialization fails.
     ///
     /// [`PubNubError::DeserializationError`]: ../enum.PubNubError.html#variant.DeserializationError
-    fn deserialize(&self, bytes: &'de [u8]) -> Result<T, PubNubError>;
+    fn deserialize(&self, bytes: &[u8]) -> Result<T, PubNubError>;
 }
