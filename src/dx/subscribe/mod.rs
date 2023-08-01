@@ -26,12 +26,12 @@ pub use types::{
 };
 pub mod types;
 
-use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::sync::Arc};
+use crate::dx::pubnub_client::PubNubClientInstance;
 
 #[cfg(feature = "std")]
 use crate::{
     core::{PubNubError, Transport},
-    lib::alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec},
+    lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
     subscribe::result::SubscribeResult,
 };
 
