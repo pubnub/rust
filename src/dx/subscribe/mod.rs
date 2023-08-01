@@ -31,9 +31,12 @@ use crate::dx::pubnub_client::PubNubClientInstance;
 #[cfg(feature = "std")]
 use crate::{
     core::{PubNubError, Transport},
-    lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
+    lib::alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec},
     subscribe::result::SubscribeResult,
 };
+
+#[cfg(any(feature = "std", feature = "serde"))]
+use crate::lib::alloc::sync::Arc;
 
 #[cfg(feature = "std")]
 use crate::core::{event_engine::EventEngine, runtime::Runtime};
