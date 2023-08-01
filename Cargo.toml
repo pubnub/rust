@@ -162,3 +162,11 @@ required-features = ["default"]
 name = "subscribe"
 required-features = ["default", "subscribe"]
 
+[[example]]
+name = "subscribe_raw"
+required-features = ["default", "subscribe"]
+
+[[example]]
+name = "subscribe_raw_blocking"
+required-features = ["default", "subscribe"]
+
