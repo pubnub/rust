@@ -817,6 +817,7 @@ mod should {
             secret_key: Some("sec_key".into()),
             user_id: Arc::new("".into()),
             auth_key: None,
+            #[cfg(feature = "std")]
             retry_policy: Default::default(),
         };
 

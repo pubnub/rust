@@ -557,12 +557,13 @@ impl<T> PubNubClientInstance<T> {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod should {
     use super::*;
     use crate::core::blocking;
     use crate::{
-        core::{TransportRequest, TransportResponse},
+        core::{PubNubError, TransportRequest, TransportResponse},
         Keyset, PubNubClientBuilder, PubNubGenericClient,
     };
 
