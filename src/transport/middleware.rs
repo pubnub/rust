@@ -126,7 +126,8 @@ impl<T> PubNubMiddleware<T> {
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, PKG_VERSION));
         req.query_parameters
-            .insert("uuid".into(), self.user_id.as_ref().into());
+            .entry("uuid".into())
+            .or_insert(self.user_id.as_ref().into());
 
         if let Some(instance_id) = self.instance_id.as_deref() {
             req.query_parameters

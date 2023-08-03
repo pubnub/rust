@@ -70,3 +70,31 @@ pub fn join_url_encoded(strings: &[&str], sep: &str) -> Option<String> {
             .join(sep),
     )
 }
+
+/// URL-encode channels list.
+///
+/// Channels list used as part of URL path and therefore required.
+pub(crate) fn url_encoded_channels(channels: &Vec<String>) -> String {
+    join_url_encoded(
+        channels
+            .iter()
+            .map(|v| v.as_str())
+            .collect::<Vec<&str>>()
+            .as_slice(),
+        ",",
+    )
+    .unwrap_or(",".into())
+}
+
+/// URL-encode channel groups list.
+pub(crate) fn url_encoded_channel_groups(channel_groups: &Vec<String>) -> Option<String> {
+    join_url_encoded(
+        channel_groups
+            .iter()
+            .map(|v| v.as_str())
+            .collect::<Vec<&str>>()
+            .as_slice(),
+        ",",
+    )
+    .filter(|string| !string.is_empty())
+}

@@ -17,7 +17,7 @@ build = "build.rs"
 full = ["publish", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
-default = ["publish", "subscribe", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]
+default = ["publish", "subscribe", "presence", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]
 
 # [PubNub features]
 
@@ -73,6 +73,7 @@ event_engine = []
 futures = ["dep:futures"]
 futures_tokio = ["dep:tokio"]
 subscribe = ["event_engine", "futures", "futures_tokio", "dep:async-channel"]
+presence = ["event_engine", "futures", "futures_tokio", "dep:async-channel"]
 
 [dependencies]
 async-trait = "0.1"

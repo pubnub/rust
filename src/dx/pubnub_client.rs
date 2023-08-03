@@ -24,6 +24,7 @@ use crate::{
 use derive_builder::Builder;
 use log::info;
 use spin::{Mutex, RwLock};
+use uuid::Uuid;
 
 /// PubNub client
 ///
@@ -251,7 +252,7 @@ pub struct PubNubClientRef<T> {
     /// Instance ID
     #[builder(
         setter(into),
-        field(type = "String", build = "Arc::new(Some(self.instance_id))")
+        field(type = "String", build = "Arc::new(Some(Uuid::new_v4().to_string()))")
     )]
     pub(crate) instance_id: Arc<Option<String>>,
 
@@ -494,6 +495,10 @@ pub struct PubNubConfig {
 
     /// Request retry policy
     pub(crate) retry_policy: RequestRetryPolicy,
+
+    /// Used to set the presence timeout period. It overrides the default value
+    /// of 300 for Presence timeout.
+    pub(crate) heartbeat: u32,
 }
 
 impl PubNubConfig {
