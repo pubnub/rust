@@ -183,21 +183,21 @@ pub struct APISuccessBody {
     /// The cursor contains information about the start of the next real-time
     /// update timeframe.
     #[cfg_attr(feature = "serde", serde(rename = "t"))]
-    cursor: SubscribeCursor,
+    pub cursor: SubscribeCursor,
 
     /// List of updates.
     ///
     /// Contains list of real-time updates received using previous subscription
     /// cursor.
     #[cfg_attr(feature = "serde", serde(rename = "m"))]
-    messages: Vec<Envelope>,
+    pub messages: Vec<Envelope>,
 }
 
 /// Single entry from subscribe response
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[allow(dead_code)]
-pub(in crate::dx::subscribe) struct Envelope {
+pub struct Envelope {
     /// Shard number on which the event has been stored.
     #[cfg_attr(feature = "serde", serde(rename = "a"))]
     pub shard: String,
@@ -271,10 +271,13 @@ pub(in crate::dx::subscribe) struct Envelope {
     pub space_id: Option<String>,
 }
 
+/// Payload of the real-time update.
+///
+/// Depending from [`Envelope::message_type`] field value payload can been
+/// represented in different ways.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
-#[allow(dead_code)]
-pub(in crate::dx::subscribe) enum EnvelopePayload {
+pub enum EnvelopePayload {
     /// Presence change real-time update.
     ///
     /// Payload represents one of the presence types:
@@ -339,6 +342,7 @@ pub(in crate::dx::subscribe) enum EnvelopePayload {
         version: String,
     },
 
+    /// Message action realtime update.
     MessageAction {
         /// The type of event that happened during the message action update.
         ///
@@ -357,6 +361,8 @@ pub(in crate::dx::subscribe) enum EnvelopePayload {
         /// Version of service which generated update for message action.
         version: String,
     },
+
+    /// File message realtime update.
     File {
         /// Message which has been associated with uploaded file.
         message: String,
@@ -374,10 +380,11 @@ pub(in crate::dx::subscribe) enum EnvelopePayload {
     Message(Vec<u8>),
 }
 
+/// Information about object for which update has been generated.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
 #[allow(dead_code)]
-pub(in crate::dx::subscribe) enum ObjectDataBody {
+pub enum ObjectDataBody {
     /// `Channel` object update payload body.
     Channel {
         /// Given name of the channel object.
@@ -469,9 +476,10 @@ pub(in crate::dx::subscribe) enum ObjectDataBody {
     },
 }
 
+/// Information about message action for which update has been generated.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-pub(in crate::dx::subscribe) struct MessageActionDataBody {
+pub struct MessageActionDataBody {
     /// Timetoken of message for which action has been added / removed.
     #[cfg_attr(feature = "serde", serde(rename(deserialize = "messageTimetoken")))]
     pub message_timetoken: String,
@@ -487,9 +495,10 @@ pub(in crate::dx::subscribe) struct MessageActionDataBody {
     pub value: String,
 }
 
+/// Information about uploaded file.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-pub(in crate::dx::subscribe) struct FileDataBody {
+pub struct FileDataBody {
     /// Unique identifier of uploaded file.
     pub id: String,
 
@@ -526,6 +535,7 @@ impl Envelope {
     }
 }
 
+#[cfg(feature = "std")]
 impl Update {
     /// Name of channel.
     ///

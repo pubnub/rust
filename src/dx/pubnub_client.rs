@@ -8,10 +8,10 @@
 //! [`pubnub`]: ../index.html
 
 use crate::core::Cryptor;
-#[cfg(feature = "subscribe")]
+#[cfg(all(feature = "subscribe", feature = "std"))]
 use crate::dx::subscribe::SubscriptionConfiguration;
 use crate::{
-    core::{PubNubError, RequestRetryPolicy, Transport},
+    core::{PubNubError, Transport},
     lib::{
         alloc::{
             string::{String, ToString},
@@ -24,6 +24,10 @@ use crate::{
 use derive_builder::Builder;
 use log::info;
 use spin::{Mutex, RwLock};
+
+// TODO: Retry policy would be implemented for `no_std` event engine
+#[cfg(feature = "std")]
+use crate::core::RequestRetryPolicy;
 
 /// PubNub client
 ///
@@ -195,6 +199,7 @@ pub type PubNubClient = PubNubGenericClient<crate::transport::TransportReqwest>;
 ///
 /// This struct contains the actual client state.
 /// It shouldn't be used directly. Use [`PubNubGenericClient`] or [`PubNubClient`] instead.
+#[derive(Debug)]
 pub struct PubNubClientInstance<T> {
     pub(crate) inner: Arc<PubNubClientRef<T>>,
 }
@@ -271,7 +276,7 @@ pub struct PubNubClientRef<T> {
     pub(crate) auth_token: Arc<RwLock<String>>,
 
     /// Subscription module configuration
-    #[cfg(feature = "subscribe")]
+    #[cfg(all(feature = "subscribe", feature = "std"))]
     #[builder(setter(skip), field(vis = "pub(crate)"))]
     pub(crate) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
 }
@@ -410,6 +415,7 @@ impl<T> PubNubClientConfigBuilder<T> {
     /// It returns [`PubNubClientConfigBuilder`] that you can use to set the
     /// configuration for the client. This is a part the
     /// [`PubNubClientConfigBuilder`].
+    #[cfg(feature = "std")]
     pub fn with_retry_policy(mut self, policy: RequestRetryPolicy) -> Self {
         if let Some(configuration) = self.config.as_mut() {
             configuration.retry_policy = policy;
@@ -459,7 +465,7 @@ impl<T> PubNubClientConfigBuilder<T> {
                     config: pre_build.config,
                     cryptor: pre_build.cryptor.clone(),
 
-                    #[cfg(feature = "subscribe")]
+                    #[cfg(all(feature = "subscribe", feature = "std"))]
                     subscription: Arc::new(RwLock::new(None)),
                 })
             })
@@ -493,6 +499,7 @@ pub struct PubNubConfig {
     pub(crate) auth_key: Option<Arc<String>>,
 
     /// Request retry policy
+    #[cfg(feature = "std")]
     pub(crate) retry_policy: RequestRetryPolicy,
 }
 
@@ -724,6 +731,7 @@ where
                 secret_key,
                 user_id: Arc::new(user_id.into()),
                 auth_key: None,
+                #[cfg(feature = "std")]
                 retry_policy: Default::default(),
             }),
             ..Default::default()
@@ -809,6 +817,7 @@ mod should {
             secret_key: Some("sec_key".into()),
             user_id: Arc::new("".into()),
             auth_key: None,
+            #[cfg(feature = "std")]
             retry_policy: Default::default(),
         };
 

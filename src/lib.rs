@@ -176,6 +176,10 @@ pub use dx::{parse_token, Token};
 #[doc(inline)]
 pub use dx::publish;
 
+#[cfg(feature = "subscribe")]
+#[doc(inline)]
+pub use dx::subscribe;
+
 #[doc(inline)]
 pub use dx::{Keyset, PubNubClientBuilder, PubNubGenericClient};
 

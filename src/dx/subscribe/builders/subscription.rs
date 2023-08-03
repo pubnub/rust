@@ -1,3 +1,9 @@
+//! Subscription module.
+//!
+//! Subscription module is responsible for handling real-time updates from
+//! PubNub. It is responsible for handshake and receiving messages.
+//! It is also responsible for delivering messages to the user.
+
 use crate::{
     core::{Deserializer, PubNubError},
     dx::subscribe::{
@@ -127,7 +133,6 @@ impl Clone for Subscription {
     build_fn(private, name = "build_internal", validate = "Self::validate"),
     no_std
 )]
-#[allow(dead_code)]
 pub struct SubscriptionRef {
     /// Subscription module configuration.
     #[builder(
@@ -169,6 +174,10 @@ pub struct SubscriptionRef {
     )]
     pub(in crate::dx::subscribe) cursor: Option<u64>,
 
+    /// Heartbeat interval.
+    ///
+    /// Interval in seconds that informs the server that the client should
+    /// be considered alive.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -176,6 +185,10 @@ pub struct SubscriptionRef {
     )]
     pub(in crate::dx::subscribe) heartbeat: Option<u32>,
 
+    /// Expression used to filter received messages.
+    ///
+    /// Expression used to filter received messages before they are delivered
+    /// to the client.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option, into),
@@ -197,16 +210,6 @@ pub struct SubscriptionRef {
         default = "RwLock::new(VecDeque::with_capacity(100))"
     )]
     pub(in crate::dx::subscribe) updates: RwLock<VecDeque<SubscribeStreamEvent>>,
-
-    /// Subscription stream waker.
-    ///
-    /// Handler used each time when new data available for a stream listener.
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        setter(custom),
-        default = "RwLock::new(None)"
-    )]
-    waker: RwLock<Option<Waker>>,
 
     /// General subscription stream.
     ///

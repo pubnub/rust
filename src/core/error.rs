@@ -166,7 +166,10 @@ impl PubNubError {
     }
 
     /// Retrieve attached service response.
-    #[cfg(any(feature = "publish", feature = "access", feature = "subscribe"))]
+    #[cfg(all(
+        feature = "std",
+        any(feature = "publish", feature = "access", feature = "subscribe")
+    ))]
     pub(crate) fn transport_response(&self) -> Option<Box<TransportResponse>> {
         match self {
             PubNubError::API { response, .. } | PubNubError::Transport { response, .. } => {

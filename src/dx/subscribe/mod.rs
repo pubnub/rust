@@ -2,10 +2,12 @@
 //!
 //! Allows subscribe to real-time updates from channels and groups.
 
+#[cfg(feature = "std")]
+use event_engine::{SubscribeEffectHandler, SubscribeState};
+#[cfg(feature = "std")]
 pub(crate) mod event_engine;
 
-use event_engine::{SubscribeEffectHandler, SubscribeState};
-
+#[cfg(feature = "std")]
 use futures::{
     future::{ready, BoxFuture},
     FutureExt,
@@ -14,6 +16,7 @@ use futures::{
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
 
+#[doc(inline)]
 pub use result::{SubscribeResponseBody, Update};
 pub mod result;
 
@@ -24,28 +27,49 @@ pub use types::{
 };
 pub mod types;
 
+use crate::dx::pubnub_client::PubNubClientInstance;
+
+#[cfg(feature = "std")]
 use crate::{
-    core::{event_engine::EventEngine, runtime::Runtime, PubNubError, Transport},
-    dx::{pubnub_client::PubNubClientInstance, subscribe::result::SubscribeResult},
-    lib::alloc::{borrow::ToOwned, boxed::Box, string::String, sync::Arc, vec::Vec},
+    core::{PubNubError, Transport},
+    lib::alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec},
+    subscribe::result::SubscribeResult,
 };
 
+#[cfg(any(feature = "std", feature = "serde"))]
+use crate::lib::alloc::sync::Arc;
+
+#[cfg(feature = "std")]
+use crate::core::{event_engine::EventEngine, runtime::Runtime};
+
+#[cfg(feature = "std")]
 pub(crate) use subscription_manager::SubscriptionManager;
+#[cfg(feature = "std")]
 pub(crate) mod subscription_manager;
 
+#[cfg(feature = "std")]
 pub(crate) use subscription_configuration::{
     SubscriptionConfiguration, SubscriptionConfigurationRef,
 };
+#[cfg(feature = "std")]
 pub(crate) mod subscription_configuration;
 
 #[doc(inline)]
 pub use builders::*;
 pub mod builders;
 
+#[cfg(feature = "std")]
 #[doc(inline)]
 use cancel::CancellationTask;
+#[cfg(feature = "std")]
 mod cancel;
 
+#[cfg(feature = "serde")]
+use self::raw::RawSubscriptionBuilder;
+#[cfg(not(feature = "serde"))]
+use self::raw::RawSubscriptionWithDeserializerBuilder;
+
+#[cfg(feature = "std")]
 #[derive(Clone)]
 pub(crate) struct SubscriptionParams<'execution> {
     channels: &'execution Option<Vec<String>>,
@@ -56,6 +80,7 @@ pub(crate) struct SubscriptionParams<'execution> {
     effect_id: &'execution str,
 }
 
+#[cfg(feature = "std")]
 impl<T> PubNubClientInstance<T>
 where
     T: Transport + Send + 'static,
@@ -317,18 +342,6 @@ where
         }
     }
 
-    /// Create subscribe request builder.
-    /// This method is used to create events stream for real-time updates on
-    /// passed list of channels and groups.
-    ///
-    /// Instance of [`SubscribeRequestBuilder`] returned.
-    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T> {
-        SubscribeRequestBuilder {
-            pubnub_client: Some(self.clone()),
-            ..Default::default()
-        }
-    }
-
     pub(crate) fn subscription_manager<R>(&mut self, runtime: R) -> SubscriptionManager
     where
         R: Runtime + Send + Sync + 'static,
@@ -413,7 +426,9 @@ where
 
         let cancel_task = CancellationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
 
-        request.execute(deserializer, delay, cancel_task).boxed()
+        request
+            .execute_with_cancel_and_delay(deserializer, delay, cancel_task)
+            .boxed()
     }
 
     fn emit_status(client: Self, status: &SubscribeStatus) {
@@ -438,14 +453,121 @@ where
     }
 }
 
-#[cfg(feature = "blocking")]
-impl<T> PubNubClientInstance<T> where T: crate::core::blocking::Transport {}
+impl<T> PubNubClientInstance<T> {
+    /// Create subscription listener.
+    ///
+    /// Listeners configure [`PubNubClient`] to receive real-time updates for
+    /// specified list of channels and groups.
+    ///
+    /// ```no_run // Starts listening for real-time updates
+    /// use futures::StreamExt;
+    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// #
+    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #      .with_keyset(Keyset {
+    /// #          subscribe_key: "demo",
+    /// #          publish_key: Some("demo"),
+    /// #          secret_key: None,
+    /// #      })
+    /// #      .with_user_id("user_id")
+    /// #      .build()?;
+    /// client
+    ///     .subscribe_raw()
+    ///     .channels(["hello".into(), "world".into()].to_vec())
+    ///     .execute()?
+    ///     .stream()
+    ///     .for_each(|update| async move {
+    ///           println!("Received update: {:?}", update);
+    ///     })
+    ///     .await;
+    /// # Ok(())
+    /// # }
+    ///
+    /// ```
+    ///
+    /// For more examples see our [examples directory](https://github.com/pubnub/rust/tree/master/examples).
+    ///
+    /// Instance of [`SubscriptionBuilder`] returned.
+    /// [`PubNubClient`]: crate::PubNubClient
+    #[cfg(feature = "serde")]
+    pub fn subscribe_raw(&self) -> RawSubscriptionBuilder<SerdeDeserializer, T> {
+        RawSubscriptionBuilder {
+            pubnub_client: Some(self.clone()),
+            deserializer: Some(Arc::new(SerdeDeserializer)),
+            ..Default::default()
+        }
+    }
 
+    /// Create subscription listener.
+    ///
+    /// Listeners configure [`PubNubClient`] to receive real-time updates for
+    /// specified list of channels and groups.
+    ///
+    /// ```no_run // Starts listening for real-time updates
+    /// use futures::StreamExt;
+    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// #
+    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #      .with_keyset(Keyset {
+    /// #          subscribe_key: "demo",
+    /// #          publish_key: Some("demo"),
+    /// #          secret_key: None,
+    /// #      })
+    /// #      .with_user_id("user_id")
+    /// #      .build()?;
+    /// client
+    ///     .subscribe_raw()
+    ///     .channels(["hello".into(), "world".into()].to_vec())
+    ///     .execute()?
+    ///     .stream()
+    ///     .for_each(|update| async move {
+    ///           println!("Received update: {:?}", update);
+    ///     })
+    ///     .await;
+    /// # Ok(())
+    /// # }
+    ///
+    /// ```
+    ///
+    /// For more examples see our [examples directory](https://github.com/pubnub/rust/tree/master/examples).
+    ///
+    /// Instance of [`SubscriptionBuilder`] returned.
+    /// [`PubNubClient`]: crate::PubNubClient
+    #[cfg(not(feature = "serde"))]
+    pub fn subscribe_raw(&self) -> RawSubscriptionWithDeserializerBuilder<T> {
+        RawSubscriptionWithDeserializerBuilder {
+            client: self.clone(),
+        }
+    }
+
+    /// Create subscribe request builder.
+    /// This method is used to create events stream for real-time updates on
+    /// passed list of channels and groups.
+    ///
+    /// Instance of [`SubscribeRequestBuilder`] returned.
+    pub(crate) fn subscribe_request(&self) -> SubscribeRequestBuilder<T> {
+        SubscribeRequestBuilder {
+            pubnub_client: Some(self.clone()),
+            ..Default::default()
+        }
+    }
+}
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::core::blocking;
     use crate::{
-        core::{TransportRequest, TransportResponse},
+        core::{PubNubError, TransportRequest, TransportResponse},
         Keyset, PubNubClientBuilder, PubNubGenericClient,
     };
 
@@ -457,8 +579,24 @@ mod should {
             Ok(TransportResponse {
                 status: 200,
                 headers: [].into(),
-                body: Some(
-                    r#"{
+                body: generate_body(),
+            })
+        }
+    }
+
+    impl blocking::Transport for MockTransport {
+        fn send(&self, _req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+            Ok(TransportResponse {
+                status: 200,
+                headers: [].into(),
+                body: generate_body(),
+            })
+        }
+    }
+
+    fn generate_body() -> Option<Vec<u8>> {
+        Some(
+            r#"{
                         "t": {
                             "t": "15628652479932717",
                             "r": 4
@@ -479,10 +617,8 @@ mod should {
                             }
                         ]
                     }"#
-                    .into(),
-                ),
-            })
-        }
+            .into(),
+        )
     }
 
     fn client() -> PubNubGenericClient<MockTransport> {
@@ -504,7 +640,6 @@ mod should {
 
     #[tokio::test]
     async fn subscribe() {
-        env_logger::init();
         let subscription = client()
             .subscribe()
             .channels(["world".into()].to_vec())
@@ -518,5 +653,32 @@ mod should {
             status,
             SubscribeStreamEvent::Status(SubscribeStatus::Connected)
         ));
+    }
+
+    #[tokio::test]
+    async fn subscribe_raw() {
+        let subscription = client()
+            .subscribe_raw()
+            .channels(["world".into()].to_vec())
+            .execute()
+            .unwrap();
+
+        use futures::StreamExt;
+        let message = subscription.stream().boxed().next().await;
+
+        assert!(message.is_some());
+    }
+
+    #[test]
+    fn subscribe_raw_blocking() {
+        let subscription = client()
+            .subscribe_raw()
+            .channels(["world".into()].to_vec())
+            .execute_blocking()
+            .unwrap();
+
+        let message = subscription.iter().next();
+
+        assert!(message.is_some());
     }
 }

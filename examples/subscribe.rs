@@ -78,5 +78,8 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // You can also cancel the subscription at any time.
     subscription.unsubscribe().await;
 
+    // Let event engine process unsubscribe request
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
     Ok(())
 }
