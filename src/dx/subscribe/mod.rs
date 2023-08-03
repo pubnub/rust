@@ -3,9 +3,9 @@
 //! Allows subscribe to real-time updates from channels and groups.
 
 #[cfg(feature = "std")]
-pub(crate) mod event_engine;
-#[cfg(feature = "std")]
 use event_engine::{SubscribeEffectHandler, SubscribeState};
+#[cfg(feature = "std")]
+pub(crate) mod event_engine;
 
 #[cfg(feature = "std")]
 use futures::{
@@ -16,6 +16,7 @@ use futures::{
 #[cfg(feature = "serde")]
 use crate::providers::deserialization_serde::SerdeDeserializer;
 
+#[doc(inline)]
 pub use result::{SubscribeResponseBody, Update};
 pub mod result;
 

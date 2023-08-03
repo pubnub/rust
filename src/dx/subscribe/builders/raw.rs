@@ -12,14 +12,13 @@
 //! This one is used only for special cases when you need to have full control
 //! over subscription process or you need more compact subscription solution.
 
-use crate::dx::pubnub_client::PubNubClientInstance;
-use crate::dx::subscribe::Update;
-use crate::lib::alloc::{
-    collections::VecDeque, string::String, string::ToString, sync::Arc, vec::Vec,
-};
 use crate::{
     core::{blocking, Deserializer, PubNubError, Transport},
-    dx::subscribe::{SubscribeCursor, SubscribeResponseBody},
+    dx::{
+        pubnub_client::PubNubClientInstance,
+        subscribe::{SubscribeCursor, SubscribeResponseBody, Update},
+    },
+    lib::alloc::{collections::VecDeque, string::String, string::ToString, sync::Arc, vec::Vec},
 };
 use derive_builder::Builder;
 
