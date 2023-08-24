@@ -34,19 +34,14 @@ use derive_builder::Builder;
 pub struct GrantTokenRequest<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Current client which can provide transportation to perform the request.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
-    pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T>,
+    pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T, D>,
 
     /// Request payload serializer.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
     pub(in crate::dx::access) serializer: S,
-
-    /// Service response deserializer.
-    #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
-    pub(in crate::dx::access) deserializer: D,
 
     /// How long (in minutes) the generated token should be valid.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
@@ -97,42 +92,17 @@ where
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[cfg(not(feature = "serde"))]
-pub struct GrantTokenRequestWithSerializerBuilder<T> {
+pub struct GrantTokenRequestWithSerializerBuilder<T, D> {
     /// Current client which can provide transportation to perform the request.
-    pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T>,
+    pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T, D>,
 
     /// How long (in minutes) the generated token should be valid.
     pub(in crate::dx::access) ttl: usize,
 }
 
-/// The [`GrantTokenRequestWithDeserializerBuilder`] is used to build grant access
-/// token permissions to access specific resource endpoints request that is sent
-/// to the [`PubNub`] network.
-///
-/// This struct used by the [`grant_token`] method of the [`PubNubClient`] and
-/// let specify custom deserializer for [`PubNub`] network response.
-/// The [`grant_token`] method is used to generate access token.
-///
-/// [`PubNub`]:https://www.pubnub.com/
-#[cfg(not(feature = "serde"))]
-pub struct GrantTokenRequestWithDeserializerBuilder<T, S>
-where
-    S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-{
-    /// Current client which can provide transportation to perform the request.
-    pubnub_client: PubNubClientInstance<T>,
-
-    /// How long (in minutes) the generated token should be valid.
-    ttl: usize,
-
-    /// Request payload serializer.
-    serializer: Option<S>,
-}
-
 impl<'pa, T, S, D> GrantTokenRequest<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
@@ -153,7 +123,6 @@ where
 impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: Deserializer<GrantTokenResponseBody>,
 {
     /// Validate user-provided data for request builder.
     ///
@@ -168,49 +137,20 @@ impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     T: Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: Deserializer<GrantTokenResponseBody>,
+    D: Deserializer + 'static,
 {
-    /// Build and call request.
+    /// Build and call asynchronous request.
     pub async fn execute(self) -> Result<GrantTokenResult, PubNubError> {
-        // Build request instance and report errors if any.
         let request = self
             .build()
             .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
-        let deserializer = request.deserializer;
-
-        let response = client.transport.send(transport_request).await?;
-        response
-            .clone()
-            .body
-            .map(|bytes| {
-                let deserialize_result = deserializer.deserialize(&bytes);
-                if deserialize_result.is_err() && response.status >= 500 {
-                    Err(PubNubError::general_api_error(
-                        "Unexpected service response",
-                        None,
-                        Some(Box::new(response.clone())),
-                    ))
-                } else {
-                    deserialize_result
-                }
-            })
-            .map_or(
-                Err(PubNubError::general_api_error(
-                    "No body in the response!",
-                    None,
-                    Some(Box::new(response.clone())),
-                )),
-                |response_body| {
-                    response_body.and_then::<GrantTokenResult, _>(|body| {
-                        body.try_into().map_err(|response_error: PubNubError| {
-                            response_error.attach_response(response)
-                        })
-                    })
-                },
-            )
+        let deserializer = client.deserializer.clone();
+        transport_request
+            .send::<GrantTokenResponseBody, _, _, _>(&client.transport, deserializer)
+            .await
     }
 }
 
@@ -219,9 +159,9 @@ impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
     T: crate::core::blocking::Transport,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    D: Deserializer<GrantTokenResponseBody>,
+    D: Deserializer + 'static,
 {
-    /// Execute the request and return the result.
+    /// Execute synchronous request and return the result.
     ///
     /// This method is synchronous and will return result which will resolve to
     /// a [`RevokeTokenResult`] or [`PubNubError`].
@@ -262,86 +202,30 @@ where
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
-        let deserializer = request.deserializer;
-
-        let response = client.transport.send(transport_request)?;
-        response
-            .body
-            .as_ref()
-            .map(|bytes| {
-                let deserialize_result = deserializer.deserialize(bytes);
-                if deserialize_result.is_err() && response.status >= 500 {
-                    Err(PubNubError::general_api_error(
-                        "Unexpected service response",
-                        None,
-                        Some(Box::new(response.clone())),
-                    ))
-                } else {
-                    deserialize_result
-                }
-            })
-            .map_or(
-                Err(PubNubError::general_api_error(
-                    "No body in the response!",
-                    None,
-                    Some(Box::new(response.clone())),
-                )),
-                |response_body| {
-                    response_body.and_then::<GrantTokenResult, _>(|body| {
-                        body.try_into().map_err(|response_error: PubNubError| {
-                            response_error.attach_response(response)
-                        })
-                    })
-                },
-            )
+        let deserializer = client.deserializer.clone();
+        transport_request
+            .send_blocking::<GrantTokenResponseBody, _, _, _>(&client.transport, deserializer)
     }
 }
 
 #[cfg(not(feature = "serde"))]
-impl<T> GrantTokenRequestWithSerializerBuilder<T> {
+impl<T, D> GrantTokenRequestWithSerializerBuilder<T, D> {
     /// Add custom serializer.
     ///
     /// Adds the serializer to the [`GrantTokenRequestBuilder`].
     ///
     /// Instance of [`GrantTokenRequestWithDeserializerBuilder`] returned.
-    pub fn serialize_with<D, S>(
+    pub fn serialize_with<'request, S>(
         self,
         serializer: S,
-    ) -> GrantTokenRequestWithDeserializerBuilder<T, S>
+    ) -> GrantTokenRequestBuilder<'request, T, S, D>
     where
-        D: Deserializer<GrantTokenResponseBody>,
         S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-    {
-        GrantTokenRequestWithDeserializerBuilder {
-            pubnub_client: self.pubnub_client,
-            ttl: self.ttl,
-            serializer: Some(serializer),
-        }
-    }
-}
-
-#[cfg(not(feature = "serde"))]
-impl<T, S> GrantTokenRequestWithDeserializerBuilder<T, S>
-where
-    S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
-{
-    /// Add custom deserializer.
-    ///
-    /// Adds the deserializer to the [`GrantTokenRequestBuilder`].
-    ///
-    /// Instance of [`GrantTokenRequestBuilder`] returned.
-    pub fn deserialize_with<'builder, D>(
-        self,
-        deserializer: D,
-    ) -> GrantTokenRequestBuilder<'builder, T, S, D>
-    where
-        D: Deserializer<GrantTokenResponseBody>,
     {
         GrantTokenRequestBuilder {
             pubnub_client: Some(self.pubnub_client),
             ttl: Some(self.ttl),
-            serializer: self.serializer,
-            deserializer: Some(deserializer),
+            serializer: Some(serializer),
             ..Default::default()
         }
     }

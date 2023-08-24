@@ -4,8 +4,8 @@
 //! The `PublishResult` type is used to represent the result of a publish operation.
 
 use crate::{
-    core::{APIErrorBody, PubNubError, TransportResponse},
-    lib::alloc::{boxed::Box, string::String},
+    core::{service_response::APIErrorBody, PubNubError},
+    lib::alloc::string::String,
 };
 
 /// The result of a publish operation.
@@ -20,8 +20,9 @@ pub struct PublishResult {
 /// It can be either a tuple with data from the Publish service
 /// or an [`OtherResponse`] from other services.
 ///
-/// It's used for deserialization of the publish response. This type is an intermediate
-/// type between the raw response body and the [`PublishResult`] type.
+/// It's used for deserialization of the publish response. This type is an
+/// intermediate type between the raw response body and the [`PublishResult`]
+/// type.
 ///
 /// [`OtherResponse`]: struct.OtherResponse.html
 /// [`PublishResult`]: struct.PublishResult.html
@@ -30,10 +31,11 @@ pub struct PublishResult {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PublishResponseBody {
     /// The response body of a publish operation in publish service.
-    /// It contains the error indicator, the message from service and the timetoken
-    /// in this order.
+    /// It contains the error indicator, the message from service and the
+    /// timetoken in this order.
     ///
-    /// The error indicator is `1` if the operation was successful and `0` otherwise.
+    /// The error indicator is `1` if the operation was successful and `0`
+    /// otherwise.
     ///
     /// # Example
     /// ```json
@@ -44,25 +46,19 @@ pub enum PublishResponseBody {
     ErrorResponse(APIErrorBody),
 }
 
-pub(super) fn body_to_result(
-    body: PublishResponseBody,
-    response: TransportResponse,
-) -> Result<PublishResult, PubNubError> {
-    match body {
-        PublishResponseBody::SuccessResponse(error_indicator, message, timetoken) => {
-            if error_indicator == 1 {
-                Ok(PublishResult { timetoken })
-            } else {
-                Err(PubNubError::general_api_error(
-                    message,
-                    Some(response.status),
-                    Some(Box::new(response)),
-                ))
+impl TryFrom<PublishResponseBody> for PublishResult {
+    type Error = PubNubError;
+
+    fn try_from(value: PublishResponseBody) -> Result<Self, Self::Error> {
+        match value {
+            PublishResponseBody::SuccessResponse(error_indicator, message, timetoken) => {
+                if error_indicator == 1 {
+                    Ok(PublishResult { timetoken })
+                } else {
+                    Err(PubNubError::general_api_error(message, None, None))
+                }
             }
-        }
-        PublishResponseBody::ErrorResponse(resp) => {
-            let error: PubNubError = resp.into();
-            Err(error.attach_response(response))
+            PublishResponseBody::ErrorResponse(resp) => Err(resp.into()),
         }
     }
 }
@@ -70,6 +66,30 @@ pub(super) fn body_to_result(
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::core::TransportResponse;
+
+    fn body_to_result(
+        body: PublishResponseBody,
+        response: TransportResponse,
+    ) -> Result<PublishResult, PubNubError> {
+        match body {
+            PublishResponseBody::SuccessResponse(error_indicator, message, timetoken) => {
+                if error_indicator == 1 {
+                    Ok(PublishResult { timetoken })
+                } else {
+                    Err(PubNubError::general_api_error(
+                        message,
+                        Some(response.status),
+                        Some(Box::new(response)),
+                    ))
+                }
+            }
+            PublishResponseBody::ErrorResponse(resp) => {
+                let error: PubNubError = resp.into();
+                Err(error.attach_response(response))
+            }
+        }
+    }
 
     #[test]
     fn parse_publish_response() {

@@ -3,10 +3,11 @@
 //! This module contains manager which is responsible for tracking and updating
 //! active subscription streams.
 
-use super::event_engine::SubscribeEvent;
 use crate::{
     dx::subscribe::{
-        event_engine::SubscribeEventEngine, result::Update, subscription::Subscription,
+        event_engine::{event::SubscribeEvent, SubscribeEventEngine},
+        result::Update,
+        subscription::Subscription,
         SubscribeStatus,
     },
     lib::alloc::{sync::Arc, vec::Vec},
@@ -106,10 +107,9 @@ mod should {
             result::SubscribeResult,
             subscription::SubscriptionBuilder,
             types::Message,
-            SubscriptionConfiguration, SubscriptionConfigurationRef,
         },
         lib::alloc::sync::Arc,
-        providers::futures_tokio::TokioRuntime,
+        providers::futures_tokio::RuntimeTokio,
     };
     use spin::RwLock;
 
@@ -137,7 +137,7 @@ mod should {
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,
-            TokioRuntime,
+            RuntimeTokio,
         )
     }
 
@@ -147,12 +147,7 @@ mod should {
         let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
-                inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: dummy_manager,
-                    deserializer: None,
-                }),
-            })))),
+            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
             ..Default::default()
         }
         .channels(["test".into()])
@@ -170,12 +165,7 @@ mod should {
         let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
-                inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: dummy_manager,
-                    deserializer: None,
-                }),
-            })))),
+            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
             ..Default::default()
         }
         .channels(["test".into()])
@@ -194,12 +184,7 @@ mod should {
         let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
-                inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: dummy_manager,
-                    deserializer: None,
-                }),
-            })))),
+            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
             ..Default::default()
         }
         .channels(["test".into()])
@@ -228,12 +213,7 @@ mod should {
         let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
-                inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: dummy_manager,
-                    deserializer: None,
-                }),
-            })))),
+            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
             ..Default::default()
         }
         .channels(["test".into()])

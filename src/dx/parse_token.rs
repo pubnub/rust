@@ -22,8 +22,11 @@ use ciborium::de::from_reader;
 struct CiboriumDeserializer;
 
 #[cfg(feature = "serde")]
-impl Deserializer<Token> for CiboriumDeserializer {
-    fn deserialize(&self, bytes: &[u8]) -> Result<Token, PubNubError> {
+impl Deserializer for CiboriumDeserializer {
+    fn deserialize<Token: for<'de> serde::Deserialize<'de>>(
+        &self,
+        bytes: &[u8],
+    ) -> Result<Token, PubNubError> {
         use crate::lib::core::ops::Deref;
 
         from_reader(bytes.deref()).map_err(|e| PubNubError::TokenDeserialization {
@@ -42,12 +45,12 @@ pub fn parse_token(token: &str) -> Result<Token, PubNubError> {
 }
 
 /// The [`parse_token`] function decodes an existing token and returns the
-/// struct deserialized by provided cbor deserializer containing permissions embedded in that token.
-/// The client can use this method for debugging to check the permissions to the
-/// resources.
+/// struct deserialized by provided cbor deserializer containing permissions
+/// embedded in that token. The client can use this method for debugging to
+/// check the permissions to the resources.
 pub fn parse_token_with<D>(token: &str, deserializer: D) -> Result<Token, PubNubError>
 where
-    D: Deserializer<Token>,
+    D: Deserializer,
 {
     let token_bytes = general_purpose::URL_SAFE
         .decode(format!("{token}{}", "=".repeat(token.len() % 4)).as_bytes())

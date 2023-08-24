@@ -4,7 +4,10 @@
 //! The [`GrantTokenResult`] type is used to represent results of access token
 //! generation operation.
 
-use crate::core::{APIErrorBody, APISuccessBody, PubNubError};
+use crate::core::{
+    service_response::{APIErrorBody, APISuccessBody},
+    PubNubError,
+};
 use crate::lib::alloc::string::String;
 
 /// The result of a grant token operation.

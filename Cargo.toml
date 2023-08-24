@@ -48,7 +48,7 @@ tokio = ["dep:tokio"]
 blocking = ["reqwest?/blocking"]
 
 ## Enables std library
-std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "snafu/std", "hmac/std", "sha2/std", "time/std", "bytes?/std", "getrandom/std", "rand/default", "serde?/std", "serde_json?/std", "ciborium?/std"]
+std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "snafu/std", "hmac/std", "sha2/std", "time/std", "bytes?/std", "getrandom/std", "rand/default", "serde?/std", "serde_json?/std", "ciborium?/std", "futures?/std", "futures?/async-await", "dep:async-channel"] 
 
 ## Enables very specific implementations for different platforms.
 ## 
@@ -68,16 +68,13 @@ full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish
 full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
 pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
 mock_getrandom = ["getrandom/custom"]
-event_engine = []
 # TODO: temporary treated as internal until we officially release it
-futures = ["dep:futures"]
-futures_tokio = ["dep:tokio"]
-subscribe = ["event_engine", "futures", "futures_tokio", "dep:async-channel"]
-presence = ["event_engine", "futures", "futures_tokio", "dep:async-channel"]
+subscribe = ["dep:futures"]
+presence = ["dep:futures"]
 
 [dependencies]
 async-trait = "0.1"
-log = "0.4"
+log = { version = "0.4", default-features = false }
 hashbrown = "0.14.0"
 spin = "0.9"
 phantom-type = { version = "0.4.2", default-features = false }
@@ -110,8 +107,8 @@ getrandom = { version = "0.2", optional = true }
 ciborium = { version = "0.2.1", default-features = false, optional = true }
 
 # subscribe
+futures = { version = "0.3.28", default-features = false, optional = true }
 tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "time"] }
-futures = { version = "0.3.28", optional = true }
 async-channel = { version = "1.8", optional = true }
 
 # extra_platforms
@@ -164,5 +161,13 @@ required-features = ["default"]
 
 [[example]]
 name = "subscribe"
+required-features = ["default", "subscribe"]
+
+[[example]]
+name = "subscribe_raw"
+required-features = ["default", "subscribe"]
+
+[[example]]
+name = "subscribe_raw_blocking"
 required-features = ["default", "subscribe"]
 

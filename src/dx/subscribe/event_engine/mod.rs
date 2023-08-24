@@ -1,11 +1,15 @@
 //! Subscribe Event Engine module
 
+use crate::{
+    core::event_engine::EventEngine,
+    lib::alloc::{string::String, vec::Vec},
+};
+
 #[doc(inline)]
 pub(crate) use effects::SubscribeEffect;
 pub(crate) mod effects;
 
 #[doc(inline)]
-#[allow(unused_imports)]
 pub(crate) use effect_handler::SubscribeEffectHandler;
 pub(crate) mod effect_handler;
 
@@ -22,10 +26,10 @@ pub(crate) mod event;
 pub(crate) use state::SubscribeState;
 pub(crate) mod state;
 
-use crate::{
-    core::event_engine::EventEngine,
-    lib::alloc::{string::String, vec::Vec},
-};
+#[doc(inline)]
+#[allow(unused_imports)]
+pub(in crate::dx::subscribe) use types::{SubscribeInput, SubscriptionParams};
+pub(in crate::dx::subscribe) mod types;
 
 pub(crate) type SubscribeEventEngine =
     EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>;

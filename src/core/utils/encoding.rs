@@ -74,7 +74,8 @@ pub fn join_url_encoded(strings: &[&str], sep: &str) -> Option<String> {
 /// URL-encode channels list.
 ///
 /// Channels list used as part of URL path and therefore required.
-pub(crate) fn url_encoded_channels(channels: &Vec<String>) -> String {
+#[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
+pub(crate) fn url_encoded_channels(channels: &[String]) -> String {
     join_url_encoded(
         channels
             .iter()
@@ -87,7 +88,8 @@ pub(crate) fn url_encoded_channels(channels: &Vec<String>) -> String {
 }
 
 /// URL-encode channel groups list.
-pub(crate) fn url_encoded_channel_groups(channel_groups: &Vec<String>) -> Option<String> {
+#[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
+pub(crate) fn url_encoded_channel_groups(channel_groups: &[String]) -> Option<String> {
     join_url_encoded(
         channel_groups
             .iter()

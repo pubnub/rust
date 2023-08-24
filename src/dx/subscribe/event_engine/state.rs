@@ -625,7 +625,7 @@ impl State for SubscribeState {
 
     fn enter(&self) -> Option<Vec<Self::Invocation>> {
         match self {
-            SubscribeState::Handshaking {
+            Self::Handshaking {
                 channels,
                 channel_groups,
             } => Some(vec![Handshake {
@@ -730,8 +730,8 @@ impl State for SubscribeState {
                 .exit()
                 .unwrap_or(vec![])
                 .into_iter()
-                .chain(invocations.unwrap_or(vec![]).into_iter())
-                .chain(state.enter().unwrap_or(vec![]).into_iter())
+                .chain(invocations.unwrap_or(vec![]))
+                .chain(state.enter().unwrap_or(vec![]))
                 .collect(),
             state,
         }
@@ -744,7 +744,7 @@ mod should {
 
     use super::*;
     use crate::core::RequestRetryPolicy;
-    use crate::providers::futures_tokio::TokioRuntime;
+    use crate::providers::futures_tokio::RuntimeTokio;
     use crate::{
         core::event_engine::EventEngine,
         dx::subscribe::{
@@ -795,7 +795,7 @@ mod should {
                 tx,
             ),
             start_state,
-            TokioRuntime,
+            RuntimeTokio,
         )
     }
 

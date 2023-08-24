@@ -1,9 +1,12 @@
+//! Subscription module.
+//!
+//! Subscription module is responsible for handling real-time updates from
+//! PubNub. It is responsible for handshake and receiving messages.
+//! It is also responsible for delivering messages to the user.
+
 use crate::{
-    core::{Deserializer, PubNubError},
-    dx::subscribe::{
-        result::Update, types::SubscribeStreamEvent, SubscribeResponseBody, SubscribeStatus,
-        SubscriptionConfiguration,
-    },
+    core::PubNubError,
+    dx::subscribe::{result::Update, types::SubscribeStreamEvent, SubscribeStatus},
     lib::{
         alloc::{
             collections::VecDeque,
@@ -18,6 +21,7 @@ use crate::{
             task::{Context, Poll, Waker},
         },
     },
+    subscribe::SubscriptionManager,
 };
 use derive_builder::Builder;
 use futures::Stream;
@@ -127,14 +131,13 @@ impl Clone for Subscription {
     build_fn(private, name = "build_internal", validate = "Self::validate"),
     no_std
 )]
-#[allow(dead_code)]
 pub struct SubscriptionRef {
     /// Subscription module configuration.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(custom, strip_option)
     )]
-    pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
+    pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionManager>>>,
 
     /// Channels from which real-time updates should be received.
     ///
@@ -169,6 +172,10 @@ pub struct SubscriptionRef {
     )]
     pub(in crate::dx::subscribe) cursor: Option<u64>,
 
+    /// Heartbeat interval.
+    ///
+    /// Interval in seconds that informs the server that the client should
+    /// be considered alive.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -176,6 +183,10 @@ pub struct SubscriptionRef {
     )]
     pub(in crate::dx::subscribe) heartbeat: Option<u32>,
 
+    /// Expression used to filter received messages.
+    ///
+    /// Expression used to filter received messages before they are delivered
+    /// to the client.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option, into),
@@ -197,16 +208,6 @@ pub struct SubscriptionRef {
         default = "RwLock::new(VecDeque::with_capacity(100))"
     )]
     pub(in crate::dx::subscribe) updates: RwLock<VecDeque<SubscribeStreamEvent>>,
-
-    /// Subscription stream waker.
-    ///
-    /// Handler used each time when new data available for a stream listener.
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        setter(custom),
-        default = "RwLock::new(None)"
-    )]
-    waker: RwLock<Option<Waker>>,
 
     /// General subscription stream.
     ///
@@ -239,13 +240,6 @@ pub struct SubscriptionRef {
     pub(in crate::dx::subscribe) status_stream: RwLock<Option<SubscriptionStream<SubscribeStatus>>>,
 }
 
-/// [`SubscriptionWithDeserializerBuilder`] is used to configure a subscription
-/// listener with a custom deserializer.
-pub struct SubscriptionWithDeserializerBuilder {
-    /// Subscription module configuration.
-    pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
-}
-
 impl SubscriptionBuilder {
     /// Validate user-provided data for request builder.
     ///
@@ -272,39 +266,13 @@ impl SubscriptionBuilder {
             })
             .map(|subscription| {
                 if let Some(manager) = subscription.subscription.write().as_mut() {
-                    manager.subscription_manager.register(subscription.clone())
+                    manager.register(subscription.clone())
                 }
                 subscription
             })
             .map_err(|e| PubNubError::SubscribeInitialization {
                 details: e.to_string(),
             })
-    }
-}
-
-impl SubscriptionWithDeserializerBuilder {
-    /// Add custom deserializer.
-    ///
-    /// Adds the deserializer to the [`SubscriptionBuilder`].
-    ///
-    /// Instance of [`SubscriptionBuilder`] returned.
-    pub fn deserialize_with<D>(self, deserializer: D) -> SubscriptionBuilder
-    where
-        D: Deserializer<SubscribeResponseBody> + 'static,
-    {
-        {
-            if let Some(subscription) = self.subscription.write().as_mut() {
-                subscription
-                    .deserializer
-                    .is_none()
-                    .then(|| subscription.deserializer = Some(Arc::new(deserializer)));
-            }
-        }
-
-        SubscriptionBuilder {
-            subscription: Some(self.subscription),
-            ..Default::default()
-        }
     }
 }
 
@@ -329,7 +297,7 @@ impl Subscription {
     /// ```
     pub async fn unsubscribe(self) {
         if let Some(manager) = self.subscription.write().as_mut() {
-            manager.subscription_manager.unregister(self.clone())
+            manager.unregister(self.clone())
         }
     }
 
@@ -459,7 +427,7 @@ impl Subscription {
             if let Some(stream) = stream.clone() {
                 let mut updates_slot = stream.updates.write();
                 let updates_len = updates_slot.len();
-                updates_slot.extend(messages.into_iter());
+                updates_slot.extend(messages);
                 updates_slot
                     .len()
                     .ne(&updates_len)
@@ -509,7 +477,7 @@ impl Subscription {
 impl<D> SubscriptionStream<D> {
     fn new(updates: VecDeque<D>) -> Self {
         let mut stream_updates = VecDeque::with_capacity(100);
-        stream_updates.extend(updates.into_iter());
+        stream_updates.extend(updates);
 
         Self {
             inner: Arc::new(SubscriptionStreamRef {

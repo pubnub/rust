@@ -1,6 +1,7 @@
 //! # Transport module
 //!
-//! This module contains the [`Transport`] trait and the [`TransportRequest`] and [`TransportResponse`] types.
+//! This module contains the [`Transport`] trait and the [`TransportRequest`]
+//! and [`TransportResponse`] types.
 //!
 //! You can implement this trait for your own types, or use one of the provided
 //! features to use a transport library.
@@ -46,7 +47,8 @@ pub trait Transport: Send + Sync {
     /// Send a request to the [`PubNub API`].
     ///
     /// # Errors
-    /// Should return an [`PubNubError::Transport`] if the request cannot be sent.
+    /// Should return an [`PubNubError::Transport`] if the request cannot be
+    /// sent.
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
     async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError>;
@@ -56,10 +58,11 @@ pub trait Transport: Send + Sync {
 pub mod blocking {
     //! # Blocking transport module
     //!
-    //! This module contains the [`Transport`] trait and the [`TransportRequest`] and [`TransportResponse`] types.
+    //! This module contains the [`Transport`] trait and the
+    //! [`TransportRequest`] and [`TransportResponse`] types.
     //!
-    //! You can implement this trait for your own types, or use one of the provided
-    //! features to use a transport library.
+    //! You can implement this trait for your own types, or use one of the
+    //! provided features to use a transport library.
     //!
     //! This trait is used for blocking requests.
     //!
@@ -69,8 +72,8 @@ pub mod blocking {
 
     /// This trait is used to send requests to the [`PubNub API`].
     ///
-    /// You can implement this trait for your own types, or use one of the provided
-    /// features to use a transport library.
+    /// You can implement this trait for your own types, or use one of the
+    /// provided features to use a transport library.
     ///
     /// This trait is used for blocking requests.
     ///
@@ -94,7 +97,8 @@ pub mod blocking {
         /// Send a request to the [`PubNub API`].
         ///
         /// # Errors
-        /// Should return an [`PubNubError::Transport`] if the request cannot be sent.
+        /// Should return an [`PubNubError::Transport`] if the request cannot be
+        /// sent.
         ///
         /// [`PubNub API`]: https://www.pubnub.com/docs
         fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError>;

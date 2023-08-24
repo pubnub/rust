@@ -1,7 +1,8 @@
 //! [`PubNub`] service response payload module.
 //!
-//! This module contains [`APISuccessBody`] and [`APIErrorBody`] types which
-//! represent result of [`PubNub`] network API endpoint call.
+//! This module contains [`APISuccessBody`], [`APISuccessBodyWithMessage`] and
+//! [`APIErrorBody`] types which represent result of [`PubNub`] network API
+//! endpoint call.
 //!
 //! [`PubNub`]:https://www.pubnub.com/
 
@@ -20,7 +21,8 @@ use crate::{
 
 /// Result of successful REST API endpoint call.
 ///
-/// Body contains status code and `service` response specific to used endpoint.
+/// Body contains status code, response `data` and `service` response specific
+/// to used endpoint.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct APISuccessBody<D> {
@@ -31,13 +33,27 @@ pub struct APISuccessBody<D> {
 
 /// Result of successful REST API endpoint call.
 ///
-/// Body contains status code and `service` response specific to used endpoint.
+/// Body contains status code, `message, response `payload` and `service`
+/// response specific to used endpoint.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct APISuccessBodyWithPayload<D> {
+    pub status: i32,
+    pub message: String,
+    pub payload: D,
+    pub service: String,
+}
+
+/// Result of successful REST API endpoint call.
+///
+/// Body contains status code, `message` and `service` response specific to used
+/// endpoint.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct APISuccessBodyWithMessage {
-    status: i32,
-    message: String,
-    service: String,
+    pub status: i32,
+    pub message: String,
+    pub service: String,
 }
 
 /// PubNub service error response.

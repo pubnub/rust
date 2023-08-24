@@ -1,9 +1,9 @@
 use crate::{
     core::{event_engine::Effect, PubNubError, RequestRetryPolicy},
     dx::subscribe::{
-        event_engine::{SubscribeEffectInvocation, SubscribeEvent},
+        event_engine::{types::SubscriptionParams, SubscribeEffectInvocation, SubscribeEvent},
         result::{SubscribeResult, Update},
-        SubscribeCursor, SubscribeStatus, SubscriptionParams,
+        SubscribeCursor, SubscribeStatus,
     },
     lib::{
         alloc::{boxed::Box, string::String, sync::Arc, vec::Vec},
@@ -190,7 +190,7 @@ pub(crate) enum SubscribeEffect {
 impl Debug for SubscribeEffect {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
-            SubscribeEffect::Handshake {
+            Self::Handshake {
                 channels,
                 channel_groups,
                 ..
@@ -199,7 +199,7 @@ impl Debug for SubscribeEffect {
                 "SubscribeEffect::Handshake {{ channels: {channels:?}, channel groups: \
                 {channel_groups:?} }}"
             ),
-            SubscribeEffect::HandshakeReconnect {
+            Self::HandshakeReconnect {
                 channels,
                 channel_groups,
                 attempts,
@@ -210,7 +210,7 @@ impl Debug for SubscribeEffect {
                 "SubscribeEffect::HandshakeReconnect {{ channels: {channels:?}, channel groups: \
                 {channel_groups:?}, attempts: {attempts:?}, reason: {reason:?} }}"
             ),
-            SubscribeEffect::Receive {
+            Self::Receive {
                 channels,
                 channel_groups,
                 cursor,
@@ -220,7 +220,7 @@ impl Debug for SubscribeEffect {
                 "SubscribeEffect::Receive {{ channels: {channels:?}, channel groups: \
                 {channel_groups:?}, cursor: {cursor:?} }}"
             ),
-            SubscribeEffect::ReceiveReconnect {
+            Self::ReceiveReconnect {
                 channels,
                 channel_groups,
                 attempts,
@@ -231,10 +231,10 @@ impl Debug for SubscribeEffect {
                 "SubscribeEffect::ReceiveReconnect {{ channels: {channels:?}, channel groups: \
                 {channel_groups:?}, attempts: {attempts:?}, reason: {reason:?} }}"
             ),
-            SubscribeEffect::EmitStatus { status, .. } => {
+            Self::EmitStatus { status, .. } => {
                 write!(f, "SubscribeEffect::EmitStatus {{ status: {status:?} }}")
             }
-            SubscribeEffect::EmitMessages { updates, .. } => {
+            Self::EmitMessages { updates, .. } => {
                 write!(
                     f,
                     "SubscribeEffect::EmitMessages {{ messages: {updates:?} }}"
@@ -250,24 +250,25 @@ impl Effect for SubscribeEffect {
 
     fn id(&self) -> String {
         match self {
-            SubscribeEffect::Handshake { .. } => "HANDSHAKE_EFFECT".into(),
-            SubscribeEffect::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT".into(),
-            SubscribeEffect::Receive { .. } => "RECEIVE_EFFECT".into(),
-            SubscribeEffect::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT".into(),
-            SubscribeEffect::EmitStatus { .. } => "EMIT_STATUS_EFFECT".into(),
-            SubscribeEffect::EmitMessages { .. } => "EMIT_MESSAGES_EFFECT".into(),
+            Self::Handshake { .. } => "HANDSHAKE_EFFECT",
+            Self::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT",
+            Self::Receive { .. } => "RECEIVE_EFFECT",
+            Self::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT",
+            Self::EmitStatus { .. } => "EMIT_STATUS_EFFECT",
+            Self::EmitMessages { .. } => "EMIT_MESSAGES_EFFECT",
         }
+        .into()
     }
 
     async fn run(&self) -> Vec<SubscribeEvent> {
         match self {
-            SubscribeEffect::Handshake {
+            Self::Handshake {
                 channels,
                 channel_groups,
                 executor,
                 ..
             } => handshake::execute(channels, channel_groups, &self.id(), executor).await,
-            SubscribeEffect::HandshakeReconnect {
+            Self::HandshakeReconnect {
                 channels,
                 channel_groups,
                 attempts,
@@ -287,14 +288,14 @@ impl Effect for SubscribeEffect {
                 )
                 .await
             }
-            SubscribeEffect::Receive {
+            Self::Receive {
                 channels,
                 channel_groups,
                 cursor,
                 executor,
                 ..
             } => receive::execute(channels, channel_groups, cursor, &self.id(), executor).await,
-            SubscribeEffect::ReceiveReconnect {
+            Self::ReceiveReconnect {
                 channels,
                 channel_groups,
                 cursor,
@@ -316,10 +317,10 @@ impl Effect for SubscribeEffect {
                 )
                 .await
             }
-            SubscribeEffect::EmitStatus { status, executor } => {
+            Self::EmitStatus { status, executor } => {
                 emit_status::execute(status.clone(), executor).await
             }
-            SubscribeEffect::EmitMessages { updates, executor } => {
+            Self::EmitMessages { updates, executor } => {
                 emit_messages::execute(updates.clone(), executor).await
             }
         }
@@ -327,19 +328,19 @@ impl Effect for SubscribeEffect {
 
     fn cancel(&self) {
         match self {
-            SubscribeEffect::Handshake {
+            Self::Handshake {
                 cancellation_channel,
                 ..
             }
-            | SubscribeEffect::HandshakeReconnect {
+            | Self::HandshakeReconnect {
                 cancellation_channel,
                 ..
             }
-            | SubscribeEffect::Receive {
+            | Self::Receive {
                 cancellation_channel,
                 ..
             }
-            | SubscribeEffect::ReceiveReconnect {
+            | Self::ReceiveReconnect {
                 cancellation_channel,
                 ..
             } => {

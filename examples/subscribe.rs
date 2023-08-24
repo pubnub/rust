@@ -32,7 +32,14 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
 
     let subscription = client
         .subscribe()
-        .channels(["my_channel".into(), "other_channel".into()].to_vec())
+        .channels(
+            [
+                "my_channel".into(),
+                "other_channel".into(),
+                "channel-test-history".into(),
+            ]
+            .to_vec(),
+        )
         .heartbeat(10)
         .filter_expression("some_filter")
         .execute()?;
@@ -77,6 +84,9 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
 
     // You can also cancel the subscription at any time.
     subscription.unsubscribe().await;
+
+    // Let event engine process unsubscribe request
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     Ok(())
 }

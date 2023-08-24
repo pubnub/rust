@@ -19,14 +19,6 @@ pub mod error;
     feature = "subscribe",
     feature = "presence"
 ))]
-#[doc(inline)]
-pub(crate) use service_response::{APIErrorBody, APISuccessBody};
-#[cfg(any(
-    feature = "publish",
-    feature = "access",
-    feature = "subscribe",
-    feature = "presence"
-))]
 pub(crate) mod service_response;
 
 #[cfg(feature = "blocking")]
@@ -44,8 +36,12 @@ pub mod transport_request;
 pub use transport_response::TransportResponse;
 pub mod transport_response;
 
+// TODO: Retry policy can be implemented for `no_std` subscribe
+//      when `no_std` event engine is implemented.
 #[doc(inline)]
+#[cfg(feature = "std")]
 pub use retry_policy::RequestRetryPolicy;
+#[cfg(feature = "std")]
 pub mod retry_policy;
 
 #[doc(inline)]
@@ -66,12 +62,12 @@ pub mod serialize;
 pub use cryptor::Cryptor;
 pub mod cryptor;
 
-#[cfg(feature = "event_engine")]
+#[cfg(all(feature = "std", feature = "subscribe"))]
 pub(crate) mod event_engine;
 
-#[cfg(feature = "event_engine")]
+#[cfg(all(feature = "std", feature = "subscribe"))]
 pub use runtime::Runtime;
-#[cfg(feature = "event_engine")]
+#[cfg(all(feature = "std", feature = "subscribe"))]
 pub mod runtime;
 
 pub(crate) mod utils;

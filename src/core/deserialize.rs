@@ -24,3 +24,15 @@ pub trait Deserialize<'de>: Send + Sync {
     /// Deserialize the value
     fn deserialize(bytes: &'de [u8]) -> Result<Self::Type, PubNubError>;
 }
+
+#[cfg(not(feature = "serde"))]
+impl<'de, D> Deserialize<'de> for D
+where
+    D: Sync + Send,
+{
+    type Type = D;
+
+    fn deserialize(_bytes: &'de [u8]) -> Result<Self::Type, PubNubError> {
+        unimplemented!("Please implement this method for type")
+    }
+}

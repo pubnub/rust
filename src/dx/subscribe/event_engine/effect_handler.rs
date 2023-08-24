@@ -36,8 +36,7 @@ pub(crate) struct SubscribeEffectHandler {
 }
 
 impl SubscribeEffectHandler {
-    /// Create subscribe event handler.
-    #[allow(dead_code)]
+    /// Create subscribe effect handler.
     pub fn new(
         subscribe_call: Arc<SubscribeEffectExecutor>,
         emit_status: Arc<EmitStatusEffectExecutor>,
@@ -45,7 +44,7 @@ impl SubscribeEffectHandler {
         retry_policy: RequestRetryPolicy,
         cancellation_channel: Sender<String>,
     ) -> Self {
-        SubscribeEffectHandler {
+        Self {
             subscribe_call,
             emit_status,
             emit_messages,

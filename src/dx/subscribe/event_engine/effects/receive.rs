@@ -1,7 +1,9 @@
 use crate::{
     dx::subscribe::{
-        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscribeCursor, SubscriptionParams,
+        event_engine::{
+            effects::SubscribeEffectExecutor, types::SubscriptionParams, SubscribeEvent,
+        },
+        SubscribeCursor,
     },
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };

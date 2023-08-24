@@ -1,8 +1,10 @@
 use crate::{
     core::{PubNubError, RequestRetryPolicy},
     dx::subscribe::{
-        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscribeCursor, SubscriptionParams,
+        event_engine::{
+            effects::SubscribeEffectExecutor, types::SubscriptionParams, SubscribeEvent,
+        },
+        SubscribeCursor,
     },
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
@@ -122,6 +124,46 @@ mod should {
 
     #[tokio::test]
     async fn return_receive_reconnect_failure_event_on_err() {
+        let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
+            async move {
+                Err(PubNubError::Transport {
+                    details: "test".into(),
+                    response: Some(Box::new(TransportResponse {
+                        status: 500,
+                        ..Default::default()
+                    })),
+                })
+            }
+            .boxed()
+        });
+
+        let result = execute(
+            &Some(vec!["ch1".to_string()]),
+            &Some(vec!["cg1".to_string()]),
+            &Default::default(),
+            5,
+            PubNubError::Transport {
+                details: "test".into(),
+                response: Some(Box::new(TransportResponse {
+                    status: 500,
+                    ..Default::default()
+                })),
+            },
+            "id",
+            &RequestRetryPolicy::None,
+            &mock_receive_function,
+        )
+        .await;
+
+        assert!(!result.is_empty());
+        assert!(matches!(
+            result.first().unwrap(),
+            SubscribeEvent::ReceiveReconnectFailure { .. }
+        ));
+    }
+
+    #[tokio::test]
+    async fn return_receive_reconnect_give_up_event_on_err() {
         let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
