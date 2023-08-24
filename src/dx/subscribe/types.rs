@@ -662,8 +662,8 @@ impl TryFrom<Envelope> for Presence {
                     // `join` event always has `uuid` and unwrap_or default
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
-                    channel: value.channel,
-                    subscription: value.subscription,
+                    channel: value.channel.clone(),
+                    subscription: value.subscription.unwrap_or(value.channel),
                     occupancy: occupancy.unwrap_or(0),
                 }),
                 "leave" => Ok(Self::Leave {
@@ -671,8 +671,8 @@ impl TryFrom<Envelope> for Presence {
                     // `leave` event always has `uuid` and unwrap_or default
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
-                    channel: value.channel,
-                    subscription: value.subscription,
+                    channel: value.channel.clone(),
+                    subscription: value.subscription.unwrap_or(value.channel),
                     occupancy: occupancy.unwrap_or(0),
                 }),
                 "timeout" => Ok(Self::Timeout {
@@ -680,14 +680,14 @@ impl TryFrom<Envelope> for Presence {
                     // `leave` event always has `uuid` and unwrap_or default
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
-                    channel: value.channel,
-                    subscription: value.subscription,
+                    channel: value.channel.clone(),
+                    subscription: value.subscription.unwrap_or(value.channel),
                     occupancy: occupancy.unwrap_or(0),
                 }),
                 "interval" => Ok(Self::Interval {
                     timestamp,
-                    channel: value.channel,
-                    subscription: value.subscription,
+                    channel: value.channel.clone(),
+                    subscription: value.subscription.unwrap_or(value.channel),
                     occupancy: occupancy.unwrap_or(0),
                     join,
                     leave,
@@ -698,8 +698,8 @@ impl TryFrom<Envelope> for Presence {
                     // `state-change` event always has `uuid` and unwrap_or
                     // default value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
-                    channel: value.channel,
-                    subscription: value.subscription,
+                    channel: value.channel.clone(),
+                    subscription: value.subscription.unwrap_or(value.channel),
                     data,
                 }),
             }
@@ -745,7 +745,7 @@ impl TryFrom<Envelope> for Object {
                     custom,
                     updated,
                     tag,
-                    subscription: value.subscription,
+                    subscription: value.subscription.unwrap_or(value.channel),
                 }),
                 ObjectDataBody::Uuid {
                     name,
@@ -771,7 +771,7 @@ impl TryFrom<Envelope> for Object {
                     custom,
                     updated,
                     tag,
-                    subscription: value.subscription,
+                    subscription: value.subscription.unwrap_or(value.channel),
                 }),
                 ObjectDataBody::Membership {
                     channel,
@@ -806,14 +806,17 @@ impl TryFrom<Envelope> for Object {
                                 custom: channel_custom,
                                 updated: channel_updated,
                                 tag: channel_tag,
-                                subscription: value.subscription.clone(),
+                                subscription: value
+                                    .subscription
+                                    .clone()
+                                    .unwrap_or(value.channel.clone()),
                             }),
                             custom,
                             status,
                             uuid,
                             updated,
                             tag,
-                            subscription: value.subscription,
+                            subscription: value.subscription.unwrap_or(value.channel),
                         })
                     } else {
                         Err(PubNubError::Deserialization {
@@ -845,8 +848,8 @@ impl TryFrom<Envelope> for Message {
             Ok(Self {
                 sender: value.sender,
                 timestamp,
-                channel: value.channel,
-                subscription: value.subscription,
+                channel: value.channel.clone(),
+                subscription: value.subscription.unwrap_or(value.channel),
                 data: value.payload.into(),
                 r#type: value.r#type,
                 space_id: value.space_id,
@@ -875,8 +878,8 @@ impl TryFrom<Envelope> for MessageAction {
                 event: event.try_into()?,
                 sender,
                 timestamp,
-                channel: value.channel,
-                subscription: value.subscription,
+                channel: value.channel.clone(),
+                subscription: value.subscription.unwrap_or(value.channel),
                 message_timetoken: data.message_timetoken,
                 action_timetoken: data.action_timetoken,
                 r#type: data.r#type,
@@ -904,8 +907,8 @@ impl TryFrom<Envelope> for File {
             Ok(Self {
                 sender,
                 timestamp,
-                channel: value.channel,
-                subscription: value.subscription,
+                channel: value.channel.clone(),
+                subscription: value.subscription.unwrap_or(value.channel),
                 message,
                 id: file.id,
                 name: file.name,

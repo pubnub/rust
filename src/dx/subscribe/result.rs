@@ -253,8 +253,8 @@ pub struct Envelope {
     /// channels to [`subscribe`] method call.
     ///
     /// [`subscribe`]: crate::dx::subscribe
-    #[cfg_attr(feature = "serde", serde(rename = "b"))]
-    pub subscription: String,
+    #[cfg_attr(feature = "serde", serde(rename = "b"), serde(default))]
+    pub subscription: Option<String>,
 
     /// User provided message type (set only when [`publish`] called with
     /// `r#type`).
