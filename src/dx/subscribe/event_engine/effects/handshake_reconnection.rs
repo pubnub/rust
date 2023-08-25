@@ -64,8 +64,8 @@ mod should {
         let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |params| {
             assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
-            assert_eq!(params.attempt, 1);
             assert_eq!(params.cursor, None);
+            assert_eq!(params.attempt, 1);
             assert_eq!(
                 params.reason.unwrap(),
                 PubNubError::Transport {

@@ -104,15 +104,15 @@ pub enum SubscribeStatus {
     Disconnected,
 
     /// Connection attempt failed.
-    ConnectedError(PubNubError),
+    ConnectionError(PubNubError),
 }
 
 /// Presence update information.
 ///
-/// Enum provides [`Presence::Join`], [`Presence::Leave`], [`Presence::Timeout`],
-/// [`Presence::Interval`] and [`Presence::StateChange`] variants for updates
-/// listener. These variants allow listener understand how presence changes on
-/// channel.
+/// Enum provides [`Presence::Join`], [`Presence::Leave`],
+/// [`Presence::Timeout`], [`Presence::Interval`] and [`Presence::StateChange`]
+/// variants for updates listener. These variants allow listener understand how
+/// presence changes on channel.
 #[derive(Debug, Clone)]
 pub enum Presence {
     /// Remote user `join` update.
@@ -566,7 +566,7 @@ impl core::fmt::Display for SubscribeStatus {
             Self::Connected => write!(f, "Connected"),
             Self::Reconnected => write!(f, "Reconnected"),
             Self::Disconnected => write!(f, "Disconnected"),
-            Self::ConnectedError(err) => write!(f, "ConnectionError({err:?})"),
+            Self::ConnectionError(err) => write!(f, "ConnectionError({err:?})"),
         }
     }
 }

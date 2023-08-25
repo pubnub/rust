@@ -45,6 +45,12 @@ pub(crate) enum SubscribeEffect {
         /// after initial subscription completion.
         channel_groups: Option<Vec<String>>,
 
+        /// Time cursor.
+        ///
+        /// Cursor used by subscription loop to identify point in time after
+        /// which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
+
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
@@ -69,6 +75,12 @@ pub(crate) enum SubscribeEffect {
         /// List of channel groups which has been used during recently failed
         /// initial subscription.
         channel_groups: Option<Vec<String>>,
+
+        /// Time cursor.
+        ///
+        /// Cursor used by subscription loop to identify point in time after
+        /// which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
 
         /// Current initial subscribe retry attempt.
         ///
@@ -280,7 +292,8 @@ impl Effect for SubscribeEffect {
                     channels,
                     channel_groups,
                     *attempts,
-                    reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                    reason.clone(), /* TODO: Does run function need to borrow self? Or we can
+                                     * consume it? */
                     &self.id(),
                     retry_policy,
                     executor,
@@ -309,7 +322,8 @@ impl Effect for SubscribeEffect {
                     channel_groups,
                     cursor,
                     *attempts,
-                    reason.clone(), // TODO: Does run function need to borrow self? Or we can consume it?
+                    reason.clone(), /* TODO: Does run function need to borrow self? Or we can
+                                     * consume it? */
                     &self.id(),
                     retry_policy,
                     executor,
@@ -357,12 +371,13 @@ mod should {
     use super::*;
 
     #[tokio::test]
-    async fn send_cancelation_notification() {
+    async fn send_cancellation_notification() {
         let (tx, rx) = async_channel::bounded(1);
 
         let effect = SubscribeEffect::Handshake {
             channels: None,
             channel_groups: None,
+            cursor: None,
             executor: Arc::new(|_| {
                 Box::pin(async move {
                     Ok(SubscribeResult {
