@@ -968,7 +968,7 @@ fn resolve_subscription_value(subscription: Option<String>, channel: &str) -> Op
     subscription.and_then(|s| s.ne(channel).then(|| s))
 }
 
-// TODO: add tests for all froms...
+// TODO: add tests for complicated froms.
 #[cfg(test)]
 mod should {
     use super::*;
