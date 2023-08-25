@@ -965,7 +965,7 @@ impl TryFrom<Envelope> for File {
 }
 
 fn resolve_subscription_value(subscription: Option<String>, channel: &str) -> Option<String> {
-    subscription.and_then(|s| s.ne(channel).then(|| s))
+    subscription.and_then(|s| s.ne(channel).then_some(s))
 }
 
 // TODO: add tests for complicated froms.
