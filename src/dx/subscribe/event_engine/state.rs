@@ -398,9 +398,7 @@ impl SubscribeState {
                     channel_groups: channel_groups.clone(),
                     reason: reason.clone(),
                 },
-                Some(vec![EmitStatus(SubscribeStatus::ConnectedError(
-                    reason.clone(),
-                ))]),
+                None,
             )),
             _ => None,
         }
