@@ -431,10 +431,7 @@ impl SubscribeState {
                     channel_groups: channel_groups.clone(),
                     cursor: cursor.clone(),
                 },
-                Some(vec![
-                    EmitMessages(messages.to_vec()),
-                    EmitStatus(SubscribeStatus::Connected),
-                ]),
+                Some(vec![EmitMessages(messages.to_vec())]),
             )),
             _ => None,
         }
