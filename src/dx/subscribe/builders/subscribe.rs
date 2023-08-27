@@ -152,7 +152,7 @@ impl<T, D> SubscribeRequest<T, D> {
 
         // Serialize list of channel groups and add into query parameters list.
         url_encoded_channel_groups(&self.channel_groups)
-            .and_then(|groups| query.insert("channel-group".into(), groups.into()));
+            .and_then(|groups| query.insert("channel-group".into(), groups));
 
         self.filter_expression
             .as_ref()

@@ -5,6 +5,7 @@
 
 use crate::core::{event_engine::Event, PubNubError};
 
+#[derive(Debug)]
 pub(crate) enum PresenceEvent {
     /// Announce join to channels and groups.
     ///

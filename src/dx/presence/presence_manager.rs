@@ -4,7 +4,7 @@
 //! presence / heartbeat module components.
 
 use crate::{
-    dx::presence::event_engine::PresenceEventEngine,
+    dx::presence::event_engine::{PresenceEvent, PresenceEventEngine},
     lib::{
         alloc::sync::Arc,
         core::{
@@ -84,6 +84,34 @@ pub(crate) struct PresenceManagerRef {
     /// # }
     /// ```
     pub state: Option<Vec<u8>>,
+}
+
+impl PresenceManagerRef {
+    /// Announce `join` for `user_id` on provided channels and groups.
+    #[allow(dead_code)]
+    pub(crate) fn announce_join(
+        &self,
+        channels: Option<Vec<String>>,
+        channel_groups: Option<Vec<String>>,
+    ) {
+        self.event_engine.process(&PresenceEvent::Joined {
+            channels,
+            channel_groups,
+        })
+    }
+
+    /// Announce `leave` for `user_id` on provided channels and groups.
+    #[allow(dead_code)]
+    pub(crate) fn announce_left(
+        &self,
+        channels: Option<Vec<String>>,
+        channel_groups: Option<Vec<String>>,
+    ) {
+        self.event_engine.process(&PresenceEvent::Left {
+            channels,
+            channel_groups,
+        })
+    }
 }
 
 impl Debug for PresenceManagerRef {

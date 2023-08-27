@@ -1,15 +1,14 @@
-//! Publish builders module.
+//! # Publish builders module.
 //!
 //! This module contains all builders for the publish operation.
+
+use derive_builder::Builder;
 
 use crate::{
     core::Serialize,
     dx::pubnub_client::PubNubClientInstance,
     lib::{alloc::string::String, collections::HashMap},
 };
-
-use crate::core::Transport;
-use derive_builder::Builder;
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
 ///

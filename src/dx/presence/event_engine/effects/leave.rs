@@ -56,13 +56,7 @@ mod it_should {
             assert_eq!(parameters.channel_groups, &Some(vec!["cg2".to_string()]));
             assert_eq!(parameters.channels, &Some(vec!["ch2".to_string()]));
             assert_eq!(parameters.attempt, 0);
-            assert_eq!(
-                parameters.reason.unwrap(),
-                PubNubError::Transport {
-                    details: "test".into(),
-                    response: None
-                }
-            );
+            assert_eq!(parameters.reason, None);
             assert_eq!(parameters.effect_id, "id");
 
             async move { Ok(LeaveResult) }.boxed()
@@ -82,7 +76,7 @@ mod it_should {
     }
 
     #[tokio::test]
-    async fn return_heartbeat_failed_event_on_error() {
+    async fn return_leave_failed_event_on_error() {
         let mocked_leave_function: Arc<LeaveEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
@@ -106,10 +100,6 @@ mod it_should {
         )
         .await;
 
-        assert!(!result.is_empty());
-        assert!(matches!(
-            result.first().unwrap(),
-            PresenceEvent::HeartbeatFailure { .. }
-        ));
+        assert!(result.is_empty());
     }
 }

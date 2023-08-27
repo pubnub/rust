@@ -245,7 +245,7 @@ impl SubscriptionBuilder {
         let input = self
             .input
             .as_ref()
-            .expect("Subscription input should be set by default".into());
+            .unwrap_or_else(|| panic!("Subscription input should be set by default"));
 
         if input.is_empty {
             return Err("Either channels or channel groups should be provided".into());

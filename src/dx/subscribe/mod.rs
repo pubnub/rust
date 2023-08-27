@@ -7,6 +7,7 @@ use futures::{
     future::{ready, BoxFuture},
     FutureExt,
 };
+#[cfg(feature = "std")]
 use spin::RwLock;
 
 use crate::dx::{pubnub_client::PubNubClientInstance, subscribe::raw::RawSubscriptionBuilder};
@@ -43,10 +44,11 @@ pub mod result;
 pub(crate) use subscription_manager::SubscriptionManager;
 #[cfg(feature = "std")]
 pub(crate) mod subscription_manager;
-use crate::subscribe::event_engine::SubscribeEventEngine;
 #[cfg(feature = "std")]
 #[doc(inline)]
-use event_engine::{types::SubscriptionParams, SubscribeEffectHandler, SubscribeState};
+use event_engine::{
+    types::SubscriptionParams, SubscribeEffectHandler, SubscribeEventEngine, SubscribeState,
+};
 
 #[cfg(feature = "std")]
 pub(crate) mod event_engine;

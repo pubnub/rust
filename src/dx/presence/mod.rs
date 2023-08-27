@@ -26,7 +26,7 @@ pub mod result;
 
 #[cfg(feature = "std")]
 #[doc(inline)]
-pub(crate) use presence_manager::{PresenceManager, PresenceManagerRef};
+pub(crate) use presence_manager::PresenceManager;
 #[cfg(feature = "std")]
 pub(crate) mod presence_manager;
 #[cfg(feature = "std")]
@@ -181,16 +181,17 @@ where
     #[allow(dead_code)]
     pub(crate) fn announce_join(
         &self,
-        _channels: Option<Vec<String>>,
-        _channel_groups: Option<Vec<String>>,
+        channels: Option<Vec<String>>,
+        channel_groups: Option<Vec<String>>,
     ) {
         self.configure_presence();
 
-        // if let Some(presence) = self.presence.clone().write().as_mut() {
-        //     params
-        //         .state
-        //         .map(|state| presence.state = Some(Arc::new(state)));
-        // }
+        {
+            let slot = self.presence.read();
+            if let Some(presence) = slot.as_ref() {
+                presence.announce_join(channels, channel_groups);
+            }
+        };
     }
 
     /// Announce `leave` for `user_id` on provided channels and groups.
@@ -198,16 +199,17 @@ where
     #[allow(dead_code)]
     pub(crate) fn announce_left(
         &self,
-        _channels: Option<Vec<String>>,
-        _channel_groups: Option<Vec<String>>,
+        channels: Option<Vec<String>>,
+        channel_groups: Option<Vec<String>>,
     ) {
         self.configure_presence();
 
-        // if let Some(presence) = self.presence.clone().write().as_mut() {
-        //     params
-        //         .state
-        //         .map(|state| presence.state = Some(Arc::new(state)));
-        // }
+        {
+            let slot = self.presence.read();
+            if let Some(presence) = slot.as_ref() {
+                presence.announce_left(channels, channel_groups);
+            }
+        };
     }
 
     /// Complete presence configuration.

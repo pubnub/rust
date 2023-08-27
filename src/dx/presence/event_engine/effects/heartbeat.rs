@@ -51,10 +51,7 @@ pub(super) async fn execute(
         effect_id,
     })
     .map_ok_or_else(
-        |error| {
-            log::error!("Heartbeat error: {error:?}");
-            vec![PresenceEvent::HeartbeatFailure { reason: error }]
-        },
+        |error| vec![PresenceEvent::HeartbeatFailure { reason: error }],
         |_| vec![PresenceEvent::HeartbeatSuccess],
     )
     .await
@@ -75,13 +72,7 @@ mod it_should {
             assert_eq!(parameters.channel_groups, &Some(vec!["cg1".to_string()]));
             assert_eq!(parameters.channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(parameters.attempt, 0);
-            assert_eq!(
-                parameters.reason.unwrap(),
-                PubNubError::Transport {
-                    details: "test".into(),
-                    response: None
-                }
-            );
+            assert_eq!(parameters.reason, None);
             assert_eq!(parameters.effect_id, "id");
 
             async move { Ok(HeartbeatResult) }.boxed()
@@ -93,10 +84,7 @@ mod it_should {
                 &Some(vec!["cg1".to_string()]),
             ),
             0,
-            Some(PubNubError::Transport {
-                details: "test".into(),
-                response: None,
-            }),
+            None,
             "id",
             &Some(RequestRetryPolicy::None),
             &mocked_heartbeat_function,
