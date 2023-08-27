@@ -219,12 +219,7 @@ where
         {
             let mut slot = self.presence.write();
             if slot.is_none() {
-                *slot = Some(PresenceManager {
-                    inner: Arc::new(PresenceManagerRef {
-                        event_engine: self.presence_event_engine(),
-                        state: None,
-                    }),
-                })
+                *slot = Some(PresenceManager::new(self.presence_event_engine(), None));
             }
         }
 

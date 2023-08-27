@@ -1,20 +1,21 @@
+use futures::TryFutureExt;
+use log::info;
+
 use crate::{
     core::{PubNubError, RequestRetryPolicy},
     dx::subscribe::{
         event_engine::{
             effects::SubscribeEffectExecutor, types::SubscriptionParams, SubscribeEvent,
+            SubscribeInput,
         },
         SubscribeCursor,
     },
-    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
+    lib::alloc::{sync::Arc, vec, vec::Vec},
 };
-use futures::TryFutureExt;
-use log::info;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn execute(
-    channels: &Option<Vec<String>>,
-    channel_groups: &Option<Vec<String>>,
+    input: &SubscribeInput,
     cursor: &SubscribeCursor,
     attempt: u8,
     reason: PubNubError,
@@ -29,13 +30,13 @@ pub(crate) async fn execute(
     info!(
         "Receive reconnection at {:?} for\nchannels: {:?}\nchannel groups: {:?}",
         cursor.timetoken,
-        channels.as_ref().unwrap_or(&Vec::new()),
-        channel_groups.as_ref().unwrap_or(&Vec::new()),
+        input.channels().unwrap_or(Vec::new()),
+        input.channel_groups().unwrap_or(Vec::new())
     );
 
     executor(SubscriptionParams {
-        channels,
-        channel_groups,
+        channels: &input.channels(),
+        channel_groups: &input.channel_groups(),
         cursor: Some(cursor),
         attempt,
         reason: Some(reason),
@@ -98,8 +99,10 @@ mod should {
         });
 
         let result = execute(
-            &Some(vec!["ch1".to_string()]),
-            &Some(vec!["cg1".to_string()]),
+            &SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
             &Default::default(),
             10,
             PubNubError::Transport {
@@ -138,8 +141,10 @@ mod should {
         });
 
         let result = execute(
-            &Some(vec!["ch1".to_string()]),
-            &Some(vec!["cg1".to_string()]),
+            &SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
             &Default::default(),
             5,
             PubNubError::Transport {
@@ -178,8 +183,10 @@ mod should {
         });
 
         let result = execute(
-            &Some(vec!["ch1".to_string()]),
-            &Some(vec!["cg1".to_string()]),
+            &SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
             &Default::default(),
             10,
             PubNubError::Transport {

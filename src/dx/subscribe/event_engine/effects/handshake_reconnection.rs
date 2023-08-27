@@ -1,16 +1,16 @@
-use crate::{
-    core::{PubNubError, RequestRetryPolicy},
-    dx::subscribe::event_engine::{
-        effects::SubscribeEffectExecutor, types::SubscriptionParams, SubscribeEvent,
-    },
-    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
-};
 use futures::TryFutureExt;
 use log::info;
 
+use crate::{
+    core::{PubNubError, RequestRetryPolicy},
+    dx::subscribe::event_engine::{
+        effects::SubscribeEffectExecutor, SubscribeEvent, SubscribeInput, SubscriptionParams,
+    },
+    lib::alloc::{sync::Arc, vec, vec::Vec},
+};
+
 pub(super) async fn execute(
-    channels: &Option<Vec<String>>,
-    channel_groups: &Option<Vec<String>>,
+    input: &SubscribeInput,
     attempt: u8,
     reason: PubNubError,
     effect_id: &str,
@@ -23,13 +23,13 @@ pub(super) async fn execute(
 
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
-        channels.as_ref().unwrap_or(&Vec::new()),
-        channel_groups.as_ref().unwrap_or(&Vec::new()),
+        input.channels().unwrap_or(Vec::new()),
+        input.channel_groups().unwrap_or(Vec::new())
     );
 
     executor(SubscriptionParams {
-        channels,
-        channel_groups,
+        channels: &input.channels(),
+        channel_groups: &input.channel_groups(),
         cursor: None,
         attempt,
         reason: Some(reason),
@@ -63,8 +63,8 @@ mod should {
         let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |params| {
             assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
-            assert_eq!(params.attempt, 1);
             assert_eq!(params.cursor, None);
+            assert_eq!(params.attempt, 1);
             assert_eq!(
                 params.reason.unwrap(),
                 PubNubError::Transport {
@@ -84,8 +84,10 @@ mod should {
         });
 
         let result = execute(
-            &Some(vec!["ch1".to_string()]),
-            &Some(vec!["cg1".to_string()]),
+            &SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
             1,
             PubNubError::Transport {
                 details: "test".into(),
@@ -120,8 +122,10 @@ mod should {
         });
 
         let result = execute(
-            &Some(vec!["ch1".to_string()]),
-            &Some(vec!["cg1".to_string()]),
+            &SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
             1,
             PubNubError::Transport {
                 details: "test".into(),

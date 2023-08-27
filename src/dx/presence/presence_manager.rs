@@ -14,10 +14,24 @@ use crate::{
     },
 };
 
-/// Presence module configuration.
+/// Presence manager.
+///
+/// [`PubNubClient`] allows to have state associated with `user_id` on provided
+/// list of channels and groups.
 #[derive(Debug)]
 pub(crate) struct PresenceManager {
     pub(crate) inner: Arc<PresenceManagerRef>,
+}
+
+impl PresenceManager {
+    pub fn new(event_engine: Arc<PresenceEventEngine>, state: Option<Vec<u8>>) -> Self {
+        Self {
+            inner: Arc::new(PresenceManagerRef {
+                event_engine,
+                state,
+            }),
+        }
+    }
 }
 
 impl Deref for PresenceManager {
@@ -42,7 +56,10 @@ impl Clone for PresenceManager {
     }
 }
 
-/// Presence module configuration.
+/// Presence manager.
+///
+/// [`PubNubClient`] allows to have state associated with `user_id` on provided
+/// list of channels and groups.
 pub(crate) struct PresenceManagerRef {
     /// Presence event engine.
     pub event_engine: Arc<PresenceEventEngine>,
@@ -50,13 +67,14 @@ pub(crate) struct PresenceManagerRef {
     /// A state that should be associated with the `user_id`.
     ///
     /// `state` object should be a `HashMap` with channel names as keys and
-    /// nested `HashMap` with values.
+    /// nested `HashMap` with values. State with heartbeat can be set **only**
+    /// for channels.
     ///
     /// # Example:
     /// ```rust,no_run
     /// # use std::collections::HashMap;
     /// # fn main() {
-    /// let state = HashMap::<String, HashMap<<String, bool>>>::from([(
+    /// let state = HashMap::<String, HashMap<String, bool>>::from([(
     ///     "announce".into(),
     ///     HashMap::from([
     ///         ("is_owner".into(), false),

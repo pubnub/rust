@@ -42,46 +42,16 @@ impl
         &self,
     ) -> (Option<Vec<String>>, Option<Vec<String>>) {
         match self.current_state() {
-            SubscribeState::Handshaking {
-                channels,
-                channel_groups,
-                ..
+            SubscribeState::Handshaking { input, .. }
+            | SubscribeState::HandshakeReconnecting { input, .. }
+            | SubscribeState::HandshakeStopped { input, .. }
+            | SubscribeState::HandshakeFailed { input, .. }
+            | SubscribeState::Receiving { input, .. }
+            | SubscribeState::ReceiveReconnecting { input, .. }
+            | SubscribeState::ReceiveStopped { input, .. }
+            | SubscribeState::ReceiveFailed { input, .. } => {
+                (input.channels(), input.channel_groups())
             }
-            | SubscribeState::HandshakeReconnecting {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::HandshakeStopped {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::HandshakeFailed {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::Receiving {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::ReceiveReconnecting {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::ReceiveStopped {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::ReceiveFailed {
-                channels,
-                channel_groups,
-                ..
-            } => (channels, channel_groups),
             _ => (None, None),
         }
     }

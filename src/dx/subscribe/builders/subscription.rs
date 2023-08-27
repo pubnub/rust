@@ -9,6 +9,7 @@ use futures::Stream;
 use spin::RwLock;
 use uuid::Uuid;
 
+use crate::subscribe::event_engine::SubscribeInput;
 use crate::{
     core::PubNubError,
     dx::subscribe::{result::Update, types::SubscribeStreamEvent, SubscribeStatus},
@@ -144,27 +145,17 @@ pub struct SubscriptionRef {
     )]
     pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionManager>>>,
 
-    /// Channels from which real-time updates should be received.
+    /// User input with channels and groups.
     ///
-    /// List of channels on which [`PubNubClient`] will subscribe and notify
-    /// about received real-time updates.
+    /// Object contains list of channels and channel groups on which
+    /// [`PubNubClient`] will subscribe and notify about received real-time
+    /// updates.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
-        setter(into, strip_option),
-        default = "Vec::new()"
+        setter(custom),
+        default = "SubscribeInput::new(&None, &None)"
     )]
-    pub(in crate::dx::subscribe) channels: Vec<String>,
-
-    /// Channel groups from which real-time updates should be received.
-    ///
-    /// List of groups of channels on which [`PubNubClient`] will subscribe and
-    /// notify about received real-time updates.
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        setter(into, strip_option),
-        default = "Vec::new()"
-    )]
-    pub(in crate::dx::subscribe) channel_groups: Vec<String>,
+    pub(in crate::dx::subscribe) input: SubscribeInput,
 
     /// Time cursor.
     ///
@@ -251,14 +242,51 @@ impl SubscriptionBuilder {
     /// Validator ensure that list of provided data is enough to build valid
     /// request instance.
     fn validate(&self) -> Result<(), String> {
-        let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
-        let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());
+        let input = self
+            .input
+            .as_ref()
+            .expect("Subscription input should be set by default".into());
 
-        if channels_len == groups_len && channels_len == 0 {
-            Err("Either channels or channel groups should be provided".into())
-        } else {
-            Ok(())
+        if input.is_empty {
+            return Err("Either channels or channel groups should be provided".into());
         }
+
+        Ok(())
+    }
+    /// Channels from which real-time updates should be received.
+    ///
+    /// List of channels on which [`PubNubClient`] will subscribe and notify
+    /// about received real-time updates.
+    pub fn channels<L>(mut self, channels: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let user_input = SubscribeInput::new(&Some(channels.into()), &None);
+        if let Some(input) = self.input {
+            self.input = Some(input + user_input)
+        } else {
+            self.input = Some(user_input);
+        }
+
+        self
+    }
+
+    /// Channel groups from which real-time updates should be received.
+    ///
+    /// List of groups of channels on which [`PubNubClient`] will subscribe and
+    /// notify about received real-time updates.
+    pub fn channel_groups<L>(mut self, channel_groups: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let user_input = SubscribeInput::new(&None, &Some(channel_groups.into()));
+        if let Some(input) = self.input {
+            self.input = Some(input + user_input)
+        } else {
+            self.input = Some(user_input);
+        }
+
+        self
     }
 }
 
@@ -286,7 +314,7 @@ impl Debug for SubscriptionRef {
         write!(
             f,
             "Subscription {{ \nchannels: {:?}, \nchannel-groups: {:?}, \ncursor: {:?}, \nheartbeat: {:?}, \nfilter_expression: {:?}}}",
-            self.channels, self.channel_groups, self.cursor, self.heartbeat, self.filter_expression
+            self.input.channels(), self.input.channel_groups(), self.cursor, self.heartbeat, self.filter_expression
         )
     }
 }
@@ -474,8 +502,8 @@ impl Subscription {
     }
 
     fn subscribed_for_update(&self, update: &Update) -> bool {
-        self.channels.contains(&update.channel())
-            || self.channel_groups.contains(&update.channel_group())
+        self.input.contains_channel(&update.channel())
+            || self.input.contains_channel_group(&update.channel_group())
     }
 }
 

@@ -9,10 +9,6 @@
 pub(crate) use subscribe::SubscribeRequestBuilder;
 pub(crate) mod subscribe;
 
-#[cfg(all(not(feature = "serde"), feature = "std"))]
-#[doc(inline)]
-pub(crate) use subscription::SubscriptionWithDeserializerBuilder;
-
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub use subscription::{SubscriptionBuilder, SubscriptionBuilderError};

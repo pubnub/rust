@@ -1,12 +1,12 @@
 use crate::{
     core::{event_engine::EffectInvocation, PubNubError},
     dx::subscribe::{
-        event_engine::{SubscribeEffect, SubscribeEvent},
+        event_engine::{SubscribeEffect, SubscribeEvent, SubscribeInput},
         result::Update,
         SubscribeCursor, SubscribeStatus,
     },
     lib::{
-        alloc::{string::String, vec::Vec},
+        alloc::vec::Vec,
         core::fmt::{Display, Formatter, Result},
     },
 };
@@ -20,17 +20,17 @@ use crate::{
 pub(crate) enum SubscribeEffectInvocation {
     /// Initial subscribe effect invocation.
     Handshake {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which will be source of real-time updates after
-        /// initial subscription completion.
-        channels: Option<Vec<String>>,
+        /// Object contains list of channels and groups which will be source of
+        /// real-time updates after initial subscription completion.
+        input: SubscribeInput,
 
-        /// Optional list of channel groups.
+        /// Time cursor.
         ///
-        /// List of channel groups which will be source of real-time updates
-        /// after initial subscription completion.
-        channel_groups: Option<Vec<String>>,
+        /// Cursor used by subscription loop to identify point in time after
+        /// which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
     },
 
     /// Cancel initial subscribe effect invocation.
@@ -38,17 +38,17 @@ pub(crate) enum SubscribeEffectInvocation {
 
     /// Retry initial subscribe effect invocation.
     HandshakeReconnect {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which has been used during recently failed initial
-        /// subscription.
-        channels: Option<Vec<String>>,
+        /// Object contains list of channels and groups which has been used
+        /// during recently failed initial subscription.
+        input: SubscribeInput,
 
-        /// Optional list of channel groups.
+        /// Time cursor.
         ///
-        /// List of channel groups which has been used during recently failed
-        /// initial subscription.
-        channel_groups: Option<Vec<String>>,
+        /// Cursor used by subscription loop to identify point in time after
+        /// which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
 
         /// Current initial subscribe retry attempt.
         ///
@@ -64,16 +64,11 @@ pub(crate) enum SubscribeEffectInvocation {
 
     /// Receive updates effect invocation.
     Receive {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels for which real-time updates will be delivered.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups for which real-time updates will be
-        /// delivered.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups which real-time updates
+        /// will be delivered.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///
@@ -87,17 +82,11 @@ pub(crate) enum SubscribeEffectInvocation {
 
     /// Retry receive updates effect invocation.
     ReceiveReconnect {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which has been used during recently failed receive
-        /// updates.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which has been used during recently failed
-        /// receive updates.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups which has been used
+        /// during recently failed receive updates.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///

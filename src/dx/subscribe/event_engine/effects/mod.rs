@@ -45,6 +45,12 @@ pub(crate) enum SubscribeEffect {
         /// source of real-time updates after initial subscription completion.
         input: SubscribeInput,
 
+        /// Time cursor.
+        ///
+        /// Cursor used by subscription loop to identify point in time after
+        /// which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
+
         /// Executor function.
         ///
         /// Function which will be used to execute initial subscription.
@@ -63,6 +69,12 @@ pub(crate) enum SubscribeEffect {
         /// Object contains list of channels and channel groups which has been
         /// used during recently failed initial subscription.
         input: SubscribeInput,
+
+        /// Time cursor.
+        ///
+        /// Cursor used by subscription loop to identify point in time after
+        /// which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
 
         /// Current initial subscribe retry attempt.
         ///
@@ -242,14 +254,10 @@ impl Effect for SubscribeEffect {
     async fn run(&self) -> Vec<SubscribeEvent> {
         match self {
             Self::Handshake {
-                channels,
-                channel_groups,
-                executor,
-                ..
-            } => handshake::execute(channels, channel_groups, &self.id(), executor).await,
+                input, executor, ..
+            } => handshake::execute(input, &self.id(), executor).await,
             Self::HandshakeReconnect {
-                channels,
-                channel_groups,
+                input,
                 attempts,
                 reason,
                 retry_policy,
@@ -257,8 +265,7 @@ impl Effect for SubscribeEffect {
                 ..
             } => {
                 handshake_reconnection::execute(
-                    channels,
-                    channel_groups,
+                    input,
                     *attempts,
                     reason.clone(), /* TODO: Does run function need to borrow self? Or we can
                                      * consume it? */
@@ -269,15 +276,13 @@ impl Effect for SubscribeEffect {
                 .await
             }
             Self::Receive {
-                channels,
-                channel_groups,
+                input,
                 cursor,
                 executor,
                 ..
-            } => receive::execute(channels, channel_groups, cursor, &self.id(), executor).await,
+            } => receive::execute(input, cursor, &self.id(), executor).await,
             Self::ReceiveReconnect {
-                channels,
-                channel_groups,
+                input,
                 cursor,
                 attempts,
                 reason,
@@ -286,8 +291,7 @@ impl Effect for SubscribeEffect {
                 ..
             } => {
                 receive_reconnection::execute(
-                    channels,
-                    channel_groups,
+                    input,
                     cursor,
                     *attempts,
                     reason.clone(), /* TODO: Does run function need to borrow self? Or we can
@@ -343,8 +347,8 @@ mod should {
         let (tx, rx) = async_channel::bounded(1);
 
         let effect = SubscribeEffect::Handshake {
-            channels: None,
-            channel_groups: None,
+            input: SubscribeInput::new(&None, &None),
+            cursor: None,
             executor: Arc::new(|_| {
                 Box::pin(async move {
                     Ok(SubscribeResult {

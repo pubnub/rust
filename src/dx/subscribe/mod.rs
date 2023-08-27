@@ -7,6 +7,7 @@ use futures::{
     future::{ready, BoxFuture},
     FutureExt,
 };
+use spin::RwLock;
 
 use crate::dx::{pubnub_client::PubNubClientInstance, subscribe::raw::RawSubscriptionBuilder};
 
@@ -42,9 +43,11 @@ pub mod result;
 pub(crate) use subscription_manager::SubscriptionManager;
 #[cfg(feature = "std")]
 pub(crate) mod subscription_manager;
+use crate::subscribe::event_engine::SubscribeEventEngine;
 #[cfg(feature = "std")]
 #[doc(inline)]
 use event_engine::{types::SubscriptionParams, SubscribeEffectHandler, SubscribeState};
+
 #[cfg(feature = "std")]
 pub(crate) mod event_engine;
 
@@ -89,7 +92,6 @@ where
     ///     .await;
     /// # Ok(())
     /// # }
-    ///
     /// ```
     ///
     /// For more examples see our [examples directory](https://github.com/pubnub/rust/tree/master/examples).
@@ -98,130 +100,7 @@ where
     /// [`PubNubClient`]: crate::PubNubClient
     #[cfg(all(feature = "tokio", feature = "serde"))]
     pub fn subscribe(&self) -> SubscriptionBuilder {
-        use crate::providers::futures_tokio::RuntimeTokio;
-
-        self.subscribe_with_runtime(RuntimeTokio)
-    }
-
-    /// Create subscription listener.
-    ///
-    /// Listeners configure [`PubNubClient`] to receive real-time updates for
-    /// specified list of channels and groups.
-    ///
-    /// ```no_run // Starts listening for real-time updates
-    /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use pubnub::{Keyset, PubNubClientBuilder};
-    /// #
-    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
-    /// #      .with_keyset(Keyset {
-    /// #          subscribe_key: "demo",
-    /// #          publish_key: Some("demo"),
-    /// #          secret_key: None,
-    /// #      })
-    /// #      .with_user_id("user_id")
-    /// #      .build()?;
-    /// client
-    ///     .subscribe()
-    ///     .channels(["hello".into(), "world".into()].to_vec())
-    ///     .execute()?
-    ///     .stream()
-    ///     .for_each(|event| async move {
-    ///         match event {
-    ///             SubscribeStreamEvent::Update(update) => println!("update: {:?}", update),
-    ///             SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
-    ///         }
-    ///     })
-    ///    .await;
-    /// # Ok(())
-    /// # }
-    ///
-    /// ```
-    ///
-    /// Instance of [`SubscriptionWithDeserializerBuilder`] returned.
-    /// [`PubNubClient`]: crate::PubNubClient
-    #[cfg(all(feature = "tokio", not(feature = "serde")))]
-    pub fn subscribe(&self) -> SubscriptionWithDeserializerBuilder {
-        use crate::providers::futures_tokio::RuntimeTokio;
-
-        self.subscribe_with_runtime(RuntimeTokio)
-    }
-
-    /// Create subscription listener.
-    ///
-    /// Listeners configure [`PubNubClient`] to receive real-time updates for
-    /// specified list of channels and groups.
-    ///
-    /// It takes custom runtime which will be used for detached tasks spawning
-    /// and delayed task execution.
-    ///
-    /// ```no_run // Starts listening for real-time updates
-    /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
-    /// use pubnub::core::runtime::Runtime;
-    /// use std::future::Future;
-    ///
-    /// #[derive(Clone)]
-    /// struct MyRuntime;
-    ///
-    /// #[async_trait::async_trait]
-    /// impl Runtime for MyRuntime {
-    ///    fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static) {
-    ///       // spawn the Future
-    ///       // e.g. tokio::spawn(future);
-    ///    }
-    ///    
-    ///    async fn sleep(self, _delay: u64) {
-    ///       // e.g. tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
-    ///    }
-    /// }
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use pubnub::{Keyset, PubNubClientBuilder};
-    /// #
-    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
-    /// #      .with_keyset(Keyset {
-    /// #          subscribe_key: "demo",
-    /// #          publish_key: Some("demo"),
-    /// #          secret_key: None,
-    /// #      })
-    /// #      .with_user_id("user_id")
-    /// #      .build()?;
-    ///
-    /// client
-    ///     .subscribe_with_runtime(MyRuntime)
-    ///     .channels(["hello".into(), "world".into()].to_vec())
-    ///     .execute()?
-    ///     .stream()
-    ///     .for_each(|event| async move {
-    ///         match event {
-    ///             SubscribeStreamEvent::Update(update) => println!("update: {:?}", update),
-    ///             SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
-    ///         }
-    ///     })
-    ///     .await;
-    /// # Ok(())
-    /// # }
-    ///
-    /// ```
-    ///
-    /// Instance of [`SubscriptionBuilder`] returned.
-    /// [`PubNubClient`]: crate::PubNubClient
-    #[cfg(feature = "serde")]
-    pub fn subscribe_with_runtime<R>(&self, runtime: R) -> SubscriptionBuilder
-    where
-        R: Runtime + Send + Sync + 'static,
-    {
-        {
-            // Initialize subscription module when it will be first required.
-            let mut subscription_slot = self.subscription.write();
-            if subscription_slot.is_none() {
-                *subscription_slot = Some(self.clone().subscription_manager(runtime));
-            }
-        }
+        self.configure_subscribe();
 
         SubscriptionBuilder {
             subscription: Some(self.subscription.clone()),
@@ -229,99 +108,33 @@ where
         }
     }
 
-    /// Create subscription listener.
-    ///
-    /// Listeners configure [`PubNubClient`] to receive real-time updates for
-    /// specified list of channels and groups.
-    ///
-    /// It takes custom runtime which will be used for detached tasks spawning
-    /// and delayed task execution.
-    /// ```no_run // Starts listening for real-time updates
-    /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
-    /// use pubnub::core::runtime::Runtime;
-    /// use std::future::Future;
-    ///
-    /// #[derive(Clone)]
-    /// struct MyRuntime;
-    ///
-    /// impl Runtime for MyRuntime {
-    ///    fn spawn<R>(&self, future: impl Future<Output = R> + Send + 'static) {
-    ///       // spawn the Future
-    ///       // e.g. tokio::spawn(future);
-    ///    }
-    /// }
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use pubnub::{Keyset, PubNubClientBuilder};
-    /// #
-    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
-    /// #      .with_keyset(Keyset {
-    /// #          subscribe_key: "demo",
-    /// #          publish_key: Some("demo"),
-    /// #          secret_key: None,
-    /// #      })
-    /// #      .with_user_id("user_id")
-    /// #      .build()?;
-    ///
-    /// client
-    ///     .subscribe_with_runtime(MyRuntime)
-    ///     .channels(["hello".into(), "world".into()].to_vec())
-    ///     .execute()?
-    ///     .stream()
-    ///     .for_each(|event| async move {
-    ///         match event {
-    ///             SubscribeStreamEvent::Update(update) => println!("update: {:?}", update),
-    ///             SubscribeStreamEvent::Status(status) => println!("status: {:?}", status),
-    ///         }
-    ///     })
-    ///     .await;
-    /// # Ok(())
-    /// # }
-    ///
-    /// ```
-    ///
-    /// Instance of [`SubscriptionWithDeserializerBuilder`] returned.
-    /// [`PubNubClient`]: crate::PubNubClient
-    #[cfg(not(feature = "serde"))]
-    pub fn subscribe_with_runtime<R>(&self, runtime: R) -> SubscriptionWithDeserializerBuilder
-    where
-        R: Runtime + Send + Sync + 'static,
-    {
+    pub(crate) fn configure_subscribe(&self) -> Arc<RwLock<Option<SubscriptionManager>>> {
         {
             // Initialize subscription module when it will be first required.
-            let mut subscription_slot = self.subscription.write();
-            if subscription_slot.is_none() {
-                *subscription_slot = Some(SubscriptionConfiguration {
-                    inner: Arc::new(SubscriptionConfigurationRef {
-                        subscription_manager: self.clone().subscription_manager(runtime),
-                        deserializer: None,
-                    }),
-                });
+            let mut slot = self.subscription.write();
+            if slot.is_none() {
+                *slot = Some(SubscriptionManager::new(self.subscribe_event_engine()));
+                // *subscription_slot =
+                // Some(self.clone().subscription_manager(runtime));
             }
         }
 
-        SubscriptionWithDeserializerBuilder {
-            subscription: self.subscription.clone(),
-        }
+        self.subscription.clone()
     }
 
-    pub(crate) fn subscription_manager<R>(&mut self, runtime: R) -> SubscriptionManager
-    where
-        R: Runtime + Send + Sync + 'static,
-        D: Deserializer + 'static,
-    {
+    pub(crate) fn subscribe_event_engine(&self) -> Arc<SubscribeEventEngine> {
         let channel_bound = 10; // TODO: Think about this value
         let emit_messages_client = self.clone();
         let emit_status_client = self.clone();
         let subscribe_client = self.clone();
         let request_retry_delay_policy = self.config.retry_policy.clone();
         let request_retry_policy = self.config.retry_policy.clone();
+        let runtime = self.runtime.clone();
         let runtime_sleep = runtime.clone();
 
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
 
-        let engine = EventEngine::new(
+        EventEngine::new(
             SubscribeEffectHandler::new(
                 Arc::new(move |params| {
                     let delay_in_secs = request_retry_delay_policy
@@ -350,9 +163,7 @@ where
             ),
             SubscribeState::Unsubscribed,
             runtime,
-        );
-
-        SubscriptionManager::new(engine)
+        )
     }
 
     pub(crate) fn subscribe_call<F>(
@@ -437,7 +248,6 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///     .await;
     /// # Ok(())
     /// # }
-    ///
     /// ```
     ///
     /// For more examples see our [examples directory](https://github.com/pubnub/rust/tree/master/examples).

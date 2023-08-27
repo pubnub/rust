@@ -45,6 +45,12 @@ pub(crate) enum SubscribeState {
         /// Object contains list of channels and groups which will be source of
         /// real-time updates after initial subscription completion.
         input: SubscribeInput,
+
+        /// Custom time cursor.
+        ///
+        /// Custom cursor used by subscription loop to identify point in time
+        /// after which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
     },
 
     /// Subscription recover state.
@@ -56,6 +62,12 @@ pub(crate) enum SubscribeState {
         /// Object contains list of channels and groups which has been used
         /// during recently failed initial subscription.
         input: SubscribeInput,
+
+        /// Custom time cursor.
+        ///
+        /// Custom cursor used by subscription loop to identify point in time
+        /// after which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
 
         /// Current initial subscribe retry attempt.
         ///
@@ -73,6 +85,12 @@ pub(crate) enum SubscribeState {
         /// Object contains list of channels and groups for which initial
         /// subscription stopped.
         input: SubscribeInput,
+
+        /// Custom time cursor.
+        ///
+        /// Custom cursor used by subscription loop to identify point in time
+        /// after which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
     },
 
     /// Initial subscription failure state.
@@ -85,6 +103,12 @@ pub(crate) enum SubscribeState {
         /// Object contains list of channels and groups which has been used
         /// during recently failed initial subscription.
         input: SubscribeInput,
+
+        /// Custom time cursor.
+        ///
+        /// Custom cursor used by subscription loop to identify point in time
+        /// after which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
 
         /// Initial subscribe attempt failure reason.
         reason: PubNubError,
@@ -179,37 +203,48 @@ impl SubscribeState {
         channel_groups: &Option<Vec<String>>,
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::Unsubscribed
-            | Self::Handshaking { .. }
-            | Self::HandshakeReconnecting { .. }
-            | Self::HandshakeFailed { .. } => Some(self.transition_to(
+            Self::Unsubscribed => Some(self.transition_to(
                 Self::Handshaking {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: SubscribeInput::new(channels, channel_groups),
+                    cursor: None,
                 },
                 None,
             )),
-            Self::HandshakeStopped { .. } => Some(self.transition_to(
-                Self::HandshakeStopped {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
-                },
-                None,
-            )),
-            Self::Receiving { cursor, .. }
-            | Self::ReceiveReconnecting { cursor, .. }
-            | Self::ReceiveFailed { cursor, .. } => Some(self.transition_to(
-                Self::Receiving {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+            Self::Handshaking { cursor, .. }
+            | Self::HandshakeReconnecting { cursor, .. }
+            | Self::HandshakeFailed { cursor, .. } => Some(self.transition_to(
+                Self::Handshaking {
+                    input: SubscribeInput::new(channels, channel_groups),
                     cursor: cursor.clone(),
+                },
+                None,
+            )),
+            Self::HandshakeStopped { cursor, .. } => Some(self.transition_to(
+                Self::Handshaking {
+                    input: SubscribeInput::new(channels, channel_groups),
+                    cursor: cursor.clone(),
+                },
+                None,
+            )),
+            Self::Receiving { cursor, .. } | Self::ReceiveReconnecting { cursor, .. } => {
+                Some(self.transition_to(
+                    Self::Receiving {
+                        input: SubscribeInput::new(channels, channel_groups),
+                        cursor: cursor.clone(),
+                    },
+                    None,
+                ))
+            }
+            Self::ReceiveFailed { cursor, .. } => Some(self.transition_to(
+                Self::Handshaking {
+                    input: SubscribeInput::new(channels, channel_groups),
+                    cursor: Some(cursor.clone()),
                 },
                 None,
             )),
             Self::ReceiveStopped { cursor, .. } => Some(self.transition_to(
                 Self::ReceiveStopped {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: SubscribeInput::new(channels, channel_groups),
                     cursor: cursor.clone(),
                 },
                 None,
@@ -225,33 +260,47 @@ impl SubscribeState {
         &self,
         channels: &Option<Vec<String>>,
         channel_groups: &Option<Vec<String>>,
-        cursor: &SubscribeCursor,
+        restore_cursor: &SubscribeCursor,
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::Unsubscribed
-            | Self::Handshaking { .. }
-            | Self::HandshakeReconnecting { .. }
-            | Self::HandshakeFailed { .. }
-            | Self::Receiving { .. }
-            | Self::ReceiveReconnecting { .. }
-            | Self::ReceiveFailed { .. } => Some(self.transition_to(
-                Self::Receiving {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
-                    cursor: cursor.clone(),
+            Self::Unsubscribed => Some(self.transition_to(
+                Self::Handshaking {
+                    input: SubscribeInput::new(channels, channel_groups),
+                    cursor: Some(restore_cursor.clone()),
                 },
                 None,
             )),
-            Self::HandshakeStopped { .. } | Self::ReceiveStopped { .. } => {
-                Some(self.transition_to(
-                    Self::ReceiveStopped {
-                        channels: channels.clone(),
-                        channel_groups: channel_groups.clone(),
-                        cursor: cursor.clone(),
-                    },
-                    None,
-                ))
-            }
+            Self::Handshaking { cursor, .. }
+            | Self::HandshakeReconnecting { cursor, .. }
+            | Self::HandshakeFailed { cursor, .. }
+            | Self::HandshakeStopped { cursor, .. } => Some(self.transition_to(
+                Self::Handshaking {
+                    input: SubscribeInput::new(channels, channel_groups),
+                    cursor: Some(cursor.clone().unwrap_or(restore_cursor.clone())),
+                },
+                None,
+            )),
+            Self::Receiving { .. } | Self::ReceiveReconnecting { .. } => Some(self.transition_to(
+                Self::Receiving {
+                    input: SubscribeInput::new(channels, channel_groups),
+                    cursor: restore_cursor.clone(),
+                },
+                None,
+            )),
+            Self::ReceiveFailed { .. } => Some(self.transition_to(
+                Self::Handshaking {
+                    input: SubscribeInput::new(channels, channel_groups),
+                    cursor: Some(restore_cursor.clone()),
+                },
+                None,
+            )),
+            Self::ReceiveStopped { .. } => Some(self.transition_to(
+                Self::ReceiveStopped {
+                    input: SubscribeInput::new(channels, channel_groups),
+                    cursor: restore_cursor.clone(),
+                },
+                None,
+            )),
         }
     }
 
@@ -261,22 +310,14 @@ impl SubscribeState {
     /// first time.
     fn handshake_success_transition(
         &self,
-        cursor: &SubscribeCursor,
+        next_cursor: &SubscribeCursor,
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::Handshaking {
-                channels,
-                channel_groups,
-            }
-            | Self::HandshakeReconnecting {
-                channels,
-                channel_groups,
-                ..
-            } => Some(self.transition_to(
+            Self::Handshaking { input, cursor }
+            | Self::HandshakeReconnecting { input, cursor, .. } => Some(self.transition_to(
                 Self::Receiving {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
-                    cursor: cursor.clone(),
+                    input: input.clone(),
+                    cursor: cursor.clone().unwrap_or(next_cursor.clone()),
                 },
                 Some(vec![EmitStatus(SubscribeStatus::Connected)]),
             )),
@@ -290,13 +331,10 @@ impl SubscribeState {
         reason: &PubNubError,
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::Handshaking {
-                channels,
-                channel_groups,
-            } => Some(self.transition_to(
+            Self::Handshaking { input, cursor } => Some(self.transition_to(
                 Self::HandshakeReconnecting {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: input.clone(),
+                    cursor: cursor.clone(),
                     attempts: 1,
                     reason: reason.clone(),
                 },
@@ -316,14 +354,14 @@ impl SubscribeState {
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
             Self::HandshakeReconnecting {
-                channels,
-                channel_groups,
+                input,
+                cursor,
                 attempts,
                 ..
             } => Some(self.transition_to(
                 Self::HandshakeReconnecting {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: input.clone(),
+                    cursor: cursor.clone(),
                     attempts: attempts + 1,
                     reason: reason.clone(),
                 },
@@ -342,17 +380,13 @@ impl SubscribeState {
         reason: &PubNubError,
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::HandshakeReconnecting {
-                channels,
-                channel_groups,
-                ..
-            } => Some(self.transition_to(
+            Self::HandshakeReconnecting { input, cursor, .. } => Some(self.transition_to(
                 Self::HandshakeFailed {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: input.clone(),
+                    cursor: cursor.clone(),
                     reason: reason.clone(),
                 },
-                Some(vec![EmitStatus(SubscribeStatus::ConnectedError(
+                Some(vec![EmitStatus(SubscribeStatus::ConnectionError(
                     reason.clone(),
                 ))]),
             )),
@@ -370,26 +404,15 @@ impl SubscribeState {
         messages: &[Update],
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::Receiving {
-                channels,
-                channel_groups,
-                ..
+            Self::Receiving { input, .. } | Self::ReceiveReconnecting { input, .. } => {
+                Some(self.transition_to(
+                    Self::Receiving {
+                        input: input.clone(),
+                        cursor: cursor.clone(),
+                    },
+                    Some(vec![EmitMessages(messages.to_vec())]),
+                ))
             }
-            | Self::ReceiveReconnecting {
-                channels,
-                channel_groups,
-                ..
-            } => Some(self.transition_to(
-                Self::Receiving {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
-                    cursor: cursor.clone(),
-                },
-                Some(vec![
-                    EmitMessages(messages.to_vec()),
-                    EmitStatus(SubscribeStatus::Connected),
-                ]),
-            )),
             _ => None,
         }
     }
@@ -400,15 +423,9 @@ impl SubscribeState {
         reason: &PubNubError,
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::Receiving {
-                channels,
-                channel_groups,
-                cursor,
-                ..
-            } => Some(self.transition_to(
+            Self::Receiving { input, cursor, .. } => Some(self.transition_to(
                 Self::ReceiveReconnecting {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: input.clone(),
                     cursor: cursor.clone(),
                     attempts: 1,
                     reason: reason.clone(),
@@ -429,15 +446,13 @@ impl SubscribeState {
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
             Self::ReceiveReconnecting {
-                channels,
-                channel_groups,
+                input,
                 attempts,
                 cursor,
                 ..
             } => Some(self.transition_to(
                 Self::ReceiveReconnecting {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: input.clone(),
                     cursor: cursor.clone(),
                     attempts: attempts + 1,
                     reason: reason.clone(),
@@ -457,15 +472,9 @@ impl SubscribeState {
         reason: &PubNubError,
     ) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::ReceiveReconnecting {
-                channels,
-                channel_groups,
-                cursor,
-                ..
-            } => Some(self.transition_to(
+            Self::ReceiveReconnecting { input, cursor, .. } => Some(self.transition_to(
                 Self::ReceiveFailed {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: input.clone(),
                     cursor: cursor.clone(),
                     reason: reason.clone(),
                 },
@@ -481,39 +490,23 @@ impl SubscribeState {
     /// channels / groups or temporally stop any activity.
     fn disconnect_transition(&self) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::Handshaking {
-                channels,
-                channel_groups,
-            }
-            | Self::HandshakeReconnecting {
-                channels,
-                channel_groups,
-                ..
-            } => Some(self.transition_to(
+            Self::Handshaking { input, cursor }
+            | Self::HandshakeReconnecting { input, cursor, .. } => Some(self.transition_to(
                 Self::HandshakeStopped {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: input.clone(),
+                    cursor: cursor.clone(),
                 },
                 None,
             )),
-            Self::Receiving {
-                channels,
-                channel_groups,
-                cursor,
+            Self::Receiving { input, cursor } | Self::ReceiveReconnecting { input, cursor, .. } => {
+                Some(self.transition_to(
+                    Self::ReceiveStopped {
+                        input: input.clone(),
+                        cursor: cursor.clone(),
+                    },
+                    Some(vec![EmitStatus(SubscribeStatus::Disconnected)]),
+                ))
             }
-            | Self::ReceiveReconnecting {
-                channels,
-                channel_groups,
-                cursor,
-                ..
-            } => Some(self.transition_to(
-                Self::ReceiveStopped {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
-                    cursor: cursor.clone(),
-                },
-                Some(vec![EmitStatus(SubscribeStatus::Disconnected)]),
-            )),
             _ => None,
         }
     }
@@ -525,40 +518,23 @@ impl SubscribeState {
     /// after reconnection failures.
     fn reconnect_transition(&self) -> Option<Transition<Self, SubscribeEffectInvocation>> {
         match self {
-            Self::HandshakeStopped {
-                channels,
-                channel_groups,
-                ..
-            }
-            | Self::HandshakeFailed {
-                channels,
-                channel_groups,
-                ..
-            } => Some(self.transition_to(
+            Self::HandshakeStopped { input, cursor }
+            | Self::HandshakeFailed { input, cursor, .. } => Some(self.transition_to(
                 Self::Handshaking {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
-                },
-                None,
-            )),
-            Self::ReceiveStopped {
-                channels,
-                channel_groups,
-                cursor,
-            }
-            | Self::ReceiveFailed {
-                channels,
-                channel_groups,
-                cursor,
-                ..
-            } => Some(self.transition_to(
-                Self::Receiving {
-                    channels: channels.clone(),
-                    channel_groups: channel_groups.clone(),
+                    input: input.clone(),
                     cursor: cursor.clone(),
                 },
                 None,
             )),
+            Self::ReceiveStopped { input, cursor } | Self::ReceiveFailed { input, cursor, .. } => {
+                Some(self.transition_to(
+                    Self::Handshaking {
+                        input: input.clone(),
+                        cursor: Some(cursor.clone()),
+                    },
+                    None,
+                ))
+            }
             _ => None,
         }
     }
@@ -579,42 +555,32 @@ impl State for SubscribeState {
 
     fn enter(&self) -> Option<Vec<Self::Invocation>> {
         match self {
-            Self::Handshaking {
-                channels,
-                channel_groups,
-            } => Some(vec![Handshake {
-                channels: channels.clone(),
-                channel_groups: channel_groups.clone(),
+            Self::Handshaking { input, cursor } => Some(vec![Handshake {
+                input: input.clone(),
+                cursor: cursor.clone(),
             }]),
             Self::HandshakeReconnecting {
-                channels,
-                channel_groups,
+                input,
+                cursor,
                 attempts,
                 reason,
             } => Some(vec![HandshakeReconnect {
-                channels: channels.clone(),
-                channel_groups: channel_groups.clone(),
+                input: input.clone(),
+                cursor: cursor.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
             }]),
-            Self::Receiving {
-                channels,
-                channel_groups,
-                cursor,
-            } => Some(vec![Receive {
-                channels: channels.clone(),
-                channel_groups: channel_groups.clone(),
+            Self::Receiving { input, cursor } => Some(vec![Receive {
+                input: input.clone(),
                 cursor: cursor.clone(),
             }]),
             Self::ReceiveReconnecting {
-                channels,
-                channel_groups,
+                input,
                 cursor,
                 attempts,
                 reason,
             } => Some(vec![ReceiveReconnect {
-                channels: channels.clone(),
-                channel_groups: channel_groups.clone(),
+                input: input.clone(),
                 cursor: cursor.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
@@ -695,12 +661,12 @@ impl State for SubscribeState {
 #[cfg(test)]
 mod should {
     // TODO: EE process tests should be async!
+    use futures::FutureExt;
+    use test_case::test_case;
 
     use super::*;
-    use crate::core::RequestRetryPolicy;
-    use crate::providers::futures_tokio::RuntimeTokio;
     use crate::{
-        core::event_engine::EventEngine,
+        core::{event_engine::EventEngine, RequestRetryPolicy},
         dx::subscribe::{
             event_engine::{
                 effects::{
@@ -711,9 +677,8 @@ mod should {
             result::SubscribeResult,
         },
         lib::alloc::sync::Arc,
+        providers::futures_tokio::RuntimeTokio,
     };
-    use futures::FutureExt;
-    use test_case::test_case;
 
     fn event_engine(
         start_state: SubscribeState,
@@ -760,8 +725,11 @@ mod should {
             channel_groups: Some(vec!["gr1".to_string()]),
         },
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         };
         "to handshaking on subscription changed"
     )]
@@ -772,10 +740,12 @@ mod should {
             channel_groups: Some(vec!["gr1".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
         },
-        SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
-            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "10".into(), region: 1 })
         };
         "to handshaking on subscription restored"
     )]
@@ -804,30 +774,63 @@ mod should {
 
     #[test_case(
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         },
         SubscribeEvent::SubscriptionChanged {
             channels: Some(vec!["ch2".to_string()]),
             channel_groups: Some(vec!["gr2".to_string()]),
         },
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: None,
         };
         "to handshaking on subscription changed"
     )]
     #[test_case(
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        },
+        SubscribeEvent::SubscriptionChanged {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+        },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshaking with custom cursor on subscription changed"
+    )]
+    #[test_case(
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         },
         SubscribeEvent::HandshakeFailure {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts:  1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         };
@@ -835,59 +838,163 @@ mod should {
     )]
     #[test_case(
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        },
+        SubscribeEvent::HandshakeFailure {
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeState::HandshakeReconnecting {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            attempts:  1,
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        };
+        "to handshake reconnect with custom cursor on handshake failure"
+    )]
+    #[test_case(
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()]),
+            ),
+            cursor: None,
         },
         SubscribeEvent::Disconnect,
         SubscribeState::HandshakeStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         };
         "to handshake stopped on disconnect"
     )]
     #[test_case(
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        },
+        SubscribeEvent::Disconnect,
+        SubscribeState::HandshakeStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshake stopped with custom cursor on disconnect"
+    )]
+    #[test_case(
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         },
         SubscribeEvent::HandshakeSuccess {
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
         },
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
         };
         "to receiving on handshake success"
     )]
     #[test_case(
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        },
+        SubscribeEvent::HandshakeSuccess {
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        },
+        SubscribeState::Receiving {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: SubscribeCursor { timetoken: "20".into(), region: 1 }
+        };
+        "to receiving with custom cursor on handshake success"
+    )]
+    #[test_case(
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
+        },
+        SubscribeEvent::SubscriptionRestored {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
+        },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "10".into(), region: 1 }),
+        };
+        "to handshaking on subscription restored"
+    )]
+    #[test_case(
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
         },
         SubscribeEvent::SubscriptionRestored {
             channels: Some(vec!["ch2".to_string()]),
             channel_groups: Some(vec!["gr2".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
         },
-        SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
-            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
         };
-        "to receiving on subscription restored"
+        "to handshaking with custom cursor on subscription restored"
     )]
     #[test_case(
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         },
         SubscribeEvent::HandshakeReconnectGiveUp {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, }
         },
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()])
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         };
         "to not change on unexpected event"
     )]
@@ -907,8 +1014,11 @@ mod should {
 
     #[test_case(
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
@@ -916,8 +1026,11 @@ mod should {
             reason: PubNubError::Transport { details: "Test reason on error".to_string(), response: None, },
         },
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 2,
             reason: PubNubError::Transport { details: "Test reason on error".to_string(), response: None, },
         };
@@ -925,8 +1038,35 @@ mod should {
     )]
     #[test_case(
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            attempts: 1,
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::HandshakeReconnectFailure {
+            reason: PubNubError::Transport { details: "Test reason on error".to_string(), response: None, },
+        },
+        SubscribeState::HandshakeReconnecting {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            attempts: 2,
+            reason: PubNubError::Transport { details: "Test reason on error".to_string(), response: None, },
+        };
+        "to handshake reconnecting with custom cursor on reconnect failure"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeReconnecting {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
@@ -935,29 +1075,84 @@ mod should {
             channel_groups: Some(vec!["gr2".to_string()]),
         },
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: None,
         };
         "to handshaking on subscription change"
     )]
     #[test_case(
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            attempts: 1,
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::SubscriptionChanged {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+        },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshaking with custom cursor on subscription change"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeReconnecting {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         SubscribeEvent::Disconnect,
         SubscribeState::HandshakeStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         };
         "to handshake stopped on disconnect"
     )]
     #[test_case(
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            attempts: 1,
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::Disconnect,
+        SubscribeState::HandshakeStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshake stopped with custom cursor on disconnect"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeReconnecting {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
@@ -965,16 +1160,45 @@ mod should {
             reason: PubNubError::Transport { details: "Test give up reason".to_string(), response: None, }
         },
         SubscribeState::HandshakeFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             reason: PubNubError::Transport { details: "Test give up reason".to_string(), response: None, }
         };
         "to handshake failed on give up"
     )]
     #[test_case(
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            attempts: 1,
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::HandshakeReconnectGiveUp {
+            reason: PubNubError::Transport { details: "Test give up reason".to_string(), response: None, }
+        },
+        SubscribeState::HandshakeFailed {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            reason: PubNubError::Transport { details: "Test give up reason".to_string(), response: None, }
+        };
+        "to handshake failed with custom cursor on give up"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeReconnecting {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
@@ -982,16 +1206,43 @@ mod should {
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
         },
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
         };
         "to receiving on reconnect success"
     )]
     #[test_case(
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            attempts: 1,
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::HandshakeReconnectSuccess {
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        },
+        SubscribeState::Receiving {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: SubscribeCursor { timetoken: "20".into(), region: 1 }
+        };
+        "to receiving with custom cursor on reconnect success"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeReconnecting {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
@@ -1000,17 +1251,46 @@ mod should {
             channel_groups: Some(vec!["gr2".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
         },
-        SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
-            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "10".into(), region: 1 })
         };
-        "to receiving on subscription restored"
+        "to handshaking on subscription restored"
     )]
     #[test_case(
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            attempts: 1,
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::SubscriptionRestored {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshaking with custom cursor on subscription restored"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeReconnecting {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
@@ -1019,8 +1299,11 @@ mod should {
             messages: vec![]
         },
         SubscribeState::HandshakeReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         };
@@ -1042,8 +1325,11 @@ mod should {
 
     #[test_case(
         SubscribeState::HandshakeFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         SubscribeEvent::SubscriptionChanged {
@@ -1051,28 +1337,81 @@ mod should {
             channel_groups: Some(vec!["gr2".to_string()]),
         },
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: None,
         };
         "to handshaking on subscription changed"
     )]
     #[test_case(
         SubscribeState::HandshakeFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::SubscriptionChanged {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+        },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshaking with custom cursor on subscription changed"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeFailed {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         SubscribeEvent::Reconnect,
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         };
         "to handshaking on reconnect"
     )]
     #[test_case(
         SubscribeState::HandshakeFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::Reconnect,
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshaking with custom cursor on reconnect"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeFailed {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         SubscribeEvent::SubscriptionRestored {
@@ -1080,17 +1419,45 @@ mod should {
             channel_groups: Some(vec!["gr2".to_string()]),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
         },
-        SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
-            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "10".into(), region: 1 })
         };
-        "to receiving on subscription restored"
+        "to handshaking on subscription restored"
     )]
     #[test_case(
         SubscribeState::HandshakeFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
+        },
+        SubscribeEvent::SubscriptionRestored {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 })
+        };
+        "to handshaking with custom cursor on subscription restored"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeFailed {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         SubscribeEvent::ReceiveSuccess {
@@ -1098,8 +1465,11 @@ mod should {
             messages: vec![]
         },
         SubscribeState::HandshakeFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         };
         "to not change on unexpected event"
@@ -1120,28 +1490,102 @@ mod should {
 
     #[test_case(
         SubscribeState::HandshakeStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         },
         SubscribeEvent::Reconnect,
         SubscribeState::Handshaking {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         };
         "to handshaking on reconnect"
     )]
     #[test_case(
         SubscribeState::HandshakeStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        },
+        SubscribeEvent::Reconnect,
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshaking with custom cursor on reconnect"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
+        },
+        SubscribeEvent::SubscriptionRestored {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "10".into(), region: 1 })
+        };
+        "to handshaking on subscription restored"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        },
+        SubscribeEvent::SubscriptionRestored {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 }
+        },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "20".into(), region: 1 }),
+        };
+        "to handshaking with custom cursor on subscription restored"
+    )]
+    #[test_case(
+        SubscribeState::HandshakeStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         },
         SubscribeEvent::ReceiveSuccess {
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             messages: vec![]
         },
         SubscribeState::HandshakeStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: None,
         };
         "to not change on unexpected event"
     )]
@@ -1161,8 +1605,10 @@ mod should {
 
     #[test_case(
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         },
         SubscribeEvent::SubscriptionChanged {
@@ -1170,16 +1616,20 @@ mod should {
             channel_groups: Some(vec!["gr2".to_string()]),
         },
         SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         };
         "to receiving on subscription changed"
     )]
     #[test_case(
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         },
         SubscribeEvent::SubscriptionRestored {
@@ -1188,16 +1638,20 @@ mod should {
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
         },
         SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
         };
         "to receiving on subscription restored"
     )]
     #[test_case(
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         },
         SubscribeEvent::ReceiveSuccess {
@@ -1205,24 +1659,30 @@ mod should {
             messages: vec![]
         },
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
         };
         "to receiving on receive success"
     )]
     #[test_case(
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         },
         SubscribeEvent::ReceiveFailure {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, }
         },
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, }
@@ -1231,30 +1691,38 @@ mod should {
     )]
     #[test_case(
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         },
         SubscribeEvent::Disconnect,
         SubscribeState::ReceiveStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         };
         "to receive stopped on disconnect"
     )]
     #[test_case(
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         },
         SubscribeEvent::HandshakeSuccess {
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
         },
         SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         };
         "to not change on unexpected event"
@@ -1275,8 +1743,10 @@ mod should {
 
     #[test_case(
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
@@ -1285,8 +1755,10 @@ mod should {
             reason: PubNubError::Transport { details: "Test reconnect error".to_string(), response: None, }
         },
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 2,
             reason: PubNubError::Transport { details: "Test reconnect error".to_string(), response: None, }
@@ -1295,8 +1767,10 @@ mod should {
     )]
     #[test_case(
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
@@ -1306,16 +1780,20 @@ mod should {
             channel_groups: Some(vec!["gr2".to_string()]),
         },
         SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         };
         "to receiving on subscription changed"
     )]
     #[test_case(
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
@@ -1326,32 +1804,40 @@ mod should {
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
         },
         SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
         };
         "to receiving on subscription restored"
     )]
     #[test_case(
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
         },
         SubscribeEvent::Disconnect,
         SubscribeState::ReceiveStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         };
         "to receive stopped on disconnect"
     )]
     #[test_case(
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
@@ -1360,8 +1846,10 @@ mod should {
             reason: PubNubError::Transport { details: "Test give up error".to_string(), response: None, }
         },
         SubscribeState::ReceiveFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             reason: PubNubError::Transport { details: "Test give up error".to_string(), response: None, }
         };
@@ -1369,8 +1857,10 @@ mod should {
     )]
     #[test_case(
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
@@ -1379,8 +1869,10 @@ mod should {
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
         },
         SubscribeState::ReceiveReconnecting {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             attempts: 1,
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
@@ -1403,8 +1895,10 @@ mod should {
 
     #[test_case(
         SubscribeState::ReceiveFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
         },
@@ -1412,17 +1906,21 @@ mod should {
             channels: Some(vec!["ch2".to_string()]),
             channel_groups: Some(vec!["gr2".to_string()]),
         },
-        SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
-            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "10".into(), region: 1 }),
         };
-        "to receiving on subscription changed"
+        "to handshaking on subscription changed"
     )]
     #[test_case(
         SubscribeState::ReceiveFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
         },
@@ -1431,32 +1929,40 @@ mod should {
             channel_groups: Some(vec!["gr2".to_string()]),
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
         },
-        SubscribeState::Receiving {
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
-            cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "100".into(), region: 1 }),
         };
-        "to receiving on subscription restored"
+        "to handshaking on subscription restored"
     )]
     #[test_case(
         SubscribeState::ReceiveFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
         },
         SubscribeEvent::Reconnect,
-        SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
-            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "10".into(), region: 1 }),
         };
-        "to receiving on reconnect"
+        "to handshaking on reconnect"
     )]
     #[test_case(
         SubscribeState::ReceiveFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
         },
@@ -1464,8 +1970,10 @@ mod should {
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 }
         },
         SubscribeState::ReceiveFailed {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
             reason: PubNubError::Transport { details: "Test error".to_string(), response: None, }
         };
@@ -1484,32 +1992,84 @@ mod should {
 
         assert_eq!(engine.current_state(), target_state);
     }
+
     #[test_case(
         SubscribeState::ReceiveStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         },
         SubscribeEvent::Reconnect,
-        SubscribeState::Receiving {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
-            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
+        SubscribeState::Handshaking {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: Some(SubscribeCursor { timetoken: "10".into(), region: 1 }),
         };
-        "to receiving on reconnect"
+        "to handshaking on reconnect"
     )]
     #[test_case(
         SubscribeState::ReceiveStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
+        },
+        SubscribeEvent::SubscriptionChanged {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+        },
+        SubscribeState::ReceiveStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
+        };
+        "to receive stopped on subscription changed"
+    )]
+    #[test_case(
+        SubscribeState::ReceiveStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
+            cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
+        },
+        SubscribeEvent::SubscriptionRestored {
+            channels: Some(vec!["ch2".to_string()]),
+            channel_groups: Some(vec!["gr2".to_string()]),
+            cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
+        },
+        SubscribeState::ReceiveStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch2".to_string()]),
+                &Some(vec!["gr2".to_string()])
+            ),
+            cursor: SubscribeCursor { timetoken: "100".into(), region: 1 },
+        };
+        "to receive stopped on subscription restored"
+    )]
+    #[test_case(
+        SubscribeState::ReceiveStopped {
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         },
         SubscribeEvent::HandshakeSuccess {
             cursor: SubscribeCursor { timetoken: "100".into(), region: 1 }
         },
         SubscribeState::ReceiveStopped {
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
+            input: SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["gr1".to_string()])
+            ),
             cursor: SubscribeCursor { timetoken: "10".into(), region: 1 },
         };
         "to not change on unexpected event"
