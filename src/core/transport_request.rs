@@ -188,7 +188,6 @@ impl TransportRequest {
             .clone()
             .body
             .map(|bytes| {
-                // let deserialize_result = deserializer.deserialize(&bytes);
                 let deserialize_result = des(&bytes);
                 if deserialize_result.is_err() && response.status >= 500 {
                     Err(PubNubError::general_api_error(

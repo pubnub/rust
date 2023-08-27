@@ -1,7 +1,7 @@
 //! # PubNub raw subscribe module.
 //!
-//! This module has all the builders for raw subscription to real-time updates from
-//! a list of channels and channel groups.
+//! This module has all the builders for raw subscription to real-time updates
+//! from a list of channels and channel groups.
 //!
 //! Raw subscription means that subscription will not perform any additional
 //! actions than minimal required to receive real-time updates.
@@ -12,6 +12,8 @@
 //! This one is used only for special cases when you need to have full control
 //! over subscription process or you need more compact subscription solution.
 
+use derive_builder::Builder;
+
 use crate::{
     core::{blocking, Deserializer, PubNubError, Transport},
     dx::{
@@ -20,8 +22,6 @@ use crate::{
     },
     lib::alloc::{collections::VecDeque, string::String, string::ToString, vec::Vec},
 };
-
-use derive_builder::Builder;
 
 /// Raw subscription that is responsible for getting messages from PubNub.
 ///
@@ -81,10 +81,15 @@ pub struct RawSubscription<T, D> {
     )]
     pub(in crate::dx::subscribe) cursor: Option<u64>,
 
-    /// Heartbeat interval.
+    /// `user_id`presence timeout period.
     ///
-    /// Interval in seconds that informs the server that the client should
-    /// be considered alive.
+    /// A heartbeat is a period of time during which `user_id` is visible
+    /// `online`.
+    /// If, within the heartbeat period, another heartbeat request or a
+    /// subscribe (for an implicit heartbeat) request `timeout` will be
+    /// announced for `user_id`.
+    ///
+    /// By default it is set to **300** seconds.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -92,10 +97,14 @@ pub struct RawSubscription<T, D> {
     )]
     pub(in crate::dx::subscribe) heartbeat: Option<u32>,
 
-    /// Expression used to filter received messages.
+    /// Message filtering predicate.
     ///
-    /// Expression used to filter received messages before they are delivered
-    /// to the client.
+    /// The [`PubNub`] network can filter out messages published with `meta`
+    /// before they reach subscribers using these filtering expressions, which
+    /// are based on the definition of the [`filter language`].
+    ///
+    /// [`PubNub`]:https://www.pubnub.com/
+    /// [`filter language`]: https://www.pubnub.com/docs/general/messages/publish#filter-language-definition
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option, into),
@@ -108,7 +117,7 @@ impl<T, D> RawSubscriptionBuilder<T, D> {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
-    /// request instance.
+    /// subscribe request instance.
     fn validate(&self) -> Result<(), String> {
         let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
         let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());

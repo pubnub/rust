@@ -1,8 +1,8 @@
 //! # PubNub subscribe module.
 //!
-//! This module has all the builders for subscription to real-time updates from
-//! a list of channels and channel groups.
-//!
+//! The [`SubscribeRequestBuilder`] lets you to make and execute request that
+//! will receive real-time updates from a list of channels and channel groups.
+
 use derive_builder::Builder;
 #[cfg(feature = "std")]
 use futures::{
@@ -13,7 +13,10 @@ use futures::{
 use crate::{
     core::{
         blocking,
-        utils::encoding::join_url_encoded,
+        utils::encoding::{
+            url_encode_extended, url_encoded_channel_groups, url_encoded_channels,
+            UrlEncodeExtension,
+        },
         Deserializer, PubNubError, Transport, {TransportMethod, TransportRequest},
     },
     dx::{
@@ -49,6 +52,8 @@ use crate::{core::event_engine::cancel::CancellationTask, lib::alloc::sync::Arc}
 )]
 pub(crate) struct SubscribeRequest<T, D> {
     /// Current client which can provide transportation to perform the request.
+    ///
+    /// This field is used to get [`Transport`] to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
     pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T, D>,
 
@@ -81,6 +86,15 @@ pub(crate) struct SubscribeRequest<T, D> {
     )]
     pub(in crate::dx::subscribe) cursor: SubscribeCursor,
 
+    /// `user_id`presence timeout period.
+    ///
+    /// A heartbeat is a period of time during which `user_id` is visible
+    /// `online`.
+    /// If, within the heartbeat period, another heartbeat request or a
+    /// subscribe (for an implicit heartbeat) request `timeout` will be
+    /// announced for `user_id`.
+    ///
+    /// By default it is set to **300** seconds.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -88,6 +102,14 @@ pub(crate) struct SubscribeRequest<T, D> {
     )]
     pub(in crate::dx::subscribe) heartbeat: u32,
 
+    /// Message filtering predicate.
+    ///
+    /// The [`PubNub`] network can filter out messages published with `meta`
+    /// before they reach subscribers using these filtering expressions, which
+    /// are based on the definition of the [`filter language`].
+    ///
+    /// [`PubNub`]:https://www.pubnub.com/
+    /// [`filter language`]: https://www.pubnub.com/docs/general/messages/publish#filter-language-definition
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -96,55 +118,11 @@ pub(crate) struct SubscribeRequest<T, D> {
     pub(in crate::dx::subscribe) filter_expression: Option<String>,
 }
 
-impl<T, D> SubscribeRequest<T, D> {
-    /// Create transport request from the request builder.
-    pub(in crate::dx::subscribe) fn transport_request(&self) -> TransportRequest {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
-        let channels = join_url_encoded(
-            self.channels
-                .iter()
-                .map(|v| v.as_str())
-                .collect::<Vec<&str>>()
-                .as_slice(),
-            ",",
-        )
-        .unwrap_or(",".into());
-        let mut query: HashMap<String, String> = HashMap::new();
-        query.extend::<HashMap<String, String>>(self.cursor.clone().into());
-
-        // Serialize list of channel groups and add into query parameters list.
-        join_url_encoded(
-            self.channel_groups
-                .iter()
-                .map(|v| v.as_str())
-                .collect::<Vec<&str>>()
-                .as_slice(),
-            ",",
-        )
-        .filter(|string| !string.is_empty())
-        .and_then(|channel_groups| query.insert("channel-group".into(), channel_groups));
-
-        self.filter_expression
-            .as_ref()
-            .filter(|e| !e.is_empty())
-            .and_then(|e| query.insert("filter-expr".into(), e.into()));
-
-        query.insert("heartbeat".into(), self.heartbeat.to_string());
-
-        TransportRequest {
-            path: format!("/v2/subscribe/{sub_key}/{channels}/0"),
-            query_parameters: query,
-            method: TransportMethod::Get,
-            ..Default::default()
-        }
-    }
-}
-
 impl<T, D> SubscribeRequestBuilder<T, D> {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
-    /// request instance.
+    /// subscribe request instance.
     fn validate(&self) -> Result<(), String> {
         let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
         let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());
@@ -157,14 +135,69 @@ impl<T, D> SubscribeRequestBuilder<T, D> {
             }
         })
     }
+
+    /// Build [`HeartbeatRequest`] from builder.
+    fn request(self) -> Result<SubscribeRequest<T, D>, PubNubError> {
+        self.build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))
+    }
 }
 
-#[cfg(feature = "std")]
+impl<T, D> SubscribeRequest<T, D> {
+    /// Create transport request from the request builder.
+    pub(in crate::dx::subscribe) fn transport_request(&self) -> TransportRequest {
+        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let mut query: HashMap<String, String> = HashMap::new();
+        query.extend::<HashMap<String, String>>(self.cursor.clone().into());
+
+        // Serialize list of channel groups and add into query parameters list.
+        url_encoded_channel_groups(&self.channel_groups)
+            .and_then(|groups| query.insert("channel-group".into(), groups.into()));
+
+        self.filter_expression
+            .as_ref()
+            .filter(|e| !e.is_empty())
+            .and_then(|e| {
+                query.insert(
+                    "filter-expr".into(),
+                    url_encode_extended(e.as_bytes(), UrlEncodeExtension::NonChannelPath),
+                )
+            });
+
+        query.insert("heartbeat".into(), self.heartbeat.to_string());
+
+        TransportRequest {
+            path: format!(
+                "/v2/subscribe/{sub_key}/{}/0",
+                url_encoded_channels(&self.channels)
+            ),
+            query_parameters: query,
+            method: TransportMethod::Get,
+            ..Default::default()
+        }
+    }
+}
+
 impl<T, D> SubscribeRequestBuilder<T, D>
 where
     T: Transport,
     D: Deserializer + 'static,
 {
+    /// Build and call asynchronous request.
+    pub async fn execute(self) -> Result<SubscribeResult, PubNubError> {
+        let request = self.request()?;
+        let transport_request = request.transport_request();
+        let client = request.pubnub_client.clone();
+        let deserializer = client.deserializer.clone();
+        transport_request
+            .send::<SubscribeResponseBody, _, _, _>(&client.transport, deserializer)
+            .await
+    }
+
+    /// Build and call asynchronous request after delay.
+    ///
+    /// Perform delayed request call with ability to cancel it before call.
+    #[cfg(feature = "std")]
     pub async fn execute_with_cancel_and_delay<F>(
         self,
         delay: Arc<F>,
@@ -183,11 +216,13 @@ where
         }
     }
 
-    pub async fn execute_with_delay<F>(self, delay: Arc<F>) -> Result<SubscribeResult, PubNubError>
+    /// Build and call asynchronous request after configured delay.
+    #[cfg(feature = "std")]
+    async fn execute_with_delay<F>(self, delay: Arc<F>) -> Result<SubscribeResult, PubNubError>
     where
         F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
     {
-        // Postpone request execution if required.
+        // Postpone request execution.
         delay().await;
 
         self.execute().await
@@ -196,31 +231,10 @@ where
 
 impl<T, D> SubscribeRequestBuilder<T, D>
 where
-    T: Transport,
-    D: Deserializer + 'static,
-{
-    /// Build and call request.
-    pub async fn execute(self) -> Result<SubscribeResult, PubNubError> {
-        // Build request instance and report errors if any.
-        let request = self
-            .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
-
-        let transport_request = request.transport_request();
-        let client = request.pubnub_client.clone();
-        let deserializer = client.deserializer.clone();
-        transport_request
-            .send::<SubscribeResponseBody, _, _, _>(&client.transport, deserializer)
-            .await
-    }
-}
-
-impl<T, D> SubscribeRequestBuilder<T, D>
-where
     T: blocking::Transport,
     D: Deserializer + 'static,
 {
-    /// Build and call request.
+    /// Build and call synchronous request.
     pub fn execute_blocking(self) -> Result<SubscribeResult, PubNubError> {
         // Build request instance and report errors if any.
         let request = self

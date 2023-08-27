@@ -1,8 +1,7 @@
 //! Heartbeat Event Engine effect invocation module.
 //!
-//! The module contains the [`PresenceState`] type, which describes available
-//! event engine states. The module also contains an implementation of
-//! `transition` between states in response to certain events.
+//! The module contains the [`PresenceEffectInvocation`] type, which describes
+//! available event engine effect invocations.
 
 use crate::{
     core::{event_engine::EffectInvocation, PubNubError},

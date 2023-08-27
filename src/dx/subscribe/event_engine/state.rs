@@ -1,3 +1,9 @@
+//! # Heartbeat event engine state module.
+//!
+//! The module contains the [`SubscribeState`] type, which describes available
+//! event engine states. The module also contains an implementation of
+//! `transition` between states in response to certain events.
+
 use crate::{
     core::{
         event_engine::{State, Transition},
@@ -5,6 +11,7 @@ use crate::{
     },
     dx::subscribe::{
         event_engine::{
+            types::SubscribeInput,
             SubscribeEffectInvocation::{
                 self, CancelHandshake, CancelHandshakeReconnect, CancelReceive,
                 CancelReceiveReconnect, EmitMessages, EmitStatus, Handshake, HandshakeReconnect,
@@ -33,34 +40,22 @@ pub(crate) enum SubscribeState {
     /// Retrieve the information that will be used to start the subscription
     /// loop.
     Handshaking {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which will be source of real-time updates after
-        /// initial subscription completion.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which will be source of real-time updates
-        /// after initial subscription completion.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups which will be source of
+        /// real-time updates after initial subscription completion.
+        input: SubscribeInput,
     },
 
     /// Subscription recover state.
     ///
     /// The system is recovering after the initial subscription attempt failed.
     HandshakeReconnecting {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which has been used during recently failed initial
-        /// subscription.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which has been used during recently failed
-        /// initial subscription.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups which has been used
+        /// during recently failed initial subscription.
+        input: SubscribeInput,
 
         /// Current initial subscribe retry attempt.
         ///
@@ -72,21 +67,12 @@ pub(crate) enum SubscribeState {
     },
 
     /// Initial subscription stopped state.
-    ///
-    /// Subscription state machine state, which is set when
-    /// [`SubscribeEvent::Disconnect`] event sent while in
-    /// [`SubscribeState::Handshaking`] or
-    /// [`SubscribeState::HandshakeReconnecting`] state.
     HandshakeStopped {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels for which initial subscription stopped.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups for which initial subscription stopped.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups for which initial
+        /// subscription stopped.
+        input: SubscribeInput,
     },
 
     /// Initial subscription failure state.
@@ -94,17 +80,11 @@ pub(crate) enum SubscribeState {
     /// System wasn't able to perform successful initial subscription after
     /// fixed number of attempts.
     HandshakeFailed {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which has been used during recently failed initial
-        /// subscription.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which has been used during recently failed
-        /// initial subscription.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups which has been used
+        /// during recently failed initial subscription.
+        input: SubscribeInput,
 
         /// Initial subscribe attempt failure reason.
         reason: PubNubError,
@@ -117,16 +97,11 @@ pub(crate) enum SubscribeState {
     ///
     /// [`PubNub`]:https://www.pubnub.com/
     Receiving {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels for which real-time updates will be delivered.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups for which real-time updates will be
-        /// delivered.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups which real-time updates
+        /// will be delivered.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///
@@ -139,17 +114,11 @@ pub(crate) enum SubscribeState {
     ///
     /// The system is recovering after the updates receiving attempt failed.
     ReceiveReconnecting {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which has been used during recently failed receive
-        /// updates.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which has been used during recently failed
-        /// receive updates.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups which has been used
+        /// during recently failed receive updates.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///
@@ -167,21 +136,12 @@ pub(crate) enum SubscribeState {
     },
 
     /// Updates receiving stopped state.
-    ///
-    /// Subscription state machine state, which is set when
-    /// [`SubscribeEvent::Disconnect`] event sent while in
-    /// [`SubscribeState::Handshaking`] or
-    /// [`SubscribeState::HandshakeReconnecting`] state.
     ReceiveStopped {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels for which updates receive stopped.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channels.
-        ///
-        /// List of channel groups for which updates receive stopped.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups for which updates
+        /// receive stopped.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///
@@ -194,17 +154,11 @@ pub(crate) enum SubscribeState {
     ///
     /// System wasn't able to receive updates after fixed number of attempts.
     ReceiveFailed {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which has been used during recently failed receive
-        /// updates.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which has been used during recently failed
-        /// receive updates.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and groups which has been used
+        /// during recently failed receive updates.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///

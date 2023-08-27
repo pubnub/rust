@@ -1,17 +1,21 @@
+//! # Presence event engine effects handler.
+//!
+//! The module contains the [`PresenceEffectHandler`] type, which is used by
+//! event engine for
+
+use async_channel::Sender;
+
 use crate::{
-    core::RequestRetryPolicy,
+    core::{event_engine::EffectHandler, RequestRetryPolicy},
     lib::{
         alloc::sync::Arc,
         core::fmt::{Debug, Formatter, Result},
     },
-    presence::event_engine::effects::{PresenceEffectExecutor, WaitEffectExecutor},
+    presence::event_engine::{
+        effects::{HeartbeatEffectExecutor, LeaveEffectExecutor, WaitEffectExecutor},
+        PresenceEffect, PresenceEffectInvocation,
+    },
 };
-
-use crate::core::event_engine::EffectHandler;
-use crate::presence::event_engine::{PresenceEffect, PresenceEffectInvocation};
-use async_channel::Sender;
-
-use super::effects::LeaveEffectExecutor;
 
 /// Presence effect handler.
 ///
@@ -19,10 +23,10 @@ use super::effects::LeaveEffectExecutor;
 /// effect invocation.
 pub(crate) struct PresenceEffectHandler {
     /// Heartbeat call function pointer.
-    heartbeat_call: Arc<PresenceEffectExecutor>,
+    heartbeat_call: Arc<HeartbeatEffectExecutor>,
 
     /// Delayed heartbeat call function pointer.
-    delayed_heartbeat_call: Arc<PresenceEffectExecutor>,
+    delayed_heartbeat_call: Arc<HeartbeatEffectExecutor>,
 
     /// Leave function pointer.
     leave_call: Arc<LeaveEffectExecutor>,
@@ -40,8 +44,8 @@ pub(crate) struct PresenceEffectHandler {
 impl PresenceEffectHandler {
     /// Create presence effect handler.
     pub fn new(
-        heartbeat_call: Arc<PresenceEffectExecutor>,
-        delayed_heartbeat_call: Arc<PresenceEffectExecutor>,
+        heartbeat_call: Arc<HeartbeatEffectExecutor>,
+        delayed_heartbeat_call: Arc<HeartbeatEffectExecutor>,
         leave_call: Arc<LeaveEffectExecutor>,
         wait_call: Arc<WaitEffectExecutor>,
         retry_policy: RequestRetryPolicy,

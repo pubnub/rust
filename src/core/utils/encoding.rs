@@ -38,15 +38,15 @@ pub enum UrlEncodeExtension {
 }
 
 /// `percent_encoding` crate recommends you to create your own set for encoding.
-/// To be consistent in the whole codebase - we created a function that can be used
-/// for encoding related stuff.
+/// To be consistent in the whole codebase - we created a function that can be
+/// used for encoding related stuff.
 pub fn url_encode(data: &[u8]) -> String {
     url_encode_extended(data, UrlEncodeExtension::Default).to_string()
 }
 
 /// `percent_encoding` crate recommends you to create your own set for encoding.
-/// To be consistent in the whole codebase - we created a function that can be used
-/// for encoding related stuff.
+/// To be consistent in the whole codebase - we created a function that can be
+/// used for encoding related stuff.
 pub fn url_encode_extended(data: &[u8], extension: UrlEncodeExtension) -> String {
     let set = match extension {
         UrlEncodeExtension::Default => PUBNUB_SET,

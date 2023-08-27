@@ -8,6 +8,7 @@ use crate::{
     lib::{alloc::string::String, collections::HashMap},
 };
 
+use crate::core::Transport;
 use derive_builder::Builder;
 
 /// The [`PublishMessageBuilder`] is used to publish a message to a channel.
@@ -50,6 +51,9 @@ pub struct PublishMessageBuilder<T, M, D>
 where
     M: Serialize,
 {
+    /// Current client which can provide transportation to perform the request.
+    ///
+    /// This field is used to get [`Transport`] to perform the request.
     pub(super) pub_nub_client: PubNubClientInstance<T, D>,
     pub(super) message: M,
     pub(super) seqn: u16,
@@ -119,6 +123,9 @@ pub struct PublishMessageViaChannel<T, M, D>
 where
     M: Serialize,
 {
+    /// Current client which can provide transportation to perform the request.
+    ///
+    /// This field is used to get [`Transport`] to perform the request.
     #[builder(setter(custom))]
     pub(super) pub_nub_client: PubNubClientInstance<T, D>,
 

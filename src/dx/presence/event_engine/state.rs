@@ -1,4 +1,4 @@
-//! Heartbeat Event Engine state module.
+//! # Heartbeat event engine state module.
 //!
 //! The module contains the [`PresenceState`] type, which describes available
 //! event engine states. The module also contains an implementation of
@@ -387,7 +387,7 @@ mod it_should {
         lib::alloc::sync::Arc,
         presence::{
             event_engine::{
-                effects::{PresenceEffectExecutor, WaitEffectExecutor},
+                effects::{HeartbeatEffectExecutor, WaitEffectExecutor},
                 PresenceEffectHandler, PresenceEventEngine,
             },
             HeartbeatResult,
@@ -398,9 +398,9 @@ mod it_should {
     use test_case::test_case;
 
     fn event_engine(start_state: PresenceState) -> Arc<PresenceEventEngine> {
-        let heartbeat_call: Arc<PresenceEffectExecutor> =
+        let heartbeat_call: Arc<HeartbeatEffectExecutor> =
             Arc::new(|_| async move { Ok(HeartbeatResult) }.boxed());
-        let delayed_heartbeat_call: Arc<PresenceEffectExecutor> =
+        let delayed_heartbeat_call: Arc<HeartbeatEffectExecutor> =
             Arc::new(|_| async move { Ok(HeartbeatResult) }.boxed());
         let leave_call: Arc<LeaveEffectExecutor> =
             Arc::new(|_| async move { Ok(LeaveResult) }.boxed());

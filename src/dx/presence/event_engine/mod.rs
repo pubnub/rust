@@ -1,4 +1,4 @@
-//! Heartbeat Event Engine module
+//! # Presence Event Engine module
 
 use crate::core::event_engine::EventEngine;
 

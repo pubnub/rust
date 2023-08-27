@@ -4,6 +4,11 @@
 //! PubNub. It is responsible for handshake and receiving messages.
 //! It is also responsible for delivering messages to the user.
 
+use derive_builder::Builder;
+use futures::Stream;
+use spin::RwLock;
+use uuid::Uuid;
+
 use crate::{
     core::PubNubError,
     dx::subscribe::{result::Update, types::SubscribeStreamEvent, SubscribeStatus},
@@ -23,17 +28,15 @@ use crate::{
     },
     subscribe::SubscriptionManager,
 };
-use derive_builder::Builder;
-use futures::Stream;
-use spin::RwLock;
-use uuid::Uuid;
 
 /// Subscription stream.
 ///
 /// Stream delivers changes in subscription status:
 /// * `connected` - client connected to real-time [`PubNub`] network.
-/// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
-/// * `connection error` - client was unable to subscribe to specified channels and groups
+/// * `disconnected` - client has been disconnected from real-time [`PubNub`]
+///   network.
+/// * `connection error` - client was unable to subscribe to specified channels
+///   and groups
 ///
 /// and regular messages / signals.
 ///
@@ -69,8 +72,10 @@ impl<D> Clone for SubscriptionStream<D> {
 ///
 /// Stream delivers changes in subscription status:
 /// * `connected` - client connected to real-time [`PubNub`] network.
-/// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
-/// * `connection error` - client was unable to subscribe to specified channels and groups
+/// * `disconnected` - client has been disconnected from real-time [`PubNub`]
+///   network.
+/// * `connection error` - client was unable to subscribe to specified channels
+///   and groups
 ///
 /// and regular messages / signals.
 ///

@@ -1,8 +1,8 @@
 //! # PubNub set state module.
 //!
-//! The [`SetStateRequestBuilder`] allows you to create and execute
-//! [`SetStateRequest`] that will associate the provided `state` with `user_id`
-//! on the provided list of channels and groups.
+//! The [`SetStateRequestBuilder`] lets you make and execute requests that will
+//! associate the provided `state` with `user_id` on the provided list of
+//! channels and channels in channel groups.
 
 use derive_builder::Builder;
 
@@ -15,7 +15,7 @@ use crate::{
             },
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
-        Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
+        Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
     },
     dx::{
         presence::{
@@ -27,15 +27,18 @@ use crate::{
     lib::{
         alloc::{
             string::{String, ToString},
-            sync::Arc,
             vec,
         },
         collections::HashMap,
     },
 };
 
-/// The [`SetStateRequestBuilder`] is used to build `user_id` state association
-/// request that is sent to the [`PubNub`] network.
+/// The [`SetStateRequestBuilder`] is used to build `user_id` associated state
+/// update request that is sent to the [`PubNub`] network.
+///
+/// This struct is used by the [`set_state`] method of the [`PubNubClient`].
+/// The [`set_state`] method is used to update state associated with `user_id`
+/// on the provided channels and groups.
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[derive(Builder)]
@@ -46,6 +49,8 @@ use crate::{
 )]
 pub struct SetStateRequest<T, D> {
     /// Current client which can provide transportation to perform the request.
+    ///
+    /// This field is used to get [`Transport`] to perform the request.
     #[builder(field(vis = "pub(in crate::dx::presence)"), setter(custom))]
     pub(in crate::dx::presence) pubnub_client: PubNubClientInstance<T, D>,
 
@@ -87,7 +92,7 @@ pub struct SetStateRequest<T, D> {
         field(vis = "pub(in crate::dx::presence)"),
         setter(custom, strip_option)
     )]
-    pub(in crate::dx::presence) state: Option<Arc<Vec<u8>>>,
+    pub(in crate::dx::presence) state: Option<Vec<u8>>,
 
     #[builder(field(vis = "pub(in crate::dx::presence)"), setter(strip_option, into))]
     /// Identifier for which `state` should be associated for provided list of
@@ -99,7 +104,7 @@ impl<T, D> SetStateRequestBuilder<T, D> {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
-    /// heartbeat request instance.
+    /// set state request instance.
     fn validate(&self) -> Result<(), String> {
         let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
         let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());
@@ -116,9 +121,16 @@ impl<T, D> SetStateRequestBuilder<T, D> {
             }
         })
     }
+
+    /// Build [`SetStateRequest`] from builder.
+    fn request(self) -> Result<SetStateRequest<T, D>, PubNubError> {
+        self.build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))
+    }
 }
 
 impl<T, D> SetStateRequest<T, D> {
+    /// Create transport request from the request builder.
     pub(in crate::dx::presence) fn transport_request(
         &self,
     ) -> Result<TransportRequest, PubNubError> {
@@ -129,7 +141,7 @@ impl<T, D> SetStateRequest<T, D> {
         url_encoded_channel_groups(&self.channel_groups)
             .and_then(|channel_groups| query.insert("channel-group".into(), channel_groups));
 
-        if let Some(state) = self.state.as_deref() {
+        if let Some(state) = self.state.as_ref() {
             let serialized_state =
                 String::from_utf8(state.clone()).map_err(|err| PubNubError::Serialization {
                     details: err.to_string(),
@@ -152,52 +164,14 @@ impl<T, D> SetStateRequest<T, D> {
 }
 
 #[allow(dead_code)]
-impl<T, D> SetStateRequestBuilder<T, D> {
-    /// A state that should be associated with the `user_id`.
-    ///
-    /// The `state` object should be a `HashMap` which represents information
-    /// that should be associated with `user_id`.
-    ///
-    /// # Example:
-    /// ```rust,no_run
-    /// # use std::collections::HashMap;
-    /// # fn main() {
-    /// let state = HashMap::<String, bool>::from([
-    ///     ("is_owner".into(), false),
-    ///     ("is_admin".into(), true)
-    /// ]);
-    /// # }
-    /// ```
-    pub fn state<U>(mut self, state: U) -> Self
-    where
-        U: Serialize + Send + Sync + 'static,
-    {
-        let state: Option<Arc<Vec<u8>>> = state.serialize().ok().map(Arc::new);
-        self.state = Some(state);
-
-        self
-    }
-
-    pub(in crate::dx::presence) fn serialized_state(mut self, state: Option<Arc<Vec<u8>>>) -> Self {
-        // TODO: DO IT NEED THIS OR CAN SET STATE RIGHT AWAY
-        self.state = Some(state);
-        self
-    }
-}
-
-#[allow(dead_code)]
-#[allow(dead_code)]
 impl<T, D> SetStateRequestBuilder<T, D>
 where
     T: Transport,
     D: Deserializer + 'static,
 {
-    /// Build and call request asynchronous request.
+    /// Build and call asynchronous request.
     pub async fn execute(self) -> Result<SetStateResult, PubNubError> {
-        let request = self
-            .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
-
+        let request = self.request()?;
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
@@ -214,12 +188,9 @@ where
     T: crate::core::blocking::Transport,
     D: Deserializer + 'static,
 {
-    /// Execute synchronous request and return the result.
+    /// Build and call synchronous request.
     pub fn execute_blocking(self) -> Result<SetStateResult, PubNubError> {
-        let request = self
-            .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
-
+        let request = self.request()?;
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();

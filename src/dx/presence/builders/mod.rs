@@ -1,16 +1,21 @@
-//! # Presence API request builders.
+//! # Presence API builders module.
+//!
+//! Module contains set fo builders which provide access to [`PubNub`] presence
+//! API: [`SetStateRequestBuilder`].
+//!
+//! [`PubNub`]: https://www.pubnub.com
 
 #[doc(inline)]
-pub use heartbeat::{HeartbeatRequest, HeartbeatRequestBuilder};
-pub mod heartbeat;
+pub(crate) use heartbeat::{HeartbeatRequest, HeartbeatRequestBuilder};
+pub(crate) mod heartbeat;
 
 #[doc(inline)]
 pub use set_state::{SetStateRequest, SetStateRequestBuilder};
 pub mod set_state;
 
 #[doc(inline)]
-pub use leave::{LeaveRequest, LeaveRequestBuilder};
-pub mod leave;
+pub(crate) use leave::{LeaveRequest, LeaveRequestBuilder};
+pub(crate) mod leave;
 
 use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String};
 
@@ -21,10 +26,11 @@ use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String}
 pub(in crate::dx::presence::builders) fn validate_configuration<T, D>(
     client: &Option<PubNubClientInstance<T, D>>,
 ) -> Result<(), String> {
-    if let Some(client) = client {
-        if client.config.subscribe_key.is_empty() {
-            return Err("Incomplete PubNub client configuration: 'subscribe_key' is empty.".into());
-        }
+    let client = client
+        .as_ref()
+        .expect("PubNub client instance not set.".into());
+    if client.config.subscribe_key.is_empty() {
+        return Err("Incomplete PubNub client configuration: 'subscribe_key' is empty.".into());
     }
 
     Ok(())

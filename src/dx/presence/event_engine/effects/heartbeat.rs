@@ -8,7 +8,7 @@ use crate::{
     core::{PubNubError, RequestRetryPolicy},
     lib::alloc::{sync::Arc, vec, vec::Vec},
     presence::event_engine::{
-        effects::PresenceEffectExecutor,
+        effects::HeartbeatEffectExecutor,
         types::{PresenceInput, PresenceParameters},
         PresenceEvent,
     },
@@ -24,7 +24,7 @@ pub(super) async fn execute(
     reason: Option<PubNubError>,
     effect_id: &str,
     retry_policy: &Option<RequestRetryPolicy>,
-    executor: &Arc<PresenceEffectExecutor>,
+    executor: &Arc<HeartbeatEffectExecutor>,
 ) -> Vec<PresenceEvent> {
     if let Some(retry_policy) = retry_policy {
         match reason {
@@ -71,7 +71,7 @@ mod it_should {
 
     #[tokio::test]
     async fn return_heartbeat_success_event() {
-        let mocked_heartbeat_function: Arc<PresenceEffectExecutor> = Arc::new(move |parameters| {
+        let mocked_heartbeat_function: Arc<HeartbeatEffectExecutor> = Arc::new(move |parameters| {
             assert_eq!(parameters.channel_groups, &Some(vec!["cg1".to_string()]));
             assert_eq!(parameters.channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(parameters.attempt, 0);
@@ -112,7 +112,7 @@ mod it_should {
 
     #[tokio::test]
     async fn return_heartbeat_failed_event_on_error() {
-        let mocked_heartbeat_function: Arc<PresenceEffectExecutor> = Arc::new(move |_| {
+        let mocked_heartbeat_function: Arc<HeartbeatEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),
@@ -153,7 +153,7 @@ mod it_should {
 
     #[tokio::test]
     async fn return_heartbeat_give_up_event_on_error() {
-        let mocked_heartbeat_function: Arc<PresenceEffectExecutor> = Arc::new(move |_| {
+        let mocked_heartbeat_function: Arc<HeartbeatEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),

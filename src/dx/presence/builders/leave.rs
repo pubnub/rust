@@ -1,8 +1,9 @@
 //! # PubNub presence leave module.
 //!
-//! The [`LeaveRequestBuilder`] allows you to create and execute
-//! [`LeaveRequest`] that will announce `leave` of `user_id` from provided
-//! channels and groups.
+//! The [`LeaveRequestBuilder`] lets you make and execute requests that will
+//! announce `leave` of `user_id` from provided channels and groups.
+
+use derive_builder::Builder;
 
 use crate::{
     core::{
@@ -28,10 +29,12 @@ use crate::{
     },
 };
 
-use derive_builder::Builder;
-
 /// The [`LeaveRequestBuilder`] is used to build user `leave` announcement
 /// request that is sent to the [`PubNub`] network.
+///
+/// This struct is used by the [`leave`] method of the [`PubNubClient`].
+/// The [`leave`] method is used to announce specified `user_id` is leaving
+/// provided channels and groups.
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[derive(Builder)]
@@ -42,6 +45,8 @@ use derive_builder::Builder;
 )]
 pub struct LeaveRequest<T, D> {
     /// Current client which can provide transportation to perform the request.
+    ///
+    /// This field is used to get [`Transport`] to perform the request.
     #[builder(field(vis = "pub(in crate::dx::presence)"), setter(custom))]
     pub(in crate::dx::presence) pubnub_client: PubNubClientInstance<T, D>,
 
@@ -71,7 +76,7 @@ impl<T, D> LeaveRequestBuilder<T, D> {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
-    /// heartbeat request instance.
+    /// presence leave request instance.
     fn validate(&self) -> Result<(), String> {
         let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
         let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());
@@ -86,9 +91,16 @@ impl<T, D> LeaveRequestBuilder<T, D> {
             }
         })
     }
+
+    /// Build [`LeaveRequest`] from builder.
+    fn request(self) -> Result<LeaveRequest<T, D>, PubNubError> {
+        self.build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))
+    }
 }
 
 impl<T, D> LeaveRequest<T, D> {
+    /// Create transport request from the request builder.
     pub(in crate::dx::presence) fn transport_request(
         &self,
     ) -> Result<TransportRequest, PubNubError> {
@@ -118,12 +130,9 @@ where
     T: Transport,
     D: Deserializer + 'static,
 {
-    /// Build and call request asynchronous request.
+    /// Build and call asynchronous request.
     pub async fn execute(self) -> Result<LeaveResult, PubNubError> {
-        let request = self
-            .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
-
+        let request = self.request()?;
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
@@ -140,12 +149,9 @@ where
     T: crate::core::blocking::Transport,
     D: Deserializer + 'static,
 {
-    /// Execute synchronous request and return the result.
+    /// Build and call synchronous request.
     pub fn execute_blocking(self) -> Result<LeaveResult, PubNubError> {
-        let request = self
-            .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
-
+        let request = self.request()?;
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();

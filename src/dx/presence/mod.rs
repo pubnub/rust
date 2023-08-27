@@ -1,7 +1,9 @@
-//! Presence module.
+//! # Presence module.
 //!
 //! The presence module allows retrieving presence information and managing the
 //! state in specific channels associated with specific `uuid`.
+//! The presence module contains [`SetStateRequestBuilder`] type.
+
 #[cfg(feature = "std")]
 use futures::{
     future::{ready, BoxFuture},
@@ -53,10 +55,8 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///
     /// # Example
     /// ```rust
-    /// use pubnub::{
-    ///     presence::*,
-    /// #     Keyset, PubNubClientBuilder
-    /// };
+    /// use pubnub::presence::*;
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
     /// # use std::collections::HashMap;
     ///
     /// #[tokio::main]
@@ -88,7 +88,6 @@ impl<T, D> PubNubClientInstance<T, D> {
     pub fn heartbeat(&self) -> HeartbeatRequestBuilder<T, D> {
         HeartbeatRequestBuilder {
             pubnub_client: Some(self.clone()),
-            state: None,
             heartbeat: Some(self.config.heartbeat_value),
             user_id: Some(self.config.user_id.clone().to_string()),
             ..Default::default()
@@ -119,10 +118,8 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///
     /// # Example
     /// ```rust
-    /// use pubnub::{
-    ///     presence::*,
-    /// #     Keyset, PubNubClientBuilder
-    /// };
+    /// use pubnub::presence::*;
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
     /// # use std::collections::HashMap;
     ///
     /// #[tokio::main]
@@ -148,9 +145,13 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn set_state(&self) -> SetStateRequestBuilder<T, D> {
+    pub fn set_state<S>(&self, state: S) -> SetStateRequestBuilder<T, D>
+    where
+        S: Serialize + Send + Sync + 'static,
+    {
         SetStateRequestBuilder {
             pubnub_client: Some(self.clone()),
+            state: Some(state.serialize().ok()),
             user_id: Some(self.config.user_id.clone().to_string()),
             ..Default::default()
         }
@@ -239,7 +240,6 @@ where
         let channel_bound = 3;
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
         let delayed_heartbeat_cancel_rx = cancel_rx.clone();
-        let heartbeat_cancel_rx = cancel_rx.clone();
         let wait_cancel_rx = cancel_rx.clone();
         let runtime = self.runtime.clone();
         let delayed_heartbeat_call_client = self.clone();
@@ -254,11 +254,7 @@ where
         EventEngine::new(
             PresenceEffectHandler::new(
                 Arc::new(move |parameters| {
-                    Self::heartbeat_call(
-                        heartbeat_call_client.clone(),
-                        parameters.clone(),
-                        heartbeat_cancel_rx.clone(),
-                    )
+                    Self::heartbeat_call(heartbeat_call_client.clone(), parameters.clone())
                 }),
                 Arc::new(move |parameters| {
                     let delay_in_secs = request_retry_delay_policy
@@ -310,15 +306,8 @@ where
     pub(crate) fn heartbeat_call(
         client: Self,
         params: PresenceParameters,
-        cancel_rx: async_channel::Receiver<String>,
     ) -> BoxFuture<'static, Result<HeartbeatResult, PubNubError>> {
-        let effect_id = params.effect_id.to_owned();
-        let cancel_task = CancellationTask::new(cancel_rx, effect_id);
-
-        client
-            .heartbeat_request(params)
-            .execute_with_cancel(cancel_task)
-            .boxed()
+        client.heartbeat_request(params).execute().boxed()
     }
 
     /// Call delayed announce of `user_id` presence.
@@ -416,7 +405,7 @@ where
         }
 
         if let Some(presence) = self.presence.clone().read().as_ref() {
-            request = request.serialized_state(presence.state.clone())
+            request = request.state_serialized(presence.state.clone())
         }
 
         request

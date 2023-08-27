@@ -34,6 +34,8 @@ use derive_builder::Builder;
 /// [`PubNubClient`]: crate::PubNubClient
 pub struct RevokeTokenRequest<T, D> {
     /// Current client which can provide transportation to perform the request.
+    ///
+    /// This field is used to get [`Transport`] to perform the request.
     #[builder(field(vis = "pub(in crate::dx::access)"), setter(custom))]
     pub(in crate::dx::access) pubnub_client: PubNubClientInstance<T, D>,
 

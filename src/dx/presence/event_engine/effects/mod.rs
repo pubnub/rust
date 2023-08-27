@@ -1,4 +1,7 @@
-//! Heartbeat effect module.
+//! # Presence event engine effect module.
+
+use async_channel::Sender;
+use futures::future::BoxFuture;
 
 use crate::{
     core::{
@@ -14,29 +17,42 @@ use crate::{
             types::{PresenceInput, PresenceParameters},
             PresenceEffectInvocation,
         },
-        HeartbeatResult,
+        HeartbeatResult, LeaveResult,
     },
 };
-
-use crate::presence::result::LeaveResult;
-use async_channel::Sender;
-use futures::future::BoxFuture;
 
 mod heartbeat;
 mod leave;
 mod wait;
 
-pub(in crate::dx::presence) type PresenceEffectExecutor = dyn Fn(PresenceParameters) -> BoxFuture<'static, Result<HeartbeatResult, PubNubError>>
+/// Heartbeat effect executor.
+///
+/// The provided closure should pass [`PresenceParameters`] to the heartbeat
+/// [`PubNub API`] endpoint and return processed results.
+///
+/// [`PubNub API`]: https://www.pubnub.com/docs
+pub(in crate::dx::presence) type HeartbeatEffectExecutor = dyn Fn(PresenceParameters) -> BoxFuture<'static, Result<HeartbeatResult, PubNubError>>
     + Send
     + Sync;
 
+/// Wait effect executor.
+///
+/// The provided closure should provide the ability to wait a specified amount
+/// of time before further program execution.
 pub(in crate::dx::presence) type WaitEffectExecutor =
     dyn Fn(&str) -> BoxFuture<'static, Result<(), PubNubError>> + Send + Sync;
 
+/// Leave effect executor.
+///
+/// The provided closure should pass [`PresenceParameters`] to the presence
+/// leave [`PubNub API`] endpoint and return processed results.
+///
+/// [`PubNub API`]: https://www.pubnub.com/docs
 pub(in crate::dx::presence) type LeaveEffectExecutor = dyn Fn(PresenceParameters) -> BoxFuture<'static, Result<LeaveResult, PubNubError>>
     + Send
     + Sync;
 
+/// Presence state machine effects.
 #[allow(dead_code)]
 pub(crate) enum PresenceEffect {
     /// Heartbeat effect invocation.
@@ -50,7 +66,7 @@ pub(crate) enum PresenceEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute heartbeat.
-        executor: Arc<PresenceEffectExecutor>,
+        executor: Arc<HeartbeatEffectExecutor>,
     },
 
     /// Delayed heartbeat effect invocation.
@@ -75,7 +91,7 @@ pub(crate) enum PresenceEffect {
         /// Executor function.
         ///
         /// Function which will be used to execute heartbeat.
-        executor: Arc<PresenceEffectExecutor>,
+        executor: Arc<HeartbeatEffectExecutor>,
 
         /// Cancellation channel.
         ///
@@ -124,25 +140,29 @@ impl Debug for PresenceEffect {
                 f,
                 "PresenceEffect::Heartbeat {{ channels: {:?}, channel groups: \
                 {:?}}}",
-                input.channels, input.channel_groups
+                input.channels(),
+                input.channel_groups()
             ),
             Self::DelayedHeartbeat { input, .. } => write!(
                 f,
                 "PresenceEffect::DelayedHeartbeat {{ channels: {:?}, channel groups: \
                 {:?}}}",
-                input.channels, input.channel_groups
+                input.channels(),
+                input.channel_groups()
             ),
             Self::Leave { input, .. } => write!(
                 f,
                 "PresenceEffect::Leave {{ channels: {:?}, channel groups: \
                 {:?}}}",
-                input.channels, input.channel_groups
+                input.channels(),
+                input.channel_groups()
             ),
             Self::Wait { input, .. } => write!(
                 f,
                 "PresenceEffect::Wait {{ channels: {:?}, channel groups: \
                 {:?}}}",
-                input.channels, input.channel_groups
+                input.channels(),
+                input.channel_groups()
             ),
         }
     }
@@ -185,10 +205,7 @@ impl Effect for PresenceEffect {
                 )
                 .await
             }
-            Self::Leave { .. } => {
-                // TODO: Add leave effect call
-                vec![]
-            }
+            Self::Leave { input, executor } => leave::execute(input, &self.id(), executor).await,
             Self::Wait { executor, .. } => wait::execute(&self.id(), executor).await,
         }
     }
@@ -209,5 +226,24 @@ impl Effect for PresenceEffect {
             }
             _ => { /* cannot cancel other effects */ }
         }
+    }
+}
+
+#[cfg(test)]
+mod should {
+    use super::*;
+
+    #[tokio::test]
+    async fn send_cancellation_notification() {
+        let (tx, rx) = async_channel::bounded(1);
+
+        let effect = PresenceEffect::Wait {
+            input: PresenceInput::new(&None, &None),
+            executor: Arc::new(|_| Box::pin(async move { Ok(()) })),
+            cancellation_channel: tx,
+        };
+
+        effect.cancel();
+        assert_eq!(rx.recv().await.unwrap(), effect.id())
     }
 }

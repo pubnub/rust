@@ -1,6 +1,9 @@
-//! Subscribe builders module.
-
-use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String};
+//! # Subscribe API builders module.
+//!
+//! Module provides set of builders to work with [`PubNub`] subscribe API:
+//! [`SubscribeRequestBuilder`] and [`SubscriptionBuilder`].
+//!
+//! [`PubNub`]: https://www.pubnub.com
 
 #[doc(inline)]
 pub(crate) use subscribe::SubscribeRequestBuilder;
@@ -19,10 +22,12 @@ pub mod subscription;
 
 pub mod raw;
 
-/// Validate [`PubNubClientInstance`] configuration.
+use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String};
+
+/// Validate [`PubNubClient`] configuration.
 ///
 /// Check whether if the [`PubNubConfig`] contains all the required fields set
-/// for subscribe / unsubscribe endpoint usage or not.
+/// for subscribe endpoint usage or not.
 pub(in crate::dx::subscribe::builders) fn validate_configuration<T, D>(
     client: &Option<PubNubClientInstance<T, D>>,
 ) -> Result<(), String> {
