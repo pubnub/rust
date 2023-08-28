@@ -180,6 +180,10 @@ pub use dx::publish;
 #[doc(inline)]
 pub use dx::subscribe;
 
+#[cfg(feature = "presence")]
+#[doc(inline)]
+pub use dx::presence;
+
 #[doc(inline)]
 pub use dx::{Keyset, PubNubClientBuilder, PubNubGenericClient};
 

@@ -1,9 +1,10 @@
 //! Event Engine module
 
-use crate::lib::alloc::sync::Arc;
 use async_channel::Sender;
 use log::error;
 use spin::rwlock::RwLock;
+
+use crate::{core::runtime::Runtime, lib::alloc::sync::Arc};
 
 #[doc(inline)]
 pub(crate) use effect::Effect;
@@ -29,11 +30,13 @@ pub(crate) mod event;
 pub(crate) use state::State;
 pub(crate) mod state;
 
-use crate::core::runtime::Runtime;
 #[doc(inline)]
 pub(crate) use transition::Transition;
-
 pub(crate) mod transition;
+
+#[doc(inline)]
+pub(crate) use cancel::CancellationTask;
+pub(crate) mod cancel;
 
 /// State machine's event engine.
 ///
@@ -214,8 +217,8 @@ mod should {
                     .exit()
                     .unwrap_or(vec![])
                     .into_iter()
-                    .chain(invocations.unwrap_or(vec![]).into_iter())
-                    .chain(state.enter().unwrap_or(vec![]).into_iter())
+                    .chain(invocations.unwrap_or(vec![]))
+                    .chain(state.enter().unwrap_or(vec![]))
                     .collect(),
                 state,
             }

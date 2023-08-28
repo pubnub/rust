@@ -1,10 +1,12 @@
 //! Publish module.
 //!
 //! Publish message to a channel.
-//! The publish module contains the [`PublishMessageBuilder`] and [`PublishMessageViaChannelBuilder`].
-//! The [`PublishMessageBuilder`] is used to publish a message to a channel.
+//! The publish module contains the [`PublishMessageBuilder`] and
+//! [`PublishMessageViaChannelBuilder`]. The [`PublishMessageBuilder`] is used
+//! to publish a message to a channel.
 //!
-//! This module is accountable for publishing a message to a channel of the [`PubNub`] network.
+//! This module is accountable for publishing a message to a channel of the
+//! [`PubNub`] network.
 //!
 //! [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder]
 //! [`PublishMessageViaChannelBuilder`]: crate::dx::publish::PublishMessageViaChannelBuilder]
@@ -20,8 +22,6 @@ pub use builders::{
 };
 pub mod builders;
 
-use self::result::body_to_result;
-
 use crate::{
     core::{
         utils::{
@@ -29,12 +29,11 @@ use crate::{
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
         Cryptor, Deserializer, PubNubError, Serialize, Transport, TransportMethod,
-        TransportRequest, TransportResponse,
+        TransportRequest,
     },
     dx::pubnub_client::{PubNubClientInstance, PubNubConfig},
     lib::{
         alloc::{
-            boxed::Box,
             format,
             string::{String, ToString},
             sync::Arc,
@@ -43,16 +42,20 @@ use crate::{
         core::ops::Not,
     },
 };
+
 use base64::{engine::general_purpose, Engine as _};
 
-impl<T> PubNubClientInstance<T> {
+impl<T, D> PubNubClientInstance<T, D>
+where
+    D: Deserializer,
+{
     /// Create a new publish message builder.
     /// This method is used to publish a message to a channel.
     ///
     /// Instance of [`PublishMessageBuilder`] is returned.
     ///
     /// # Example
-    /// ```no_run
+    /// ```
     /// # use pubnub::{PubNubClientBuilder, Keyset};
     ///
     /// # #[tokio::main]
@@ -77,7 +80,7 @@ impl<T> PubNubClientInstance<T> {
     /// ```
     ///
     /// [`PublishMessageBuilder`]: crate::dx::publish::PublishMessageBuilder
-    pub fn publish_message<M>(&self, message: M) -> PublishMessageBuilder<T, M>
+    pub fn publish_message<M>(&self, message: M) -> PublishMessageBuilder<T, M, D>
     where
         M: Serialize,
     {
@@ -105,7 +108,7 @@ impl<T> PubNubClientInstance<T> {
 impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     M: Serialize,
-    D: Deserializer<PublishResponseBody>,
+    D: Deserializer,
 {
     fn prepare_context_with_request(
         self,
@@ -115,13 +118,12 @@ where
             .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
         PublishMessageContext::from(instance)
-            .map_data(|client, _, params| {
+            .map_data(|client, params| {
                 params.create_transport_request(&client.config, &client.cryptor.clone())
             })
             .map(|ctx| {
                 Ok(PublishMessageContext {
                     client: ctx.client,
-                    deserializer: ctx.deserializer,
                     data: ctx.data?,
                 })
             })
@@ -132,11 +134,11 @@ impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     T: Transport,
     M: Serialize,
-    D: Deserializer<PublishResponseBody>,
+    D: Deserializer + 'static,
 {
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
-    /// The future will resolve to a [`PublishResponse`] or [`PubNubError`].
+    /// The future will resolve to a [`PublishResult`] or [`PubNubError`].
     ///
     /// # Example
     /// ```no_run
@@ -163,28 +165,17 @@ where
     /// # }
     /// ```
     ///
-    /// [`PublishResponse`]: struct.PublishResponse.html
+    /// [`PublishResult`]: struct.PublishResult.html
     /// [`PubNubError`]: enum.PubNubError.html
     pub async fn execute(self) -> Result<PublishResult, PubNubError> {
         self.prepare_context_with_request()?
-            .map_data(|client, _, request| Self::send_request(client.clone(), request))
-            .map(|async_message| async move {
-                PublishMessageContext {
-                    client: async_message.client,
-                    deserializer: async_message.deserializer,
-                    data: async_message.data.await,
-                }
+            .map(|some| async move {
+                let deserializer = some.client.deserializer.clone();
+                some.data
+                    .send::<PublishResponseBody, _, _, _>(&some.client.transport, deserializer)
+                    .await
             })
             .await
-            .map_data(|_, deserializer, response| response_to_result(deserializer, response?))
-            .data
-    }
-
-    async fn send_request(
-        client: PubNubClientInstance<T>,
-        request: TransportRequest,
-    ) -> Result<TransportResponse, PubNubError> {
-        client.transport.send(request).await
     }
 }
 
@@ -193,11 +184,11 @@ impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
     T: crate::core::blocking::Transport,
     M: Serialize,
-    D: Deserializer<PublishResponseBody>,
+    D: Deserializer + 'static,
 {
     /// Execute the request and return the result.
     /// This method is asynchronous and will return a future.
-    /// The future will resolve to a [`PublishResponse`] or [`PubNubError`].
+    /// The future will resolve to a [`PublishResult`] or [`PubNubError`].
     ///
     /// # Example
     /// ```no_run
@@ -223,20 +214,17 @@ where
     /// # }
     /// ```
     ///
-    /// [`PublishResponse`]: struct.PublishResponse.html
+    /// [`PublishResult`]: struct.PublishResult.html
     /// [`PubNubError`]: enum.PubNubError.html
     pub fn execute_blocking(self) -> Result<PublishResult, PubNubError> {
         self.prepare_context_with_request()?
-            .map_data(|client, _, request| Self::send_blocking_request(&client.transport, request))
-            .map_data(|_, deserializer, response| response_to_result(deserializer, response?))
+            .map_data(|client, request| {
+                let client = client.clone();
+                let deserializer = client.deserializer.clone();
+                request
+                    .send_blocking::<PublishResponseBody, _, _, _>(&client.transport, deserializer)
+            })
             .data
-    }
-
-    fn send_blocking_request(
-        transport: &T,
-        request: TransportRequest,
-    ) -> Result<TransportResponse, PubNubError> {
-        transport.send(request)
     }
 }
 
@@ -328,8 +316,7 @@ where
 }
 
 struct PublishMessageContext<T, D, X> {
-    client: PubNubClientInstance<T>,
-    deserializer: D,
+    client: PubNubClientInstance<T, D>,
     data: X,
 }
 
@@ -337,12 +324,11 @@ impl<T, D, M> From<PublishMessageViaChannel<T, M, D>>
     for PublishMessageContext<T, D, PublishMessageParams<M>>
 where
     M: Serialize,
-    D: Deserializer<PublishResponseBody>,
+    D: Deserializer,
 {
     fn from(value: PublishMessageViaChannel<T, M, D>) -> Self {
         Self {
             client: value.pub_nub_client,
-            deserializer: value.deserializer,
             data: PublishMessageParams {
                 channel: value.channel,
                 message: value.message,
@@ -359,23 +345,15 @@ where
     }
 }
 
-impl<T, D, X> PublishMessageContext<T, D, X>
-where
-    D: Deserializer<PublishResponseBody>,
-{
+impl<T, D, X> PublishMessageContext<T, D, X> {
     fn map_data<F, Y>(self, f: F) -> PublishMessageContext<T, D, Y>
     where
-        F: FnOnce(&PubNubClientInstance<T>, &D, X) -> Y,
+        F: FnOnce(PubNubClientInstance<T, D>, X) -> Y,
     {
         let client = self.client;
-        let deserializer = self.deserializer;
-        let data = f(&client, &deserializer, self.data);
+        let data = f(client.clone(), self.data);
 
-        PublishMessageContext {
-            client,
-            deserializer,
-            data,
-        }
+        PublishMessageContext { client, data }
     }
 
     fn map<F, Y>(self, f: F) -> Y
@@ -416,47 +394,10 @@ fn serialize_meta(meta: &HashMap<String, String>) -> String {
     result
 }
 
-// TODO: Maybe it will be possible to extract this into a middleware.
-//       Currently, it's not necessary, but it might be very useful
-//       to not have to do it manually in each dx module.
-fn response_to_result<D>(
-    deserializer: &D,
-    response: TransportResponse,
-) -> Result<PublishResult, PubNubError>
-where
-    D: Deserializer<PublishResponseBody>,
-{
-    response
-        .body
-        .as_ref()
-        .map(|body| {
-            let deserialize_result = deserializer.deserialize(body);
-            if deserialize_result.is_err() && response.status >= 500 {
-                Err(PubNubError::general_api_error(
-                    "Unexpected service response",
-                    None,
-                    Some(Box::new(response.clone())),
-                ))
-            } else {
-                deserialize_result
-            }
-        })
-        .transpose()
-        .and_then(|body| {
-            body.ok_or_else(|| {
-                PubNubError::general_api_error(
-                    format!("No body in the response! Status code: {}", response.status),
-                    None,
-                    Some(Box::new(response.clone())),
-                )
-            })
-            .map(|body| body_to_result(body, response))
-        })?
-}
-
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::providers::deserialization_serde::DeserializerSerde;
     use crate::{
         core::TransportResponse,
         dx::pubnub_client::{PubNubClientInstance, PubNubClientRef, PubNubConfig},
@@ -469,7 +410,7 @@ mod should {
     #[derive(Default, Debug)]
     struct MockTransport;
 
-    fn client() -> PubNubClientInstance<PubNubMiddleware<MockTransport>> {
+    fn client() -> PubNubClientInstance<PubNubMiddleware<MockTransport>, DeserializerSerde> {
         #[async_trait::async_trait]
         impl Transport for MockTransport {
             async fn send(

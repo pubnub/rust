@@ -36,11 +36,9 @@ pub mod permissions;
 use crate::dx::pubnub_client::PubNubClientInstance;
 use crate::lib::alloc::string::String;
 #[cfg(feature = "serde")]
-use crate::providers::{
-    deserialization_serde::SerdeDeserializer, serialization_serde::SerdeSerializer,
-};
+use crate::providers::serialization_serde::SerdeSerializer;
 
-impl<T> PubNubClientInstance<T> {
+impl<T, D> PubNubClientInstance<T, D> {
     /// Create grant token permissions request builder.
     /// This method is used to generate token with required permissions.
     ///
@@ -79,14 +77,10 @@ impl<T> PubNubClientInstance<T> {
     /// # }
     /// ```
     #[cfg(feature = "serde")]
-    pub fn grant_token(
-        &self,
-        ttl: usize,
-    ) -> GrantTokenRequestBuilder<T, SerdeSerializer, SerdeDeserializer> {
+    pub fn grant_token(&self, ttl: usize) -> GrantTokenRequestBuilder<T, SerdeSerializer, D> {
         GrantTokenRequestBuilder {
             pubnub_client: Some(self.clone()),
             serializer: Some(SerdeSerializer),
-            deserializer: Some(SerdeDeserializer),
             ttl: Some(ttl),
             ..Default::default()
         }
@@ -150,7 +144,7 @@ impl<T> PubNubClientInstance<T> {
     /// # }
     /// ```
     #[cfg(not(feature = "serde"))]
-    pub fn grant_token(&self, ttl: usize) -> GrantTokenRequestWithSerializerBuilder<T> {
+    pub fn grant_token(&self, ttl: usize) -> GrantTokenRequestWithSerializerBuilder<T, D> {
         GrantTokenRequestWithSerializerBuilder {
             pubnub_client: self.clone(),
             ttl,
@@ -188,68 +182,13 @@ impl<T> PubNubClientInstance<T> {
     /// #     Ok(())
     /// # }
     /// ```
-    #[cfg(feature = "serde")]
-    pub fn revoke_token<S>(&self, token: S) -> RevokeTokenRequestBuilder<T, SerdeDeserializer>
+    pub fn revoke_token<S>(&self, token: S) -> RevokeTokenRequestBuilder<T, D>
     where
         S: Into<String>,
     {
         RevokeTokenRequestBuilder {
             pubnub_client: Some(self.clone()),
-            deserializer: Some(SerdeDeserializer),
             token: Some(token.into()),
-        }
-    }
-
-    /// Create revoke token permissions request builder.
-    /// This method is used to revoke token permissions.
-    ///
-    /// Instance of [`RevokeTokenRequestWithDeserializerBuilder`] returned.
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use pubnub::{
-    ///     access::*,
-    ///     core::{Deserializer, PubNubError, Serializer},
-    /// #    PubNubClientBuilder, Keyset,
-    /// };
-    ///
-    /// struct MyDeserializer;
-    ///
-    /// impl<'de> Deserializer<'de, GrantTokenResponseBody> for MyDeserializer {
-    ///     fn deserialize(&self, response: &'de [u8]) -> Result<GrantTokenResult, PubNubError> {
-    ///         // ...
-    /// #        Ok(GrantTokenResult)
-    ///     }
-    /// }
-    ///
-    /// #
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut pubnub = // PubNubClient
-    /// #     PubNubClientBuilder::with_reqwest_transport()
-    /// #         .with_keyset(Keyset {
-    /// #              subscribe_key: "demo",
-    /// #              publish_key: Some("demo"),
-    /// #              secret_key: Some("demo")
-    /// #          })
-    /// #         .with_user_id("uuid")
-    /// #         .build()?;
-    /// pubnub
-    ///     .revoke_token("p0F2AkF0Gl043r....Dc3BjoERtZXRhoENzaWdYIGOAeTyWGJI".into())
-    ///     .derialize_with(MyDeserializer)
-    ///     .execute()
-    ///     .await?;
-    /// #     Ok(())
-    /// # }
-    /// ```
-    #[cfg(not(feature = "serde"))]
-    pub fn revoke_token<S>(&self, token: S) -> RevokeTokenRequestWithDeserializerBuilder<T>
-    where
-        S: Into<String>,
-    {
-        RevokeTokenRequestWithDeserializerBuilder {
-            pubnub_client: self.clone(),
-            token: token.into(),
         }
     }
 }
@@ -264,6 +203,7 @@ mod it_should {
             alloc::{borrow::ToOwned, format, vec, vec::Vec},
             collections::HashMap,
         },
+        providers::deserialization_serde::DeserializerSerde,
         transport::middleware::PubNubMiddleware,
         {Keyset, PubNubClientBuilder},
     };
@@ -333,7 +273,7 @@ mod it_should {
         with_auth_key: Option<String>,
         with_auth_token: Option<String>,
         transport: Option<MockTransport>,
-    ) -> PubNubClientInstance<PubNubMiddleware<MockTransport>> {
+    ) -> PubNubClientInstance<PubNubMiddleware<MockTransport>, DeserializerSerde> {
         let mut builder = PubNubClientBuilder::with_transport(transport.unwrap_or(MockTransport {
             response: None,
             request_handler: None,

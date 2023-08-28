@@ -1,37 +1,40 @@
 //! # PubNub subscribe module.
 //!
-//! This module has all the builders for subscription to real-time updates from
-//! a list of channels and channel groups.
+//! The [`SubscribeRequestBuilder`] lets you to make and execute request that
+//! will receive real-time updates from a list of channels and channel groups.
 
+use derive_builder::Builder;
 #[cfg(feature = "std")]
-use crate::dx::subscribe::cancel::CancellationTask;
-use crate::dx::subscribe::SubscribeResponseBody;
+use futures::{
+    future::BoxFuture,
+    {select_biased, FutureExt},
+};
+
 use crate::{
     core::{
         blocking,
-        utils::encoding::join_url_encoded,
+        utils::encoding::{
+            url_encode_extended, url_encoded_channel_groups, url_encoded_channels,
+            UrlEncodeExtension,
+        },
         Deserializer, PubNubError, Transport, {TransportMethod, TransportRequest},
     },
     dx::{
         pubnub_client::PubNubClientInstance,
-        subscribe::{builders, result::SubscribeResult, SubscribeCursor},
+        subscribe::{builders, result::SubscribeResult, SubscribeCursor, SubscribeResponseBody},
     },
     lib::{
         alloc::{
-            boxed::Box,
             format,
             string::{String, ToString},
-            sync::Arc,
             vec::Vec,
         },
         collections::HashMap,
     },
 };
-use derive_builder::Builder;
+
 #[cfg(feature = "std")]
-use futures::future::BoxFuture;
-#[cfg(feature = "std")]
-use futures::{select_biased, FutureExt};
+use crate::{core::event_engine::cancel::CancellationTask, lib::alloc::sync::Arc};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -47,10 +50,12 @@ use futures::{select_biased, FutureExt};
     build_fn(vis = "pub(in crate::dx::subscribe)", validate = "Self::validate"),
     no_std
 )]
-pub(crate) struct SubscribeRequest<T> {
+pub(crate) struct SubscribeRequest<T, D> {
     /// Current client which can provide transportation to perform the request.
+    ///
+    /// This field is used to get [`Transport`] to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
-    pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T>,
+    pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T, D>,
 
     /// Channels from which real-time updates should be received.
     ///
@@ -81,6 +86,15 @@ pub(crate) struct SubscribeRequest<T> {
     )]
     pub(in crate::dx::subscribe) cursor: SubscribeCursor,
 
+    /// `user_id`presence timeout period.
+    ///
+    /// A heartbeat is a period of time during which `user_id` is visible
+    /// `online`.
+    /// If, within the heartbeat period, another heartbeat request or a
+    /// subscribe (for an implicit heartbeat) request `timeout` will be
+    /// announced for `user_id`.
+    ///
+    /// By default it is set to **300** seconds.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -88,6 +102,14 @@ pub(crate) struct SubscribeRequest<T> {
     )]
     pub(in crate::dx::subscribe) heartbeat: u32,
 
+    /// Message filtering predicate.
+    ///
+    /// The [`PubNub`] network can filter out messages published with `meta`
+    /// before they reach subscribers using these filtering expressions, which
+    /// are based on the definition of the [`filter language`].
+    ///
+    /// [`PubNub`]:https://www.pubnub.com/
+    /// [`filter language`]: https://www.pubnub.com/docs/general/messages/publish#filter-language-definition
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -96,55 +118,11 @@ pub(crate) struct SubscribeRequest<T> {
     pub(in crate::dx::subscribe) filter_expression: Option<String>,
 }
 
-impl<T> SubscribeRequest<T> {
-    /// Create transport request from the request builder.
-    pub(in crate::dx::subscribe) fn transport_request(&self) -> TransportRequest {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
-        let channels = join_url_encoded(
-            self.channels
-                .iter()
-                .map(|v| v.as_str())
-                .collect::<Vec<&str>>()
-                .as_slice(),
-            ",",
-        )
-        .unwrap_or(",".into());
-        let mut query: HashMap<String, String> = HashMap::new();
-        query.extend::<HashMap<String, String>>(self.cursor.clone().into());
-
-        // Serialize list of channel groups and add into query parameters list.
-        join_url_encoded(
-            self.channel_groups
-                .iter()
-                .map(|v| v.as_str())
-                .collect::<Vec<&str>>()
-                .as_slice(),
-            ",",
-        )
-        .filter(|string| !string.is_empty())
-        .and_then(|channel_groups| query.insert("channel-group".into(), channel_groups));
-
-        self.filter_expression
-            .as_ref()
-            .filter(|e| !e.is_empty())
-            .and_then(|e| query.insert("filter-expr".into(), e.into()));
-
-        query.insert("heartbeat".into(), self.heartbeat.to_string());
-
-        TransportRequest {
-            path: format!("/v2/subscribe/{sub_key}/{channels}/0"),
-            query_parameters: query,
-            method: TransportMethod::Get,
-            ..Default::default()
-        }
-    }
-}
-
-impl<T> SubscribeRequestBuilder<T> {
+impl<T, D> SubscribeRequestBuilder<T, D> {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
-    /// request instance.
+    /// subscribe request instance.
     fn validate(&self) -> Result<(), String> {
         let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
         let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());
@@ -157,109 +135,107 @@ impl<T> SubscribeRequestBuilder<T> {
             }
         })
     }
+
+    /// Build [`HeartbeatRequest`] from builder.
+    fn request(self) -> Result<SubscribeRequest<T, D>, PubNubError> {
+        self.build()
+            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))
+    }
 }
 
-#[cfg(feature = "std")]
-impl<T> SubscribeRequestBuilder<T>
+impl<T, D> SubscribeRequest<T, D> {
+    /// Create transport request from the request builder.
+    pub(in crate::dx::subscribe) fn transport_request(&self) -> TransportRequest {
+        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let mut query: HashMap<String, String> = HashMap::new();
+        query.extend::<HashMap<String, String>>(self.cursor.clone().into());
+
+        // Serialize list of channel groups and add into query parameters list.
+        url_encoded_channel_groups(&self.channel_groups)
+            .and_then(|groups| query.insert("channel-group".into(), groups));
+
+        self.filter_expression
+            .as_ref()
+            .filter(|e| !e.is_empty())
+            .and_then(|e| {
+                query.insert(
+                    "filter-expr".into(),
+                    url_encode_extended(e.as_bytes(), UrlEncodeExtension::NonChannelPath),
+                )
+            });
+
+        query.insert("heartbeat".into(), self.heartbeat.to_string());
+
+        TransportRequest {
+            path: format!(
+                "/v2/subscribe/{sub_key}/{}/0",
+                url_encoded_channels(&self.channels)
+            ),
+            query_parameters: query,
+            method: TransportMethod::Get,
+            ..Default::default()
+        }
+    }
+}
+
+impl<T, D> SubscribeRequestBuilder<T, D>
 where
     T: Transport,
+    D: Deserializer + 'static,
 {
-    pub async fn execute_with_cancel_and_delay<D, F>(
+    /// Build and call asynchronous request.
+    pub async fn execute(self) -> Result<SubscribeResult, PubNubError> {
+        let request = self.request()?;
+        let transport_request = request.transport_request();
+        let client = request.pubnub_client.clone();
+        let deserializer = client.deserializer.clone();
+        transport_request
+            .send::<SubscribeResponseBody, _, _, _>(&client.transport, deserializer)
+            .await
+    }
+
+    /// Build and call asynchronous request after delay.
+    ///
+    /// Perform delayed request call with ability to cancel it before call.
+    #[cfg(feature = "std")]
+    pub async fn execute_with_cancel_and_delay<F>(
         self,
-        deserializer: Arc<D>,
         delay: Arc<F>,
         cancel_task: CancellationTask,
     ) -> Result<SubscribeResult, PubNubError>
     where
-        D: Deserializer<SubscribeResponseBody> + ?Sized,
         F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
     {
         select_biased! {
             _ = cancel_task.wait_for_cancel().fuse() => {
                 Err(PubNubError::EffectCanceled)
             },
-            response = self.execute_with_delay(deserializer, delay).fuse() => {
+            response = self.execute_with_delay(delay).fuse() => {
                 response
             }
         }
     }
 
-    pub async fn execute_with_delay<D, F>(
-        self,
-        deserializer: Arc<D>,
-        delay: Arc<F>,
-    ) -> Result<SubscribeResult, PubNubError>
+    /// Build and call asynchronous request after configured delay.
+    #[cfg(feature = "std")]
+    async fn execute_with_delay<F>(self, delay: Arc<F>) -> Result<SubscribeResult, PubNubError>
     where
-        D: Deserializer<SubscribeResponseBody> + ?Sized,
         F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
     {
-        // Postpone request execution if required.
+        // Postpone request execution.
         delay().await;
 
-        self.execute(deserializer).await
+        self.execute().await
     }
 }
 
-impl<T> SubscribeRequestBuilder<T>
-where
-    T: Transport,
-{
-    /// Build and call request.
-    pub async fn execute<D>(self, deserializer: Arc<D>) -> Result<SubscribeResult, PubNubError>
-    where
-        D: Deserializer<SubscribeResponseBody> + ?Sized,
-    {
-        // Build request instance and report errors if any.
-        let request = self
-            .build()
-            .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
-
-        let transport_request = request.transport_request();
-        let client = request.pubnub_client.clone();
-
-        // Request configured endpoint.
-        let response = client.transport.send(transport_request).await?;
-        response
-            .clone()
-            .body
-            .map(|bytes| {
-                let deserialize_result = deserializer.deserialize(&bytes);
-                if deserialize_result.is_err() && response.status >= 500 {
-                    Err(PubNubError::general_api_error(
-                        "Unexpected service response",
-                        None,
-                        Some(Box::new(response.clone())),
-                    ))
-                } else {
-                    deserialize_result
-                }
-            })
-            .map_or(
-                Err(PubNubError::general_api_error(
-                    "No body in the response!",
-                    None,
-                    Some(Box::new(response.clone())),
-                )),
-                |response_body| {
-                    response_body.and_then::<SubscribeResult, _>(|body| {
-                        body.try_into().map_err(|response_error: PubNubError| {
-                            response_error.attach_response(response)
-                        })
-                    })
-                },
-            )
-    }
-}
-
-impl<T> SubscribeRequestBuilder<T>
+impl<T, D> SubscribeRequestBuilder<T, D>
 where
     T: blocking::Transport,
+    D: Deserializer + 'static,
 {
-    /// Build and call request.
-    pub fn execute_blocking<D>(self, deserializer: Arc<D>) -> Result<SubscribeResult, PubNubError>
-    where
-        D: Deserializer<SubscribeResponseBody> + ?Sized,
-    {
+    /// Build and call synchronous request.
+    pub fn execute_blocking(self) -> Result<SubscribeResult, PubNubError> {
         // Build request instance and report errors if any.
         let request = self
             .build()
@@ -267,38 +243,9 @@ where
 
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
-
-        // Request configured endpoint.
-        let response = client.transport.send(transport_request)?;
-        response
-            .clone()
-            .body
-            .map(|bytes| {
-                let deserialize_result = deserializer.deserialize(&bytes);
-                if deserialize_result.is_err() && response.status >= 500 {
-                    Err(PubNubError::general_api_error(
-                        "Unexpected service response",
-                        None,
-                        Some(Box::new(response.clone())),
-                    ))
-                } else {
-                    deserialize_result
-                }
-            })
-            .map_or(
-                Err(PubNubError::general_api_error(
-                    "No body in the response!",
-                    None,
-                    Some(Box::new(response.clone())),
-                )),
-                |response_body| {
-                    response_body.and_then::<SubscribeResult, _>(|body| {
-                        body.try_into().map_err(|response_error: PubNubError| {
-                            response_error.attach_response(response)
-                        })
-                    })
-                },
-            )
+        let deserializer = client.deserializer.clone();
+        transport_request
+            .send_blocking::<SubscribeResponseBody, _, _, _>(&client.transport, deserializer)
     }
 }
 
@@ -306,10 +253,7 @@ where
 #[cfg(test)]
 mod should {
     use super::*;
-    use crate::{
-        core::TransportResponse, providers::deserialization_serde::SerdeDeserializer,
-        PubNubClientBuilder,
-    };
+    use crate::{core::TransportResponse, PubNubClientBuilder};
     use futures::future::ready;
 
     #[tokio::test]
@@ -342,11 +286,7 @@ mod should {
             .unwrap()
             .subscribe_request()
             .channels(vec!["test".into()])
-            .execute_with_cancel_and_delay(
-                Arc::new(SerdeDeserializer),
-                Arc::new(|| ready(()).boxed()),
-                cancel_task,
-            )
+            .execute_with_cancel_and_delay(Arc::new(|| ready(()).boxed()), cancel_task)
             .await;
 
         assert!(matches!(result, Err(PubNubError::EffectCanceled)));

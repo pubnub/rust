@@ -1,3 +1,7 @@
+//! Managed effects cancellation module.
+//!
+//! This module provides [`CancellationTask`] which can be used to cancel
+//! managed effects.
 use async_channel::Receiver;
 
 use crate::{
@@ -12,7 +16,7 @@ pub(crate) struct CancellationTask {
 }
 
 impl CancellationTask {
-    pub(super) fn new(cancel_rx: Receiver<String>, id: String) -> Self {
+    pub fn new(cancel_rx: Receiver<String>, id: String) -> Self {
         Self { cancel_rx, id }
     }
 

@@ -32,7 +32,14 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
 
     let subscription = client
         .subscribe()
-        .channels(["my_channel".into(), "other_channel".into()].to_vec())
+        .channels(
+            [
+                "my_channel".into(),
+                "other_channel".into(),
+                "channel-test-history".into(),
+            ]
+            .to_vec(),
+        )
         .heartbeat(10)
         .filter_expression("some_filter")
         .execute()?;

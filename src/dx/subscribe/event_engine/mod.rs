@@ -1,11 +1,15 @@
 //! Subscribe Event Engine module
 
+use crate::{
+    core::event_engine::EventEngine,
+    lib::alloc::{string::String, vec::Vec},
+};
+
 #[doc(inline)]
 pub(crate) use effects::SubscribeEffect;
 pub(crate) mod effects;
 
 #[doc(inline)]
-#[allow(unused_imports)]
 pub(crate) use effect_handler::SubscribeEffectHandler;
 pub(crate) mod effect_handler;
 
@@ -22,10 +26,10 @@ pub(crate) mod event;
 pub(crate) use state::SubscribeState;
 pub(crate) mod state;
 
-use crate::{
-    core::event_engine::EventEngine,
-    lib::alloc::{string::String, vec::Vec},
-};
+#[doc(inline)]
+#[allow(unused_imports)]
+pub(in crate::dx::subscribe) use types::{SubscribeInput, SubscriptionParams};
+pub(in crate::dx::subscribe) mod types;
 
 pub(crate) type SubscribeEventEngine =
     EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>;
@@ -38,46 +42,16 @@ impl
         &self,
     ) -> (Option<Vec<String>>, Option<Vec<String>>) {
         match self.current_state() {
-            SubscribeState::Handshaking {
-                channels,
-                channel_groups,
-                ..
+            SubscribeState::Handshaking { input, .. }
+            | SubscribeState::HandshakeReconnecting { input, .. }
+            | SubscribeState::HandshakeStopped { input, .. }
+            | SubscribeState::HandshakeFailed { input, .. }
+            | SubscribeState::Receiving { input, .. }
+            | SubscribeState::ReceiveReconnecting { input, .. }
+            | SubscribeState::ReceiveStopped { input, .. }
+            | SubscribeState::ReceiveFailed { input, .. } => {
+                (input.channels(), input.channel_groups())
             }
-            | SubscribeState::HandshakeReconnecting {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::HandshakeStopped {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::HandshakeFailed {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::Receiving {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::ReceiveReconnecting {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::ReceiveStopped {
-                channels,
-                channel_groups,
-                ..
-            }
-            | SubscribeState::ReceiveFailed {
-                channels,
-                channel_groups,
-                ..
-            } => (channels, channel_groups),
             _ => (None, None),
         }
     }

@@ -32,13 +32,14 @@ use crate::{
 /// [`Deserializer`]: ../trait.Deserializer.html
 /// [`serde`]: https://crates.io/crates/serde
 /// [`dx`]: ../dx/index.html
-pub struct SerdeDeserializer;
+#[derive(Debug, Clone)]
+pub struct DeserializerSerde;
 
-impl<T> Deserializer<T> for SerdeDeserializer
-where
-    T: for<'de> serde::Deserialize<'de>,
-{
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, PubNubError> {
+impl Deserializer for DeserializerSerde {
+    fn deserialize<T>(&self, bytes: &[u8]) -> Result<T, PubNubError>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
         serde_json::from_slice(bytes).map_err(|e| PubNubError::Deserialization {
             details: e.to_string(),
         })
@@ -47,8 +48,7 @@ where
 
 impl<'de, D> crate::core::Deserialize<'de> for D
 where
-    D: Send + Sync,
-    D: serde::Deserialize<'de>,
+    D: serde::Deserialize<'de> + Send + Sync,
 {
     type Type = D;
 
@@ -72,7 +72,7 @@ mod should {
 
     #[test]
     fn deserialize() {
-        let sut = SerdeDeserializer;
+        let sut = DeserializerSerde;
 
         let result: Foo = sut.deserialize(&Vec::from("{\"bar\":\"baz\"}")).unwrap();
 
