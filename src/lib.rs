@@ -56,7 +56,7 @@
 //! use tokio::time::sleep;
 //! use std::time::Duration;
 //! use serde_json;
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let publish_key = "my_publish_key";
@@ -78,7 +78,7 @@
 //!
 //!    println!("Subscribed to channel");
 //!
-//!   // Launch a new task to print out each received message 
+//!   // Launch a new task to print out each received message
 //!   tokio::spawn(subscription.stream().for_each(|event| async move {
 //!        match event {
 //!            SubscribeStreamEvent::Update(update) => {
@@ -108,7 +108,7 @@
 //!             SubscribeStreamEvent::Status(status) => println!("\nstatus: {:?}", status),
 //!         }
 //!     }));
-//! 
+//!
 //!     sleep(Duration::from_secs(1)).await;
 //!     // Send a message to the channel
 //!     client
@@ -117,9 +117,9 @@
 //!         .r#type("text-message")
 //!         .execute()
 //!         .await?;
-//! 
+//!
 //!     sleep(Duration::from_secs(10)).await;
-//! 
+//!
 //!     Ok(())
 //! }
 //! ```
