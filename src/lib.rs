@@ -59,8 +59,8 @@
 //! 
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let publish_key = "demo";
-//!     let subscribe_key = "demo";
+//!     let publish_key = "my_publish_key";
+//!     let subscribe_key = "my_subscribe_key";
 //!     let client = PubNubClientBuilder::with_reqwest_transport()
 //!       .with_keyset(Keyset {
 //!            subscribe_key,
