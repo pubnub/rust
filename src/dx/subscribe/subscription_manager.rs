@@ -3,10 +3,9 @@
 //! This module contains manager which is responsible for tracking and updating
 //! active subscription streams.
 
-use crate::subscribe::event_engine::SubscribeInput;
 use crate::{
     dx::subscribe::{
-        event_engine::{event::SubscribeEvent, SubscribeEventEngine},
+        event_engine::{event::SubscribeEvent, SubscribeEventEngine, SubscribeInput},
         result::Update,
         subscription::Subscription,
         SubscribeCursor, SubscribeStatus,
