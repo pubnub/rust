@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct CancellationTask {
+pub(crate) struct CancellationTask {
     cancel_rx: Receiver<String>,
     id: String,
 }

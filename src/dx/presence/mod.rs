@@ -216,7 +216,6 @@ where
     ///
     /// Presence configuration used only with presence event engine.
     #[cfg(feature = "std")]
-    #[allow(dead_code)]
     pub(crate) fn configure_presence(&self) -> Arc<RwLock<Option<PresenceManager>>> {
         {
             let mut slot = self.presence.write();

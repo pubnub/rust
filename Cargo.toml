@@ -14,7 +14,7 @@ build = "build.rs"
 [features]
 
 # Enables all non-conflicting features
-full = ["publish", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std", "tokio"]
+full = ["publish", "subscribe", "presence", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
 default = ["publish", "subscribe", "presence", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]

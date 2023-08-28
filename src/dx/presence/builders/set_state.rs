@@ -163,7 +163,6 @@ impl<T, D> SetStateRequest<T, D> {
     }
 }
 
-#[allow(dead_code)]
 impl<T, D> SetStateRequestBuilder<T, D>
 where
     T: Transport,
