@@ -253,8 +253,8 @@ pub struct Envelope {
     /// channels to [`subscribe`] method call.
     ///
     /// [`subscribe`]: crate::dx::subscribe
-    #[cfg_attr(feature = "serde", serde(rename = "b"))]
-    pub subscription: String,
+    #[cfg_attr(feature = "serde", serde(rename = "b"), serde(default))]
+    pub subscription: Option<String>,
 
     /// User provided message type (set only when [`publish`] called with
     /// `r#type`).
@@ -552,13 +552,13 @@ impl Update {
     /// Name of channel.
     ///
     /// Name of channel at which update has been received.
-    pub(crate) fn channel_group(&self) -> String {
+    pub(crate) fn channel_group(&self) -> Option<String> {
         match self {
             Update::Presence(presence) => presence.channel_group(),
             Update::Object(object) => object.channel_group(),
-            Update::MessageAction(action) => action.subscription.to_string(),
-            Update::File(file) => file.subscription.to_string(),
-            Update::Message(message) | Update::Signal(message) => message.subscription.to_string(),
+            Update::MessageAction(action) => action.subscription.clone(),
+            Update::File(file) => file.subscription.clone(),
+            Update::Message(message) | Update::Signal(message) => message.subscription.clone(),
         }
     }
 }

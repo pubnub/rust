@@ -61,20 +61,24 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             SubscribeEffectInvocation::Handshake {
                 channels,
                 channel_groups,
+                cursor,
             } => Some(SubscribeEffect::Handshake {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
+                cursor: cursor.clone(),
                 executor: self.subscribe_call.clone(),
                 cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::HandshakeReconnect {
                 channels,
                 channel_groups,
+                cursor,
                 attempts,
                 reason,
             } => Some(SubscribeEffect::HandshakeReconnect {
                 channels: channels.clone(),
                 channel_groups: channel_groups.clone(),
+                cursor: cursor.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
                 retry_policy: self.retry_policy.clone(),

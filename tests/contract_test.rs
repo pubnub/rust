@@ -104,7 +104,8 @@ async fn main() {
     let _ = std::fs::create_dir_all("tests/reports");
     let file: File = File::create("tests/reports/report-required.xml").unwrap();
     PubNubWorld::cucumber()
-        .max_concurrent_scenarios(1) // sequential execution because tomato waits for a specific request at a time for which a script is initialised.
+        .max_concurrent_scenarios(1) // sequential execution because tomato waits for a specific request at a time for which a
+        // script is initialised.
         .before(|_feature, _rule, scenario, world| {
             world.scenario = Some(scenario.clone());
 

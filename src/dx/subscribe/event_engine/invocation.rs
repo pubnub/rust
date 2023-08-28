@@ -31,6 +31,12 @@ pub(crate) enum SubscribeEffectInvocation {
         /// List of channel groups which will be source of real-time updates
         /// after initial subscription completion.
         channel_groups: Option<Vec<String>>,
+
+        /// Time cursor.
+        ///
+        /// Cursor used by subscription loop to identify point in time after
+        /// which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
     },
 
     /// Cancel initial subscribe effect invocation.
@@ -49,6 +55,12 @@ pub(crate) enum SubscribeEffectInvocation {
         /// List of channel groups which has been used during recently failed
         /// initial subscription.
         channel_groups: Option<Vec<String>>,
+
+        /// Time cursor.
+        ///
+        /// Cursor used by subscription loop to identify point in time after
+        /// which updates will be delivered.
+        cursor: Option<SubscribeCursor>,
 
         /// Current initial subscribe retry attempt.
         ///
