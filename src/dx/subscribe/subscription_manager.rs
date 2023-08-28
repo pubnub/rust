@@ -4,6 +4,7 @@
 //! active subscription streams.
 
 use super::event_engine::SubscribeEvent;
+use crate::subscribe::SubscribeCursor;
 use crate::{
     dx::subscribe::{
         event_engine::SubscribeEventEngine, result::Update, subscription::Subscription,
@@ -56,9 +57,14 @@ impl SubscriptionManager {
     }
 
     pub fn register(&mut self, subscription: Subscription) {
+        let cursor = subscription.cursor;
         self.subscribers.push(subscription);
 
-        self.change_subscription();
+        if let Some(cursor) = cursor {
+            self.restore_subscription(cursor);
+        } else {
+            self.change_subscription();
+        }
     }
 
     pub fn unregister(&mut self, subscription: Subscription) {
@@ -92,6 +98,32 @@ impl SubscriptionManager {
             .process(&SubscribeEvent::SubscriptionChanged {
                 channels: (!channels.is_empty()).then_some(channels),
                 channel_groups: (!channel_groups.is_empty()).then_some(channel_groups),
+            });
+    }
+
+    fn restore_subscription(&self, cursor: u64) {
+        let channels = self
+            .subscribers
+            .iter()
+            .flat_map(|val| val.channels.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let channel_groups = self
+            .subscribers
+            .iter()
+            .flat_map(|val| val.channel_groups.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        self.subscribe_event_engine
+            .process(&SubscribeEvent::SubscriptionRestored {
+                channels: (!channels.is_empty()).then_some(channels),
+                channel_groups: (!channel_groups.is_empty()).then_some(channel_groups),
+                cursor: SubscribeCursor {
+                    timetoken: cursor.to_string(),
+                    region: 0,
+                },
             });
     }
 }

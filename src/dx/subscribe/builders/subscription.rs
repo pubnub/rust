@@ -505,7 +505,9 @@ impl Subscription {
 
     fn subscribed_for_update(&self, update: &Update) -> bool {
         self.channels.contains(&update.channel())
-            || self.channel_groups.contains(&update.channel_group())
+            || update
+                .channel_group()
+                .is_some_and(|g| self.channel_groups.contains(&g))
     }
 }
 
