@@ -51,28 +51,75 @@
 //!
 //! ```no_run
 //! use pubnub::{Keyset, PubNubClientBuilder};
-//!
+//! use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+//! use futures::StreamExt;
+//! use tokio::time::sleep;
+//! use std::time::Duration;
+//! use serde_json;
+//! 
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let publish_key = "my_publish_key";
-//!     let subscribe_key = "my_subscribe_key";
-//!
+//!     let publish_key = "demo";
+//!     let subscribe_key = "demo";
 //!     let client = PubNubClientBuilder::with_reqwest_transport()
-//!         .with_keyset(Keyset {
-//!             subscribe_key,
-//!             publish_key: Some(publish_key),
-//!             secret_key: None,
-//!         })
-//!         .with_user_id("user_id")
-//!         .build()?;
+//!       .with_keyset(Keyset {
+//!            subscribe_key,
+//!            publish_key: Some(publish_key),
+//!            secret_key: None,
+//!        })
+//!        .with_user_id("user_id")
+//!        .build()?;
+//!    println!("PubNub instance created");
 //!
+//!    let subscription = client
+//!       .subscribe()
+//!        .channels(["my_channel".into()].to_vec())
+//!        .execute()?;
+//!
+//!    println!("Subscribed to channel");
+//!
+//!   // Launch a new task to print out each received message 
+//!   tokio::spawn(subscription.stream().for_each(|event| async move {
+//!        match event {
+//!            SubscribeStreamEvent::Update(update) => {
+//!                match update {
+//!                    Update::Message(message) | Update::Signal(message) => {
+//!                        // Silently log if UTF-8 conversion fails
+//!                        if let Ok(utf8_message) = String::from_utf8(message.data.clone()) {
+//!                            if let Ok(cleaned) = serde_json::from_str::<String>(&utf8_message) {
+//!                                println!("message: {}", cleaned);
+//!                            }
+//!                       }
+//!                    }
+//!                     Update::Presence(presence) => {
+//!                         println!("presence: {:?}", presence)
+//!                     }
+//!                     Update::Object(object) => {
+//!                         println!("object: {:?}", object)
+//!                     }
+//!                     Update::MessageAction(action) => {
+//!                         println!("message action: {:?}", action)
+//!                     }
+//!                     Update::File(file) => {
+//!                         println!("file: {:?}", file)
+//!                     }
+//!                 }
+//!             }
+//!             SubscribeStreamEvent::Status(status) => println!("\nstatus: {:?}", status),
+//!         }
+//!     }));
+//! 
+//!     sleep(Duration::from_secs(1)).await;
+//!     // Send a message to the channel
 //!     client
 //!         .publish_message("hello world!")
 //!         .channel("my_channel")
 //!         .r#type("text-message")
 //!         .execute()
 //!         .await?;
-//!
+//! 
+//!     sleep(Duration::from_secs(10)).await;
+//! 
 //!     Ok(())
 //! }
 //! ```
