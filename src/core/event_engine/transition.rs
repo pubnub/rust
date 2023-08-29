@@ -7,7 +7,7 @@ use crate::{
 ///
 /// State transition with information about target state and list of effect
 /// invocations.
-#[allow(dead_code)]
+
 pub(crate) struct Transition<S, I>
 where
     S: State,

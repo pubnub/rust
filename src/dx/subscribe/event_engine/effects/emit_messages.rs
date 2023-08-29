@@ -29,7 +29,7 @@ mod should {
             sender: Some("test-user".into()),
             timestamp: 1234567890,
             channel: "test".to_string(),
-            subscription: Some("test-group".to_string()),
+            subscription: "test-group".to_string(),
             data: vec![],
             r#type: None,
             space_id: None,

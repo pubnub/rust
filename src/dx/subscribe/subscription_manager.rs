@@ -175,7 +175,6 @@ mod should {
     };
     use spin::RwLock;
 
-    #[allow(dead_code)]
     fn event_engine() -> Arc<SubscribeEventEngine> {
         let (cancel_tx, _) = async_channel::bounded(1);
 
@@ -286,6 +285,7 @@ mod should {
 
         manager.notify_new_messages(vec![Update::Message(Message {
             channel: "test".into(),
+            subscription: "test".into(),
             ..Default::default()
         })]);
 

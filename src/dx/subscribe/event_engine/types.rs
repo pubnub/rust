@@ -86,11 +86,7 @@ impl SubscribeInput {
             .map(|ch| ch.into_iter().collect())
     }
 
-    pub fn contains_channel_group(&self, channel_group: &Option<String>) -> bool {
-        let Some(channel_group) = channel_group else {
-            return false;
-        };
-
+    pub fn contains_channel_group(&self, channel_group: &String) -> bool {
         self.channel_groups
             .as_ref()
             .map_or(false, |channel_groups| {

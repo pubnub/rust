@@ -286,6 +286,14 @@ mod should {
         Keyset, PubNubClientBuilder, PubNubGenericClient,
     };
 
+    #[derive(serde::Deserialize)]
+    struct UserStateData {
+        #[serde(rename = "admin")]
+        pub is_admin: bool,
+        #[serde(rename = "displayName")]
+        pub display_name: String,
+    }
+
     struct MockTransport;
 
     #[async_trait::async_trait]
@@ -312,26 +320,56 @@ mod should {
     fn generate_body() -> Option<Vec<u8>> {
         Some(
             r#"{
-                        "t": {
-                            "t": "15628652479932717",
-                            "r": 4
-                        },
-                        "m": [
-                            { "a": "1",
-                            "f": 514,
-                            "i": "pn-0ca50551-4bc8-446e-8829-c70b704545fd",
-                            "s": 1,
-                            "p": {
+                "t": {
+                    "t": "15628652479932717",
+                    "r": 4
+                },
+                "m": [
+                    {
+                        "a": "1",
+                        "f": 514,
+                        "i": "pn-0ca50551-4bc8-446e-8829-c70b704545fd",
+                        "s": 1,
+                        "p": {
                             "t": "15628652479933927",
                             "r": 4
+                        },
+                        "k": "demo",
+                        "c": "my-channel",
+                        "d": "my message",
+                        "b": "my-channel"
+                    },
+                    {
+                        "a": "5",
+                        "f": 0,
+                        "p": {
+                            "r": 12,
+                            "t": "15800701771129796"
+                        },
+                        "k": "demo",
+                        "u": {
+                            "pn_action": "state-change",
+                            "pn_channel": "my-channel",
+                            "pn_ispresence": 1,
+                            "pn_occupancy": 1,
+                            "pn_timestamp": 1580070177,
+                            "pn_uuid": "pn-0ca50551-4bc8-446e-8829-c70b704545fd"
+                        },
+                        "c": "my-channel-pnpres",
+                        "d": {
+                            "action": "state-change",
+                            "data": {
+                                "admin": true,
+                                "displayName": "ChannelAdmin"
                             },
-                            "k": "demo",
-                            "c": "my-channel",
-                            "d": "my message",
-                            "b": "my-channel"
-                            }
-                        ]
-                    }"#
+                            "occupancy": 1,
+                            "timestamp": 1580070177,
+                            "uuid": "pn-0ca50551-4bc8-446e-8829-c70b704545fd"
+                        },
+                        "b": "my-channel-pnpres"
+                    }
+                ]
+            }"#
             .into(),
         )
     }
@@ -357,17 +395,42 @@ mod should {
     async fn subscribe() {
         let subscription = client()
             .subscribe()
-            .channels(["world".into()].to_vec())
+            .channels(["my-channel".into(), "my-channel-pnpres".into()].to_vec())
             .execute()
             .unwrap();
 
         use futures::StreamExt;
         let status = subscription.stream().next().await.unwrap();
+        let message = subscription.stream().next().await.unwrap();
+        let presence = subscription.stream().next().await.unwrap();
 
         assert!(matches!(
             status,
             SubscribeStreamEvent::Status(SubscribeStatus::Connected)
         ));
+        assert!(matches!(
+            message,
+            SubscribeStreamEvent::Update(Update::Message(_))
+        ));
+        assert!(matches!(
+            presence,
+            SubscribeStreamEvent::Update(Update::Presence(_))
+        ));
+        if let SubscribeStreamEvent::Update(Update::Presence(Presence::StateChange {
+            timestamp: _,
+            channel: _,
+            subscription: _,
+            uuid: _,
+            data,
+        })) = presence
+        {
+            let user_data: UserStateData = serde_json::from_value(data)
+                .expect("Should successfully deserialize user state object.");
+            assert!(user_data.is_admin);
+            assert_eq!(user_data.display_name, "ChannelAdmin");
+        } else {
+            panic!("Expected to receive presence update.")
+        }
     }
 
     #[tokio::test]

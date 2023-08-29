@@ -5,6 +5,7 @@ use crate::{
     dx::subscribe::result::{Envelope, EnvelopePayload, ObjectDataBody, Update},
     lib::{
         alloc::{
+            borrow::ToOwned,
             boxed::Box,
             string::{String, ToString},
             sync::Arc,
@@ -130,10 +131,7 @@ pub enum Presence {
 
         /// Actual name of subscription through which `user joined` update has
         /// been delivered.
-        ///
-        /// Will be always `None` except case when update has been delivered
-        /// not from the channel but from the group.
-        subscription: Option<String>,
+        subscription: String,
 
         /// Current channel occupancy after user joined.
         occupancy: usize,
@@ -151,10 +149,7 @@ pub enum Presence {
 
         /// Actual name of subscription through which `user left` update has
         /// been delivered.
-        ///
-        /// Will be always `None` except case when update has been delivered
-        /// not from the channel but from the group.
-        subscription: Option<String>,
+        subscription: String,
 
         /// Current channel occupancy after user left.
         occupancy: usize,
@@ -175,10 +170,7 @@ pub enum Presence {
 
         /// Actual name of subscription through which `user timeout` update has
         /// been delivered.
-        ///
-        /// Will be always `None` except case when update has been delivered
-        /// not from the channel but from the group.
-        subscription: Option<String>,
+        subscription: String,
 
         /// Current channel occupancy after user timeout.
         occupancy: usize,
@@ -200,10 +192,7 @@ pub enum Presence {
 
         /// Actual name of subscription through which `interval` update has been
         /// delivered.
-        ///
-        /// Will be always `None` except case when update has been delivered
-        /// not from the channel but from the group.
-        subscription: Option<String>,
+        subscription: String,
 
         /// Current channel occupancy.
         occupancy: usize,
@@ -234,16 +223,18 @@ pub enum Presence {
 
         /// Actual name of subscription through which `state changed` update has
         /// been delivered.
-        ///
-        /// Will be always `None` except case when update has been delivered
-        /// not from the channel but from the group.
-        subscription: Option<String>,
+        subscription: String,
 
         /// Unique identification of the user for which state has been changed.
         uuid: String,
 
         /// The user's state associated with the channel has been updated.
-        data: Option<String>,
+        #[cfg(feature = "serde")]
+        data: serde_json::Value,
+
+        /// The user's state associated with the channel has been updated.
+        #[cfg(not(feature = "serde"))]
+        data: Vec<u8>,
     },
 }
 
@@ -289,10 +280,7 @@ pub enum Object {
 
         /// Actual name of subscription through which `channel object` update
         /// has been delivered.
-        ///
-        /// Will be always `None` except case when update has been delivered
-        /// not from the channel but from the group.
-        subscription: Option<String>,
+        subscription: String,
     },
 
     /// `UUID` object update.
@@ -336,10 +324,7 @@ pub enum Object {
 
         /// Actual name of subscription through which `uuid object` update has
         /// been delivered.
-        ///
-        /// Will be always `None` except case when update has been delivered
-        /// not from the channel but from the group.
-        subscription: Option<String>,
+        subscription: String,
     },
 
     /// `Membership` object update.
@@ -372,10 +357,7 @@ pub enum Object {
 
         /// Actual name of subscription through which `membership` update has
         /// been delivered.
-        ///
-        /// Will be always `None` except case when update has been delivered
-        /// not from the channel but from the group.
-        subscription: Option<String>,
+        subscription: String,
     },
 }
 
@@ -394,10 +376,7 @@ pub struct Message {
     pub channel: String,
 
     /// Actual name of subscription through which update has been delivered.
-    ///
-    /// Will be always `None` except case when update has been delivered
-    /// not from the channel but from the group.
-    pub subscription: Option<String>,
+    pub subscription: String,
 
     /// Data published along with message / signal.
     pub data: Vec<u8>,
@@ -440,10 +419,7 @@ pub struct MessageAction {
     pub channel: String,
 
     /// Actual name of subscription through which update has been delivered.
-    ///
-    /// Will be always `None` except case when update has been delivered
-    /// not from the channel but from the group.
-    pub subscription: Option<String>,
+    pub subscription: String,
 
     /// Timetoken of message for which action has been added / removed.
     pub message_timetoken: String,
@@ -475,10 +451,7 @@ pub struct File {
     pub channel: String,
 
     /// Actual name of subscription through which update has been delivered.
-    ///
-    /// Will be always `None` except case when update has been delivered
-    /// not from the channel but from the group.
-    pub subscription: Option<String>,
+    pub subscription: String,
 
     /// Message which has been associated with uploaded file.
     message: String,
@@ -573,58 +546,28 @@ impl core::fmt::Display for SubscribeStatus {
 
 #[cfg(feature = "std")]
 impl Presence {
-    /// Presence update channel.
+    /// Name of subscription.
     ///
-    /// Name of channel at which presence update has been triggered.
-    pub(crate) fn channel(&self) -> String {
-        match self {
-            Presence::Join { channel, .. }
-            | Presence::Leave { channel, .. }
-            | Presence::Timeout { channel, .. }
-            | Presence::Interval { channel, .. }
-            | Presence::StateChange { channel, .. } => channel
-                .split('-')
-                .last()
-                .map(|name| name.to_string())
-                .unwrap_or(channel.to_string()),
-        }
-    }
-
-    /// Presence update channel group.
-    ///
-    /// Name of channel group through which presence update has been triggered.
-    pub(crate) fn channel_group(&self) -> Option<String> {
+    /// Name of channel or channel group on which client subscribed and through
+    /// which presence update has been delivered.
+    pub(crate) fn subscription(&self) -> String {
         match self {
             Presence::Join { subscription, .. }
             | Presence::Leave { subscription, .. }
             | Presence::Timeout { subscription, .. }
             | Presence::Interval { subscription, .. }
-            | Presence::StateChange { subscription, .. } => subscription.clone().map(|s| {
-                s.split('-')
-                    .last()
-                    .map(|name| name.to_string())
-                    .unwrap_or(s)
-            }),
+            | Presence::StateChange { subscription, .. } => subscription.clone(),
         }
     }
 }
 
 #[cfg(feature = "std")]
 impl Object {
-    /// Object channel name.
+    /// Name of subscription.
     ///
-    /// Name of channel (object id) at which object update has been triggered.
-    pub(crate) fn channel(&self) -> String {
-        match self {
-            Object::Channel { id, .. } | Object::Uuid { id, .. } => id.to_string(),
-            Object::Membership { uuid, .. } => uuid.to_string(),
-        }
-    }
-
-    /// Object channel group name.
-    ///
-    /// Name of channel group through which object update has been triggered.
-    pub(crate) fn channel_group(&self) -> Option<String> {
+    /// Name of channel or channel group on which client subscribed and through
+    /// which which object update has been triggered.
+    pub(crate) fn subscription(&self) -> String {
         match self {
             Object::Channel { subscription, .. }
             | Object::Uuid { subscription, .. }
@@ -692,6 +635,7 @@ impl TryFrom<Envelope> for Presence {
             let action = action.unwrap_or("interval".to_string());
 
             let subscription = resolve_subscription_value(value.subscription, &value.channel);
+            let channel = value.channel.replace("-pnpres", "");
 
             match action.as_str() {
                 "join" => Ok(Self::Join {
@@ -699,7 +643,7 @@ impl TryFrom<Envelope> for Presence {
                     // `join` event always has `uuid` and unwrap_or default
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
-                    channel: value.channel.clone(),
+                    channel,
                     subscription,
                     occupancy: occupancy.unwrap_or(0),
                 }),
@@ -708,7 +652,7 @@ impl TryFrom<Envelope> for Presence {
                     // `leave` event always has `uuid` and unwrap_or default
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
-                    channel: value.channel.clone(),
+                    channel,
                     subscription,
                     occupancy: occupancy.unwrap_or(0),
                 }),
@@ -717,13 +661,13 @@ impl TryFrom<Envelope> for Presence {
                     // `leave` event always has `uuid` and unwrap_or default
                     // value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
-                    channel: value.channel.clone(),
+                    channel,
                     subscription,
                     occupancy: occupancy.unwrap_or(0),
                 }),
                 "interval" => Ok(Self::Interval {
                     timestamp,
-                    channel: value.channel.clone(),
+                    channel,
                     subscription,
                     occupancy: occupancy.unwrap_or(0),
                     join,
@@ -735,7 +679,7 @@ impl TryFrom<Envelope> for Presence {
                     // `state-change` event always has `uuid` and unwrap_or
                     // default value won't be actually used.
                     uuid: uuid.unwrap_or("".to_string()),
-                    channel: value.channel.clone(),
+                    channel,
                     subscription,
                     data,
                 }),
@@ -964,8 +908,8 @@ impl TryFrom<Envelope> for File {
     }
 }
 
-fn resolve_subscription_value(subscription: Option<String>, channel: &str) -> Option<String> {
-    subscription.and_then(|s| s.ne(channel).then_some(s))
+fn resolve_subscription_value(subscription: Option<String>, channel: &str) -> String {
+    subscription.unwrap_or(channel.to_owned())
 }
 
 // TODO: add tests for complicated froms.
@@ -974,13 +918,17 @@ mod should {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(None, "channel" => None; "no subscription")]
-    #[test_case(Some("channel".into()), "channel" => None; "same subscription and channel")]
-    #[test_case(Some("channel".into()), "channel2" => Some("channel".into()); "different subscription and channel")]
-    fn resolve_subscription_field_value(
-        subscription: Option<String>,
-        channel: &str,
-    ) -> Option<String> {
+    #[test_case(
+        None,
+        "channel" => "channel".to_string();
+        "no subscription"
+    )]
+    #[test_case(
+        Some("channel".into()), 
+        "channel2" => "channel".to_string(); 
+        "different subscription and channel"
+    )]
+    fn resolve_subscription_field_value(subscription: Option<String>, channel: &str) -> String {
         resolve_subscription_value(subscription, channel)
     }
 }
