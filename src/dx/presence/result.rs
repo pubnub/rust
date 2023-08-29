@@ -937,6 +937,96 @@ mod it_should {
     }
 
     #[test]
+    fn parse_here_now_response_single_channel_with_map_uuid() {
+        use serde_json::json;
+
+        let input = json!({
+           "status":200,
+           "message":"OK",
+           "occupancy":1,
+           "uuids":[
+               {"uuid":"just_me"}
+           ],
+           "service":"Presence"
+        });
+
+        let result: HereNowResult = serde_json::from_value::<HereNowResponseBody>(input)
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        assert_eq!(result.total_channels, 1);
+        assert_eq!(result.total_occupancy, 1);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result.first().unwrap().name, "");
+        assert_eq!(result.first().unwrap().occupancy, 1);
+        assert_eq!(
+            result.first().unwrap().occupants.first().unwrap().user_id,
+            "just_me"
+        );
+        assert_eq!(
+            result.first().unwrap().occupants.first().unwrap().state,
+            None
+        );
+    }
+
+    #[test]
+    fn parse_here_now_response_multiple_channels_with_map_uuid() {
+        use serde_json::json;
+
+        let input = json!({
+               "status":200,
+               "message":"OK",
+               "payload":{
+                  "channels":{
+                     "my_channel":{
+                        "occupancy":1,
+                        "uuids":[
+                            {"uuid":"pn-200543f2-b394-4909-9e7b-987848e44729"}
+                        ]
+                     },
+                     "kekw":{
+                        "occupancy":1,
+                        "uuids":[
+                            {"uuid":"just_me"}
+                        ]
+                     }
+                  },
+                  "total_channels":2,
+                  "total_occupancy":2
+               },
+               "service":"Presence"
+        });
+
+        let result: HereNowResult = serde_json::from_value::<HereNowResponseBody>(input)
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        assert_eq!(result.total_channels, 2);
+        assert_eq!(result.total_occupancy, 2);
+        assert_eq!(result.len(), 2);
+
+        assert!(result
+            .iter()
+            .find(|channel| channel.name == "my_channel")
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupancy == 1)
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupants.first().unwrap().user_id
+                == "pn-200543f2-b394-4909-9e7b-987848e44729")
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupants.first().unwrap().state.is_none())
+            .is_some());
+    }
+
+    #[test]
     fn parse_here_now_error_response() {
         let body = HereNowResponseBody::ErrorResponse(APIErrorBody::AsObjectWithService {
             status: 400,
