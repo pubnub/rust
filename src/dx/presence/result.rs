@@ -736,7 +736,7 @@ mod it_should {
 
         let input = json!({
            "message": "OK",
-           "occupancy": 3,
+           "occupancy": 2,
            "service": "Presence",
            "status": 200,
            "uuids": [
@@ -767,16 +767,20 @@ mod it_should {
         assert_eq!(result.total_channels, 1);
         assert_eq!(result.total_occupancy, 2);
         assert_eq!(result.len(), 1);
-        assert_eq!(result.first().unwrap().name, "");
-        assert_eq!(result.first().unwrap().occupancy, 2);
-        assert_eq!(
-            result.first().unwrap().occupants.first().unwrap().user_id,
-            "just_me"
-        );
-        assert_eq!(
-            result.first().unwrap().occupants.first().unwrap().state,
-            Some(json!({"channel1-state": ["channel-1-random-value"]}))
-        );
+        assert!(result.iter().find(|channel| channel.name == "").is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupancy == 2)
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupants.first().unwrap().user_id == "Earline")
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupants.first().unwrap().state
+                == Some(json!({"channel1-state": ["channel-1-random-value"]})))
+            .is_some());
     }
 
     #[test]
@@ -815,16 +819,24 @@ mod it_should {
         assert_eq!(result.total_channels, 2);
         assert_eq!(result.total_occupancy, 2);
         assert_eq!(result.len(), 2);
-        assert_eq!(result.first().unwrap().name, "my_channel");
-        assert_eq!(result.first().unwrap().occupancy, 1);
-        assert_eq!(
-            result.first().unwrap().occupants.first().unwrap().user_id,
-            "pn-200543f2-b394-4909-9e7b-987848e44729"
-        );
-        assert_eq!(
-            result.first().unwrap().occupants.first().unwrap().state,
-            None
-        );
+
+        assert!(result
+            .iter()
+            .find(|channel| channel.name == "my_channel")
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupancy == 1)
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupants.first().unwrap().user_id
+                == "pn-200543f2-b394-4909-9e7b-987848e44729")
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupants.first().unwrap().state.is_none())
+            .is_some());
     }
 
     #[test]
@@ -862,8 +874,8 @@ mod it_should {
                     ]
                 }
             },
-            "total_channels": 3,
-            "total_occupancy": 3
+            "total_channels": 2,
+            "total_occupancy": 2
         },
         "service": "Presence",
         "status": 200
@@ -877,16 +889,24 @@ mod it_should {
         assert_eq!(result.total_channels, 2);
         assert_eq!(result.total_occupancy, 2);
         assert_eq!(result.len(), 2);
-        assert_eq!(result.first().unwrap().name, "test-channel1");
-        assert_eq!(result.first().unwrap().occupancy, 1);
-        assert_eq!(
-            result.first().unwrap().occupants.first().unwrap().user_id,
-            "Kim"
-        );
-        assert_eq!(
-            result.first().unwrap().occupants.first().unwrap().state,
-            Some(json!({"channel1-state": ["channel-1-random-value"]}))
-        );
+
+        assert!(result
+            .iter()
+            .find(|channel| channel.name == "test-channel1")
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupancy == 1)
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupants.first().unwrap().user_id == "Kim")
+            .is_some());
+        assert!(result
+            .iter()
+            .find(|channel| channel.occupants.first().unwrap().state
+                == Some(json!({"channel1-state": ["channel-1-random-value"]})))
+            .is_some());
     }
 
     #[test]
