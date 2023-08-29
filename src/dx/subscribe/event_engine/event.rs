@@ -59,7 +59,7 @@ pub(crate) enum SubscribeEvent {
     /// Handshake reconnect completed with error.
     ///
     /// Emitted when another handshake effect attempt was unable to receive
-    /// response from [`PubNub`] network (network issues or permissions).
+    /// response from [`PubNub`] network (network or permissions issues).
     ///
     /// [`PubNub`]: https://www.pubnub.com/
     HandshakeReconnectFailure { reason: PubNubError },
@@ -142,21 +142,21 @@ pub(crate) enum SubscribeEvent {
 impl Event for SubscribeEvent {
     fn id(&self) -> &str {
         match self {
-            SubscribeEvent::SubscriptionChanged { .. } => "SUBSCRIPTION_CHANGED",
-            SubscribeEvent::SubscriptionRestored { .. } => "SUBSCRIPTION_RESTORED",
-            SubscribeEvent::HandshakeSuccess { .. } => "HANDSHAKE_SUCCESS",
-            SubscribeEvent::HandshakeFailure { .. } => "HANDSHAKE_FAILURE",
-            SubscribeEvent::HandshakeReconnectSuccess { .. } => "HANDSHAKE_RECONNECT_SUCCESS",
-            SubscribeEvent::HandshakeReconnectFailure { .. } => "HANDSHAKE_RECONNECT_FAILURE",
-            SubscribeEvent::HandshakeReconnectGiveUp { .. } => "HANDSHAKE_RECONNECT_GIVEUP",
-            SubscribeEvent::ReceiveSuccess { .. } => "RECEIVE_SUCCESS",
-            SubscribeEvent::ReceiveFailure { .. } => "RECEIVE_FAILURE",
-            SubscribeEvent::ReceiveReconnectSuccess { .. } => "RECEIVE_RECONNECT_SUCCESS",
-            SubscribeEvent::ReceiveReconnectFailure { .. } => "RECEIVE_RECONNECT_FAILURE",
-            SubscribeEvent::ReceiveReconnectGiveUp { .. } => "RECEIVE_RECONNECT_GIVEUP",
-            SubscribeEvent::Disconnect => "DISCONNECT",
-            SubscribeEvent::Reconnect => "RECONNECT",
-            SubscribeEvent::UnsubscribeAll => "UNSUBSCRIBE_ALL",
+            Self::SubscriptionChanged { .. } => "SUBSCRIPTION_CHANGED",
+            Self::SubscriptionRestored { .. } => "SUBSCRIPTION_RESTORED",
+            Self::HandshakeSuccess { .. } => "HANDSHAKE_SUCCESS",
+            Self::HandshakeFailure { .. } => "HANDSHAKE_FAILURE",
+            Self::HandshakeReconnectSuccess { .. } => "HANDSHAKE_RECONNECT_SUCCESS",
+            Self::HandshakeReconnectFailure { .. } => "HANDSHAKE_RECONNECT_FAILURE",
+            Self::HandshakeReconnectGiveUp { .. } => "HANDSHAKE_RECONNECT_GIVEUP",
+            Self::ReceiveSuccess { .. } => "RECEIVE_SUCCESS",
+            Self::ReceiveFailure { .. } => "RECEIVE_FAILURE",
+            Self::ReceiveReconnectSuccess { .. } => "RECEIVE_RECONNECT_SUCCESS",
+            Self::ReceiveReconnectFailure { .. } => "RECEIVE_RECONNECT_FAILURE",
+            Self::ReceiveReconnectGiveUp { .. } => "RECEIVE_RECONNECT_GIVEUP",
+            Self::Disconnect => "DISCONNECT",
+            Self::Reconnect => "RECONNECT",
+            Self::UnsubscribeAll => "UNSUBSCRIBE_ALL",
         }
     }
 }

@@ -1,7 +1,7 @@
 //! # PubNub raw subscribe module.
 //!
-//! This module has all the builders for raw subscription to real-time updates from
-//! a list of channels and channel groups.
+//! This module has all the builders for raw subscription to real-time updates
+//! from a list of channels and channel groups.
 //!
 //! Raw subscription means that subscription will not perform any additional
 //! actions than minimal required to receive real-time updates.
@@ -12,15 +12,16 @@
 //! This one is used only for special cases when you need to have full control
 //! over subscription process or you need more compact subscription solution.
 
+use derive_builder::Builder;
+
 use crate::{
     core::{blocking, Deserializer, PubNubError, Transport},
     dx::{
         pubnub_client::PubNubClientInstance,
-        subscribe::{SubscribeCursor, SubscribeResponseBody, Update},
+        subscribe::{SubscribeCursor, Update},
     },
-    lib::alloc::{collections::VecDeque, string::String, string::ToString, sync::Arc, vec::Vec},
+    lib::alloc::{collections::VecDeque, string::String, string::ToString, vec::Vec},
 };
-use derive_builder::Builder;
 
 /// Raw subscription that is responsible for getting messages from PubNub.
 ///
@@ -40,15 +41,12 @@ use derive_builder::Builder;
     build_fn(private, name = "build_internal", validate = "Self::validate"),
     no_std
 )]
-pub struct RawSubscription<D, T>
-where
-    D: Deserializer<SubscribeResponseBody>,
-{
+pub struct RawSubscription<T, D> {
     /// Current client which can provide transportation to perform the request.
     ///
     /// This field is used to get [`Transport`] to perform the request.
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
-    pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T>,
+    pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T, D>,
 
     /// Channels from which real-time updates should be received.
     ///
@@ -83,17 +81,15 @@ where
     )]
     pub(in crate::dx::subscribe) cursor: Option<u64>,
 
-    /// Deserializer.
+    /// `user_id`presence timeout period.
     ///
-    /// Deserializer which will be used to deserialize received messages
-    /// from PubNub.
-    #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
-    pub(in crate::dx::subscribe) deserializer: Arc<D>,
-
-    /// Heartbeat interval.
+    /// A heartbeat is a period of time during which `user_id` is visible
+    /// `online`.
+    /// If, within the heartbeat period, another heartbeat request or a
+    /// subscribe (for an implicit heartbeat) request `timeout` will be
+    /// announced for `user_id`.
     ///
-    /// Interval in seconds that informs the server that the client should
-    /// be considered alive.
+    /// By default it is set to **300** seconds.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option),
@@ -101,10 +97,14 @@ where
     )]
     pub(in crate::dx::subscribe) heartbeat: Option<u32>,
 
-    /// Expression used to filter received messages.
+    /// Message filtering predicate.
     ///
-    /// Expression used to filter received messages before they are delivered
-    /// to the client.
+    /// The [`PubNub`] network can filter out messages published with `meta`
+    /// before they reach subscribers using these filtering expressions, which
+    /// are based on the definition of the [`filter language`].
+    ///
+    /// [`PubNub`]:https://www.pubnub.com/
+    /// [`filter language`]: https://www.pubnub.com/docs/general/messages/publish#filter-language-definition
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(strip_option, into),
@@ -113,35 +113,11 @@ where
     pub(in crate::dx::subscribe) filter_expression: Option<String>,
 }
 
-/// [`RawSubscriptionWithDeserializerBuilder`] is used to configure a subscription
-/// listener with a custom deserializer.
-pub struct RawSubscriptionWithDeserializerBuilder<T> {
-    /// Subscription module configuration.
-    pub(in crate::dx::subscribe) client: PubNubClientInstance<T>,
-}
-
-impl<T> RawSubscriptionWithDeserializerBuilder<T> {
-    /// Create a new [`RawSubscriptionWithDeserializerBuilder`] instance.
-    pub fn deserialize_with<D>(self, deserializer: D) -> RawSubscriptionBuilder<D, T>
-    where
-        D: Deserializer<SubscribeResponseBody>,
-    {
-        RawSubscriptionBuilder {
-            pubnub_client: Some(self.client),
-            deserializer: Some(Arc::new(deserializer)),
-            ..Default::default()
-        }
-    }
-}
-
-impl<D, T> RawSubscriptionBuilder<D, T>
-where
-    D: Deserializer<SubscribeResponseBody>,
-{
+impl<T, D> RawSubscriptionBuilder<T, D> {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
-    /// request instance.
+    /// subscribe request instance.
     fn validate(&self) -> Result<(), String> {
         let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
         let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());
@@ -154,10 +130,10 @@ where
     }
 }
 
-impl<D, T> RawSubscriptionBuilder<D, T>
+impl<T, D> RawSubscriptionBuilder<T, D>
 where
-    D: Deserializer<SubscribeResponseBody>,
     T: Transport,
+    D: Deserializer,
 {
     /// Build [`RawSubscription`] instance.
     ///
@@ -166,7 +142,7 @@ where
     ///
     /// It creates a subscription object that can be used to get messages from
     /// PubNub.
-    pub fn execute(self) -> Result<RawSubscription<D, T>, PubNubError> {
+    pub fn execute(self) -> Result<RawSubscription<T, D>, PubNubError> {
         self.build_internal()
             .map_err(|e| PubNubError::SubscribeInitialization {
                 details: e.to_string(),
@@ -174,9 +150,8 @@ where
     }
 }
 
-impl<D, T> RawSubscriptionBuilder<D, T>
+impl<T, D> RawSubscriptionBuilder<T, D>
 where
-    D: Deserializer<SubscribeResponseBody>,
     T: blocking::Transport,
 {
     /// Build [`RawSubscription`] instance.
@@ -186,7 +161,7 @@ where
     ///
     /// It creates a subscription object that can be used to get messages from
     /// PubNub.
-    pub fn execute_blocking(self) -> Result<RawSubscription<D, T>, PubNubError> {
+    pub fn execute_blocking(self) -> Result<RawSubscription<T, D>, PubNubError> {
         self.build_internal()
             .map_err(|e| PubNubError::SubscribeInitialization {
                 details: e.to_string(),
@@ -194,10 +169,10 @@ where
     }
 }
 
-impl<D, T> RawSubscription<D, T>
+impl<T, D> RawSubscription<T, D>
 where
-    D: Deserializer<SubscribeResponseBody>,
     T: Transport + 'static,
+    D: Deserializer + 'static,
 {
     /// Creates subscription stream.
     ///
@@ -238,9 +213,7 @@ where
                     request = request.filter_expression(filter_expr);
                 }
 
-                let deserializer = ctx.subscription.deserializer.clone();
-
-                let response = request.execute(deserializer).await;
+                let response = request.execute().await;
 
                 if let Err(e) = response {
                     return Some((
@@ -260,9 +233,8 @@ where
     }
 }
 
-impl<D, T> RawSubscription<D, T>
+impl<T, D> RawSubscription<T, D>
 where
-    D: Deserializer<SubscribeResponseBody>,
     T: blocking::Transport,
 {
     /// Creates subscription iterator.
@@ -271,7 +243,7 @@ where
     /// blocking iterator over messages received from PubNub.
     ///
     /// It loops the subscribe calls and iterator over messages from PubNub.
-    pub fn iter(self) -> RawSubscriptionIter<D, T> {
+    pub fn iter(self) -> RawSubscriptionIter<T, D> {
         let cursor = self
             .cursor
             .map(|tt| SubscribeCursor {
@@ -290,10 +262,10 @@ where
     }
 }
 
-impl<D, T> Iterator for RawSubscriptionIter<D, T>
+impl<T, D> Iterator for RawSubscriptionIter<T, D>
 where
-    D: Deserializer<SubscribeResponseBody>,
     T: blocking::Transport,
+    D: Deserializer + 'static,
 {
     type Item = Result<Update, PubNubError>;
 
@@ -317,9 +289,7 @@ where
                 request = request.filter_expression(filter_expr);
             }
 
-            let deserializer = ctx.subscription.deserializer.clone();
-
-            let response = request.execute_blocking(deserializer);
+            let response = request.execute_blocking();
 
             if let Err(e) = response {
                 return Some(Err(PubNubError::general_api_error(
@@ -350,11 +320,8 @@ where
     }
 }
 
-struct SubscriptionContext<D, T>
-where
-    D: Deserializer<SubscribeResponseBody>,
-{
-    subscription: RawSubscription<D, T>,
+struct SubscriptionContext<T, D> {
+    subscription: RawSubscription<T, D>,
     cursor: SubscribeCursor,
     messages: VecDeque<Result<Update, PubNubError>>,
 }
@@ -364,32 +331,17 @@ where
 /// This iterator is returned by [`RawSubscription::iter`] method.
 /// It loops the subscribe calls and iterator over messages from PubNub.
 /// It can be used to get messages from PubNub.
-pub struct RawSubscriptionIter<D, T>(SubscriptionContext<D, T>)
-where
-    D: Deserializer<SubscribeResponseBody>;
+pub struct RawSubscriptionIter<T, D>(SubscriptionContext<T, D>);
 
 #[cfg(test)]
 mod should {
     use super::*;
     use crate::{
-        core::{
-            blocking, Deserializer, PubNubError, Transport, TransportRequest, TransportResponse,
-        },
-        dx::subscribe::{result::APISuccessBody, SubscribeResponseBody},
+        core::{blocking, PubNubError, Transport, TransportRequest, TransportResponse},
+        providers::deserialization_serde::DeserializerSerde,
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };
-
-    struct MockDeserializer;
-
-    impl Deserializer<SubscribeResponseBody> for MockDeserializer {
-        fn deserialize(&self, _body: &[u8]) -> Result<SubscribeResponseBody, PubNubError> {
-            Ok(SubscribeResponseBody::SuccessResponse(APISuccessBody {
-                cursor: Default::default(),
-                messages: Default::default(),
-            }))
-        }
-    }
 
     struct MockTransport;
 
@@ -410,7 +362,7 @@ mod should {
         }
     }
 
-    fn client() -> PubNubClientInstance<PubNubMiddleware<MockTransport>> {
+    fn client() -> PubNubClientInstance<PubNubMiddleware<MockTransport>, DeserializerSerde> {
         PubNubClientBuilder::with_transport(MockTransport)
             .with_keyset(Keyset {
                 subscribe_key: "demo",
@@ -422,10 +374,9 @@ mod should {
             .unwrap()
     }
 
-    fn sut() -> RawSubscriptionBuilder<MockDeserializer, PubNubMiddleware<MockTransport>> {
+    fn sut() -> RawSubscriptionBuilder<PubNubMiddleware<MockTransport>, DeserializerSerde> {
         RawSubscriptionBuilder {
             pubnub_client: Some(client()),
-            deserializer: Some(Arc::new(MockDeserializer)),
             ..Default::default()
         }
     }

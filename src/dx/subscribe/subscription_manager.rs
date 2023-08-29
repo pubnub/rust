@@ -3,14 +3,17 @@
 //! This module contains manager which is responsible for tracking and updating
 //! active subscription streams.
 
-use super::event_engine::SubscribeEvent;
-use crate::subscribe::SubscribeCursor;
 use crate::{
     dx::subscribe::{
-        event_engine::SubscribeEventEngine, result::Update, subscription::Subscription,
-        SubscribeStatus,
+        event_engine::{event::SubscribeEvent, SubscribeEventEngine, SubscribeInput},
+        result::Update,
+        subscription::Subscription,
+        SubscribeCursor, SubscribeStatus,
     },
-    lib::alloc::{sync::Arc, vec::Vec},
+    lib::{
+        alloc::{sync::Arc, vec::Vec},
+        core::ops::{Deref, DerefMut},
+    },
 };
 
 /// Active subscriptions manager.
@@ -24,10 +27,58 @@ use crate::{
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct SubscriptionManager {
+    pub(crate) inner: Arc<SubscriptionManagerRef>,
+}
+
+#[allow(dead_code)]
+impl SubscriptionManager {
+    pub fn new(event_engine: Arc<SubscribeEventEngine>) -> Self {
+        Self {
+            inner: Arc::new(SubscriptionManagerRef {
+                event_engine,
+                subscribers: Default::default(),
+            }),
+        }
+    }
+}
+
+impl Deref for SubscriptionManager {
+    type Target = SubscriptionManagerRef;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for SubscriptionManager {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.inner).expect("Presence configuration is not unique.")
+    }
+}
+
+impl Clone for SubscriptionManager {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+/// Active subscriptions manager.
+///
+/// [`PubNubClient`] allows to have multiple [`subscription`] objects which will
+/// be used to deliver real-time updates on channels and groups specified during
+/// [`subscribe`] method call.
+///
+/// [`subscription`]: crate::Subscription
+/// [`PubNubClient`]: crate::PubNubClient
+#[derive(Debug)]
+#[allow(dead_code)]
+pub(crate) struct SubscriptionManagerRef {
     /// Subscription event engine.
     ///
     /// State machine which is responsible for subscription loop maintenance.
-    subscribe_event_engine: Arc<SubscribeEventEngine>,
+    event_engine: Arc<SubscribeEventEngine>,
 
     /// List of registered subscribers.
     ///
@@ -35,15 +86,7 @@ pub(crate) struct SubscriptionManager {
     subscribers: Vec<Subscription>,
 }
 
-#[allow(dead_code)]
-impl SubscriptionManager {
-    pub fn new(subscribe_event_engine: Arc<SubscribeEventEngine>) -> Self {
-        Self {
-            subscribe_event_engine,
-            subscribers: Default::default(),
-        }
-    }
-
+impl SubscriptionManagerRef {
     pub fn notify_new_status(&self, status: &SubscribeStatus) {
         self.subscribers.iter().for_each(|subscription| {
             subscription.handle_status(status.clone());
@@ -80,46 +123,34 @@ impl SubscriptionManager {
     }
 
     fn change_subscription(&self) {
-        let channels = self
-            .subscribers
-            .iter()
-            .flat_map(|val| val.channels.iter())
-            .cloned()
-            .collect::<Vec<_>>();
+        let inputs = self.subscribers.iter().fold(
+            SubscribeInput::new(&None, &None),
+            |mut input, subscription| {
+                input += subscription.input.clone();
+                input
+            },
+        );
 
-        let channel_groups = self
-            .subscribers
-            .iter()
-            .flat_map(|val| val.channel_groups.iter())
-            .cloned()
-            .collect::<Vec<_>>();
-
-        self.subscribe_event_engine
+        self.event_engine
             .process(&SubscribeEvent::SubscriptionChanged {
-                channels: (!channels.is_empty()).then_some(channels),
-                channel_groups: (!channel_groups.is_empty()).then_some(channel_groups),
+                channels: inputs.channels(),
+                channel_groups: inputs.channel_groups(),
             });
     }
 
     fn restore_subscription(&self, cursor: u64) {
-        let channels = self
-            .subscribers
-            .iter()
-            .flat_map(|val| val.channels.iter())
-            .cloned()
-            .collect::<Vec<_>>();
+        let inputs = self.subscribers.iter().fold(
+            SubscribeInput::new(&None, &None),
+            |mut input, subscription| {
+                input += subscription.input.clone();
+                input
+            },
+        );
 
-        let channel_groups = self
-            .subscribers
-            .iter()
-            .flat_map(|val| val.channel_groups.iter())
-            .cloned()
-            .collect::<Vec<_>>();
-
-        self.subscribe_event_engine
+        self.event_engine
             .process(&SubscribeEvent::SubscriptionRestored {
-                channels: (!channels.is_empty()).then_some(channels),
-                channel_groups: (!channel_groups.is_empty()).then_some(channel_groups),
+                channels: inputs.channels(),
+                channel_groups: inputs.channel_groups(),
                 cursor: SubscribeCursor {
                     timetoken: cursor.to_string(),
                     region: 0,
@@ -138,10 +169,9 @@ mod should {
             result::SubscribeResult,
             subscription::SubscriptionBuilder,
             types::Message,
-            SubscriptionConfiguration, SubscriptionConfigurationRef,
         },
         lib::alloc::sync::Arc,
-        providers::futures_tokio::TokioRuntime,
+        providers::futures_tokio::RuntimeTokio,
     };
     use spin::RwLock;
 
@@ -169,7 +199,7 @@ mod should {
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,
-            TokioRuntime,
+            RuntimeTokio,
         )
     }
 
@@ -179,12 +209,7 @@ mod should {
         let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
-                inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: dummy_manager,
-                    deserializer: None,
-                }),
-            })))),
+            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
             ..Default::default()
         }
         .channels(["test".into()])
@@ -202,12 +227,7 @@ mod should {
         let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
-                inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: dummy_manager,
-                    deserializer: None,
-                }),
-            })))),
+            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
             ..Default::default()
         }
         .channels(["test".into()])
@@ -226,12 +246,7 @@ mod should {
         let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
-                inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: dummy_manager,
-                    deserializer: None,
-                }),
-            })))),
+            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
             ..Default::default()
         }
         .channels(["test".into()])
@@ -260,12 +275,7 @@ mod should {
         let dummy_manager = SubscriptionManager::new(event_engine());
 
         let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(SubscriptionConfiguration {
-                inner: Arc::new(SubscriptionConfigurationRef {
-                    subscription_manager: dummy_manager,
-                    deserializer: None,
-                }),
-            })))),
+            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
             ..Default::default()
         }
         .channels(["test".into()])

@@ -1,7 +1,9 @@
 //! PubNub middleware module.
 //!
-//! This module contains the middleware that is used to add the required query parameters to the requests.
-//! The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and `requestid` query parameters to the requests.
+//! This module contains the middleware that is used to add the required query
+//! parameters to the requests.
+//! The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and
+//! `requestid` query parameters to the requests.
 
 #[cfg(feature = "std")]
 use crate::{
@@ -36,7 +38,8 @@ use uuid::Uuid;
 /// PubNub middleware.
 ///
 /// This middleware is used to add the required query parameters to the requests.
-/// The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and `requestid` query parameters to the requests.
+/// The middleware is used to add the `pnsdk`, `uuid`, `instanceid` and
+/// `requestid` query parameters to the requests.
 ///
 /// The `pnsdk` query parameter is used to identify the SDK that is used to make the request.
 /// The `uuid` query parameter is used to identify the user that is making the request.
@@ -126,7 +129,8 @@ impl<T> PubNubMiddleware<T> {
         req.query_parameters
             .insert("pnsdk".into(), format!("{}/{}", SDK_ID, PKG_VERSION));
         req.query_parameters
-            .insert("uuid".into(), self.user_id.as_ref().into());
+            .entry("uuid".into())
+            .or_insert(self.user_id.as_ref().into());
 
         if let Some(instance_id) = self.instance_id.as_deref() {
             req.query_parameters

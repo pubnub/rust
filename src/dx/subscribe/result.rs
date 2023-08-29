@@ -5,7 +5,7 @@
 //! operation.
 
 use crate::{
-    core::{APIErrorBody, PubNubError, ScalarValue},
+    core::{service_response::APIErrorBody, PubNubError, ScalarValue},
     dx::subscribe::{
         types::Message,
         File, MessageAction, Object, Presence, {SubscribeCursor, SubscribeMessageType},
@@ -59,7 +59,8 @@ pub enum Update {
     /// * `leave` – some user left channel
     /// * `timeout` – service didn't notice user for a while
     /// * `interval` – bulk update on `joined`, `left` and `timeout` users.
-    /// * `state-change` - some user changed state associated with him on channel.
+    /// * `state-change` - some user changed state associated with him on
+    ///   channel.
     Presence(Presence),
 
     /// Object real-time update.
@@ -285,7 +286,8 @@ pub enum EnvelopePayload {
     /// * `leave` – some user left channel
     /// * `timeout` – service didn't notice user for a while
     /// * `interval` – bulk update on `joined`, `left` and `timeout` users.
-    /// * `state-change` - some user changed state associated with him on channel.
+    /// * `state-change` - some user changed state associated with him on
+    ///   channel.
     Presence {
         /// Presence event type.
         action: Option<String>,

@@ -13,11 +13,13 @@
 pub use error::PubNubError;
 pub mod error;
 
-#[cfg(any(feature = "publish", feature = "access"))]
-#[doc(inline)]
-pub(crate) use error_response::APIErrorBody;
-#[cfg(any(feature = "publish", feature = "access"))]
-pub(crate) mod error_response;
+#[cfg(any(
+    feature = "publish",
+    feature = "access",
+    feature = "subscribe",
+    feature = "presence"
+))]
+pub(crate) mod service_response;
 
 #[cfg(feature = "blocking")]
 #[doc(inline)]

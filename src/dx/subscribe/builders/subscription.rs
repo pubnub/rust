@@ -4,12 +4,15 @@
 //! PubNub. It is responsible for handshake and receiving messages.
 //! It is also responsible for delivering messages to the user.
 
+use derive_builder::Builder;
+use futures::Stream;
+use spin::RwLock;
+use uuid::Uuid;
+
+use crate::subscribe::event_engine::SubscribeInput;
 use crate::{
-    core::{Deserializer, PubNubError},
-    dx::subscribe::{
-        result::Update, types::SubscribeStreamEvent, SubscribeResponseBody, SubscribeStatus,
-        SubscriptionConfiguration,
-    },
+    core::PubNubError,
+    dx::subscribe::{result::Update, types::SubscribeStreamEvent, SubscribeStatus},
     lib::{
         alloc::{
             collections::VecDeque,
@@ -24,18 +27,17 @@ use crate::{
             task::{Context, Poll, Waker},
         },
     },
+    subscribe::SubscriptionManager,
 };
-use derive_builder::Builder;
-use futures::Stream;
-use spin::RwLock;
-use uuid::Uuid;
 
 /// Subscription stream.
 ///
 /// Stream delivers changes in subscription status:
 /// * `connected` - client connected to real-time [`PubNub`] network.
-/// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
-/// * `connection error` - client was unable to subscribe to specified channels and groups
+/// * `disconnected` - client has been disconnected from real-time [`PubNub`]
+///   network.
+/// * `connection error` - client was unable to subscribe to specified channels
+///   and groups
 ///
 /// and regular messages / signals.
 ///
@@ -71,8 +73,10 @@ impl<D> Clone for SubscriptionStream<D> {
 ///
 /// Stream delivers changes in subscription status:
 /// * `connected` - client connected to real-time [`PubNub`] network.
-/// * `disconnected` - client has been disconnected from real-time [`PubNub`] network.
-/// * `connection error` - client was unable to subscribe to specified channels and groups
+/// * `disconnected` - client has been disconnected from real-time [`PubNub`]
+///   network.
+/// * `connection error` - client was unable to subscribe to specified channels
+///   and groups
 ///
 /// and regular messages / signals.
 ///
@@ -139,29 +143,19 @@ pub struct SubscriptionRef {
         field(vis = "pub(in crate::dx::subscribe)"),
         setter(custom, strip_option)
     )]
-    pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
+    pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionManager>>>,
 
-    /// Channels from which real-time updates should be received.
+    /// User input with channels and groups.
     ///
-    /// List of channels on which [`PubNubClient`] will subscribe and notify
-    /// about received real-time updates.
+    /// Object contains list of channels and channel groups on which
+    /// [`PubNubClient`] will subscribe and notify about received real-time
+    /// updates.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
-        setter(into, strip_option),
-        default = "Vec::new()"
+        setter(custom),
+        default = "SubscribeInput::new(&None, &None)"
     )]
-    pub(in crate::dx::subscribe) channels: Vec<String>,
-
-    /// Channel groups from which real-time updates should be received.
-    ///
-    /// List of groups of channels on which [`PubNubClient`] will subscribe and
-    /// notify about received real-time updates.
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        setter(into, strip_option),
-        default = "Vec::new()"
-    )]
-    pub(in crate::dx::subscribe) channel_groups: Vec<String>,
+    pub(in crate::dx::subscribe) input: SubscribeInput,
 
     /// Time cursor.
     ///
@@ -242,27 +236,57 @@ pub struct SubscriptionRef {
     pub(in crate::dx::subscribe) status_stream: RwLock<Option<SubscriptionStream<SubscribeStatus>>>,
 }
 
-/// [`SubscriptionWithDeserializerBuilder`] is used to configure a subscription
-/// listener with a custom deserializer.
-pub struct SubscriptionWithDeserializerBuilder {
-    /// Subscription module configuration.
-    pub(in crate::dx::subscribe) subscription: Arc<RwLock<Option<SubscriptionConfiguration>>>,
-}
-
 impl SubscriptionBuilder {
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
     /// request instance.
     fn validate(&self) -> Result<(), String> {
-        let groups_len = self.channel_groups.as_ref().map_or_else(|| 0, |v| v.len());
-        let channels_len = self.channels.as_ref().map_or_else(|| 0, |v| v.len());
+        let input = self
+            .input
+            .as_ref()
+            .unwrap_or_else(|| panic!("Subscription input should be set by default"));
 
-        if channels_len == groups_len && channels_len == 0 {
-            Err("Either channels or channel groups should be provided".into())
-        } else {
-            Ok(())
+        if input.is_empty {
+            return Err("Either channels or channel groups should be provided".into());
         }
+
+        Ok(())
+    }
+    /// Channels from which real-time updates should be received.
+    ///
+    /// List of channels on which [`PubNubClient`] will subscribe and notify
+    /// about received real-time updates.
+    pub fn channels<L>(mut self, channels: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let user_input = SubscribeInput::new(&Some(channels.into()), &None);
+        if let Some(input) = self.input {
+            self.input = Some(input + user_input)
+        } else {
+            self.input = Some(user_input);
+        }
+
+        self
+    }
+
+    /// Channel groups from which real-time updates should be received.
+    ///
+    /// List of groups of channels on which [`PubNubClient`] will subscribe and
+    /// notify about received real-time updates.
+    pub fn channel_groups<L>(mut self, channel_groups: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let user_input = SubscribeInput::new(&None, &Some(channel_groups.into()));
+        if let Some(input) = self.input {
+            self.input = Some(input + user_input)
+        } else {
+            self.input = Some(user_input);
+        }
+
+        self
     }
 }
 
@@ -275,7 +299,7 @@ impl SubscriptionBuilder {
             })
             .map(|subscription| {
                 if let Some(manager) = subscription.subscription.write().as_mut() {
-                    manager.subscription_manager.register(subscription.clone())
+                    manager.register(subscription.clone())
                 }
                 subscription
             })
@@ -285,38 +309,12 @@ impl SubscriptionBuilder {
     }
 }
 
-impl SubscriptionWithDeserializerBuilder {
-    /// Add custom deserializer.
-    ///
-    /// Adds the deserializer to the [`SubscriptionBuilder`].
-    ///
-    /// Instance of [`SubscriptionBuilder`] returned.
-    pub fn deserialize_with<D>(self, deserializer: D) -> SubscriptionBuilder
-    where
-        D: Deserializer<SubscribeResponseBody> + 'static,
-    {
-        {
-            if let Some(subscription) = self.subscription.write().as_mut() {
-                subscription
-                    .deserializer
-                    .is_none()
-                    .then(|| subscription.deserializer = Some(Arc::new(deserializer)));
-            }
-        }
-
-        SubscriptionBuilder {
-            subscription: Some(self.subscription),
-            ..Default::default()
-        }
-    }
-}
-
 impl Debug for SubscriptionRef {
     fn fmt(&self, f: &mut Formatter<'_>) -> crate::lib::core::fmt::Result {
         write!(
             f,
             "Subscription {{ \nchannels: {:?}, \nchannel-groups: {:?}, \ncursor: {:?}, \nheartbeat: {:?}, \nfilter_expression: {:?}}}",
-            self.channels, self.channel_groups, self.cursor, self.heartbeat, self.filter_expression
+            self.input.channels(), self.input.channel_groups(), self.cursor, self.heartbeat, self.filter_expression
         )
     }
 }
@@ -332,7 +330,7 @@ impl Subscription {
     /// ```
     pub async fn unsubscribe(self) {
         if let Some(manager) = self.subscription.write().as_mut() {
-            manager.subscription_manager.unregister(self.clone())
+            manager.unregister(self.clone())
         }
     }
 
@@ -462,7 +460,7 @@ impl Subscription {
             if let Some(stream) = stream.clone() {
                 let mut updates_slot = stream.updates.write();
                 let updates_len = updates_slot.len();
-                updates_slot.extend(messages.into_iter());
+                updates_slot.extend(messages);
                 updates_slot
                     .len()
                     .ne(&updates_len)
@@ -504,17 +502,15 @@ impl Subscription {
     }
 
     fn subscribed_for_update(&self, update: &Update) -> bool {
-        self.channels.contains(&update.channel())
-            || update
-                .channel_group()
-                .is_some_and(|g| self.channel_groups.contains(&g))
+        self.input.contains_channel(&update.channel())
+            || self.input.contains_channel_group(&update.channel_group())
     }
 }
 
 impl<D> SubscriptionStream<D> {
     fn new(updates: VecDeque<D>) -> Self {
         let mut stream_updates = VecDeque::with_capacity(100);
-        stream_updates.extend(updates.into_iter());
+        stream_updates.extend(updates);
 
         Self {
             inner: Arc::new(SubscriptionStreamRef {

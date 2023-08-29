@@ -30,8 +30,8 @@ use crate::core::PubNubError;
 ///
 /// struct MyDeserializer;
 ///
-/// impl Deserializer<PublishResult> for MyDeserializer {
-///    fn deserialize(&self, bytes: &[u8]) -> Result<PublishResult, PubNubError> {
+/// impl Deserializer for MyDeserializer {
+///    fn deserialize<PublishResult>(&self, bytes: &[u8]) -> Result<PublishResult, PubNubError> {
 ///         // ...
 ///         # unimplemented!()
 ///    }
@@ -42,7 +42,7 @@ use crate::core::PubNubError;
 /// [`PublishResponseBody`]: ../../dx/publish/result/enum.PublishResponseBody.html
 /// [`GrantTokenResponseBody`]: ../../dx/access/result/enum.GrantTokenResponseBody.html
 /// [`RevokeTokenResponseBody`]: ../../dx/access/result/enum.RevokeTokenResponseBody.html
-pub trait Deserializer<T>: Send + Sync {
+pub trait Deserializer: Send + Sync {
     /// Deserialize a `&Vec<u8>` into a `Result<T, PubNubError>`.
     ///
     /// # Errors
@@ -51,5 +51,21 @@ pub trait Deserializer<T>: Send + Sync {
     /// deserialization fails.
     ///
     /// [`PubNubError::DeserializationError`]: ../enum.PubNubError.html#variant.DeserializationError
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, PubNubError>;
+    #[cfg(not(feature = "serde"))]
+    fn deserialize<T>(&self, bytes: &[u8]) -> Result<T, PubNubError>
+    where
+        T: for<'de> crate::core::Deserialize<'de>;
+
+    /// Deserialize a `&Vec<u8>` into a `Result<T, PubNubError>`.
+    ///
+    /// # Errors
+    ///
+    /// This method should return [`PubNubError::DeserializationError`] if the
+    /// deserialization fails.
+    ///
+    /// [`PubNubError::DeserializationError`]: ../enum.PubNubError.html#variant.DeserializationError
+    #[cfg(feature = "serde")]
+    fn deserialize<T>(&self, bytes: &[u8]) -> Result<T, PubNubError>
+    where
+        T: for<'de> serde::Deserialize<'de>;
 }

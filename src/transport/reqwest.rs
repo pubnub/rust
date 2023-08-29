@@ -1,8 +1,8 @@
 //! # Reqwest Transport Implementation
 //!
 //! This module contains the [`TransportReqwest`] struct.
-//! It is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
-//! It is intended to be used by the [`pubnub`] crate.
+//! It is used to send requests to the [`PubNub API`] using the [`reqwest`]
+//! crate. It is intended to be used by the [`pubnub`] crate.
 //!
 //! It requires the [`reqwest` feature] to be enabled.
 //!
@@ -11,6 +11,15 @@
 //! [`reqwest`]: https://docs.rs/reqwest
 //! [`pubnub`]: ../index.html
 //! [`reqwest` feature]: ../index.html#features
+
+#[cfg(any(
+    all(not(feature = "subscribe"), not(feature = "presence")),
+    not(feature = "std")
+))]
+use crate::dx::pubnub_client::PubNubClientDeserializerBuilder;
+
+#[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
+use crate::dx::pubnub_client::PubNubClientRuntimeBuilder;
 
 use crate::{
     core::{
@@ -34,9 +43,9 @@ use reqwest::{
     StatusCode,
 };
 
-/// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
-/// It is used as the transport type for the [`PubNubClient`].
-/// It is intended to be used by the [`pubnub`] crate.
+/// This struct is used to send requests to the [`PubNub API`] using the
+/// [`reqwest`] crate. It is used as the transport type for the
+/// [`PubNubClient`]. It is intended to be used by the [`pubnub`] crate.
 ///
 /// [`PubNubClient`]: ../../dx/pubnub_client/struct.PubNubClientInstance.html
 /// [`PubNub API`]: https://www.pubnub.com/docs
@@ -120,15 +129,14 @@ impl TransportReqwest {
     /// It is intended to be used by the [`pubnub`] crate.
     /// It is used by the [`PubNubClientBuilder`] to create a [`PubNubClient`].
     ///
-    /// It provides a default [`reqwest`] client using [`reqwest::Client::default()`]
-    /// and a default hostname of `https://ps.pndsn.com`.
+    /// It provides a default [`reqwest`] client using
+    /// [`reqwest::Client::default()`] and a default hostname of `https://ps.pndsn.com`.
     ///
     /// # Example
     /// ```
     /// use pubnub::transport::TransportReqwest;
     ///
     /// let transport = TransportReqwest::new();
-    ///
     /// ```
     ///
     /// [`PubNubClient`]: ../../dx/pubnub_client/struct.PubNubClientInstance.html
@@ -234,11 +242,12 @@ fn create_result(
     })
 }
 
-impl PubNubClientBuilder<TransportReqwest> {
-    /// Creates a new [`PubNubClientBuilder`] with the default [`TransportReqwest`] transport.
-    /// The default transport uses the [`reqwest`] crate to send requests to the [`PubNub API`].
-    /// The default hostname is `https://ps.pndsn.com`.
-    /// The default [`reqwest`] client is created using [`reqwest::Client::default()`].
+impl PubNubClientBuilder {
+    /// Creates a new [`PubNubClientBuilder`] with the default
+    /// [`TransportReqwest`] transport. The default transport uses the
+    /// [`reqwest`] crate to send requests to the [`PubNub API`]. The default hostname is `https://ps.pndsn.com`.
+    /// The default [`reqwest`] client is created using
+    /// [`reqwest::Client::default()`].
     ///
     /// # Examples
     /// ```
@@ -257,9 +266,43 @@ impl PubNubClientBuilder<TransportReqwest> {
     /// [`TransportReqwest`]: ./struct.TransportReqwest.html
     /// [`reqwest`]: https://docs.rs/reqwest
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn with_reqwest_transport() -> PubNubClientBuilder<TransportReqwest> {
-        PubNubClientBuilder {
-            transport: Some(TransportReqwest::new()),
+    #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
+    pub fn with_reqwest_transport() -> PubNubClientRuntimeBuilder<TransportReqwest> {
+        PubNubClientRuntimeBuilder {
+            transport: TransportReqwest::new(),
+        }
+    }
+
+    /// Creates a new [`PubNubClientBuilder`] with the default
+    /// [`TransportReqwest`] transport. The default transport uses the
+    /// [`reqwest`] crate to send requests to the [`PubNub API`]. The default hostname is `https://ps.pndsn.com`.
+    /// The default [`reqwest`] client is created using
+    /// [`reqwest::Client::default()`].
+    ///
+    /// # Examples
+    /// ```
+    /// use pubnub::{PubNubClientBuilder, Keyset};
+    ///
+    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    ///     .with_keyset(Keyset {
+    ///         subscribe_key: "sub-c-abc123",
+    ///         publish_key: Some("pub-c-abc123"),
+    ///         secret_key: None,
+    ///     })
+    ///     .with_user_id("user-123")
+    ///     .build();
+    /// ```
+    ///
+    /// [`TransportReqwest`]: ./struct.TransportReqwest.html
+    /// [`reqwest`]: https://docs.rs/reqwest
+    /// [`PubNub API`]: https://www.pubnub.com/docs
+    #[cfg(any(
+        all(not(feature = "subscribe"), not(feature = "presence")),
+        not(feature = "std")
+    ))]
+    pub fn with_reqwest_transport() -> PubNubClientDeserializerBuilder<TransportReqwest> {
+        PubNubClientDeserializerBuilder {
+            transport: TransportReqwest::new(),
         }
     }
 }
@@ -270,8 +313,8 @@ pub mod blocking {
     //! # Reqwest Transport Blocking Implementation
     //!
     //! This module contains the [`TransportReqwest`] struct.
-    //! It is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
-    //! It is intended to be used by the [`pubnub`] crate.
+    //! It is used to send requests to the [`PubNub API`] using the [`reqwest`]
+    //! crate. It is intended to be used by the [`pubnub`] crate.
     //!
     //! It requires the [`reqwest` and `blocking` feature] to be enabled.
     //!
@@ -281,9 +324,15 @@ pub mod blocking {
     //! [`pubnub`]: ../index.html
     //! [`reqwest` feature]: ../index.html#features
 
-    use log::info;
+    #[cfg(any(
+        all(not(feature = "subscribe"), not(feature = "presence")),
+        not(feature = "std")
+    ))]
+    use crate::dx::pubnub_client::PubNubClientDeserializerBuilder;
 
-    use crate::transport::reqwest::extract_headers;
+    #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
+    use crate::dx::pubnub_client::PubNubClientRuntimeBuilder;
+
     use crate::{
         core::{
             transport::PUBNUB_DEFAULT_BASE_URL, PubNubError, TransportMethod, TransportRequest,
@@ -293,13 +342,14 @@ pub mod blocking {
             boxed::Box,
             string::{String, ToString},
         },
-        transport::reqwest::{create_result, prepare_headers, prepare_url},
+        transport::reqwest::{create_result, extract_headers, prepare_headers, prepare_url},
         PubNubClientBuilder,
     };
+    use log::info;
 
-    /// This struct is used to send requests to the [`PubNub API`] using the [`reqwest`] crate.
-    /// It is used as the transport type for the [`PubNubClient`].
-    /// It is intended to be used by the [`pubnub`] crate.
+    /// This struct is used to send requests to the [`PubNub API`] using the
+    /// [`reqwest`] crate. It is used as the transport type for the
+    /// [`PubNubClient`]. It is intended to be used by the [`pubnub`] crate.
     ///
     /// It requires the [`reqwest` and `blocking` feature] to be enabled.
     ///
@@ -377,10 +427,11 @@ pub mod blocking {
         /// Create a new [`TransportReqwest`] instance.
         /// It is used as the transport type for the [`PubNubClient`].
         /// It is intended to be used by the [`pubnub`] crate.
-        /// It is used by the [`PubNubClientBuilder`] to create a [`PubNubClient`].
+        /// It is used by the [`PubNubClientBuilder`] to create a
+        /// [`PubNubClient`].
         ///
-        /// It provides a default [`reqwest`] client using [`reqwest::Client::default()`]
-        /// and a default hostname of `https://ps.pndsn.com`.
+        /// It provides a default [`reqwest`] client using
+        /// [`reqwest::Client::default()`] and a default hostname of `https://ps.pndsn.com`.
         ///
         /// # Example
         /// ```
@@ -428,11 +479,12 @@ pub mod blocking {
         }
     }
 
-    impl PubNubClientBuilder<TransportReqwest> {
-        /// Creates a new [`PubNubClientBuilder`] with the default [`TransportReqwest`] transport.
-        /// The default transport uses the [`reqwest`] crate to send requests to the [`PubNub API`].
-        /// The default hostname is `https://ps.pndsn.com`.
-        /// The default [`reqwest`] client is created using [`reqwest::Client::default()`].
+    impl PubNubClientBuilder {
+        /// Creates a new [`PubNubClientBuilder`] with the default
+        /// [`TransportReqwest`] transport. The default transport uses
+        /// the [`reqwest`] crate to send requests to the [`PubNub API`]. The default hostname is `https://ps.pndsn.com`.
+        /// The default [`reqwest`] client is created using
+        /// [`reqwest::Client::default()`].
         ///
         /// # Examples
         /// ```
@@ -451,9 +503,44 @@ pub mod blocking {
         /// [`TransportReqwest`]: ./struct.TransportReqwest.html
         /// [`reqwest`]: https://docs.rs/reqwest
         /// [`PubNub API`]: https://www.pubnub.com/docs
-        pub fn with_reqwest_blocking_transport() -> PubNubClientBuilder<TransportReqwest> {
-            PubNubClientBuilder {
-                transport: Some(TransportReqwest::new()),
+        #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
+        pub fn with_reqwest_blocking_transport() -> PubNubClientRuntimeBuilder<TransportReqwest> {
+            PubNubClientRuntimeBuilder {
+                transport: TransportReqwest::new(),
+            }
+        }
+
+        /// Creates a new [`PubNubClientBuilder`] with the default
+        /// [`TransportReqwest`] transport. The default transport uses
+        /// the [`reqwest`] crate to send requests to the [`PubNub API`]. The default hostname is `https://ps.pndsn.com`.
+        /// The default [`reqwest`] client is created using
+        /// [`reqwest::Client::default()`].
+        ///
+        /// # Examples
+        /// ```
+        /// use pubnub::{PubNubClientBuilder, Keyset};
+        ///
+        /// let client = PubNubClientBuilder::with_reqwest_transport()
+        ///     .with_keyset(Keyset {
+        ///         subscribe_key: "sub-c-abc123",
+        ///         publish_key: Some("pub-c-abc123"),
+        ///         secret_key: None,
+        ///     })
+        ///     .with_user_id("user-123")
+        ///     .build();
+        /// ```
+        ///
+        /// [`TransportReqwest`]: ./struct.TransportReqwest.html
+        /// [`reqwest`]: https://docs.rs/reqwest
+        /// [`PubNub API`]: https://www.pubnub.com/docs
+        #[cfg(any(
+            all(not(feature = "subscribe"), not(feature = "presence")),
+            not(feature = "std")
+        ))]
+        pub fn with_reqwest_blocking_transport() -> PubNubClientDeserializerBuilder<TransportReqwest>
+        {
+            PubNubClientDeserializerBuilder {
+                transport: TransportReqwest::new(),
             }
         }
     }

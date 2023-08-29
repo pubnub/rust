@@ -1,28 +1,27 @@
-use crate::{
-    dx::subscribe::{
-        event_engine::{effects::SubscribeEffectExecutor, SubscribeEvent},
-        SubscriptionParams,
-    },
-    lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
-};
 use futures::TryFutureExt;
 use log::info;
 
+use crate::{
+    dx::subscribe::event_engine::{
+        effects::SubscribeEffectExecutor, SubscribeEvent, SubscribeInput, SubscriptionParams,
+    },
+    lib::alloc::{sync::Arc, vec, vec::Vec},
+};
+
 pub(super) async fn execute(
-    channels: &Option<Vec<String>>,
-    channel_groups: &Option<Vec<String>>,
+    input: &SubscribeInput,
     effect_id: &str,
     executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!(
         "Handshake for\nchannels: {:?}\nchannel groups: {:?}",
-        channels.as_ref().unwrap_or(&Vec::new()),
-        channel_groups.as_ref().unwrap_or(&Vec::new())
+        input.channels().unwrap_or(Vec::new()),
+        input.channel_groups().unwrap_or(Vec::new())
     );
 
     executor(SubscriptionParams {
-        channels,
-        channel_groups,
+        channels: &input.channels(),
+        channel_groups: &input.channel_groups(),
         cursor: None,
         attempt: 0,
         reason: None,
@@ -68,8 +67,10 @@ mod should {
         });
 
         let result = execute(
-            &Some(vec!["ch1".to_string()]),
-            &Some(vec!["cg1".to_string()]),
+            &SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
             "id",
             &mock_handshake_function,
         )
@@ -95,8 +96,10 @@ mod should {
         });
 
         let result = execute(
-            &Some(vec!["ch1".to_string()]),
-            &Some(vec!["cg1".to_string()]),
+            &SubscribeInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
             "id",
             &mock_handshake_function,
         )

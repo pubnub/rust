@@ -1,17 +1,23 @@
+//! # Subscribe event engine effect module.
+
+use async_channel::Sender;
+use futures::future::BoxFuture;
+
 use crate::{
     core::{event_engine::Effect, PubNubError, RequestRetryPolicy},
     dx::subscribe::{
-        event_engine::{SubscribeEffectInvocation, SubscribeEvent},
+        event_engine::{
+            types::{SubscribeInput, SubscriptionParams},
+            SubscribeEffectInvocation, SubscribeEvent,
+        },
         result::{SubscribeResult, Update},
-        SubscribeCursor, SubscribeStatus, SubscriptionParams,
+        SubscribeCursor, SubscribeStatus,
     },
     lib::{
         alloc::{boxed::Box, string::String, sync::Arc, vec::Vec},
         core::fmt::{Debug, Formatter},
     },
 };
-use async_channel::Sender;
-use futures::future::BoxFuture;
 
 mod emit_messages;
 mod emit_status;
@@ -33,17 +39,11 @@ pub(in crate::dx::subscribe) type EmitMessagesEffectExecutor = dyn Fn(Vec<Update
 pub(crate) enum SubscribeEffect {
     /// Initial subscribe effect invocation.
     Handshake {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which will be source of real-time updates after
-        /// initial subscription completion.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which will be source of real-time updates
-        /// after initial subscription completion.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and channel groups which will be
+        /// source of real-time updates after initial subscription completion.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///
@@ -64,17 +64,11 @@ pub(crate) enum SubscribeEffect {
 
     /// Retry initial subscribe effect invocation.
     HandshakeReconnect {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which has been used during recently failed initial
-        /// subscription.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which has been used during recently failed
-        /// initial subscription.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and channel groups which has been
+        /// used during recently failed initial subscription.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///
@@ -106,16 +100,11 @@ pub(crate) enum SubscribeEffect {
 
     /// Receive updates effect invocation.
     Receive {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels for which real-time updates will be delivered.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups for which real-time updates will be
-        /// delivered.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and channel groups for which
+        /// real-time updates will be delivered.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///
@@ -136,17 +125,11 @@ pub(crate) enum SubscribeEffect {
 
     /// Retry receive updates effect invocation.
     ReceiveReconnect {
-        /// Optional list of channels.
+        /// User input with channels and groups.
         ///
-        /// List of channels which has been used during recently failed receive
-        /// updates.
-        channels: Option<Vec<String>>,
-
-        /// Optional list of channel groups.
-        ///
-        /// List of channel groups which has been used during recently failed
-        /// receive updates.
-        channel_groups: Option<Vec<String>>,
+        /// Object contains list of channels and channel groups which has been
+        /// used during recently failed receive updates.
+        input: SubscribeInput,
 
         /// Time cursor.
         ///
@@ -202,51 +185,47 @@ pub(crate) enum SubscribeEffect {
 impl Debug for SubscribeEffect {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
-            SubscribeEffect::Handshake {
-                channels,
-                channel_groups,
-                ..
-            } => write!(
+            Self::Handshake { input, .. } => write!(
                 f,
-                "SubscribeEffect::Handshake {{ channels: {channels:?}, channel groups: \
-                {channel_groups:?} }}"
+                "SubscribeEffect::Handshake {{ channels: {:?}, channel groups: {:?} }}",
+                input.channels(),
+                input.channel_groups()
             ),
-            SubscribeEffect::HandshakeReconnect {
-                channels,
-                channel_groups,
+            Self::HandshakeReconnect {
+                input,
                 attempts,
                 reason,
                 ..
             } => write!(
                 f,
-                "SubscribeEffect::HandshakeReconnect {{ channels: {channels:?}, channel groups: \
-                {channel_groups:?}, attempts: {attempts:?}, reason: {reason:?} }}"
+                "SubscribeEffect::HandshakeReconnect {{ channels: {:?}, channel groups: {:?}, \
+                attempts: {attempts:?}, reason: {reason:?} }}",
+                input.channels(),
+                input.channel_groups()
             ),
-            SubscribeEffect::Receive {
-                channels,
-                channel_groups,
-                cursor,
-                ..
-            } => write!(
+            Self::Receive { input, cursor, .. } => write!(
                 f,
-                "SubscribeEffect::Receive {{ channels: {channels:?}, channel groups: \
-                {channel_groups:?}, cursor: {cursor:?} }}"
+                "SubscribeEffect::Receive {{ channels: {:?}, channel groups: {:?}, cursor: \
+                {cursor:?} }}",
+                input.channels(),
+                input.channel_groups()
             ),
-            SubscribeEffect::ReceiveReconnect {
-                channels,
-                channel_groups,
+            Self::ReceiveReconnect {
+                input,
                 attempts,
                 reason,
                 ..
             } => write!(
                 f,
-                "SubscribeEffect::ReceiveReconnect {{ channels: {channels:?}, channel groups: \
-                {channel_groups:?}, attempts: {attempts:?}, reason: {reason:?} }}"
+                "SubscribeEffect::ReceiveReconnect {{ channels: {:?}, channel groups: {:?}, \
+                attempts: {attempts:?}, reason: {reason:?} }}",
+                input.channels(),
+                input.channel_groups()
             ),
-            SubscribeEffect::EmitStatus { status, .. } => {
+            Self::EmitStatus { status, .. } => {
                 write!(f, "SubscribeEffect::EmitStatus {{ status: {status:?} }}")
             }
-            SubscribeEffect::EmitMessages { updates, .. } => {
+            Self::EmitMessages { updates, .. } => {
                 write!(
                     f,
                     "SubscribeEffect::EmitMessages {{ messages: {updates:?} }}"
@@ -262,26 +241,23 @@ impl Effect for SubscribeEffect {
 
     fn id(&self) -> String {
         match self {
-            SubscribeEffect::Handshake { .. } => "HANDSHAKE_EFFECT".into(),
-            SubscribeEffect::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT".into(),
-            SubscribeEffect::Receive { .. } => "RECEIVE_EFFECT".into(),
-            SubscribeEffect::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT".into(),
-            SubscribeEffect::EmitStatus { .. } => "EMIT_STATUS_EFFECT".into(),
-            SubscribeEffect::EmitMessages { .. } => "EMIT_MESSAGES_EFFECT".into(),
+            Self::Handshake { .. } => "HANDSHAKE_EFFECT",
+            Self::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT",
+            Self::Receive { .. } => "RECEIVE_EFFECT",
+            Self::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT",
+            Self::EmitStatus { .. } => "EMIT_STATUS_EFFECT",
+            Self::EmitMessages { .. } => "EMIT_MESSAGES_EFFECT",
         }
+        .into()
     }
 
     async fn run(&self) -> Vec<SubscribeEvent> {
         match self {
-            SubscribeEffect::Handshake {
-                channels,
-                channel_groups,
-                executor,
-                ..
-            } => handshake::execute(channels, channel_groups, &self.id(), executor).await,
-            SubscribeEffect::HandshakeReconnect {
-                channels,
-                channel_groups,
+            Self::Handshake {
+                input, executor, ..
+            } => handshake::execute(input, &self.id(), executor).await,
+            Self::HandshakeReconnect {
+                input,
                 attempts,
                 reason,
                 retry_policy,
@@ -289,8 +265,7 @@ impl Effect for SubscribeEffect {
                 ..
             } => {
                 handshake_reconnection::execute(
-                    channels,
-                    channel_groups,
+                    input,
                     *attempts,
                     reason.clone(), /* TODO: Does run function need to borrow self? Or we can
                                      * consume it? */
@@ -300,16 +275,14 @@ impl Effect for SubscribeEffect {
                 )
                 .await
             }
-            SubscribeEffect::Receive {
-                channels,
-                channel_groups,
+            Self::Receive {
+                input,
                 cursor,
                 executor,
                 ..
-            } => receive::execute(channels, channel_groups, cursor, &self.id(), executor).await,
-            SubscribeEffect::ReceiveReconnect {
-                channels,
-                channel_groups,
+            } => receive::execute(input, cursor, &self.id(), executor).await,
+            Self::ReceiveReconnect {
+                input,
                 cursor,
                 attempts,
                 reason,
@@ -318,8 +291,7 @@ impl Effect for SubscribeEffect {
                 ..
             } => {
                 receive_reconnection::execute(
-                    channels,
-                    channel_groups,
+                    input,
                     cursor,
                     *attempts,
                     reason.clone(), /* TODO: Does run function need to borrow self? Or we can
@@ -330,10 +302,10 @@ impl Effect for SubscribeEffect {
                 )
                 .await
             }
-            SubscribeEffect::EmitStatus { status, executor } => {
+            Self::EmitStatus { status, executor } => {
                 emit_status::execute(status.clone(), executor).await
             }
-            SubscribeEffect::EmitMessages { updates, executor } => {
+            Self::EmitMessages { updates, executor } => {
                 emit_messages::execute(updates.clone(), executor).await
             }
         }
@@ -341,19 +313,19 @@ impl Effect for SubscribeEffect {
 
     fn cancel(&self) {
         match self {
-            SubscribeEffect::Handshake {
+            Self::Handshake {
                 cancellation_channel,
                 ..
             }
-            | SubscribeEffect::HandshakeReconnect {
+            | Self::HandshakeReconnect {
                 cancellation_channel,
                 ..
             }
-            | SubscribeEffect::Receive {
+            | Self::Receive {
                 cancellation_channel,
                 ..
             }
-            | SubscribeEffect::ReceiveReconnect {
+            | Self::ReceiveReconnect {
                 cancellation_channel,
                 ..
             } => {
@@ -375,8 +347,7 @@ mod should {
         let (tx, rx) = async_channel::bounded(1);
 
         let effect = SubscribeEffect::Handshake {
-            channels: None,
-            channel_groups: None,
+            input: SubscribeInput::new(&None, &None),
             cursor: None,
             executor: Arc::new(|_| {
                 Box::pin(async move {

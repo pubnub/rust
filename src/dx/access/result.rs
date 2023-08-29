@@ -4,7 +4,10 @@
 //! The [`GrantTokenResult`] type is used to represent results of access token
 //! generation operation.
 
-use crate::core::{APIErrorBody, PubNubError};
+use crate::core::{
+    service_response::{APIErrorBody, APISuccessBody},
+    PubNubError,
+};
 use crate::lib::alloc::string::String;
 
 /// The result of a grant token operation.
@@ -139,17 +142,6 @@ pub struct GrantTokenResponseBodyPayload {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RevokeTokenResponseBodyPayload {
     message: String,
-}
-
-/// Content of successful PAMv3 REST API operation.
-///
-/// Body contains status code and `service` response specific to used endpoint.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct APISuccessBody<D> {
-    status: i32,
-    data: D,
-    service: String,
 }
 
 impl TryFrom<RevokeTokenResponseBody> for RevokeTokenResult {

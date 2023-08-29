@@ -1,94 +1,59 @@
-//! # Error response
+//! [`PubNub`] service response payload module.
 //!
-//! The module contains a result type that represents parsed service error
-//! responses for [`PubNubError`] consumption.
+//! This module contains [`APISuccessBody`], [`APISuccessBodyWithMessage`] and
+//! [`APIErrorBody`] types which represent result of [`PubNub`] network API
+//! endpoint call.
+//!
+//! [`PubNub`]:https://www.pubnub.com/
 
-use crate::core::PubNubError;
-use crate::lib::{
-    alloc::{
-        borrow::ToOwned,
-        format,
-        string::{String, ToString},
-        vec::Vec,
+use crate::{
+    core::PubNubError,
+    lib::{
+        alloc::{
+            borrow::ToOwned,
+            format,
+            string::{String, ToString},
+            vec::Vec,
+        },
+        collections::HashMap,
     },
-    collections::HashMap,
 };
 
-/// Implementation for [`APIError`] to create struct from service error response
-/// body.
-impl From<APIErrorBody> for PubNubError {
-    fn from(value: APIErrorBody) -> Self {
-        PubNubError::API {
-            status: value.status(),
-            message: value.message(),
-            service: value.service(),
-            affected_channels: value.affected_channels(),
-            affected_channel_groups: value.affected_channel_groups(),
-            response: None,
-        }
-    }
-}
-
-/// Additional error information struct.
+/// Result of successful REST API endpoint call.
 ///
-/// This structure used by [`AsObjectWithServiceAndErrorPayload`] to represent
-/// list of errors in response.
+/// Body contains status code, response `data` and `service` response specific
+/// to used endpoint.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ErrorObjectPayload {
-    /// The list of channels for which an error was reported.
-    channels: Option<Vec<String>>,
-
-    /// The list of channel groups for which an error was reported.
-    #[cfg_attr(feature = "serde", serde(rename = "channel-groups"))]
-    channel_groups: Option<Vec<String>>,
+pub struct APISuccessBody<D> {
+    pub status: i32,
+    pub data: D,
+    pub service: String,
 }
 
-/// Additional error information struct.
+/// Result of successful REST API endpoint call.
 ///
-/// This structure used by [`ErrorObjectWithDetails`] to represent list of
-/// errors in response.
+/// Body contains status code, `message, response `payload` and `service`
+/// response specific to used endpoint.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct ErrorObjectDetails {
-    /// A message explaining what went wrong.
-    message: String,
-
-    /// Which part of the request caused an issue.
-    location: String,
-
-    /// Type of issue reason.
-    #[cfg_attr(feature = "serde", serde(rename(deserialize = "locationType")))]
-    location_type: String,
+pub struct APISuccessBodyWithPayload<D> {
+    pub status: i32,
+    pub message: String,
+    pub payload: D,
+    pub service: String,
 }
 
-/// Error description.
+/// Result of successful REST API endpoint call.
 ///
-/// This structure used by [`AsObjectWithErrorObject`] to represent list of
-/// errors in response.
+/// Body contains status code, `message` and `service` response specific to used
+/// endpoint.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ErrorObject {
-    /// A message explaining what went wrong.
-    message: String,
-
-    /// Service / sub-system which reported an error.
-    source: String,
-}
-
-/// This structure used by [`APIErrorBody::AsObjectWithErrorObjectDetails`] to
-/// represent server error response.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ErrorObjectWithDetails {
-    /// A message explaining what went wrong.
-    message: String,
-
-    /// Service / sub-system which reported an error.
-    source: String,
-
-    /// Additional information about failure reasons.
-    details: Vec<ErrorObjectDetails>,
+pub struct APISuccessBodyWithMessage {
+    pub status: i32,
+    pub message: String,
+    pub service: String,
 }
 
 /// PubNub service error response.
@@ -301,6 +266,68 @@ pub enum APIErrorBody {
     },
 }
 
+/// Additional error information struct.
+///
+/// This structure used by [`AsObjectWithServiceAndErrorPayload`] to represent
+/// list of errors in response.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ErrorObjectPayload {
+    /// The list of channels for which an error was reported.
+    channels: Option<Vec<String>>,
+
+    /// The list of channel groups for which an error was reported.
+    #[cfg_attr(feature = "serde", serde(rename = "channel-groups"))]
+    channel_groups: Option<Vec<String>>,
+}
+
+/// Additional error information struct.
+///
+/// This structure used by [`ErrorObjectWithDetails`] to represent list of
+/// errors in response.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct ErrorObjectDetails {
+    /// A message explaining what went wrong.
+    message: String,
+
+    /// Which part of the request caused an issue.
+    location: String,
+
+    /// Type of issue reason.
+    #[cfg_attr(feature = "serde", serde(rename(deserialize = "locationType")))]
+    location_type: String,
+}
+
+/// Error description.
+///
+/// This structure used by [`AsObjectWithErrorObject`] to represent list of
+/// errors in response.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ErrorObject {
+    /// A message explaining what went wrong.
+    message: String,
+
+    /// Service / sub-system which reported an error.
+    source: String,
+}
+
+/// This structure used by [`APIErrorBody::AsObjectWithErrorObjectDetails`] to
+/// represent server error response.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ErrorObjectWithDetails {
+    /// A message explaining what went wrong.
+    message: String,
+
+    /// Service / sub-system which reported an error.
+    source: String,
+
+    /// Additional information about failure reasons.
+    details: Vec<ErrorObjectDetails>,
+}
+
 impl APIErrorBody {
     /// Retrieve status code from error body payload.
     fn status(&self) -> u16 {
@@ -395,6 +422,21 @@ impl APIErrorBody {
                 payload.channel_groups.clone()
             }
             _ => None,
+        }
+    }
+}
+
+/// Implementation for [`APIError`] to create struct from service error response
+/// body.
+impl From<APIErrorBody> for PubNubError {
+    fn from(value: APIErrorBody) -> Self {
+        PubNubError::API {
+            status: value.status(),
+            message: value.message(),
+            service: value.service(),
+            affected_channels: value.affected_channels(),
+            affected_channel_groups: value.affected_channel_groups(),
+            response: None,
         }
     }
 }

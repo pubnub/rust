@@ -73,7 +73,7 @@ where
                         log::debug!("Received invocation: {}", invocation.id());
 
                         let effect = cloned_self.dispatch(&invocation);
-                        let task_completition = completion.clone();
+                        let task_completion = completion.clone();
 
                         if let Some(effect) = effect {
                             log::debug!("Dispatched effect: {}", effect.id());
@@ -86,7 +86,7 @@ where
                                     cloned_self.remove_managed_effect(effect.id());
                                 }
 
-                                task_completition(events);
+                                task_completion(events);
                             });
                         }
                     }
@@ -260,7 +260,7 @@ mod should {
             "Non managed effects shouldn't be stored"
         );
 
-        assert!(effect.unwrap().id() == "EFFECT_ONE");
+        assert_eq!(effect.unwrap().id(), "EFFECT_ONE");
     }
 
     #[tokio::test]
@@ -275,7 +275,7 @@ mod should {
             "Managed effect should be removed on completion"
         );
 
-        assert!(effect.unwrap().id() == "EFFECT_TWO");
+        assert_eq!(effect.unwrap().id(), "EFFECT_TWO");
     }
 
     #[test]
@@ -283,7 +283,7 @@ mod should {
         let (_tx, rx) = async_channel::bounded::<TestInvocation>(5);
         let dispatcher = Arc::new(EffectDispatcher::new(TestEffectHandler {}, rx));
         dispatcher.dispatch(&TestInvocation::Three);
-        let cancelation_effect = dispatcher.dispatch(&TestInvocation::CancelThree);
+        let cancellation_effect = dispatcher.dispatch(&TestInvocation::CancelThree);
 
         assert_eq!(
             dispatcher.managed.read().len(),
@@ -291,6 +291,6 @@ mod should {
             "Managed effect should be cancelled"
         );
 
-        assert!(cancelation_effect.is_none());
+        assert!(cancellation_effect.is_none());
     }
 }
