@@ -213,6 +213,46 @@ impl<T, D> PubNubClientInstance<T, D> {
             ..Default::default()
         }
     }
+
+    /// Create a where now request builder.
+    ///
+    /// This method is used to get information about channels where `user_id`
+    /// is currently present.
+    ///
+    /// Instance of [`WhereNowRequestBuilder`] returned.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pubnub::presence::*;
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// # use std::collections::HashMap;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use std::sync::Arc;
+    /// let mut pubnub = // PubNubClient
+    /// #         PubNubClientBuilder::with_reqwest_transport()
+    /// #             .with_keyset(Keyset {
+    /// #                 subscribe_key: "demo",
+    /// #                 publish_key: None,
+    /// #                 secret_key: None,
+    /// #             })
+    /// #             .with_user_id("uuid")
+    /// #             .build()?;
+    /// let response = pubnub.where_now().user_id("user_id").execute().await?;
+
+    ///
+    /// println!("User channels: {:?}", response);
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn where_now(&self) -> WhereNowRequestBuilder<T, D> {
+        WhereNowRequestBuilder {
+            pubnub_client: Some(self.clone()),
+            ..Default::default()
+        }
+    }
 }
 
 impl<T, D> PubNubClientInstance<T, D>
