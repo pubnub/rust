@@ -303,7 +303,12 @@ pub enum EnvelopePayload {
         occupancy: Option<usize>,
 
         /// The user's state associated with the channel has been updated.
-        data: Option<String>,
+        #[cfg(feature = "serde")]
+        data: serde_json::Value,
+
+        /// The user's state associated with the channel has been updated.
+        #[cfg(not(feature = "serde"))]
+        data: Vec<u8>,
 
         /// The list of unique user identifiers that `joined` the channel since
         /// the last interval presence update.
@@ -539,25 +544,14 @@ impl Envelope {
 
 #[cfg(feature = "std")]
 impl Update {
-    /// Name of channel.
+    /// Name of subscription.
     ///
-    /// Name of channel at which update has been received.
-    pub(crate) fn channel(&self) -> String {
+    /// Name of channel or channel group on which client subscribed and through
+    /// which real-time update has been delivered.
+    pub(crate) fn subscription(&self) -> String {
         match self {
-            Update::Presence(presence) => presence.channel(),
-            Update::Object(object) => object.channel(),
-            Update::MessageAction(action) => action.channel.to_string(),
-            Update::File(file) => file.channel.to_string(),
-            Update::Message(message) | Update::Signal(message) => message.channel.to_string(),
-        }
-    }
-    /// Name of channel.
-    ///
-    /// Name of channel at which update has been received.
-    pub(crate) fn channel_group(&self) -> Option<String> {
-        match self {
-            Update::Presence(presence) => presence.channel_group(),
-            Update::Object(object) => object.channel_group(),
+            Update::Presence(presence) => presence.subscription(),
+            Update::Object(object) => object.subscription(),
             Update::MessageAction(action) => action.subscription.clone(),
             Update::File(file) => file.subscription.clone(),
             Update::Message(message) | Update::Signal(message) => message.subscription.clone(),

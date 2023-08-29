@@ -117,8 +117,6 @@ async fn receive_an_error_subscribe_retry(world: &mut PubNubWorld) {
         _ = subscription.next().fuse() => panic!("Message update from server")
     }
 
-    println!("~~~> {:?}", &world.retry_policy);
-
     let expected_retry_count: usize = usize::from(match &world.retry_policy.clone().unwrap() {
         RequestRetryPolicy::Linear { max_retry, .. }
         | RequestRetryPolicy::Exponential { max_retry, .. } => *max_retry,

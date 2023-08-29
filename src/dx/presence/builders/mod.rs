@@ -10,8 +10,8 @@ pub(crate) use heartbeat::HeartbeatRequestBuilder;
 pub(crate) mod heartbeat;
 
 #[doc(inline)]
-pub use set_state::{SetStateRequest, SetStateRequestBuilder};
-pub mod set_state;
+pub use set_presence_state::{SetStateRequest, SetStateRequestBuilder};
+pub mod set_presence_state;
 
 #[doc(inline)]
 pub(crate) use leave::LeaveRequestBuilder;

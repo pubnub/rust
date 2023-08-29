@@ -502,8 +502,8 @@ impl Subscription {
     }
 
     fn subscribed_for_update(&self, update: &Update) -> bool {
-        self.input.contains_channel(&update.channel())
-            || self.input.contains_channel_group(&update.channel_group())
+        let subscription = &update.subscription();
+        self.input.contains_channel(subscription) || self.input.contains_channel_group(subscription)
     }
 }
 

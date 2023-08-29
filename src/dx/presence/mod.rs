@@ -135,7 +135,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #             .with_user_id("uuid")
     /// #             .build()?;
     /// pubnub
-    ///     .set_state(HashMap::<String, bool>::from(
+    ///     .set_presence_state(HashMap::<String, bool>::from(
     ///          [("is_admin".into(), false)]
     ///      ))
     ///     .channels(["lobby".into(), "announce".into()])
@@ -145,7 +145,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn set_state<S>(&self, state: S) -> SetStateRequestBuilder<T, D>
+    pub fn set_presence_state<S>(&self, state: S) -> SetStateRequestBuilder<T, D>
     where
         S: Serialize + Send + Sync + 'static,
     {
