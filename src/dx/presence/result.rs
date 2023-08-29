@@ -480,7 +480,7 @@ pub struct HereNowResponseChannelIdentifier {
     pub occupancy: u32,
 
     /// List of users in channel.
-    pub uuids: Vec<HereNowResponseUserIdentifier>,
+    pub uuids: Option<Vec<HereNowResponseUserIdentifier>>,
 }
 
 /// Possible variants of user identifier in here now response.
@@ -491,6 +491,12 @@ pub struct HereNowResponseChannelIdentifier {
 pub enum HereNowResponseUserIdentifier {
     /// User identifier is a string.
     String(String),
+
+    /// User identifier is a map of uuids
+    Map {
+        /// User identifier.
+        uuid: String,
+    },
 
     /// User identifier is a map of channel names to their states.
     WithState {
@@ -519,20 +525,28 @@ impl TryFrom<HereNowResponseBody> for HereNowResult {
                     let occupants = single
                         .payload
                         .uuids
-                        .iter()
-                        .map(|uuid| match uuid {
-                            HereNowResponseUserIdentifier::String(uuid) => HereNowUser {
-                                user_id: uuid.clone(),
-                                state: None,
-                            },
-                            HereNowResponseUserIdentifier::WithState { uuid, state } => {
-                                HereNowUser {
-                                    user_id: uuid.clone(),
-                                    state: Some(state.clone()),
-                                }
-                            }
+                        .map(|maybe_uuids| {
+                            maybe_uuids
+                                .iter()
+                                .map(|uuid| match uuid {
+                                    HereNowResponseUserIdentifier::String(uuid) => HereNowUser {
+                                        user_id: uuid.clone(),
+                                        state: None,
+                                    },
+                                    HereNowResponseUserIdentifier::Map { uuid } => HereNowUser {
+                                        user_id: uuid.clone(),
+                                        state: None,
+                                    },
+                                    HereNowResponseUserIdentifier::WithState { uuid, state } => {
+                                        HereNowUser {
+                                            user_id: uuid.clone(),
+                                            state: Some(state.clone()),
+                                        }
+                                    }
+                                })
+                                .collect()
                         })
-                        .collect();
+                        .unwrap_or_default();
 
                     let channels = vec![HereNowChannel {
                         name: "".into(),
@@ -559,20 +573,33 @@ impl TryFrom<HereNowResponseBody> for HereNowResult {
 
                             let occupants = channel
                                 .uuids
-                                .into_iter()
-                                .map(|uuid| match uuid {
-                                    HereNowResponseUserIdentifier::String(uuid) => HereNowUser {
-                                        user_id: uuid.clone(),
-                                        state: None,
-                                    },
-                                    HereNowResponseUserIdentifier::WithState { uuid, state } => {
-                                        HereNowUser {
-                                            user_id: uuid.clone(),
-                                            state: Some(state.clone()),
-                                        }
-                                    }
+                                .map(|maybe_uuids| {
+                                    maybe_uuids
+                                        .into_iter()
+                                        .map(|uuid| match uuid {
+                                            HereNowResponseUserIdentifier::String(uuid) => {
+                                                HereNowUser {
+                                                    user_id: uuid.clone(),
+                                                    state: None,
+                                                }
+                                            }
+                                            HereNowResponseUserIdentifier::Map { uuid } => {
+                                                HereNowUser {
+                                                    user_id: uuid.clone(),
+                                                    state: None,
+                                                }
+                                            }
+                                            HereNowResponseUserIdentifier::WithState {
+                                                uuid,
+                                                state,
+                                            } => HereNowUser {
+                                                user_id: uuid.clone(),
+                                                state: Some(state.clone()),
+                                            },
+                                        })
+                                        .collect()
                                 })
-                                .collect();
+                                .unwrap_or_default();
 
                             HereNowChannel {
                                 name,

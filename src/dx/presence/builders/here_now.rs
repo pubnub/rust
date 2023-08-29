@@ -3,6 +3,8 @@
 //! The [`HereNowRequestBuilder`] lets you make and execute a Here Now request
 //! that will associate a user with a channel.
 
+use core::ops::Deref;
+
 use derive_builder::Builder;
 
 use crate::{
@@ -59,10 +61,6 @@ pub struct HereNowRequest<T, D> {
     )]
     pub(in crate::dx::presence) channel_groups: Vec<String>,
 
-    /// Identifier of the user for which to retrieve occupancy information.
-    #[builder(field(vis = "pub(in crate::dx::presence)"), setter(strip_option, into))]
-    pub(in crate::dx::presence) user_id: String,
-
     /// Whether to include UUIDs of users subscribed to the channel(s).
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
@@ -92,8 +90,6 @@ impl<T, D> HereNowRequestBuilder<T, D> {
         builders::validate_configuration(&self.pubnub_client).and_then(|_| {
             if channels_len == groups_len && channels_len == 0 {
                 Err("Either channels or channel groups should be provided".into())
-            } else if self.user_id.is_none() {
-                Err("User id is missing".into())
             } else {
                 Ok(())
             }
@@ -126,11 +122,15 @@ impl<T, D> HereNowRequest<T, D> {
             query.insert("disable_uuids".into(), "1".into());
         });
 
+        query.insert(
+            "uuid".into(),
+            self.pubnub_client.config.user_id.deref().clone(),
+        );
+
         Ok(TransportRequest {
             path: format!(
-                "/v2/presence/sub-key/{sub_key}/channel/{}/uuid/{}/data",
+                "/v2/presence/sub-key/{sub_key}/channel/{}",
                 url_encoded_channels(&self.channels),
-                url_encode_extended(self.user_id.as_bytes(), UrlEncodeExtension::NonChannelPath)
             ),
             query_parameters: query,
             method: TransportMethod::Get,
@@ -147,13 +147,27 @@ where
 {
     /// Build and call asynchronous request.
     pub async fn execute(self) -> Result<HereNowResult, PubNubError> {
+        let name_replacement = self
+            .channels
+            .as_ref()
+            .map(|channels| (channels.len() == 1).then(|| channels[0].clone()))
+            .flatten();
+
         let request = self.request()?;
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
             .send::<HereNowResponseBody, _, _, _>(&client.transport, deserializer)
             .await
+            .map(|mut result: HereNowResult| {
+                name_replacement.is_some().then(|| {
+                    result.channels[0].name = name_replacement.expect("Cannot be None");
+                });
+
+                result
+            })
     }
 }
 
