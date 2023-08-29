@@ -794,20 +794,15 @@ mod it_should {
         assert_eq!(result.total_channels, 1);
         assert_eq!(result.total_occupancy, 2);
         assert_eq!(result.len(), 1);
-        assert!(result.iter().find(|channel| channel.name == "").is_some());
+        assert!(result.iter().any(|channel| channel.name.is_empty()));
+        assert!(result.iter().any(|channel| channel.occupancy == 2));
         assert!(result
             .iter()
-            .find(|channel| channel.occupancy == 2)
-            .is_some());
+            .any(|channel| channel.occupants.first().unwrap().user_id == "Earline"));
         assert!(result
             .iter()
-            .find(|channel| channel.occupants.first().unwrap().user_id == "Earline")
-            .is_some());
-        assert!(result
-            .iter()
-            .find(|channel| channel.occupants.first().unwrap().state
-                == Some(json!({"channel1-state": ["channel-1-random-value"]})))
-            .is_some());
+            .any(|channel| channel.occupants.first().unwrap().state
+                == Some(json!({"channel1-state": ["channel-1-random-value"]}))));
     }
 
     #[test]
@@ -847,23 +842,15 @@ mod it_should {
         assert_eq!(result.total_occupancy, 2);
         assert_eq!(result.len(), 2);
 
+        assert!(result.iter().any(|channel| channel.name == "my_channel"));
+        assert!(result.iter().any(|channel| channel.occupancy == 1));
         assert!(result
             .iter()
-            .find(|channel| channel.name == "my_channel")
-            .is_some());
+            .any(|channel| channel.occupants.first().unwrap().user_id
+                == "pn-200543f2-b394-4909-9e7b-987848e44729"));
         assert!(result
             .iter()
-            .find(|channel| channel.occupancy == 1)
-            .is_some());
-        assert!(result
-            .iter()
-            .find(|channel| channel.occupants.first().unwrap().user_id
-                == "pn-200543f2-b394-4909-9e7b-987848e44729")
-            .is_some());
-        assert!(result
-            .iter()
-            .find(|channel| channel.occupants.first().unwrap().state.is_none())
-            .is_some());
+            .any(|channel| channel.occupants.first().unwrap().state.is_none()));
     }
 
     #[test]
@@ -917,23 +904,15 @@ mod it_should {
         assert_eq!(result.total_occupancy, 2);
         assert_eq!(result.len(), 2);
 
+        assert!(result.iter().any(|channel| channel.name == "test-channel1"));
+        assert!(result.iter().any(|channel| channel.occupancy == 1));
         assert!(result
             .iter()
-            .find(|channel| channel.name == "test-channel1")
-            .is_some());
+            .any(|channel| channel.occupants.first().unwrap().user_id == "Kim"));
         assert!(result
             .iter()
-            .find(|channel| channel.occupancy == 1)
-            .is_some());
-        assert!(result
-            .iter()
-            .find(|channel| channel.occupants.first().unwrap().user_id == "Kim")
-            .is_some());
-        assert!(result
-            .iter()
-            .find(|channel| channel.occupants.first().unwrap().state
-                == Some(json!({"channel1-state": ["channel-1-random-value"]})))
-            .is_some());
+            .any(|channel| channel.occupants.first().unwrap().state
+                == Some(json!({"channel1-state": ["channel-1-random-value"]}))));
     }
 
     #[test]
@@ -1007,23 +986,15 @@ mod it_should {
         assert_eq!(result.total_occupancy, 2);
         assert_eq!(result.len(), 2);
 
+        assert!(result.iter().any(|channel| channel.name == "my_channel"));
+        assert!(result.iter().any(|channel| channel.occupancy == 1));
         assert!(result
             .iter()
-            .find(|channel| channel.name == "my_channel")
-            .is_some());
+            .any(|channel| channel.occupants.first().unwrap().user_id
+                == "pn-200543f2-b394-4909-9e7b-987848e44729"));
         assert!(result
             .iter()
-            .find(|channel| channel.occupancy == 1)
-            .is_some());
-        assert!(result
-            .iter()
-            .find(|channel| channel.occupants.first().unwrap().user_id
-                == "pn-200543f2-b394-4909-9e7b-987848e44729")
-            .is_some());
-        assert!(result
-            .iter()
-            .find(|channel| channel.occupants.first().unwrap().state.is_none())
-            .is_some());
+            .any(|channel| channel.occupants.first().unwrap().state.is_none()));
     }
 
     #[test]

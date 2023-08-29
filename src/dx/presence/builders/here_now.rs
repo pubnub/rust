@@ -10,10 +10,7 @@ use derive_builder::Builder;
 use crate::{
     core::{
         utils::{
-            encoding::{
-                url_encode_extended, url_encoded_channel_groups, url_encoded_channels,
-                UrlEncodeExtension,
-            },
+            encoding::{url_encoded_channel_groups, url_encoded_channels},
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
         Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
@@ -150,8 +147,7 @@ where
         let name_replacement = self
             .channels
             .as_ref()
-            .map(|channels| (channels.len() == 1).then(|| channels[0].clone()))
-            .flatten();
+            .and_then(|channels| (channels.len() == 1).then(|| channels[0].clone()));
 
         let request = self.request()?;
         let transport_request = request.transport_request()?;
