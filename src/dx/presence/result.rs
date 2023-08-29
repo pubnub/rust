@@ -492,12 +492,6 @@ pub enum HereNowResponseUserIdentifier {
     /// User identifier is a string.
     String(String),
 
-    /// User identifier is a map of uuids
-    Map {
-        /// User identifier.
-        uuid: String,
-    },
-
     /// User identifier is a map of channel names to their states.
     WithState {
         /// User identifier.
@@ -510,6 +504,12 @@ pub enum HereNowResponseUserIdentifier {
         /// User state.
         #[cfg(not(feature = "serde"))]
         state: Vec<u8>,
+    },
+
+    /// User identifier is a map of uuids
+    Map {
+        /// User identifier.
+        uuid: String,
     },
 }
 
