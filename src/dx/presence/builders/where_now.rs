@@ -3,17 +3,12 @@
 //! The [`WhereNowRequestBuilder`] lets you make and execute a Here Now request
 //! that will associate a user with a channel.
 
-use core::ops::Deref;
-
 use derive_builder::Builder;
 
 use crate::{
     core::{
         utils::{
-            encoding::{
-                url_encode_extended, url_encoded_channel_groups, url_encoded_channels,
-                UrlEncodeExtension,
-            },
+            encoding::{url_encode_extended, UrlEncodeExtension},
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
         Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
@@ -61,7 +56,7 @@ impl<T, D> WhereNowRequestBuilder<T, D> {
             self.user_id
                 .clone()
                 .is_some_and(|id| !id.is_empty())
-                .then(|| ())
+                .then_some(())
                 .ok_or_else(|| {
                     "User ID is empty. It should be provided and not empty string.".to_owned()
                 })
