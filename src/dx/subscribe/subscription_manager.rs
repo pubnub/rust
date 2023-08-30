@@ -141,6 +141,8 @@ impl SubscriptionManagerRef {
         self.change_subscription(Some(&subscription.input));
     }
 
+    // TODO: why call it on drop fails tests?
+    #[allow(dead_code)]
     pub fn unregister_all(&mut self) {
         let inputs = self.current_input();
 
@@ -221,12 +223,6 @@ impl Debug for SubscriptionManagerRef {
             "SubscriptionManagerRef {{\n\tevent_engine: {:?}\n\tsubscribers: {:?}\n}}",
             self.event_engine, self.subscribers
         )
-    }
-}
-
-impl Drop for SubscriptionManagerRef {
-    fn drop(&mut self) {
-        self.unregister_all();
     }
 }
 
