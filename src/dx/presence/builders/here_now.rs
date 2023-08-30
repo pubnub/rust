@@ -14,7 +14,7 @@ use crate::{
         Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
     },
     dx::{presence::builders, pubnub_client::PubNubClientInstance},
-    lib::{collections::HashMap, core::ops::Deref},
+    lib::collections::HashMap,
     presence::result::{HereNowResponseBody, HereNowResult},
 };
 
