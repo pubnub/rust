@@ -214,7 +214,6 @@ impl<T, D> PubNubClientInstance<T, D> {
         }
     }
 
-
     /// Create a where now request builder.
     ///
     /// This method is used to get information about channels where `user_id`
