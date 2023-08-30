@@ -17,3 +17,16 @@ path = "src/publish.rs"
 [[bin]]
 name = "subscribe"
 path = "src/subscribe.rs"
+
+[[bin]]
+name = "here_now"
+path = "src/here_now.rs"
+
+[[bin]]
+name = "where_now"
+path = "src/where_now.rs"
+
+[[bin]]
+name = "presence_state"
+path = "src/presence_state.rs"
+
