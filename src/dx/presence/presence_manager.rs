@@ -4,7 +4,7 @@
 //! presence / heartbeat module components.
 
 use crate::{
-    dx::presence::event_engine::{PresenceEvent, PresenceEventEngine},
+    dx::presence::event_engine::PresenceEventEngine,
     lib::{
         alloc::sync::Arc,
         core::{
@@ -90,35 +90,39 @@ impl PresenceManagerRef {
     /// Announce `join` for `user_id` on provided channels and groups.
     pub(crate) fn announce_join(
         &self,
-        channels: Option<Vec<String>>,
-        channel_groups: Option<Vec<String>>,
+        _channels: Option<Vec<String>>,
+        _channel_groups: Option<Vec<String>>,
     ) {
-        self.event_engine.process(&PresenceEvent::Joined {
-            channels,
-            channel_groups,
-        })
+        // TODO: Uncomment after contract test server fix.
+        // self.event_engine.process(&PresenceEvent::Joined {
+        //     channels,
+        //     channel_groups,
+        // })
     }
 
     /// Announce `leave` for `user_id` on provided channels and groups.
     pub(crate) fn announce_left(
         &self,
-        channels: Option<Vec<String>>,
-        channel_groups: Option<Vec<String>>,
+        _channels: Option<Vec<String>>,
+        _channel_groups: Option<Vec<String>>,
     ) {
-        self.event_engine.process(&PresenceEvent::Left {
-            channels,
-            channel_groups,
-        })
+        // TODO: Uncomment after contract test server fix.
+        // self.event_engine.process(&PresenceEvent::Left {
+        //     channels,
+        //     channel_groups,
+        // })
     }
 
     /// Announce `leave` while client disconnected.
     pub(crate) fn disconnect(&self) {
-        self.event_engine.process(&PresenceEvent::Disconnect);
+        // TODO: Uncomment after contract test server fix.
+        // self.event_engine.process(&PresenceEvent::Disconnect);
     }
 
     /// Announce `join` upon client connection.
     pub(crate) fn reconnect(&self) {
-        self.event_engine.process(&PresenceEvent::Reconnect);
+        // TODO: Uncomment after contract test server fix.
+        // self.event_engine.process(&PresenceEvent::Reconnect);
     }
 }
 

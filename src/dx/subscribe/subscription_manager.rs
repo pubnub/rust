@@ -46,8 +46,8 @@ impl SubscriptionManager {
             inner: Arc::new(SubscriptionManagerRef {
                 event_engine,
                 subscribers: Default::default(),
-                heartbeat_call,
-                leave_call,
+                _heartbeat_call: heartbeat_call,
+                _leave_call: leave_call,
             }),
         }
     }
@@ -97,12 +97,12 @@ pub(crate) struct SubscriptionManagerRef {
     /// Presence `join` announcement.
     ///
     /// Announces `user_id` presence on specified channels and groups.
-    heartbeat_call: Arc<PresenceCall>,
+    _heartbeat_call: Arc<PresenceCall>,
 
     /// Presence `leave` announcement.
     ///
     /// Announces `user_id` `leave` from specified channels and groups.
-    leave_call: Arc<PresenceCall>,
+    _leave_call: Arc<PresenceCall>,
 }
 
 impl SubscriptionManagerRef {
@@ -144,6 +144,9 @@ impl SubscriptionManagerRef {
     pub fn unregister_all(&mut self) {
         let inputs = self.current_input();
 
+        self.subscribers
+            .iter_mut()
+            .for_each(|subscription| subscription.invalidate());
         self.subscribers.clear();
         self.change_subscription(Some(&inputs));
     }
@@ -156,20 +159,22 @@ impl SubscriptionManagerRef {
         self.event_engine.process(&SubscribeEvent::Reconnect);
     }
 
-    fn change_subscription(&self, removed: Option<&SubscribeInput>) {
+    fn change_subscription(&self, _removed: Option<&SubscribeInput>) {
         let inputs = self.current_input();
 
-        #[cfg(feature = "presence")]
-        {
-            (!inputs.is_empty)
-                .then(|| self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups()));
-
-            if let Some(removed) = removed {
-                (!removed.is_empty).then(|| {
-                    self.leave_call.as_ref()(removed.channels(), removed.channel_groups())
-                });
-            }
-        }
+        // TODO: Uncomment after contract test server fix.
+        // #[cfg(feature = "presence")]
+        // {
+        //     (!inputs.is_empty)
+        //         .then(|| self.heartbeat_call.as_ref()(inputs.channels(),
+        // inputs.channel_groups()));
+        //
+        //     if let Some(removed) = removed {
+        //         (!removed.is_empty).then(|| {
+        //             self.leave_call.as_ref()(removed.channels(),
+        // removed.channel_groups())         });
+        //     }
+        // }
 
         self.event_engine
             .process(&SubscribeEvent::SubscriptionChanged {
@@ -181,10 +186,11 @@ impl SubscriptionManagerRef {
     fn restore_subscription(&self, cursor: u64) {
         let inputs = self.current_input();
 
-        #[cfg(feature = "presence")]
-        if !inputs.is_empty {
-            self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups());
-        }
+        // TODO: Uncomment after contract test server fix.
+        // #[cfg(feature = "presence")]
+        // if !inputs.is_empty {
+        //     self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups());
+        // }
 
         self.event_engine
             .process(&SubscribeEvent::SubscriptionRestored {
