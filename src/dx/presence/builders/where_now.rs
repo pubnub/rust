@@ -14,7 +14,7 @@ use crate::{
         Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
     },
     dx::{presence::builders, pubnub_client::PubNubClientInstance},
-    lib::collections::HashMap,
+    lib::{collections::HashMap, core::ops::Deref},
     presence::result::{WhereNowResponseBody, WhereNowResult},
 };
 
@@ -40,7 +40,11 @@ pub struct WhereNowRequest<T, D> {
     #[builder(field(vis = "pub(in crate::dx::presence)"), setter(custom))]
     pub(in crate::dx::presence) pubnub_client: PubNubClientInstance<T, D>,
 
-    #[builder(field(vis = "pub(in crate::dx::presence)"), setter(strip_option, into))]
+    #[builder(
+        field(vis = "pub(in crate::dx::presence)"),
+        setter(strip_option, into),
+        default
+    )]
     /// Identifier for which `state` should be associated for provided list of
     /// channels and groups.
     pub(in crate::dx::presence) user_id: String,
@@ -52,15 +56,7 @@ impl<T, D> WhereNowRequestBuilder<T, D> {
     /// Validator ensure that list of provided data is enough to build valid
     /// set state request instance.
     fn validate(&self) -> Result<(), String> {
-        builders::validate_configuration(&self.pubnub_client).and_then(|_| {
-            self.user_id
-                .clone()
-                .is_some_and(|id| !id.is_empty())
-                .then_some(())
-                .ok_or_else(|| {
-                    "User ID is empty. It should be provided and not empty string.".to_owned()
-                })
-        })
+        builders::validate_configuration(&self.pubnub_client)
     }
 
     /// Build [`SetStateRequest`] from builder.
@@ -77,10 +73,16 @@ impl<T, D> WhereNowRequest<T, D> {
     ) -> Result<TransportRequest, PubNubError> {
         let sub_key = &self.pubnub_client.config.subscribe_key;
 
+        let user_id = self
+            .user_id
+            .is_empty()
+            .then_some(self.pubnub_client.config.user_id.deref().clone())
+            .unwrap_or(self.user_id.clone());
+
         Ok(TransportRequest {
             path: format!(
                 "/v2/presence/sub-key/{sub_key}/uuid/{}",
-                url_encode_extended(self.user_id.as_bytes(), UrlEncodeExtension::NonChannelPath)
+                url_encode_extended(user_id.as_bytes(), UrlEncodeExtension::NonChannelPath)
             ),
             query_parameters: HashMap::new(),
             method: TransportMethod::Get,
