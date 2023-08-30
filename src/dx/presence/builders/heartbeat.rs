@@ -99,7 +99,8 @@ pub struct HeartbeatRequest<T, D> {
     /// ```
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
-        setter(custom, strip_option)
+        setter(custom, strip_option),
+        default = "None"
     )]
     pub(in crate::dx::presence) state: Option<Vec<u8>>,
 

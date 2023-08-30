@@ -90,6 +90,9 @@ pub struct SubscriptionStreamRef<D> {
     ///
     /// Handler used each time when new data available for a stream listener.
     waker: RwLock<Option<Waker>>,
+
+    /// Whether stream still valid or not.
+    is_valid: bool,
 }
 
 /// Subscription that is responsible for getting messages from PubNub.
@@ -505,6 +508,27 @@ impl Subscription {
         let subscription = &update.subscription();
         self.input.contains_channel(subscription) || self.input.contains_channel_group(subscription)
     }
+
+    /// Invalidate all streams.
+    pub(crate) fn invalidate(&mut self) {
+        let mut stream_slot = self.stream.write();
+        if let Some(mut stream) = stream_slot.clone() {
+            stream.invalidate()
+        }
+        *stream_slot = None;
+
+        let mut stream_slot = self.status_stream.write();
+        if let Some(mut stream) = stream_slot.clone() {
+            stream.invalidate()
+        }
+        *stream_slot = None;
+
+        let mut stream_slot = self.updates_stream.write();
+        if let Some(mut stream) = stream_slot.clone() {
+            stream.invalidate()
+        }
+        *stream_slot = None;
+    }
 }
 
 impl<D> SubscriptionStream<D> {
@@ -516,8 +540,14 @@ impl<D> SubscriptionStream<D> {
             inner: Arc::new(SubscriptionStreamRef {
                 updates: RwLock::new(stream_updates),
                 waker: RwLock::new(None),
+                is_valid: true,
             }),
         }
+    }
+
+    pub(crate) fn invalidate(&mut self) {
+        self.is_valid = false;
+        self.wake_task();
     }
 
     fn wake_task(&self) {
@@ -531,6 +561,10 @@ impl<D> Stream for SubscriptionStream<D> {
     type Item = D;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if !self.is_valid {
+            return Poll::Ready(None);
+        }
+
         let mut waker_slot = self.waker.write();
         *waker_slot = Some(cx.waker().clone());
 

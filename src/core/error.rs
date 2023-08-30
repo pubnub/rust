@@ -118,7 +118,8 @@ pub enum PubNubError {
         details: String,
     },
 
-    ///this error is returned when REST API request can't be handled by service.
+    ///this error is returned when REST API request can't be handled by
+    /// service.
     #[snafu(display("REST API error: {message}"))]
     API {
         /// Operation status (HTTP) code.
