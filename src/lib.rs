@@ -38,11 +38,11 @@
 //! ```toml
 //! # default features
 //! [dependencies]
-//! pubnub = "0.2.1"
+//! pubnub = "0.3.0"
 //!
 //! # all features
 //! [dependencies]
-//! pubnub = { version = "0.2.1", features = ["full"] }
+//! pubnub = { version = "0.3.0", features = ["full"] }
 //! ```
 //!
 //! ### Example
@@ -133,22 +133,25 @@
 //! ```toml
 //! # only blocking and access + default features
 //! [dependencies]
-//! pubnub = { version = "0.2.1", features = ["blocking", "access"] }
+//! pubnub = { version = "0.3.0", features = ["blocking", "access"] }
 //!
 //! # only parse_token + default features
 //! [dependencies]
-//! pubnub = { version = "0.2.1", features = ["parse_token"] }
+//! pubnub = { version = "0.3.0", features = ["parse_token"] }
 //! ```
 //!
 //! ### Available features
 //!
 //! | Feature name  | Description | Available PubNub APIs |
 //! | :------------ | :---------- | :------------- |
-//! | `full`        | Enables all non-conflicting features | Configuration, Publish, Access Manager, Parse Token |
-//! | `default`     | Enables default features: `publish`, `serde`, `reqwest`, `aescbc`, `std` | Configuration, Publish |
+//! | `full`        | Enables all non-conflicting features | Configuration, Publish, Subscribe, Access Manager, Parse Token, Presence |
+//! | `default`     | Enables default features: `publish`, `subscribe`, `serde`, `reqwest`, `aescbc`, `std` | Configuration, Publish, Subscribe |
 //! | `publish`     | Enables Publish API | Configuration, Publish |
 //! | `access`      | Enables Access Manager API | Configuration, Access Manager |
 //! | `parse_token` | Enables parsing Access Manager tokens | Configuration, Parse Token |
+//! | `subscribe`   | Enables Subscribe API | Configuration, Subscribe |
+//! | `presence`    | Enables Presence API | Configuration, Presence |
+//! | `tokio`       | Enables the [tokio](https://tokio.rs/) asynchronous runtime for Subscribe and Presence APIs | n/a  |
 //! | `serde`       | Uses [serde](https://github.com/serde-rs/serde) for serialization | n/a |
 //! | `reqwest`     | Uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer | n/a |
 //! | `blocking`    | Enables blocking executions of APIs | n/a |
@@ -171,7 +174,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pubnub = { version = "0.2.1", default-features = false, features = ["serde", "publish",
+//! pubnub = { version = "0.3.0", default-features = false, features = ["serde", "publish",
 //! "blocking"] }
 //! ```
 //!
@@ -185,8 +188,10 @@
 //!
 //! Some SDK features aren't supported in a `no_std` environment:
 //!
-//! * partially `access` module (because of lack timestamp support)
+//! * partially `access` module (because of lack of timestamp support)
 //! * partially `reqwest` transport (because of the reqwest implementation details)
+//! * partially `subscribe` module (because of the spawning tasks and time dependence)
+//! * partially `presence` module (because of the spawning tasks and time dependence)
 //! * `std` feature (because of the `std` library)
 //!
 //! We depend on a random number generator to generate data for debugging purposes.

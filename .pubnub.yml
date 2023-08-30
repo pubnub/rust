@@ -1,9 +1,18 @@
 name: rust
-version: 0.2.1
+version: 0.3.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2023-08-30
+    version: 0.3.0
+    changes:
+      - type: feature
+        text: "PubNub subscribe API implemented."
+      - type: feature
+        text: "PubNub presence API implemented."
+      - type: feature
+        text: "Event engine as a new method of handling connections for `subscribe` and `presence` methods implemented."
   - date: 2023-06-07
     version: 0.2.1
     changes:
@@ -87,6 +96,28 @@ features:
     - PUBLISH-ASYNC
     - PUBLISH-REPLICATION-FLAG
     - PUBLISH-MESSAGE-TTL
+  subscribe:
+    - SUBSCRIBE-CHANNELS
+    - SUBSCRIBE-CHANNEL-GROUPS
+    - SUBSCRIBE-PRESENCE-CHANNELS
+    - SUBSCRIBE-PRESENCE-CHANNELS-GROUPS
+    - SUBSCRIBE-WITH-TIMETOKEN
+    - SUBSCRIBE-FILTER-EXPRESSION
+    - SUBSCRIBE-PUBLISHER-UUID
+    - SUBSCRIBE-PUBSUB-V2
+    - SUBSCRIBE-SIGNAL-LISTENER
+    - SUBSCRIBE-MEMBERSHIP-LISTENER
+    - SUBSCRIBE-OBJECTS-CHANNEL-LISTENER
+    - SUBSCRIBE-OBJECTS-UUID-LISTENER
+    - SUBSCRIBE-MESSAGE-ACTIONS-LISTENER
+    - SUBSCRIBE-FILE-LISTENER
+  presence:
+    - PRESENCE-HERE-NOW
+    - PRESENCE-WHERE-NOW
+    - PRESENCE-SET-STATE
+    - PRESENCE-GET-STATE
+    - PRESENCE-HEARTBEAT
+    - PRESENCE-DELTAS
 supported-platforms:
   - version: PubNub Rust SDK
     platforms:
