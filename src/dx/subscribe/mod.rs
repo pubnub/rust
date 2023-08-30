@@ -47,7 +47,8 @@ pub(crate) mod subscription_manager;
 #[cfg(feature = "std")]
 #[doc(inline)]
 use event_engine::{
-    types::SubscriptionParams, SubscribeEffectHandler, SubscribeEventEngine, SubscribeState,
+    types::SubscriptionParams, SubscribeEffectHandler, SubscribeEventEngine, SubscribeInput,
+    SubscribeState,
 };
 
 #[cfg(feature = "std")]
@@ -100,7 +101,6 @@ where
     ///
     /// Instance of [`SubscriptionBuilder`] returned.
     /// [`PubNubClient`]: crate::PubNubClient
-    #[cfg(all(feature = "tokio", feature = "serde"))]
     pub fn subscribe(&self) -> SubscriptionBuilder {
         self.configure_subscribe();
 
@@ -110,21 +110,166 @@ where
         }
     }
 
+    /// Stop receiving real-time updates.
+    ///
+    /// Stop receiving real-time updates for previously subscribed channels and
+    /// groups by temporarily disconnecting from the [`PubNub`] network.
+    ///
+    /// ```no_run
+    /// use futures::StreamExt;
+    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// #
+    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #      .with_keyset(Keyset {
+    /// #          subscribe_key: "demo",
+    /// #          publish_key: Some("demo"),
+    /// #          secret_key: None,
+    /// #      })
+    /// #      .with_user_id("user_id")
+    /// #      .build()?;
+    /// # let stream = // SubscriptionStream<SubscribeStreamEvent>
+    /// #     client
+    /// #         .subscribe()
+    /// #         .channels(["hello".into(), "world".into()].to_vec())
+    /// #         .execute()?
+    /// #         .stream();
+    /// client.disconnect();
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`PubNub`]: https://www.pubnub.com
+    pub fn disconnect(&self) {
+        let mut input: Option<SubscribeInput> = None;
+
+        if let Some(manager) = self.subscription.read().as_ref() {
+            let current_input = manager.current_input();
+            input = (!current_input.is_empty).then_some(current_input);
+            manager.disconnect()
+        }
+
+        #[cfg(feature = "presence")]
+        {
+            let Some(input) = input else {
+                return;
+            };
+
+            if self.config.heartbeat_interval.is_none() {
+                let mut request = self.leave();
+                if let Some(channels) = input.channels() {
+                    request = request.channels(channels);
+                }
+                if let Some(channel_groups) = input.channel_groups() {
+                    request = request.channel_groups(channel_groups);
+                }
+
+                self.runtime.spawn(async {
+                    let _ = request.execute().await;
+                })
+            } else if let Some(presence) = self.presence.clone().read().as_ref() {
+                presence.disconnect();
+            }
+        }
+    }
+
+    /// Resume real-time updates receiving.
+    ///
+    /// Restore real-time updates receive from previously subscribed channels
+    /// and groups by restoring connection to the [`PubNub`] network.
+    ///
+    /// ```no_run
+    /// use futures::StreamExt;
+    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// #
+    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #      .with_keyset(Keyset {
+    /// #          subscribe_key: "demo",
+    /// #          publish_key: Some("demo"),
+    /// #          secret_key: None,
+    /// #      })
+    /// #      .with_user_id("user_id")
+    /// #      .build()?;
+    /// # let stream = // SubscriptionStream<SubscribeStreamEvent>
+    /// #     client
+    /// #         .subscribe()
+    /// #         .channels(["hello".into(), "world".into()].to_vec())
+    /// #         .execute()?
+    /// #         .stream();
+    /// # // .....
+    /// # client.disconnect();
+    /// client.reconnect();
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`PubNub`]: https://www.pubnub.com
+    pub fn reconnect(&self) {
+        let mut input: Option<SubscribeInput> = None;
+
+        if let Some(manager) = self.subscription.read().as_ref() {
+            let current_input = manager.current_input();
+            input = (!current_input.is_empty).then_some(current_input);
+            manager.reconnect()
+        }
+
+        #[cfg(feature = "presence")]
+        {
+            let Some(input) = input else {
+                return;
+            };
+
+            if self.config.heartbeat_interval.is_none() {
+                let mut request = self.heartbeat();
+                if let Some(channels) = input.channels() {
+                    request = request.channels(channels);
+                }
+                if let Some(channel_groups) = input.channel_groups() {
+                    request = request.channel_groups(channel_groups);
+                }
+
+                self.runtime.spawn(async {
+                    let _ = request.execute().await;
+                })
+            } else if let Some(presence) = self.presence.clone().read().as_ref() {
+                presence.reconnect();
+            }
+        }
+    }
+
     pub(crate) fn configure_subscribe(&self) -> Arc<RwLock<Option<SubscriptionManager>>> {
         {
             // Initialize subscription module when it will be first required.
             let mut slot = self.subscription.write();
             if slot.is_none() {
-                *slot = Some(SubscriptionManager::new(self.subscribe_event_engine()));
-                // *subscription_slot =
-                // Some(self.clone().subscription_manager(runtime));
+                #[cfg(feature = "presence")]
+                self.configure_presence();
+
+                let heartbeat_self = self.clone();
+                let leave_self = self.clone();
+                *slot = Some(SubscriptionManager::new(
+                    self.subscribe_event_engine(),
+                    Arc::new(move |channels, groups| {
+                        Self::subscribe_heartbeat_call(heartbeat_self.clone(), channels, groups);
+                    }),
+                    Arc::new(move |channels, groups| {
+                        Self::subscribe_leave_call(leave_self.clone(), channels, groups);
+                    }),
+                ));
             }
         }
 
         self.subscription.clone()
     }
 
-    pub(crate) fn subscribe_event_engine(&self) -> Arc<SubscribeEventEngine> {
+    fn subscribe_event_engine(&self) -> Arc<SubscribeEventEngine> {
         let channel_bound = 10; // TODO: Think about this value
         let emit_messages_client = self.clone();
         let emit_status_client = self.clone();
@@ -168,7 +313,7 @@ where
         )
     }
 
-    pub(crate) fn subscribe_call<F>(
+    fn subscribe_call<F>(
         client: Self,
         params: SubscriptionParams,
         delay: Arc<F>,
@@ -193,6 +338,69 @@ where
         request
             .execute_with_cancel_and_delay(delay, cancel_task)
             .boxed()
+    }
+
+    /// Subscription event engine presence `join` announcement.
+    ///
+    /// The heartbeat call method provides few different flows based on the
+    /// presence event engine state:
+    /// * can operate - call `join` announcement
+    /// * can't operate (heartbeat interval not set) - make direct `heartbeat`
+    ///   call.
+    fn subscribe_heartbeat_call(
+        client: Self,
+        channels: Option<Vec<String>>,
+        channel_groups: Option<Vec<String>>,
+    ) {
+        #[cfg(feature = "presence")]
+        {
+            if client.config.heartbeat_interval.is_none() {
+                let mut request = client.heartbeat();
+                if let Some(channels) = channels {
+                    request = request.channels(channels);
+                }
+                if let Some(channel_groups) = channel_groups {
+                    request = request.channel_groups(channel_groups);
+                }
+
+                client.runtime.spawn(async {
+                    let _ = request.execute().await;
+                })
+            } else if let Some(presence) = client.presence.clone().read().as_ref() {
+                presence.announce_join(channels, channel_groups);
+            }
+        }
+    }
+
+    /// Subscription event engine presence `leave` announcement.
+    ///
+    /// The leave call method provides few different flows based on the
+    /// presence event engine state:
+    /// * can operate - call `leave` announcement
+    /// * can't operate (heartbeat interval not set) - make direct `leave` call.
+    fn subscribe_leave_call(
+        client: Self,
+        channels: Option<Vec<String>>,
+        channel_groups: Option<Vec<String>>,
+    ) {
+        #[cfg(feature = "presence")]
+        {
+            if client.config.heartbeat_interval.is_none() {
+                let mut request = client.leave();
+                if let Some(channels) = channels {
+                    request = request.channels(channels);
+                }
+                if let Some(channel_groups) = channel_groups {
+                    request = request.channel_groups(channel_groups);
+                }
+
+                client.runtime.spawn(async {
+                    let _ = request.execute().await;
+                })
+            } else if let Some(presence) = client.presence.clone().read().as_ref() {
+                presence.announce_left(channels, channel_groups);
+            }
+        }
     }
 
     fn emit_status(client: Self, status: &SubscribeStatus) {

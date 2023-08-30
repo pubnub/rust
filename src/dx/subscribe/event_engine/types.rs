@@ -137,6 +137,12 @@ impl Add for SubscribeInput {
     }
 }
 
+impl Default for SubscribeInput {
+    fn default() -> Self {
+        SubscribeInput::new(&None, &None)
+    }
+}
+
 impl AddAssign for SubscribeInput {
     fn add_assign(&mut self, rhs: Self) {
         let channel_groups = self.join_sets(&self.channel_groups, &rhs.channel_groups);
