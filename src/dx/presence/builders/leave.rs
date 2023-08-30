@@ -5,6 +5,7 @@
 
 use derive_builder::Builder;
 
+use crate::core::Transport;
 use crate::{
     core::{
         utils::{
@@ -30,9 +31,6 @@ use crate::{
         collections::HashMap,
     },
 };
-
-#[cfg(feature = "std")]
-use crate::core::Transport;
 
 /// The [`LeaveRequestBuilder`] is used to build user `leave` announcement
 /// request that is sent to the [`PubNub`] network.
@@ -130,7 +128,6 @@ impl<T, D> LeaveRequest<T, D> {
     }
 }
 
-#[cfg(feature = "std")]
 impl<T, D> LeaveRequestBuilder<T, D>
 where
     T: Transport,

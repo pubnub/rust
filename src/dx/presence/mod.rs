@@ -104,8 +104,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// `user_id` on channels.
     ///
     /// Instance of [`LeaveRequestBuilder`] returned.
-    #[cfg(feature = "std")]
-    pub(in crate::dx::presence) fn leave(&self) -> LeaveRequestBuilder<T, D> {
+    pub fn leave(&self) -> LeaveRequestBuilder<T, D> {
         LeaveRequestBuilder {
             pubnub_client: Some(self.clone()),
             user_id: Some(self.config.user_id.clone().to_string()),
