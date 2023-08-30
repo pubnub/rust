@@ -14,7 +14,7 @@ use crate::{
         Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
     },
     dx::{presence::builders, pubnub_client::PubNubClientInstance},
-    lib::{collections::HashMap, core::ops::Deref},
+    lib::collections::HashMap,
     presence::result::{WhereNowResponseBody, WhereNowResult},
 };
 
@@ -73,11 +73,11 @@ impl<T, D> WhereNowRequest<T, D> {
     ) -> Result<TransportRequest, PubNubError> {
         let sub_key = &self.pubnub_client.config.subscribe_key;
 
-        let user_id = self
-            .user_id
-            .is_empty()
-            .then_some(self.pubnub_client.config.user_id.deref().clone())
-            .unwrap_or(self.user_id.clone());
+        let user_id = if self.user_id.is_empty() {
+            &*self.pubnub_client.config.user_id
+        } else {
+            &self.user_id
+        };
 
         Ok(TransportRequest {
             path: format!(
