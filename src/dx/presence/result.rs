@@ -629,6 +629,104 @@ impl Deref for HereNowResult {
     }
 }
 
+/// The result of a here now operation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WhereNowResult {
+    /// Here now channels.
+    pub channels: Vec<String>,
+}
+
+/// Where now service response body for where now.
+/// This is a success response body for a where now  operation in The
+/// Presence service.
+///
+/// It contains information about the success of the operation, the service that
+/// provided the response, and the result of the operation.
+///
+/// It also contains information about the channels that the user is currently
+/// subscribed to.
+///
+/// Additionally, it can provide error information if the operation failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
+pub enum WhereNowResponseBody {
+    /// This is a success response body for a where now operation in the
+    /// Presence service.
+    ///
+    /// It contains information about the success of the operation, the service
+    /// that provided the response, and the result of the operation.
+    SuccessResponse(APISuccessBodyWithPayload<WhereNowResponseSuccessBody>),
+
+    /// This is an error response body for a where now operation in the Presence
+    /// service.
+    ///
+    /// It contains information about the service that provided the response and
+    /// details of what exactly was wrong.
+    ///
+    /// # Example
+    /// ```json
+    /// {
+    ///     "error": {
+    ///         "message": "Invalid signature",
+    ///         "source": "grant",
+    ///         "details": [
+    ///             {
+    ///                 "message": "Client and server produced different signatures for the same inputs.",
+    ///                 "location": "signature",
+    ///                 "locationType": "query"
+    ///             }
+    ///         ]
+    ///     },
+    ///     "service": "Access Manager",
+    ///     "status": 403
+    /// }
+    /// ```
+    ErrorResponse(APIErrorBody),
+}
+
+/// The result of a where now operation.
+///
+/// # Example
+/// ```json
+/// {
+///   "status":200,
+///   "message":"OK",
+///   "payload":{
+///      "channels":[
+///         "my_channel"
+///      ]
+///   },
+///   "service":"Presence"
+/// }
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WhereNowResponseSuccessBody {
+    /// Channels that the user is currently subscribed to.
+    pub channels: Vec<String>,
+}
+
+impl TryFrom<WhereNowResponseBody> for WhereNowResult {
+    type Error = PubNubError;
+
+    fn try_from(value: WhereNowResponseBody) -> Result<Self, Self::Error> {
+        match value {
+            WhereNowResponseBody::SuccessResponse(resp) => Ok(Self {
+                channels: resp.payload.channels,
+            }),
+            WhereNowResponseBody::ErrorResponse(resp) => Err(resp.into()),
+        }
+    }
+}
+
+impl Deref for WhereNowResult {
+    type Target = Vec<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.channels
+    }
+}
+
 #[cfg(test)]
 mod it_should {
     use std::collections::HashMap;
@@ -1006,6 +1104,45 @@ mod it_should {
             message: "error".into(),
         });
         let result: Result<HereNowResult, PubNubError> = body.try_into();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_where_now_response() {
+        use serde_json::json;
+
+        let input = json!({
+           "status":200,
+           "message":"OK",
+           "payload":{
+              "channels":[
+                 "my_channel"
+              ]
+           },
+           "service":"Presence"
+        });
+
+        let result: WhereNowResult = serde_json::from_value::<WhereNowResponseBody>(input)
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        result
+            .channels
+            .iter()
+            .any(|channel| channel == "my_channel");
+    }
+
+    #[test]
+    fn parse_where_now_error_response() {
+        let body = WhereNowResponseBody::ErrorResponse(APIErrorBody::AsObjectWithService {
+            status: 400,
+            error: true,
+            service: "service".into(),
+            message: "error".into(),
+        });
+        let result: Result<WhereNowResult, PubNubError> = body.try_into();
 
         assert!(result.is_err());
     }

@@ -21,6 +21,10 @@ pub(crate) mod leave;
 pub(crate) use here_now::HereNowRequestBuilder;
 pub(crate) mod here_now;
 
+#[doc(inline)]
+pub(crate) use where_now::WhereNowRequestBuilder;
+pub(crate) mod where_now;
+
 use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String};
 
 /// Validate [`PubNubClient`] configuration.
