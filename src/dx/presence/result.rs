@@ -10,7 +10,11 @@ use crate::{
         },
         PubNubError,
     },
-    lib::{collections::HashMap, core::ops::Deref},
+    lib::{
+        alloc::{string::String, vec, vec::Vec},
+        collections::HashMap,
+        core::ops::Deref,
+    },
 };
 
 /// The result of a heartbeat announcement operation.

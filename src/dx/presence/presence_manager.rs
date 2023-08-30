@@ -6,7 +6,7 @@
 use crate::{
     dx::presence::event_engine::{PresenceEvent, PresenceEventEngine},
     lib::{
-        alloc::sync::Arc,
+        alloc::{string::String, sync::Arc, vec::Vec},
         core::{
             fmt::{Debug, Formatter, Result},
             ops::{Deref, DerefMut},

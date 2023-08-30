@@ -14,6 +14,7 @@ use spin::RwLock;
 use crate::{
     core::{Deserializer, PubNubError, Serialize, Transport},
     dx::pubnub_client::PubNubClientInstance,
+    lib::alloc::string::ToString,
 };
 
 #[doc(inline)]
@@ -494,6 +495,7 @@ where
         .boxed()
     }
 
+    #[cfg(feature = "std")]
     /// Call to update `state` associated with `user_id`.
     #[allow(dead_code)]
     pub(crate) fn set_heartbeat_call<U>(client: Self, _params: PresenceParameters, state: U)
@@ -501,7 +503,6 @@ where
         U: Serialize + Send + Sync + 'static,
     {
         // TODO: This is still under development and will be part of EE.
-        #[cfg(feature = "std")]
         {
             client.configure_presence();
 
@@ -512,6 +513,7 @@ where
         }
     }
 
+    #[cfg(feature = "std")]
     pub(crate) fn heartbeat_request(
         &self,
         params: PresenceParameters,
