@@ -26,8 +26,10 @@ use crate::{
     },
     lib::{
         alloc::{
+            format,
             string::{String, ToString},
             vec,
+            vec::Vec,
         },
         collections::HashMap,
     },

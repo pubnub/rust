@@ -14,7 +14,15 @@ use crate::{
         Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
     },
     dx::{presence::builders, pubnub_client::PubNubClientInstance},
-    lib::collections::HashMap,
+    lib::{
+        alloc::{
+            format,
+            string::{String, ToString},
+            vec,
+            vec::Vec,
+        },
+        collections::HashMap,
+    },
     presence::result::{HereNowResponseBody, HereNowResult},
 };
 

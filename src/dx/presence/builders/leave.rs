@@ -5,13 +5,14 @@
 
 use derive_builder::Builder;
 
+use crate::core::Transport;
 use crate::{
     core::{
         utils::{
             encoding::{url_encoded_channel_groups, url_encoded_channels},
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
-        Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
+        Deserializer, PubNubError, TransportMethod, TransportRequest,
     },
     dx::{
         presence::{
@@ -22,8 +23,10 @@ use crate::{
     },
     lib::{
         alloc::{
+            format,
             string::{String, ToString},
             vec,
+            vec::Vec,
         },
         collections::HashMap,
     },

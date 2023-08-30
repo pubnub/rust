@@ -9,11 +9,14 @@ use futures::{
     future::{ready, BoxFuture},
     {select_biased, FutureExt},
 };
+
+#[cfg(feature = "std")]
 use spin::RwLock;
 
 use crate::{
-    core::{Deserializer, PubNubError, Serialize, Transport},
+    core::{Deserializer, Serialize, Transport},
     dx::pubnub_client::PubNubClientInstance,
+    lib::alloc::string::ToString,
 };
 
 #[doc(inline)]
@@ -40,7 +43,7 @@ pub(crate) mod event_engine;
 use crate::{
     core::{
         event_engine::{cancel::CancellationTask, EventEngine},
-        Runtime,
+        PubNubError, Runtime,
     },
     lib::alloc::sync::Arc,
 };
@@ -101,7 +104,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// `user_id` on channels.
     ///
     /// Instance of [`LeaveRequestBuilder`] returned.
-    pub(crate) fn leave(&self) -> LeaveRequestBuilder<T, D> {
+    pub fn leave(&self) -> LeaveRequestBuilder<T, D> {
         LeaveRequestBuilder {
             pubnub_client: Some(self.clone()),
             user_id: Some(self.config.user_id.clone().to_string()),
@@ -494,6 +497,7 @@ where
         .boxed()
     }
 
+    #[cfg(feature = "std")]
     /// Call to update `state` associated with `user_id`.
     #[allow(dead_code)]
     pub(crate) fn set_heartbeat_call<U>(client: Self, _params: PresenceParameters, state: U)
@@ -501,7 +505,6 @@ where
         U: Serialize + Send + Sync + 'static,
     {
         // TODO: This is still under development and will be part of EE.
-        #[cfg(feature = "std")]
         {
             client.configure_presence();
 
@@ -512,6 +515,7 @@ where
         }
     }
 
+    #[cfg(feature = "std")]
     pub(crate) fn heartbeat_request(
         &self,
         params: PresenceParameters,
