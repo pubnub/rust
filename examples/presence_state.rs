@@ -1,5 +1,11 @@
 use pubnub::{Keyset, PubNubClientBuilder};
+use serde::Serialize;
 use std::env;
+
+#[derive(Debug, Serialize)]
+struct State {
+    is_doing: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
@@ -18,11 +24,16 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     println!("running!");
 
     client
-        .set_presence_state("{\"is_doing\": \"Nothing. Just hanging around\"}")
+        .set_presence_state(State {
+            is_doing: "Nothing... Just hanging around...".into(),
+        })
         .channels(["my_channel".into(), "other_channel".into()].to_vec())
         .user_id("user_id")
         .execute()
         .await?;
+
+    println!("State set!");
+    println!();
 
     let states = client
         .get_presence_state()

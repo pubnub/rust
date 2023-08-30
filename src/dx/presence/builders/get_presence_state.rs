@@ -120,7 +120,7 @@ impl<T, D> GetStateRequest<T, D> {
 
         Ok(TransportRequest {
             path: format!(
-                "/v2/presence/sub-key/{sub_key}/channel/{}/uuid/{}/data",
+                "/v2/presence/sub-key/{sub_key}/channel/{}/uuid/{}",
                 url_encoded_channels(&self.channels),
                 url_encode_extended(self.user_id.as_bytes(), UrlEncodeExtension::NonChannelPath)
             ),
