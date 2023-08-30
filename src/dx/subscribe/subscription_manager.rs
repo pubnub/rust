@@ -224,6 +224,12 @@ impl Debug for SubscriptionManagerRef {
     }
 }
 
+impl Drop for SubscriptionManagerRef {
+    fn drop(&mut self) {
+        self.unregister_all();
+    }
+}
+
 #[cfg(test)]
 mod should {
     use super::*;

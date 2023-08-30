@@ -110,43 +110,6 @@ where
         }
     }
 
-    /// Invalidate subscription listener.
-    ///
-    /// All previously created listeners will be invalidated and stop receiving
-    /// real-time updates from specified list of channels and groups.
-    ///
-    /// ```no_run
-    /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use pubnub::{Keyset, PubNubClientBuilder};
-    /// #
-    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
-    /// #      .with_keyset(Keyset {
-    /// #          subscribe_key: "demo",
-    /// #          publish_key: Some("demo"),
-    /// #          secret_key: None,
-    /// #      })
-    /// #      .with_user_id("user_id")
-    /// #      .build()?;
-    /// # let stream = // SubscriptionStream<SubscribeStreamEvent>
-    /// #     client
-    /// #         .subscribe()
-    /// #         .channels(["hello".into(), "world".into()].to_vec())
-    /// #         .execute()?
-    /// #         .stream();
-    /// client.unsubscribe_all();
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn unsubscribe_all(&self) {
-        if let Some(manager) = self.subscription.write().as_mut() {
-            manager.unregister_all();
-        }
-    }
-
     /// Stop receiving real-time updates.
     ///
     /// Stop receiving real-time updates for previously subscribed channels and
