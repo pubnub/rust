@@ -17,7 +17,7 @@ build = "build.rs"
 full = ["publish", "subscribe", "presence", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
-default = ["publish", "subscribe", "presence", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]
+default = ["publish", "subscribe", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]
 
 # [PubNub features]
 
@@ -64,9 +64,9 @@ extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"]
 
 # [Internal features] (not intended for use outside of the library)
 contract_test = ["parse_token", "publish", "access"]
-full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "tokio"]
-full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
-pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access", "subscribe"]
+full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
+full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
+pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
 mock_getrandom = ["getrandom/custom"]
 # TODO: temporary treated as internal until we officially release it
 subscribe = ["dep:futures"]
