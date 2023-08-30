@@ -101,7 +101,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// `user_id` on channels.
     ///
     /// Instance of [`LeaveRequestBuilder`] returned.
-    pub(in crate::dx::presence) fn leave(&self) -> LeaveRequestBuilder<T, D> {
+    pub(crate) fn leave(&self) -> LeaveRequestBuilder<T, D> {
         LeaveRequestBuilder {
             pubnub_client: Some(self.clone()),
             user_id: Some(self.config.user_id.clone().to_string()),
@@ -232,7 +232,7 @@ where
     /// Prepare presence event engine instance which will be used for `user_id`
     /// presence announcement and management.
     #[cfg(feature = "std")]
-    pub(crate) fn presence_event_engine(&self) -> Arc<PresenceEventEngine> {
+    fn presence_event_engine(&self) -> Arc<PresenceEventEngine> {
         let channel_bound = 3;
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
         let delayed_heartbeat_cancel_rx = cancel_rx.clone();

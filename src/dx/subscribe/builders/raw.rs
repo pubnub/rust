@@ -34,7 +34,7 @@ use crate::{
 ///
 /// It should not be created directly, but via [`PubNubClient::subscribe`]
 /// and wrapped in [`Subscription`] struct.
-#[derive(Debug, Builder)]
+#[derive(Builder)]
 #[builder(
     pattern = "owned",
     name = "RawSubscriptionBuilder",

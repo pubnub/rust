@@ -12,9 +12,16 @@ use crate::{
     },
     lib::{
         alloc::{sync::Arc, vec::Vec},
-        core::ops::{Deref, DerefMut},
+        core::{
+            fmt::Debug,
+            ops::{Deref, DerefMut},
+        },
     },
 };
+use std::fmt::Formatter;
+
+pub(in crate::dx::subscribe) type PresenceCall =
+    dyn Fn(Option<Vec<String>>, Option<Vec<String>>) + Send + Sync;
 
 /// Active subscriptions manager.
 ///
@@ -25,18 +32,22 @@ use crate::{
 /// [`subscription`]: crate::Subscription
 /// [`PubNubClient`]: crate::PubNubClient
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) struct SubscriptionManager {
     pub(crate) inner: Arc<SubscriptionManagerRef>,
 }
 
-#[allow(dead_code)]
 impl SubscriptionManager {
-    pub fn new(event_engine: Arc<SubscribeEventEngine>) -> Self {
+    pub fn new(
+        event_engine: Arc<SubscribeEventEngine>,
+        heartbeat_call: Arc<PresenceCall>,
+        leave_call: Arc<PresenceCall>,
+    ) -> Self {
         Self {
             inner: Arc::new(SubscriptionManagerRef {
                 event_engine,
                 subscribers: Default::default(),
+                heartbeat_call,
+                leave_call,
             }),
         }
     }
@@ -72,8 +83,6 @@ impl Clone for SubscriptionManager {
 ///
 /// [`subscription`]: crate::Subscription
 /// [`PubNubClient`]: crate::PubNubClient
-#[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) struct SubscriptionManagerRef {
     /// Subscription event engine.
     ///
@@ -84,6 +93,16 @@ pub(crate) struct SubscriptionManagerRef {
     ///
     /// List of subscribers which will receive real-time updates.
     subscribers: Vec<Subscription>,
+
+    /// Presence `join` announcement.
+    ///
+    /// Announces `user_id` presence on specified channels and groups.
+    heartbeat_call: Arc<PresenceCall>,
+
+    /// Presence `leave` announcement.
+    ///
+    /// Announces `user_id` `leave` from specified channels and groups.
+    leave_call: Arc<PresenceCall>,
 }
 
 impl SubscriptionManagerRef {
@@ -106,7 +125,7 @@ impl SubscriptionManagerRef {
         if let Some(cursor) = cursor {
             self.restore_subscription(cursor);
         } else {
-            self.change_subscription();
+            self.change_subscription(None);
         }
     }
 
@@ -119,17 +138,38 @@ impl SubscriptionManagerRef {
             self.subscribers.swap_remove(position);
         }
 
-        self.change_subscription();
+        self.change_subscription(Some(&subscription.input));
     }
 
-    fn change_subscription(&self) {
-        let inputs = self.subscribers.iter().fold(
-            SubscribeInput::new(&None, &None),
-            |mut input, subscription| {
-                input += subscription.input.clone();
-                input
-            },
-        );
+    pub fn unregister_all(&mut self) {
+        let inputs = self.current_input();
+
+        self.subscribers.clear();
+        self.change_subscription(Some(&inputs));
+    }
+
+    pub fn disconnect(&self) {
+        self.event_engine.process(&SubscribeEvent::Disconnect);
+    }
+
+    pub fn reconnect(&self) {
+        self.event_engine.process(&SubscribeEvent::Reconnect);
+    }
+
+    fn change_subscription(&self, removed: Option<&SubscribeInput>) {
+        let inputs = self.current_input();
+
+        #[cfg(feature = "presence")]
+        {
+            (!inputs.is_empty)
+                .then(|| self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups()));
+
+            if let Some(removed) = removed {
+                (!removed.is_empty).then(|| {
+                    self.leave_call.as_ref()(removed.channels(), removed.channel_groups())
+                });
+            }
+        }
 
         self.event_engine
             .process(&SubscribeEvent::SubscriptionChanged {
@@ -139,13 +179,12 @@ impl SubscriptionManagerRef {
     }
 
     fn restore_subscription(&self, cursor: u64) {
-        let inputs = self.subscribers.iter().fold(
-            SubscribeInput::new(&None, &None),
-            |mut input, subscription| {
-                input += subscription.input.clone();
-                input
-            },
-        );
+        let inputs = self.current_input();
+
+        #[cfg(feature = "presence")]
+        if !inputs.is_empty {
+            self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups());
+        }
 
         self.event_engine
             .process(&SubscribeEvent::SubscriptionRestored {
@@ -156,6 +195,26 @@ impl SubscriptionManagerRef {
                     region: 0,
                 },
             });
+    }
+
+    pub(crate) fn current_input(&self) -> SubscribeInput {
+        self.subscribers.iter().fold(
+            SubscribeInput::new(&None, &None),
+            |mut input, subscription| {
+                input += subscription.input.clone();
+                input
+            },
+        )
+    }
+}
+
+impl Debug for SubscriptionManagerRef {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "SubscriptionManagerRef {{\n\tevent_engine: {:?}\n\tsubscribers: {:?}\n}}",
+            self.event_engine, self.subscribers
+        )
     }
 }
 
@@ -204,8 +263,16 @@ mod should {
 
     #[tokio::test]
     async fn register_subscription() {
-        let mut manager = SubscriptionManager::new(event_engine());
-        let dummy_manager = SubscriptionManager::new(event_engine());
+        let mut manager = SubscriptionManager::new(
+            event_engine(),
+            Arc::new(|channels, _| {
+                assert!(channels.is_some());
+                assert_eq!(channels.unwrap().len(), 1);
+            }),
+            Arc::new(|_, _| {}),
+        );
+        let dummy_manager =
+            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
@@ -222,8 +289,16 @@ mod should {
 
     #[tokio::test]
     async fn unregister_subscription() {
-        let mut manager = SubscriptionManager::new(event_engine());
-        let dummy_manager = SubscriptionManager::new(event_engine());
+        let mut manager = SubscriptionManager::new(
+            event_engine(),
+            Arc::new(|_, _| {}),
+            Arc::new(|channels, _| {
+                assert!(channels.is_some());
+                assert_eq!(channels.unwrap().len(), 1);
+            }),
+        );
+        let dummy_manager =
+            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
@@ -241,8 +316,10 @@ mod should {
 
     #[tokio::test]
     async fn notify_subscription_about_statuses() {
-        let mut manager = SubscriptionManager::new(event_engine());
-        let dummy_manager = SubscriptionManager::new(event_engine());
+        let mut manager =
+            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
+        let dummy_manager =
+            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
@@ -270,8 +347,10 @@ mod should {
 
     #[tokio::test]
     async fn notify_subscription_about_updates() {
-        let mut manager = SubscriptionManager::new(event_engine());
-        let dummy_manager = SubscriptionManager::new(event_engine());
+        let mut manager =
+            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
+        let dummy_manager =
+            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
 
         let subscription = SubscriptionBuilder {
             subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),

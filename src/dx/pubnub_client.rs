@@ -137,7 +137,8 @@ pub type PubNubGenericClient<T, D> = PubNubClientInstance<PubNubMiddleware<T>, D
 /// You must provide a valid [`Keyset`] with pub/sub keys and a string User ID
 /// to identify the client.
 ///
-/// To see available methods, please refer to the [`PubNubClientInstance`] documentation.
+/// To see available methods, please refer to the [`PubNubClientInstance`]
+/// documentation.
 ///
 /// # Examples
 /// ```
@@ -216,7 +217,8 @@ pub type PubNubClient = PubNubGenericClient<TransportReqwest, DeserializerSerde>
 /// PubNub client raw instance.
 ///
 /// This struct contains the actual client state.
-/// It shouldn't be used directly. Use [`PubNubGenericClient`] or [`PubNubClient`] instead.
+/// It shouldn't be used directly. Use [`PubNubGenericClient`] or
+/// [`PubNubClient`] instead.
 #[derive(Debug)]
 pub struct PubNubClientInstance<T, D> {
     pub(crate) inner: Arc<PubNubClientRef<T, D>>,
@@ -592,7 +594,8 @@ pub struct PubNubClientBuilder;
 impl PubNubClientBuilder {
     /// Set the transport layer for the client.
     ///
-    /// Returns [`PubNubClientRuntimeBuilder`] where depending from enabled `features` following can be set:
+    /// Returns [`PubNubClientRuntimeBuilder`] where depending from enabled
+    /// `features` following can be set:
     /// * runtime environment
     /// * API ket set to access [`PubNub API`].
     ///
@@ -641,7 +644,8 @@ impl PubNubClientBuilder {
 
     /// Set the transport layer for the client.
     ///
-    /// Returns [`PubNubClientDeserializerBuilder`] where depending from enabled `features` following can be set:
+    /// Returns [`PubNubClientDeserializerBuilder`] where depending from enabled
+    /// `features` following can be set:
     /// * [`PubNub API`] response deserializer
     /// * API ket set to access [`PubNub API`].
     ///
@@ -690,7 +694,8 @@ impl PubNubClientBuilder {
 
     /// Set the blocking transport layer for the client.
     ///
-    /// Returns [`PubNubClientRuntimeBuilder`] where depending from enabled `features` following can be set:
+    /// Returns [`PubNubClientRuntimeBuilder`] where depending from enabled
+    /// `features` following can be set:
     /// * runtime environment
     /// * API ket set to access [`PubNub API`].
     ///
@@ -742,7 +747,8 @@ impl PubNubClientBuilder {
 
     /// Set the blocking transport layer for the client.
     ///
-    /// Returns [`PubNubClientDeserializerBuilder`] where depending from enabled `features` following can be set:
+    /// Returns [`PubNubClientDeserializerBuilder`] where depending from enabled
+    /// `features` following can be set:
     /// * [`PubNub API`] response deserializer
     /// * API ket set to access [`PubNub API`].
     ///
@@ -795,8 +801,8 @@ impl PubNubClientBuilder {
 
 /// PubNub builder for [`PubNubClient`] to set API keys.
 ///
-/// The builder provides methods to set the [`PubNub API`] keys set and returns the next
-/// step of the builder with the remaining parameters.
+/// The builder provides methods to set the [`PubNub API`] keys set and returns
+/// the next step of the builder with the remaining parameters.
 ///
 /// See [`PubNubClient`] for more information.
 ///
@@ -862,7 +868,8 @@ impl<T, D> PubNubClientKeySetBuilder<T, D> {
 /// Runtime will be used for detached tasks spawning and delayed task execution.
 ///
 /// Depending from enabled `features` methods may return:
-/// * [`PubNubClientDeserializerBuilder`] to set custom [`PubNub API`] deserializer
+/// * [`PubNubClientDeserializerBuilder`] to set custom [`PubNub API`]
+///   deserializer
 /// * [`PubNubClientKeySetBuilder`] to set API keys set to access [`PubNub API`]
 /// * [`PubNubClientUserIdBuilder`] to set user id for the client.
 ///
@@ -877,7 +884,8 @@ pub struct PubNubClientRuntimeBuilder<T> {
 impl<T> PubNubClientRuntimeBuilder<T> {
     /// Set runtime environment.
     ///
-    /// Returns [`PubNubClientDeserializerBuilder`] where depending from enabled `features` following can be set:
+    /// Returns [`PubNubClientDeserializerBuilder`] where depending from enabled
+    /// `features` following can be set:
     /// * [`PubNub API`] response deserializer
     /// * API ket set to access [`PubNub API`].
     ///
@@ -1244,7 +1252,6 @@ where
 ///    secret_key: Some("sec-c-abc123"),
 /// };
 /// ```
-///
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Keyset<S>
 where

@@ -44,7 +44,7 @@ use crate::{core::event_engine::cancel::CancellationTask, lib::alloc::sync::Arc}
 /// from the [`PubNub`] network.
 ///
 /// [`PubNub`]:https://www.pubnub.com/
-#[derive(Debug, Builder)]
+#[derive(Builder)]
 #[builder(
     pattern = "owned",
     build_fn(vis = "pub(in crate::dx::subscribe)", validate = "Self::validate"),

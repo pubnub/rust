@@ -2,6 +2,7 @@ use futures::TryFutureExt;
 use log::info;
 
 use crate::{
+    core::PubNubError,
     dx::subscribe::{
         event_engine::{
             effects::SubscribeEffectExecutor, types::SubscriptionParams, SubscribeEvent,
@@ -25,6 +26,10 @@ pub(crate) async fn execute(
         input.channel_groups().unwrap_or(Vec::new())
     );
 
+    if input.is_empty {
+        return vec![SubscribeEvent::UnsubscribeAll];
+    }
+
     executor(SubscriptionParams {
         channels: &input.channels(),
         channel_groups: &input.channel_groups(),
@@ -36,7 +41,10 @@ pub(crate) async fn execute(
     .map_ok_or_else(
         |error| {
             log::error!("Receive error: {:?}", error);
-            vec![SubscribeEvent::ReceiveFailure { reason: error }]
+
+            (!matches!(error, PubNubError::EffectCanceled))
+                .then(|| vec![SubscribeEvent::ReceiveFailure { reason: error }])
+                .unwrap_or(vec![])
         },
         |subscribe_result| {
             vec![SubscribeEvent::ReceiveSuccess {

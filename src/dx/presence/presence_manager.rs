@@ -88,7 +88,6 @@ pub(crate) struct PresenceManagerRef {
 
 impl PresenceManagerRef {
     /// Announce `join` for `user_id` on provided channels and groups.
-    #[allow(dead_code)]
     pub(crate) fn announce_join(
         &self,
         channels: Option<Vec<String>>,
@@ -101,7 +100,6 @@ impl PresenceManagerRef {
     }
 
     /// Announce `leave` for `user_id` on provided channels and groups.
-    #[allow(dead_code)]
     pub(crate) fn announce_left(
         &self,
         channels: Option<Vec<String>>,
@@ -111,6 +109,16 @@ impl PresenceManagerRef {
             channels,
             channel_groups,
         })
+    }
+
+    /// Announce `leave` while client disconnected.
+    pub(crate) fn disconnect(&self) {
+        self.event_engine.process(&PresenceEvent::Disconnect);
+    }
+
+    /// Announce `join` upon client connection.
+    pub(crate) fn reconnect(&self) {
+        self.event_engine.process(&PresenceEvent::Reconnect);
     }
 }
 

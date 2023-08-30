@@ -19,6 +19,10 @@ pub(super) async fn execute(
         input.channel_groups().unwrap_or(Vec::new())
     );
 
+    if input.is_empty {
+        return vec![SubscribeEvent::UnsubscribeAll];
+    }
+
     executor(SubscriptionParams {
         channels: &input.channels(),
         channel_groups: &input.channel_groups(),
