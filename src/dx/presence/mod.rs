@@ -169,6 +169,50 @@ impl<T, D> PubNubClientInstance<T, D> {
     {
         self.heartbeat().state(state)
     }
+
+    /// Create a here now request builder.
+    ///
+    /// This method is used to get information about current occupancy of
+    /// channels and channel groups.
+    ///
+    /// Instance of [`HereNowRequestBuilder`] returned.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pubnub::presence::*;
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// # use std::collections::HashMap;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use std::sync::Arc;
+    /// let mut pubnub = // PubNubClient
+    /// #         PubNubClientBuilder::with_reqwest_transport()
+    /// #             .with_keyset(Keyset {
+    /// #                 subscribe_key: "demo",
+    /// #                 publish_key: None,
+    /// #                 secret_key: None,
+    /// #             })
+    /// #             .with_user_id("uuid")
+    /// #             .build()?;
+    /// let response = pubnub.here_now()
+    ///         .channels(["lobby".into()])
+    ///         .include_state(true)
+    ///         .include_user_id(true)
+    ///         .execute()
+    ///         .await?;
+    ///
+    /// println!("All channels data: {:?}", response);
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn here_now(&self) -> HereNowRequestBuilder<T, D> {
+        HereNowRequestBuilder {
+            pubnub_client: Some(self.clone()),
+            ..Default::default()
+        }
+    }
 }
 
 impl<T, D> PubNubClientInstance<T, D>

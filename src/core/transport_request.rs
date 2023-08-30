@@ -123,6 +123,7 @@ impl TransportRequest {
     {
         // Request configured endpoint.
         let response = transport.send(self.clone()).await?;
+
         Self::deserialize(
             response.clone(),
             Box::new(move |bytes| deserializer.deserialize(bytes)),

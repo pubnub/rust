@@ -171,3 +171,27 @@ required-features = ["default", "subscribe"]
 name = "subscribe_raw_blocking"
 required-features = ["default", "subscribe"]
 
+[[example]]
+name = "here_now"
+required-features = ["default", "presence"]
+
+[[example]]
+name = "here_now_blocking"
+required-features = ["default", "blocking", "presence"]
+
+[[example]]
+name = "where_now"
+required-features = ["default", "presence"]
+
+[[example]]
+name = "where_now_blocking"
+required-features = ["default", "blocking", "presence"]
+
+[[example]]
+name = "presence_state"
+required-features = ["default", "presence"]
+
+[[example]]
+name = "presence_state_blocking"
+required-features = ["default", "blocking", "presence"]
+
