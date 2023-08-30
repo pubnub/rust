@@ -1,9 +1,18 @@
 name: rust
-version: 0.2.1
+version: 0.3.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2023-08-30
+    version: 0.3.0
+    changes:
+      - type: feature
+        text: "PubNub subscribe API implemented."
+      - type: feature
+        text: "PubNub presence API implemented."
+      - type: feature
+        text: "Event engine as a new method of handling connections for `subscribe` and `presence` methods implemented."
   - date: 2023-06-07
     version: 0.2.1
     changes:
