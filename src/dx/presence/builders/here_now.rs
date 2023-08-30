@@ -3,8 +3,6 @@
 //! The [`HereNowRequestBuilder`] lets you make and execute a Here Now request
 //! that will associate a user with a channel.
 
-use core::ops::Deref;
-
 use derive_builder::Builder;
 
 use crate::{
@@ -118,11 +116,6 @@ impl<T, D> HereNowRequest<T, D> {
         (!self.include_user_id).then(|| {
             query.insert("disable_uuids".into(), "1".into());
         });
-
-        query.insert(
-            "uuid".into(),
-            self.pubnub_client.config.user_id.deref().clone(),
-        );
 
         Ok(TransportRequest {
             path: format!(
