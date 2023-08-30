@@ -13,6 +13,7 @@ pub(crate) mod heartbeat;
 pub use set_presence_state::{SetStateRequest, SetStateRequestBuilder};
 pub mod set_presence_state;
 
+#[cfg(feature = "std")]
 #[doc(inline)]
 pub(crate) use leave::LeaveRequestBuilder;
 pub(crate) mod leave;

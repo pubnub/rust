@@ -9,10 +9,12 @@ use futures::{
     future::{ready, BoxFuture},
     {select_biased, FutureExt},
 };
+
+#[cfg(feature = "std")]
 use spin::RwLock;
 
 use crate::{
-    core::{Deserializer, PubNubError, Serialize, Transport},
+    core::{Deserializer, Serialize, Transport},
     dx::pubnub_client::PubNubClientInstance,
     lib::alloc::string::ToString,
 };
@@ -41,7 +43,7 @@ pub(crate) mod event_engine;
 use crate::{
     core::{
         event_engine::{cancel::CancellationTask, EventEngine},
-        Runtime,
+        PubNubError, Runtime,
     },
     lib::alloc::sync::Arc,
 };
@@ -102,6 +104,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// `user_id` on channels.
     ///
     /// Instance of [`LeaveRequestBuilder`] returned.
+    #[cfg(feature = "std")]
     pub(in crate::dx::presence) fn leave(&self) -> LeaveRequestBuilder<T, D> {
         LeaveRequestBuilder {
             pubnub_client: Some(self.clone()),

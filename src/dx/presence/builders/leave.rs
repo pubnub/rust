@@ -11,7 +11,7 @@ use crate::{
             encoding::{url_encoded_channel_groups, url_encoded_channels},
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
-        Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
+        Deserializer, PubNubError, TransportMethod, TransportRequest,
     },
     dx::{
         presence::{
@@ -30,6 +30,9 @@ use crate::{
         collections::HashMap,
     },
 };
+
+#[cfg(feature = "std")]
+use crate::core::Transport;
 
 /// The [`LeaveRequestBuilder`] is used to build user `leave` announcement
 /// request that is sent to the [`PubNub`] network.
@@ -127,6 +130,7 @@ impl<T, D> LeaveRequest<T, D> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T, D> LeaveRequestBuilder<T, D>
 where
     T: Transport,
