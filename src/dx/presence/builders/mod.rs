@@ -17,6 +17,18 @@ pub mod set_presence_state;
 pub(crate) use leave::LeaveRequestBuilder;
 pub(crate) mod leave;
 
+#[doc(inline)]
+pub(crate) use here_now::HereNowRequestBuilder;
+pub(crate) mod here_now;
+
+#[doc(inline)]
+pub(crate) use where_now::WhereNowRequestBuilder;
+pub(crate) mod where_now;
+
+#[doc(inline)]
+pub(crate) use get_presence_state::GetStateRequestBuilder;
+pub(crate) mod get_presence_state;
+
 use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String};
 
 /// Validate [`PubNubClient`] configuration.

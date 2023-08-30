@@ -56,6 +56,26 @@ pub struct APISuccessBodyWithMessage {
     pub service: String,
 }
 
+/// Result of successful REST API endpoint call.
+///
+/// Body contains status code, `message` and `service` response specific to used
+/// endpoint. Additionaly it contains flatten `payload` which can be any generic
+/// type.
+///
+/// To implement deserialization for this struct - check the [`Api docs`] or docs
+/// included to specific result.
+///
+/// [`Api docs`]: https://www.pubnub.com/docs/sdks/rest-api
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct APISuccessBodyWithFlattenedPayload<D> {
+    pub status: i32,
+    pub message: String,
+    #[cfg_attr(feature = "serde", serde(flatten))]
+    pub payload: D,
+    pub service: String,
+}
+
 /// PubNub service error response.
 ///
 /// `ErrorResponse` enum variants covers all possible [`PubNub API`] error
