@@ -25,6 +25,10 @@ pub(crate) mod here_now;
 pub(crate) use where_now::WhereNowRequestBuilder;
 pub(crate) mod where_now;
 
+#[doc(inline)]
+pub(crate) use get_presence_state::{GetStateRequest, GetStateRequestBuilder};
+pub(crate) mod get_presence_state;
+
 use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String};
 
 /// Validate [`PubNubClient`] configuration.

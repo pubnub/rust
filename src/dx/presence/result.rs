@@ -239,6 +239,143 @@ impl TryFrom<SetStateResponseBody> for SetStateResult {
     }
 }
 
+/// The result of a get state operation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetStateResult {
+    /// State which has been associated for `user_id` with channel(s) or channel
+    /// group(s).
+    pub states: Vec<GetStateInfo>,
+}
+
+/// Get state info for a user.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetStateInfo {
+    /// Channel or channel group name.
+    pub channel: String,
+
+    /// State defined for the user
+    #[cfg(feature = "serde")]
+    pub state: serde_json::Value,
+
+    /// State defined for the user
+    #[cfg(not(feature = "serde"))]
+    pub state: Vec<u8>,
+}
+
+/// Get state service response body.
+///
+/// This is a response body for a get state operation in the Presence
+/// service.
+///
+/// It contains information about the service that have the response,
+/// operation result message and state which has been associated for
+/// `user_id` with channel(s) or channel group(s).
+///
+/// Also it contains information about the service that provided the response
+/// and details of what exactly was wrong.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GetStateResponseBody {
+    /// This is a success response body for a get state operation in the
+    /// Presence service.
+    ///
+    /// It contains information about the service that have the response,
+    /// operation result message and state which has been associated for
+    /// `user_id` with channel(s) or channel group(s).
+    ///
+    /// # Example
+    /// ```json
+    /// {
+    ///    "status": 200,
+    ///    "message": "OK",
+    ///    "payload": {
+    ///       "channels": {
+    ///          "channel-1": {
+    ///             "key-1": "value-1",
+    ///             "key-2": "value-2"
+    ///          },
+    ///          "channel-2": {
+    ///             "key-1": "value-1",
+    ///             "key-2": "value-2"
+    ///          }
+    ///       },
+    ///    }
+    ///    "service": "Presence"
+    /// }
+    /// ```
+    SuccessResponse(APISuccessBodyWithPayload<GetStateSuccessBody>),
+
+    /// This is an error response body for a set state operation in the Presence
+    /// service.
+    ///
+    /// It contains information about the service that provided the response and
+    /// details of what exactly was wrong.
+    ///
+    /// # Example
+    /// ```json
+    /// {
+    ///     "error": {
+    ///         "message": "Invalid signature",
+    ///         "source": "grant",
+    ///         "details": [
+    ///             {
+    ///                 "message": "Client and server produced different signatures for the same inputs.",
+    ///                 "location": "signature",
+    ///                 "locationType": "query"
+    ///             }
+    ///         ]
+    ///     },
+    ///     "service": "Access Manager",
+    ///     "status": 403
+    /// }
+    /// ```
+    ErrorResponse(APIErrorBody),
+}
+
+/// The success result of a get state operation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+pub struct GetStateSuccessBody {
+    /// State which has been associated for `user_id` with channel(s) or channel
+    /// group(s).
+    #[cfg(feature = "serde")]
+    pub channels: HashMap<String, serde_json::Value>,
+
+    /// State which has been associated for `user_id` with channel(s) or channel
+    /// group(s).
+    #[cfg(not(feature = "serde"))]
+    pub channels: HashMap<String, Vec<u8>>,
+}
+
+impl TryFrom<GetStateResponseBody> for GetStateResult {
+    type Error = PubNubError;
+
+    fn try_from(value: GetStateResponseBody) -> Result<Self, Self::Error> {
+        match value {
+            GetStateResponseBody::SuccessResponse(response) => Ok(GetStateResult {
+                states: response
+                    .payload
+                    .channels
+                    .into_iter()
+                    .map(|(k, v)| GetStateInfo {
+                        channel: k,
+                        state: v,
+                    })
+                    .collect(),
+            }),
+            GetStateResponseBody::ErrorResponse(resp) => Err(resp.into()),
+        }
+    }
+}
+
+impl Deref for GetStateResult {
+    type Target = Vec<GetStateInfo>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.states
+    }
+}
+
 /// The result of a here now operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HereNowResult {
@@ -1143,6 +1280,56 @@ mod it_should {
             message: "error".into(),
         });
         let result: Result<WhereNowResult, PubNubError> = body.try_into();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_get_state_response() {
+        use serde_json::json;
+
+        let input = json!({
+        "status": 200,
+        "message": "OK",
+        "payload": {
+           "channels": {
+              "channel-1": {
+                 "key-1": "value-1",
+                 "key-2": "value-2"
+              },
+              "channel-2": {
+                 "key-1": "value-1",
+                 "key-2": "value-2"
+              }
+           },
+        },
+        "service": "Presence"
+        });
+
+        let result: GetStateResult = serde_json::from_value::<GetStateResponseBody>(input)
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        result.iter().any(|channel| {
+            channel.channel == "channel-1"
+                && channel.state
+                    == json!({
+                        "key-1": "value-1",
+                        "key-2": "value-2"
+                    })
+        });
+    }
+
+    #[test]
+    fn parse_get_state_error_response() {
+        let body = GetStateResponseBody::ErrorResponse(APIErrorBody::AsObjectWithService {
+            status: 400,
+            error: true,
+            service: "service".into(),
+            message: "error".into(),
+        });
+        let result: Result<GetStateResult, PubNubError> = body.try_into();
 
         assert!(result.is_err());
     }
