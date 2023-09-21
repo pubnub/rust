@@ -20,8 +20,9 @@
 //! This is the official PubNub Rust SDK repository.
 //!
 //! [PubNub](https://www.pubnub.com/) takes care of the infrastructure and APIs needed for the realtime
-//! communication layer of your application. Work on your app's logic and let PubNub handle sending and receiving
-//! data across the world in less than 100ms.
+//! communication layer of your application. Work on your app's logic and let
+//! PubNub handle sending and receiving data across the world in less than
+//! 100ms.
 //!
 //! ## Getting started
 //!
@@ -128,7 +129,8 @@
 //!
 //! ## Features
 //!
-//! The `pubnub` crate is split into multiple features. You can enable or disable them in the `Cargo.toml` file, like so:
+//! The `pubnub` crate is split into multiple features. You can enable or
+//! disable them in the `Cargo.toml` file, like so:
 //!
 //! ```toml
 //! # only blocking and access + default features
@@ -145,7 +147,7 @@
 //! | Feature name  | Description | Available PubNub APIs |
 //! | :------------ | :---------- | :------------- |
 //! | `full`        | Enables all non-conflicting features | Configuration, Publish, Subscribe, Access Manager, Parse Token, Presence |
-//! | `default`     | Enables default features: `publish`, `subscribe`, `serde`, `reqwest`, `aescbc`, `std` | Configuration, Publish, Subscribe |
+//! | `default`     | Enables default features: `publish`, `subscribe`, `serde`, `reqwest`, `crypto`, `std` | Configuration, Publish, Subscribe |
 //! | `publish`     | Enables Publish API | Configuration, Publish |
 //! | `access`      | Enables Access Manager API | Configuration, Access Manager |
 //! | `parse_token` | Enables parsing Access Manager tokens | Configuration, Parse Token |
@@ -155,7 +157,7 @@
 //! | `serde`       | Uses [serde](https://github.com/serde-rs/serde) for serialization | n/a |
 //! | `reqwest`     | Uses [reqwest](https://github.com/seanmonstar/reqwest) as a transport layer | n/a |
 //! | `blocking`    | Enables blocking executions of APIs | n/a |
-//! | `aescbc`      | Enables AES-CBC encryption | n/a |
+//! | `crypto`      | Enables crypto module for data encryption and decryption | n/a |
 //! | `std`         | Enables `std` library | n/a |
 //!
 //! ## Documentation
@@ -165,12 +167,14 @@
 //!
 //! ## Wasm support
 //!
-//! The `pubnub` crate is compatible with WebAssembly. You can use it in your Wasm project.
+//! The `pubnub` crate is compatible with WebAssembly. You can use it in your
+//! Wasm project.
 //!
 //! ## `no_std` support
 //!
-//! The `pubnub` crate is `no_std` compatible. To use it in a `no_std` environment, you have to disable the default
-//! features and enable the ones you need, for example:
+//! The `pubnub` crate is `no_std` compatible. To use it in a `no_std`
+//! environment, you have to disable the default features and enable the ones
+//! you need, for example:
 //!
 //! ```toml
 //! [dependencies]
@@ -182,35 +186,42 @@
 //!
 //! The `no_std` support is limited by the implementation details of the SDK.
 //!
-//! The SDK uses the `alloc` crate to allocate memory for some operations, which means that
-//! certain targets aren't supported. Additionally, as we provide a synchronous API, we use
-//! some parts of the `alloc::sync` module, which is also not supported in certain `no_std` environments.
+//! The SDK uses the `alloc` crate to allocate memory for some operations, which
+//! means that certain targets aren't supported. Additionally, as we provide a
+//! synchronous API, we use some parts of the `alloc::sync` module, which is
+//! also not supported in certain `no_std` environments.
 //!
 //! Some SDK features aren't supported in a `no_std` environment:
 //!
 //! * partially `access` module (because of lack of timestamp support)
-//! * partially `reqwest` transport (because of the reqwest implementation details)
-//! * partially `subscribe` module (because of the spawning tasks and time dependence)
-//! * partially `presence` module (because of the spawning tasks and time dependence)
+//! * partially `reqwest` transport (because of the reqwest implementation
+//!   details)
+//! * partially `subscribe` module (because of the spawning tasks and time
+//!   dependence)
+//! * partially `presence` module (because of the spawning tasks and time
+//!   dependence)
 //! * `std` feature (because of the `std` library)
 //!
-//! We depend on a random number generator to generate data for debugging purposes.
-//! If you want to use the SDK in a `no_std` environment, you'll have to provide
-//! your own random number generator implementation for certain targets.
+//! We depend on a random number generator to generate data for debugging
+//! purposes. If you want to use the SDK in a `no_std` environment, you'll have
+//! to provide your own random number generator implementation for certain
+//! targets.
 //!
 //! See more:
 //!
 //! * [`getrandom` crate](https://docs.rs/getrandom/latest/getrandom/)
 //! * [no_std examples](https://github.com/pubnub/rust/tree/master/examples/no_std/)
 //!
-//! If you're having problems compiling this crate for more exotic targets, you can try to use the
-//! `extra_platforms` feature. Be aware that this feature is **not supported** and we do not recommend using it.
+//! If you're having problems compiling this crate for more exotic targets, you
+//! can try to use the `extra_platforms` feature. Be aware that this feature is
+//! **not supported** and we do not recommend using it.
 //!
 //! For more information about this feature. refer to [Cargo.toml](https://github.com/pubnub/rust/blob/master/Cargo.toml) in the `[features]` section.
 //!
 //! ## Support
 //!
-//! If you **need help** or have a **general question**, contact support@pubnub.com.
+//! If you **need help** or have a **general question**, contact
+//! support@pubnub.com.
 //!
 //! ## License
 //!
@@ -276,7 +287,8 @@ mod lib {
             /// Depending of the `std` feature, this module will re-export
             /// either `std::collections::HashMap` or `hashbrown::HashMap`.
             /// This is needed because there is no `no_std` HashMap available.
-            /// We decided to use `hashbrown` because it is fast and has the same API as `std` HashMap.
+            /// We decided to use `hashbrown` because it is fast and has the
+            /// same API as `std` HashMap.
 
             #[cfg(not(feature = "std"))]
             pub(crate) use hashbrown::HashMap;

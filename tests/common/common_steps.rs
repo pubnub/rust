@@ -108,6 +108,31 @@ impl Default for PAMState {
     }
 }
 
+#[derive(Debug)]
+pub struct CryptoModuleState {
+    pub crypto_identifiers: Vec<String>,
+    pub legacy: Option<super::super::crypto::legacy::AesCbcCrypto>,
+    pub file_content: Vec<u8>,
+    pub cipher_key: Option<String>,
+    pub use_random_iv: bool,
+    pub encryption_result: Option<Result<Vec<u8>, PubNubError>>,
+    pub decryption_result: Option<Result<Vec<u8>, PubNubError>>,
+}
+
+impl Default for CryptoModuleState {
+    fn default() -> Self {
+        Self {
+            crypto_identifiers: vec![],
+            legacy: None,
+            file_content: vec![],
+            cipher_key: None,
+            use_random_iv: true,
+            encryption_result: None,
+            decryption_result: None,
+        }
+    }
+}
+
 #[derive(Debug, World)]
 pub struct PubNubWorld {
     pub scenario: Option<Scenario>,
@@ -116,6 +141,7 @@ pub struct PubNubWorld {
     pub subscription: Result<Subscription, PubNubError>,
     pub retry_policy: Option<RequestRetryPolicy>,
     pub pam_state: PAMState,
+    pub crypto_state: CryptoModuleState,
     pub api_error: Option<PubNubError>,
     pub is_succeed: bool,
 }
@@ -139,6 +165,7 @@ impl Default for PubNubWorld {
             }),
             is_succeed: false,
             pam_state: PAMState::default(),
+            crypto_state: CryptoModuleState::default(),
             api_error: None,
             retry_policy: None,
         }

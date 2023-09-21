@@ -87,7 +87,7 @@ pub enum PubNubError {
     },
 
     /// this error is returned when the initialization of the cryptor fails
-    #[snafu(display("Cryptor initialization error: {details}"))]
+    #[snafu(display("Crypto initialization error: {details}"))]
     CryptoInitialization {
         ///docs
         details: String,
@@ -104,6 +104,13 @@ pub enum PubNubError {
     #[snafu(display("Data decryption error: {details}"))]
     Decryption {
         ///docs
+        details: String,
+    },
+
+    /// this error returned when suitable cryptor not found for data decryption.
+    #[snafu(display("Unknown cryptor error: {details}"))]
+    UnknownCryptor {
+        /// docs
         details: String,
     },
 

@@ -14,10 +14,10 @@ build = "build.rs"
 [features]
 
 # Enables all non-conflicting features
-full = ["publish", "subscribe", "presence", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std", "tokio"]
+full = ["publish", "subscribe", "presence", "access", "serde", "reqwest", "crypto", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
-default = ["publish", "subscribe", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]
+default = ["publish", "subscribe", "serde", "reqwest", "crypto", "std", "blocking", "tokio"]
 
 # [PubNub features]
 
@@ -27,8 +27,8 @@ publish = []
 ## Enables access manager feature
 access = []
 
-## Enables AES-CBC encryption
-aescbc = ["dep:aes", "dep:cbc", "getrandom"]
+## Enables crypto module
+crypto = ["dep:aes", "dep:cbc", "getrandom"]
 
 ## Enables token parsing
 parse_token = ["dep:ciborium"]
@@ -64,9 +64,9 @@ extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"]
 
 # [Internal features] (not intended for use outside of the library)
 contract_test = ["parse_token", "publish", "access"]
-full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
-full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
-pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
+full_no_std = ["serde", "reqwest", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
+full_no_std_platform_independent = ["serde", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
+pubnub_only = ["crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
 mock_getrandom = ["getrandom/custom"]
 # TODO: temporary treated as internal until we officially release it
 subscribe = ["dep:futures"]
@@ -138,6 +138,10 @@ all-features = true
 name = "contract_test"
 harness = false
 required-features = ["contract_test"]
+
+[[example]]
+name = "crypto"
+required-features = ["default", "crypto"]
 
 [[example]]
 name = "publish"

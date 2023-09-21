@@ -28,7 +28,7 @@ use crate::{
             encoding::{url_encode, url_encode_extended, UrlEncodeExtension},
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
-        Cryptor, Deserializer, PubNubError, Serialize, Transport, TransportMethod,
+        CryptoProvider, Deserializer, PubNubError, Serialize, Transport, TransportMethod,
         TransportRequest,
     },
     dx::pubnub_client::{PubNubClientInstance, PubNubConfig},
@@ -266,7 +266,7 @@ where
     fn create_transport_request(
         self,
         config: &PubNubConfig,
-        cryptor: &Option<Arc<dyn Cryptor + Send + Sync>>,
+        cryptor: &Option<Arc<dyn CryptoProvider + Send + Sync>>,
     ) -> Result<TransportRequest, PubNubError> {
         let query_params = self.prepare_publish_query_params();
 
