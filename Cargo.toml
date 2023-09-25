@@ -129,7 +129,7 @@ hashbrown = { version = "0.14.0", features = ["serde"] }
 getrandom = { version = "0.2", features = ["custom"] }
 
 [build-dependencies]
-built = "0.7.0"
+built = "0.6"
 
 [package.metadata.docs.rs]
 all-features = true
