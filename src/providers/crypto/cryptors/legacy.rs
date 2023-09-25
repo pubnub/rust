@@ -148,10 +148,10 @@ impl Cryptor for LegacyCryptor {
             0
         };
         let iv = if self.use_random_iv {
-            data.data[0..AES_BLOCK_SIZE]
+            data.data[0..AES_BLOCK_SIZE].to_vec()
         } else {
-            self.initialization_vector()
-        }.to_vec();
+            self.initialization_vector().to_vec()
+        };
         let data_slice = &data.data[data_offset..];
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())

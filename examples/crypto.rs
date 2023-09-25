@@ -3,11 +3,23 @@ use pubnub::providers::crypto::CryptoModule;
 use pubnub::{Keyset, PubNubClientBuilder};
 use std::env;
 
+/// This example demonstrates how data can be manually encrypted or
+/// automatically as part of PubNubClient instance when publish / subscribe is
+/// used.
+///
+/// The following example consists of two parts: a manual _encryption_ and
+/// _decryption_ demonstration, and an automated _encryption_ and _decryption_
+/// demonstration, as part of a configured `PubNubClientInstance`.
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
     let source_data: Vec<u8> = "Hello world!".into();
     let use_random_iv = true;
     let cipher = "enigma";
+
+    // -----------------------------------------
+    // Manual encryption and decryption example.
+    //
 
     // Crypto module with legacy AES-CBC cryptor (with enhanced AES-CBC decrypt
     // support).
@@ -30,6 +42,10 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // Decrypt data created with enhanced AES-CBC crypto module.
     let decrypt_result = legacy_crypto_module.decrypt(encrypt_result.ok().unwrap())?;
     assert_eq!(decrypt_result, source_data);
+
+    // --------------------------------------------
+    // Automated encryption and decryption example.
+    //
 
     // Setup client with crypto module
     let publish_key = env::var("SDK_PUB_KEY")?;

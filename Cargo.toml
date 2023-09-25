@@ -17,7 +17,7 @@ build = "build.rs"
 full = ["publish", "subscribe", "presence", "access", "serde", "reqwest", "crypto", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
-default = ["publish", "subscribe", "serde", "reqwest", "crypto", "std", "blocking", "tokio"]
+default = ["publish", "subscribe", "serde", "reqwest", "std", "blocking", "tokio"]
 
 # [PubNub features]
 

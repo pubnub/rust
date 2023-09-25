@@ -146,8 +146,8 @@
 //!
 //! | Feature name  | Description | Available PubNub APIs |
 //! | :------------ | :---------- | :------------- |
-//! | `full`        | Enables all non-conflicting features | Configuration, Publish, Subscribe, Access Manager, Parse Token, Presence |
-//! | `default`     | Enables default features: `publish`, `subscribe`, `serde`, `reqwest`, `crypto`, `std` | Configuration, Publish, Subscribe |
+//! | `full`        | Enables all non-conflicting features | Configuration, Publish, Subscribe, Access Manager, Parse Token, Presence, Crypto Module |
+//! | `default`     | Enables default features: `publish`, `subscribe`, `serde`, `reqwest`, `std` | Configuration, Publish, Subscribe |
 //! | `publish`     | Enables Publish API | Configuration, Publish |
 //! | `access`      | Enables Access Manager API | Configuration, Access Manager |
 //! | `parse_token` | Enables parsing Access Manager tokens | Configuration, Parse Token |
