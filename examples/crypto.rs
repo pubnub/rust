@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .with_cryptor(crypto_module)
         .build()?;
 
-    // publish simple string
+    // publish encrypted string
     let result = client
         .publish_message("hello world!")
         .channel("my_channel")
