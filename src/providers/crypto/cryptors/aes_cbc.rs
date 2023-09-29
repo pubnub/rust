@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     core::{Cryptor, EncryptedData, PubNubError},
-    lib::alloc::{string::ToString, vec, vec::Vec},
+    lib::alloc::{format, string::ToString, vec, vec::Vec},
 };
 
 type Encryptor = cbc::Encryptor<aes::Aes256>;
@@ -101,6 +101,16 @@ impl Cryptor for AesCbcCryptor {
                 details: "Initialization vector is missing from payload".into(),
             });
         };
+
+        if iv.len().ne(&AES_BLOCK_SIZE) {
+            return Err(PubNubError::Decryption {
+                details: format!(
+                    "Unexpected initialization vector size: {} bytes ({} bytes is expected)",
+                    iv.len(),
+                    AES_BLOCK_SIZE
+                ),
+            });
+        }
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
             .decrypt_padded_b2b_mut::<Pkcs7>(&data.data, buffer.as_mut())

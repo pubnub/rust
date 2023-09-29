@@ -152,6 +152,17 @@ impl Cryptor for LegacyCryptor {
         } else {
             self.initialization_vector().to_vec()
         };
+
+        if iv.len().ne(&AES_BLOCK_SIZE) {
+            return Err(PubNubError::Decryption {
+                details: format!(
+                    "Unexpected initialization vector size: {} bytes ({} bytes is expected)",
+                    iv.len(),
+                    AES_BLOCK_SIZE
+                ),
+            });
+        }
+
         let data_slice = &data.data[data_offset..];
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
