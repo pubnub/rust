@@ -608,7 +608,7 @@ mod should {
     fn test_path_segments_get() {
         let client = client();
         let channel = String::from("channel_name");
-        let message: HashMap<&str, &str> = HashMap::from([("number", 7)]);
+        let message: HashMap<&str, u8> = HashMap::from([("number", 7)]);
 
         let result = client
             .publish_message(message)
@@ -633,7 +633,7 @@ mod should {
     fn test_path_segments_post() {
         let client = client();
         let channel = String::from("channel_name");
-        let message = HashMap::from([("number", 7)]);
+        let message: HashMap<&str, u8> = HashMap::from([("number", 7)]);
 
         let result = client
             .publish_message(message)
