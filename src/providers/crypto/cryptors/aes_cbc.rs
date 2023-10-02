@@ -75,6 +75,12 @@ impl Cryptor for AesCbcCryptor {
     }
 
     fn encrypt(&self, data: Vec<u8>) -> Result<EncryptedData, PubNubError> {
+        if data.is_empty() {
+            return Err(PubNubError::Encryption {
+                details: "Encrypted data is empty".into(),
+            });
+        }
+
         let mut buffer = vec![0u8; self.estimated_enc_buffer_size(&data)];
         let iv = self.initialization_vector();
 

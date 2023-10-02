@@ -1,6 +1,5 @@
 use crate::common::PubNubWorld;
 use cucumber::{given, then, when};
-use log::debug;
 use std::fs::File;
 use std::io::Read;
 
@@ -93,6 +92,13 @@ fn then_receive_outcome(world: &mut PubNubWorld, outcome: String) {
             assert!(matches!(
                 result.err().unwrap(),
                 PubNubError::Decryption { .. }
+            ))
+        }
+        "encryption error" => {
+            assert!(result.is_err(), "Operation should fail: {result:?}");
+            assert!(matches!(
+                result.err().unwrap(),
+                PubNubError::Encryption { .. }
             ))
         }
         "success" => assert!(result.is_ok(), "Operation should be successful"),

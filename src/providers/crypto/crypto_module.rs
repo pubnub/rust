@@ -163,6 +163,12 @@ impl CryptoProvider for CryptoModule {
     /// # }
     /// ```
     fn decrypt(&self, data: Vec<u8>) -> Result<Vec<u8>, PubNubError> {
+        if data.is_empty() {
+            return Err(PubNubError::Decryption {
+                details: "Decrypted data is empty".into(),
+            });
+        }
+
         // Try read header content from received data.
         let header = CryptorHeader::try_from(&data)?;
 

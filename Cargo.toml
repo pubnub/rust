@@ -6,7 +6,7 @@ license = "MIT"
 authors = ["PubNub <support@pubnub.com>"]
 description = "PubNub SDK for Rust"
 repository = "https://github.com/pubnub/rust"
-documentation = "https://docs.rs/pubnub/latest/pubnub" 
+documentation = "https://docs.rs/pubnub/latest/pubnub"
 homepage = "https://www.pubnub.com"
 categories = ["api-bindings", "asynchronous", "network-programming", "wasm"]
 build = "build.rs"
@@ -48,7 +48,7 @@ tokio = ["dep:tokio"]
 blocking = ["reqwest?/blocking"]
 
 ## Enables std library
-std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "snafu/std", "hmac/std", "sha2/std", "time/std", "bytes?/std", "getrandom/std", "rand/default", "serde?/std", "serde_json?/std", "ciborium?/std", "futures?/std", "futures?/async-await", "dep:async-channel"] 
+std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "snafu/std", "hmac/std", "sha2/std", "time/std", "bytes?/std", "getrandom/std", "rand/default", "serde?/std", "serde_json?/std", "ciborium?/std", "futures?/std", "futures?/async-await", "dep:async-channel"]
 
 ## Enables very specific implementations for different platforms.
 ## 
@@ -60,7 +60,7 @@ std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "s
 ## https://docs.rs/portable_atomic
 ## and
 ## https://docs.rs/critical-section/latest/critical_section/
-extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"] 
+extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"]
 
 # [Internal features] (not intended for use outside of the library)
 contract_test = ["parse_token", "publish", "access", "crypto"]
@@ -198,4 +198,3 @@ required-features = ["default", "presence"]
 [[example]]
 name = "presence_state_blocking"
 required-features = ["default", "blocking", "presence"]
-

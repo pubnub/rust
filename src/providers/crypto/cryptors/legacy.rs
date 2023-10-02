@@ -110,6 +110,12 @@ impl Cryptor for LegacyCryptor {
     }
 
     fn encrypt(&self, data: Vec<u8>) -> Result<EncryptedData, PubNubError> {
+        if data.is_empty() {
+            return Err(PubNubError::Encryption {
+                details: "Encrypted data is empty".into(),
+            });
+        }
+
         let mut buffer = vec![0u8; self.estimated_enc_buffer_size(&data)];
         let data_offset = if self.use_random_iv {
             AES_BLOCK_SIZE
@@ -148,7 +154,11 @@ impl Cryptor for LegacyCryptor {
             0
         };
         let iv = if self.use_random_iv {
-            data.data[0..AES_BLOCK_SIZE].to_vec()
+            if data.data.len() >= AES_BLOCK_SIZE {
+                data.data[0..AES_BLOCK_SIZE].to_vec()
+            } else {
+                vec![]
+            }
         } else {
             self.initialization_vector().to_vec()
         };
@@ -164,6 +174,12 @@ impl Cryptor for LegacyCryptor {
         }
 
         let data_slice = &data.data[data_offset..];
+
+        if data_slice.is_empty() {
+            return Err(PubNubError::Decryption {
+                details: "Decrypted data is empty.".into(),
+            });
+        }
 
         let result = Decryptor::new(self.cipher_key.as_slice().into(), iv.as_slice().into())
             .decrypt_padded_b2b_mut::<Pkcs7>(data_slice, buffer.as_mut())

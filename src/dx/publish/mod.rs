@@ -401,7 +401,7 @@ mod should {
     use crate::{
         core::TransportResponse,
         dx::pubnub_client::{PubNubClientInstance, PubNubClientRef, PubNubConfig},
-        lib::alloc::{sync::Arc, vec},
+        lib::alloc::{collections::HashMap, sync::Arc, vec},
         transport::middleware::PubNubMiddleware,
         Keyset, PubNubClientBuilder,
     };
