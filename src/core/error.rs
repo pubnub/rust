@@ -93,14 +93,14 @@ pub enum PubNubError {
         details: String,
     },
 
-    /// this error is returned when the cryptor is unable to decrypt data
+    /// this error is returned when the cryptor is unable to encrypt data
     #[snafu(display("Data encryption error: {details}"))]
     Encryption {
         ///docs
         details: String,
     },
 
-    /// this error is returned when the crypror is unable to decrypt data
+    /// this error is returned when the cryptor is unable to decrypt data
     #[snafu(display("Data decryption error: {details}"))]
     Decryption {
         ///docs
