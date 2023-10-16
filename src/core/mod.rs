@@ -59,7 +59,11 @@ pub use serialize::Serialize;
 pub mod serialize;
 
 #[doc(inline)]
-pub use cryptor::Cryptor;
+pub use crypto_provider::CryptoProvider;
+pub mod crypto_provider;
+
+#[doc(inline)]
+pub use cryptor::{Cryptor, EncryptedData};
 pub mod cryptor;
 
 #[cfg(all(feature = "std", feature = "subscribe"))]

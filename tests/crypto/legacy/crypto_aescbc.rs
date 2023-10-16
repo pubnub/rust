@@ -10,14 +10,8 @@
 //! [`aes`]: https://crates.io/crates/aes
 //! [`cbc`]: https://crates.io/crates/cbc
 //! [`aescbc` feature]: ../index.html#features
-use crate::core::{error::PubNubError, Cryptor};
-use crate::lib::alloc::{
-    format,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
 use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+use pubnub::core::error::PubNubError;
 use sha2::{Digest, Sha256};
 
 /// AES-SHA256 encryptor type.
@@ -190,7 +184,7 @@ impl AesCbcCrypto {
     }
 }
 
-impl Cryptor for AesCbcCrypto {
+impl super::cryptor::Cryptor for AesCbcCrypto {
     /// Encrypt provided data.
     ///
     /// # Examples
@@ -296,105 +290,5 @@ impl Cryptor for AesCbcCrypto {
         buffer.resize(decrypted_len, 0);
 
         Ok(buffer)
-    }
-}
-
-#[cfg(test)]
-mod it_should {
-    use super::*;
-    use base64::{engine::general_purpose, Engine as _};
-
-    #[test]
-    fn create_cryptor_with_hardcoded_iv() {
-        let cryptor =
-            AesCbcCrypto::new("enigma", AesCbcIv::Constant).expect("Cryptor should be created");
-        let iv = cryptor
-            .iv
-            .clone()
-            .expect("Initialization vector should be created");
-        assert_eq!(iv, "0123456789012345".as_bytes().to_vec());
-        assert_eq!(cryptor.encryption_iv(), cryptor.encryption_iv());
-    }
-
-    #[test]
-    fn create_cryptor_with_random_iv() {
-        let cryptor =
-            AesCbcCrypto::new("enigma", AesCbcIv::Random).expect("Cryptor should be created");
-        assert!(cryptor.iv.is_none());
-        assert_ne!(cryptor.encryption_iv(), cryptor.encryption_iv());
-    }
-
-    #[test]
-    fn not_create_cryptor_with_empty_cipher_key() {
-        let cryptor = AesCbcCrypto::new("", AesCbcIv::Random);
-        assert!(cryptor.is_err());
-    }
-
-    #[test]
-    fn encrypt_data_with_constant_iv() {
-        let cryptor =
-            AesCbcCrypto::new("enigma", AesCbcIv::Constant).expect("Cryptor should be created");
-        let encrypted1 = cryptor
-            .encrypt(Vec::from("\"Hello there 🙃\""))
-            .expect("Data should be encrypted");
-        let encrypted2 = cryptor
-            .encrypt(Vec::from("\"Hello there 🙃\""))
-            .expect("Data should be encrypted");
-        assert_eq!(encrypted1, encrypted2);
-        assert_ne!(
-            "0123456789012345".as_bytes(),
-            &encrypted1[0..AES_BLOCK_SIZE]
-        );
-        assert_eq!(
-            general_purpose::STANDARD.encode(encrypted2),
-            "4K7StI9dRz7utFsDHvuy082CQupbJvdwzrRja47qAV4="
-        );
-    }
-
-    #[test]
-    fn encrypt_data_with_random_iv() {
-        let cryptor =
-            AesCbcCrypto::new("enigma", AesCbcIv::Random).expect("Cryptor should be created");
-        let encrypted1 = cryptor
-            .encrypt(Vec::from("\"Hello there 🙃\""))
-            .expect("Data should be encrypted");
-        let encrypted2 = cryptor
-            .encrypt(Vec::from("\"Hello there 🙃\""))
-            .expect("Data should be encrypted");
-        assert_ne!(encrypted1, encrypted2);
-        assert_ne!(encrypted1[0..AES_BLOCK_SIZE], encrypted2[0..AES_BLOCK_SIZE]);
-    }
-
-    #[test]
-    fn decrypt_data_with_constant_iv() {
-        let encrypted = general_purpose::STANDARD
-            .decode("4K7StI9dRz7utFsDHvuy082CQupbJvdwzrRja47qAV4=")
-            .expect("Valid base64 encoded string required.");
-        let cryptor =
-            AesCbcCrypto::new("enigma", AesCbcIv::Constant).expect("Cryptor should be created");
-        let decrypted = cryptor
-            .decrypt(encrypted)
-            .expect("Data should be decrypted");
-        assert_eq!(decrypted, "\"Hello there 🙃\"".as_bytes());
-    }
-
-    #[test]
-    fn decrypt_data_with_random_iv() {
-        let encrypted1 = general_purpose::STANDARD
-            .decode("fRm/rMArHgQuIuhuJMbXV8JLOUqf5sP72lGC4EaW98nNhmJltQcmCol9XXWgeDJC")
-            .expect("Valid base64 encoded string required.");
-        let encrypted2 = general_purpose::STANDARD
-            .decode("gk6glnaeb+8zeEvZR1q3sHyQV7xTo1pNf4cc4uJF+a2bK1fMY816Hc9I6j+gYR+5")
-            .expect("Valid base64 encoded string required.");
-        let cryptor =
-            AesCbcCrypto::new("enigma", AesCbcIv::Random).expect("Cryptor should be created");
-        let decrypted1 = cryptor
-            .decrypt(encrypted1)
-            .expect("Data should be decrypted");
-        let decrypted2 = cryptor
-            .decrypt(encrypted2)
-            .expect("Data should be decrypted");
-        assert_eq!(decrypted1, "\"Hello there 🙃\"".as_bytes());
-        assert_eq!(decrypted1, decrypted2);
     }
 }
