@@ -1,9 +1,14 @@
 name: rust
-version: 0.3.0
+version: 0.4.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2023-10-16
+    version: 0.4.0
+    changes:
+      - type: feature
+        text: "Update the crypto module structure and add enhanced AES-CBC cryptor."
   - date: 2023-08-30
     version: 0.3.0
     changes:
