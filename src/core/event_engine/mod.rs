@@ -215,10 +215,10 @@ mod should {
             Transition {
                 invocations: self
                     .exit()
-                    .unwrap_or(vec![])
+                    .unwrap_or_default()
                     .into_iter()
-                    .chain(invocations.unwrap_or(vec![]))
-                    .chain(state.enter().unwrap_or(vec![]))
+                    .chain(invocations.unwrap_or_default())
+                    .chain(state.enter().unwrap_or_default())
                     .collect(),
                 state,
             }
