@@ -27,9 +27,7 @@ impl Deserializer for CiboriumDeserializer {
         &self,
         bytes: &[u8],
     ) -> Result<Token, PubNubError> {
-        use crate::lib::core::ops::Deref;
-
-        from_reader(bytes.deref()).map_err(|e| PubNubError::TokenDeserialization {
+        from_reader(bytes).map_err(|e| PubNubError::TokenDeserialization {
             details: e.to_string(),
         })
     }
