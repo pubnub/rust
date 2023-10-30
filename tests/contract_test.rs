@@ -4,6 +4,7 @@ use std::process;
 
 mod access;
 mod common;
+mod crypto;
 mod publish;
 mod subscribe;
 use common::PubNubWorld;
@@ -23,7 +24,7 @@ fn get_feature_set(tags: &[String]) -> String {
 }
 
 fn feature_allows_beta(feature: &str) -> bool {
-    let features: Vec<&str> = vec!["access", "publish", "eventEngine"];
+    let features: Vec<&str> = vec!["access", "publish", "eventEngine", "cryptoModule"];
     features.contains(&feature)
 }
 
@@ -33,12 +34,12 @@ fn feature_allows_skipped(feature: &str) -> bool {
 }
 
 fn feature_allows_contract_less(feature: &str) -> bool {
-    let features: Vec<&str> = vec!["access"];
+    let features: Vec<&str> = vec!["access", "cryptoModule"];
     features.contains(&feature)
 }
 
 fn is_ignored_feature_set_tag(feature: &str, tags: &[String]) -> bool {
-    let supported_features = ["access", "publish", "eventEngine"];
+    let supported_features = ["access", "publish", "eventEngine", "cryptoModule"];
     let mut ignored_tags = vec!["na=rust"];
 
     if !feature_allows_beta(feature) {

@@ -12,8 +12,8 @@ pub mod serialization_serde;
 #[cfg(feature = "serde")]
 pub mod deserialization_serde;
 
-#[cfg(feature = "aescbc")]
-pub mod crypto_aescbc;
+#[cfg(feature = "crypto")]
+pub mod crypto;
 
 #[cfg(all(feature = "tokio", feature = "std"))]
 pub mod futures_tokio;

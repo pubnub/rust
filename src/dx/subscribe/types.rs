@@ -1,7 +1,7 @@
 //! Subscription types module.
 
 use crate::{
-    core::{Cryptor, PubNubError, ScalarValue},
+    core::{CryptoProvider, PubNubError, ScalarValue},
     dx::subscribe::result::{Envelope, EnvelopePayload, ObjectDataBody, Update},
     lib::{
         alloc::{
@@ -56,7 +56,7 @@ pub enum SubscribeMessageType {
     /// Object related event.
     ///
     /// This type is set to the group of events which is related to the
-    /// `user Id` / `channel` objects and their relationship changes.
+    /// `user ID` / `channel` objects and their relationship changes.
     Object = 2,
 
     /// Message action related event.
@@ -395,8 +395,8 @@ pub struct Message {
 
     /// Decryption error details.
     ///
-    /// Error is set when [`PubNubClient`] configured with cryptor and it wasn't
-    /// able to decrypt [`data`] in this message.
+    /// Error is set when [`PubNubClient`] configured with cryptor, and it
+    /// wasn't able to decrypt [`data`] in this message.
     pub decryption_error: Option<PubNubError>,
 }
 
@@ -566,7 +566,7 @@ impl Object {
     /// Name of subscription.
     ///
     /// Name of channel or channel group on which client subscribed and through
-    /// which which object update has been triggered.
+    /// which object update has been triggered.
     pub(crate) fn subscription(&self) -> String {
         match self {
             Object::Channel { subscription, .. }
@@ -580,7 +580,7 @@ impl Update {
     /// Decrypt real-time update.
     pub(in crate::dx::subscribe) fn decrypt(
         self,
-        cryptor: &Arc<dyn Cryptor + Send + Sync>,
+        cryptor: &Arc<dyn CryptoProvider + Send + Sync>,
     ) -> Self {
         if !matches!(self, Self::Message(_) | Self::Signal(_)) {
             return self;
@@ -596,7 +596,7 @@ impl Update {
 
 impl Message {
     /// Decrypt message payload if possible.
-    fn decrypt(mut self, cryptor: &Arc<dyn Cryptor + Send + Sync>) -> Self {
+    fn decrypt(mut self, cryptor: &Arc<dyn CryptoProvider + Send + Sync>) -> Self {
         let lossy_string = String::from_utf8_lossy(self.data.as_slice()).to_string();
         let trimmed = lossy_string.trim_matches('"');
         let decryption_result = general_purpose::STANDARD
@@ -912,7 +912,7 @@ fn resolve_subscription_value(subscription: Option<String>, channel: &str) -> St
     subscription.unwrap_or(channel.to_owned())
 }
 
-// TODO: add tests for complicated froms.
+// TODO: add tests for complicated forms.
 #[cfg(test)]
 mod should {
     use super::*;

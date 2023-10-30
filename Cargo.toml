@@ -1,12 +1,13 @@
 [package]
 name = "pubnub"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
+license-file = "LICENSE"
 authors = ["PubNub <support@pubnub.com>"]
 description = "PubNub SDK for Rust"
 repository = "https://github.com/pubnub/rust"
-documentation = "https://docs.rs/pubnub/latest/pubnub" 
+documentation = "https://docs.rs/pubnub/latest/pubnub"
 homepage = "https://www.pubnub.com"
 categories = ["api-bindings", "asynchronous", "network-programming", "wasm"]
 build = "build.rs"
@@ -14,10 +15,10 @@ build = "build.rs"
 [features]
 
 # Enables all non-conflicting features
-full = ["publish", "subscribe", "presence", "access", "serde", "reqwest", "aescbc", "parse_token", "blocking", "std", "tokio"]
+full = ["publish", "subscribe", "presence", "access", "serde", "reqwest", "crypto", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
-default = ["publish", "subscribe", "serde", "reqwest", "aescbc", "std", "blocking", "tokio"]
+default = ["publish", "subscribe", "serde", "reqwest", "std", "blocking", "tokio"]
 
 # [PubNub features]
 
@@ -27,8 +28,8 @@ publish = []
 ## Enables access manager feature
 access = []
 
-## Enables AES-CBC encryption
-aescbc = ["dep:aes", "dep:cbc", "getrandom"]
+## Enables crypto module
+crypto = ["dep:aes", "dep:cbc", "getrandom"]
 
 ## Enables token parsing
 parse_token = ["dep:ciborium"]
@@ -48,7 +49,7 @@ tokio = ["dep:tokio"]
 blocking = ["reqwest?/blocking"]
 
 ## Enables std library
-std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "snafu/std", "hmac/std", "sha2/std", "time/std", "bytes?/std", "getrandom/std", "rand/default", "serde?/std", "serde_json?/std", "ciborium?/std", "futures?/std", "futures?/async-await", "dep:async-channel"] 
+std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "snafu/std", "hmac/std", "sha2/std", "time/std", "bytes?/std", "getrandom/std", "rand/default", "serde?/std", "serde_json?/std", "ciborium?/std", "futures?/std", "futures?/async-await", "dep:async-channel"]
 
 ## Enables very specific implementations for different platforms.
 ## 
@@ -60,13 +61,13 @@ std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "s
 ## https://docs.rs/portable_atomic
 ## and
 ## https://docs.rs/critical-section/latest/critical_section/
-extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"] 
+extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"]
 
 # [Internal features] (not intended for use outside of the library)
-contract_test = ["parse_token", "publish", "access"]
-full_no_std = ["serde", "reqwest", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
-full_no_std_platform_independent = ["serde", "aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
-pubnub_only = ["aescbc", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
+contract_test = ["parse_token", "publish", "access", "crypto"]
+full_no_std = ["serde", "reqwest", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
+full_no_std_platform_independent = ["serde", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
+pubnub_only = ["crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
 mock_getrandom = ["getrandom/custom"]
 # TODO: temporary treated as internal until we officially release it
 subscribe = ["dep:futures"]
@@ -140,6 +141,10 @@ harness = false
 required-features = ["contract_test"]
 
 [[example]]
+name = "crypto"
+required-features = ["default", "crypto"]
+
+[[example]]
 name = "publish"
 required-features = ["default"]
 
@@ -194,4 +199,3 @@ required-features = ["default", "presence"]
 [[example]]
 name = "presence_state_blocking"
 required-features = ["default", "blocking", "presence"]
-

@@ -27,7 +27,7 @@ use crate::transport::TransportReqwest;
 use crate::core::RequestRetryPolicy;
 
 use crate::{
-    core::{Cryptor, PubNubError},
+    core::{CryptoProvider, PubNubError},
     lib::{
         alloc::{
             string::{String, ToString},
@@ -277,7 +277,7 @@ pub struct PubNubClientRef<T, D> {
         field(vis = "pub(crate)"),
         default = "None"
     )]
-    pub(crate) cryptor: Option<Arc<dyn Cryptor + Send + Sync>>,
+    pub(crate) cryptor: Option<Arc<dyn CryptoProvider + Send + Sync>>,
 
     /// Instance ID
     #[builder(
@@ -450,15 +450,15 @@ impl<T, D> PubNubClientConfigBuilder<T, D> {
 
     /// Data encryption / decryption
     ///
-    /// Cryptor used by client when publish messages / signals and receive them
-    /// as real-time updates from subscription module.
+    /// Crypto module used by client when publish messages / signals and receive
+    /// them as real-time updates from subscription module.
     ///
     /// It returns [`PubNubClientConfigBuilder`] that you can use to set the
     /// configuration for the client. This is a part of the
     /// [`PubNubClientConfigBuilder`].
     pub fn with_cryptor<C>(mut self, cryptor: C) -> Self
     where
-        C: Cryptor + Send + Sync + 'static,
+        C: CryptoProvider + Send + Sync + 'static,
     {
         self.cryptor = Some(Some(Arc::new(cryptor)));
 
@@ -1157,6 +1157,7 @@ impl<T> PubNubClientDeserializerBuilder<T> {
             transport: self.transport,
             deserializer: DeserializerSerde,
             keyset,
+
             #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
             runtime: self.runtime,
         }
@@ -1196,6 +1197,7 @@ where
     transport: T,
     deserializer: D,
     keyset: Keyset<S>,
+
     #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
     runtime: RuntimeSupport,
 }
@@ -1225,15 +1227,20 @@ where
                 secret_key,
                 user_id: Arc::new(user_id.into()),
                 auth_key: None,
+
                 #[cfg(feature = "std")]
                 retry_policy: Default::default(),
+
                 #[cfg(any(feature = "subscribe", feature = "presence"))]
                 heartbeat_value: 300,
+
                 #[cfg(any(feature = "subscribe", feature = "presence"))]
                 heartbeat_interval: None,
             }),
+
             #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
             runtime: Some(self.runtime),
+
             deserializer: Some(Arc::new(self.deserializer)),
             ..Default::default()
         }
