@@ -23,8 +23,8 @@ pub(super) async fn execute(
 
     info!(
         "Handshake reconnection for\nchannels: {:?}\nchannel groups: {:?}",
-        input.channels().unwrap_or(Vec::new()),
-        input.channel_groups().unwrap_or(Vec::new())
+        input.channels().unwrap_or_default(),
+        input.channel_groups().unwrap_or_default()
     );
 
     if input.is_empty {
