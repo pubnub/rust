@@ -44,8 +44,16 @@ allow-osi-fsf-free = "neither"
 default = "deny"
 confidence-threshold = 0.8
 exceptions = [
+    { allow = ["LicenseRef-PubNub-Software-Development-Kit-License"], name = "pubnub" },
     #{ allow = ["Zlib"], name = "adler32", version = "*" },
 ]
+
+
+[[licenses.clarify]]
+name = "pubnub"
+expression = "LicenseRef-PubNub-Software-Development-Kit-License"
+license-files = [ { path = "LICENSE", hash = 0x48826f13 }, ]
+
 
 [licenses.private]
 ignore = false
