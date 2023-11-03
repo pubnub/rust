@@ -4,7 +4,7 @@ schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
-  - date: 2023-10-31
+  - date: 2023-11-03
     version: 0.4.1
     changes:
       - type: improvement
