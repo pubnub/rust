@@ -36,11 +36,11 @@ Add `pubnub` to your Rust project in the `Cargo.toml` file:
 ```toml
 # default features
 [dependencies]
-pubnub = "0.4.1"
+pubnub = "0.4.2"
 
 # all features
 [dependencies]
-pubnub = { version = "0.4.1", features = ["full"] }
+pubnub = { version = "0.4.2", features = ["full"] }
 ```
 
 ### Example
@@ -132,11 +132,11 @@ disable them in the `Cargo.toml` file, like so:
 ```toml
 # only blocking and access + default features
 [dependencies]
-pubnub = { version = "0.4.1", features = ["blocking", "access"] }
+pubnub = { version = "0.4.2", features = ["blocking", "access"] }
 
 # only parse_token + default features
 [dependencies]
-pubnub = { version = "0.4.1", features = ["parse_token"] }
+pubnub = { version = "0.4.2", features = ["parse_token"] }
 ```
 
 ### Available features
@@ -175,7 +175,7 @@ you need, for example:
 
 ```toml
 [dependencies]
-pubnub = { version = "0.4.1", default-features = false, features = ["serde", "publish",
+pubnub = { version = "0.4.2", default-features = false, features = ["serde", "publish",
 "blocking"] }
 ```
 
