@@ -1,9 +1,14 @@
 name: rust
-version: 0.4.0
+version: 0.4.1
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2023-11-03
+    version: 0.4.1
+    changes:
+      - type: improvement
+        text: "Update license information."
   - date: 2023-10-16
     version: 0.4.0
     changes:

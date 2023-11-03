@@ -39,11 +39,11 @@
 //! ```toml
 //! # default features
 //! [dependencies]
-//! pubnub = "0.4.0"
+//! pubnub = "0.4.1"
 //!
 //! # all features
 //! [dependencies]
-//! pubnub = { version = "0.4.0", features = ["full"] }
+//! pubnub = { version = "0.4.1", features = ["full"] }
 //! ```
 //!
 //! ### Example
@@ -135,11 +135,11 @@
 //! ```toml
 //! # only blocking and access + default features
 //! [dependencies]
-//! pubnub = { version = "0.4.0", features = ["blocking", "access"] }
+//! pubnub = { version = "0.4.1", features = ["blocking", "access"] }
 //!
 //! # only parse_token + default features
 //! [dependencies]
-//! pubnub = { version = "0.4.0", features = ["parse_token"] }
+//! pubnub = { version = "0.4.1", features = ["parse_token"] }
 //! ```
 //!
 //! ### Available features
@@ -178,7 +178,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pubnub = { version = "0.4.0", default-features = false, features = ["serde", "publish",
+//! pubnub = { version = "0.4.1", default-features = false, features = ["serde", "publish",
 //! "blocking"] }
 //! ```
 //!
