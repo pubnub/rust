@@ -29,6 +29,7 @@ allow = [
     # Before inserting a new license here, please check if it is already in the list of
     # licenses that are allowed: https://blueoakcouncil.org/list
 
+    "LicenseRef-PubNubSoftwareDevelopmentKitLicenseAgreement",
     "MIT",
     "Apache-2.0",
     "BlueOak-1.0.0",
@@ -45,6 +46,13 @@ default = "deny"
 confidence-threshold = 0.8
 exceptions = [
     #{ allow = ["Zlib"], name = "adler32", version = "*" },
+]
+
+[[licenses.clarify]]
+name = "pubnub"
+expression = "LicenseRef-PubNubSoftwareDevelopmentKitLicenseAgreement"
+license-files = [
+    { path = "LICENSE", hash = 0x48826f13 },
 ]
 
 [licenses.private]

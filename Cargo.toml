@@ -2,7 +2,6 @@
 name = "pubnub"
 version = "0.4.0"
 edition = "2021"
-license = "MIT"
 license-file = "LICENSE"
 authors = ["PubNub <support@pubnub.com>"]
 description = "PubNub SDK for Rust"

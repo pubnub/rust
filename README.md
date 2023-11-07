@@ -222,4 +222,24 @@ support@pubnub.com.
 
 ## License
 
-This project is licensed under the [MIT license](https://github.com/pubnub/rust/blob/master/LICENSE).
+This project is licensed under the [PubNub Software Development Kit License Agreement](https://github.com/pubnub/rust/blob/master/LICENSE).
+
+### cargo-deny
+
+Currently our license is not added into the [SPDX license list](https://spdx.org/licenses/) so `cargo-deny` will raise an issue about it. 
+If you agree on our license you can simply satisfy it by following onfiguration:
+```toml
+[licenses]
+allow = [
+#...
+    "LicenseRef-PubNubSoftwareDevelopmentKitLicenseAgreement"
+]
+
+[[licenses.clarify]]
+name = "pubnub"
+expression = "LicenseRef-PubNubSoftwareDevelopmentKitLicenseAgreement"
+license-files = [
+    { path = "LICENSE", hash = 0x48826f13 },
+]
+```
+
