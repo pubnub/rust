@@ -116,9 +116,9 @@ where
     /// groups by temporarily disconnecting from the [`PubNub`] network.
     ///
     /// ```no_run
-    /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
-    ///
+    /// # use futures::StreamExt;
+    /// # use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    /// #
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use pubnub::{Keyset, PubNubClientBuilder};
@@ -182,9 +182,9 @@ where
     /// and groups by restoring connection to the [`PubNub`] network.
     ///
     /// ```no_run
-    /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
-    ///
+    /// # use futures::StreamExt;
+    /// # use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    /// #
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use pubnub::{Keyset, PubNubClientBuilder};
