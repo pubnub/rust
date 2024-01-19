@@ -81,7 +81,30 @@ impl Transport for TransportReqwest {
             "Sending data to pubnub: {} {:?} {}",
             request.method, request.headers, request_url
         );
+        log::debug!(
+            "Sending data to pubnub: {} {:?} {}",
+            request.method,
+            request.headers,
+            request_url
+        );
+
         let headers = prepare_headers(&request.headers)?;
+        #[cfg(feature = "std")]
+        let timeout = request.timeout;
+
+        #[cfg(feature = "std")]
+        let mut builder = match request.method {
+            TransportMethod::Get => self.prepare_get_method(request, request_url),
+            TransportMethod::Post => self.prepare_post_method(request, request_url),
+            TransportMethod::Delete => self.prepare_delete_method(request, request_url),
+        }?;
+
+        #[cfg(feature = "std")]
+        if timeout.gt(&0) {
+            builder = builder.timeout(core::time::Duration::from_secs(timeout));
+        }
+
+        #[cfg(not(feature = "std"))]
         let builder = match request.method {
             TransportMethod::Get => self.prepare_get_method(request, request_url),
             TransportMethod::Post => self.prepare_post_method(request, request_url),
@@ -384,6 +407,22 @@ pub mod blocking {
                 request.method, request.headers, request_url
             );
             let headers = prepare_headers(&request.headers)?;
+            #[cfg(feature = "std")]
+            let timeout = request.timeout;
+
+            #[cfg(feature = "std")]
+            let mut builder = match request.method {
+                TransportMethod::Get => self.prepare_get_method(request, request_url),
+                TransportMethod::Post => self.prepare_post_method(request, request_url),
+                TransportMethod::Delete => self.prepare_delete_method(request, request_url),
+            }?;
+
+            #[cfg(feature = "std")]
+            if timeout.gt(&0) {
+                builder = builder.timeout(core::time::Duration::from_micros(timeout))
+            }
+
+            #[cfg(not(feature = "std"))]
             let builder = match request.method {
                 TransportMethod::Get => self.prepare_get_method(request, request_url),
                 TransportMethod::Post => self.prepare_post_method(request, request_url),

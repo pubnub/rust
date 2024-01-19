@@ -47,15 +47,18 @@ pub struct RevokeTokenRequest<T, D> {
 impl<T, D> RevokeTokenRequest<T, D> {
     /// Create transport request from the request builder.
     pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let config = &self.pubnub_client.config;
 
         TransportRequest {
             path: format!(
-                "/v3/pam/{sub_key}/grant/{}",
+                "/v3/pam/{}/grant/{}",
+                &config.subscribe_key,
                 url_encode(self.token.as_bytes())
             ),
             method: TransportMethod::Delete,
             headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
+            #[cfg(feature = "std")]
+            timeout: config.transport.request_timeout,
             ..Default::default()
         }
     }
@@ -86,6 +89,7 @@ where
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
             .send::<RevokeTokenResponseBody, _, _, _>(&client.transport, deserializer)
             .await

@@ -14,7 +14,7 @@ where
     I: EffectInvocation,
 {
     /// Target state machine state.
-    pub state: S,
+    pub state: Option<S>,
 
     /// List of effect invocation which should be scheduled during transition.
     pub invocations: Vec<I>,

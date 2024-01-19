@@ -1,16 +1,24 @@
-use pubnub::{Keyset, PubNubClientBuilder};
-use serde::Serialize;
-use std::env;
+use std::collections::HashMap;
 
-#[derive(Debug, Serialize)]
+use pubnub::{Keyset, PubNubClientBuilder};
+
+#[derive(Debug, serde::Serialize)]
 struct State {
     is_doing: String,
+    flag: bool,
+}
+#[derive(Debug, serde::Serialize)]
+struct State2 {
+    is_doing: String,
+    business: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
-    let publish_key = env::var("SDK_PUB_KEY")?;
-    let subscribe_key = env::var("SDK_SUB_KEY")?;
+    // let publish_key = env::var("SDK_PUB_KEY")?;
+    // let subscribe_key = env::var("SDK_SUB_KEY")?;
+    let publish_key = "demo";
+    let subscribe_key = "demo";
 
     let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
@@ -24,8 +32,31 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     println!("running!");
 
     client
+        .set_presence_state_with_heartbeat(HashMap::from([
+            (
+                "my_channel".to_string(),
+                State {
+                    is_doing: "Something".to_string(),
+                    flag: true,
+                },
+            ),
+            (
+                "other_channel".to_string(),
+                State {
+                    is_doing: "Oh no".to_string(),
+                    flag: false,
+                },
+            ),
+        ]))
+        .channels(["my_channel".into(), "other_channel".into()].to_vec())
+        .user_id("user_id")
+        .execute()
+        .await?;
+
+    client
         .set_presence_state(State {
             is_doing: "Nothing... Just hanging around...".into(),
+            flag: false,
         })
         .channels(["my_channel".into(), "other_channel".into()].to_vec())
         .user_id("user_id")

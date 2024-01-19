@@ -107,7 +107,7 @@ impl<T, D> LeaveRequest<T, D> {
     pub(in crate::dx::presence) fn transport_request(
         &self,
     ) -> Result<TransportRequest, PubNubError> {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let config = &self.pubnub_client.config;
         let mut query: HashMap<String, String> = HashMap::new();
         query.insert("uuid".into(), self.user_id.to_string());
 
@@ -117,13 +117,16 @@ impl<T, D> LeaveRequest<T, D> {
 
         Ok(TransportRequest {
             path: format!(
-                "/v2/presence/sub_key/{sub_key}/channel/{}/leave",
+                "/v2/presence/sub_key/{}/channel/{}/leave",
+                &config.subscribe_key,
                 url_encoded_channels(&self.channels)
             ),
             query_parameters: query,
             method: TransportMethod::Get,
             headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             body: None,
+            #[cfg(feature = "std")]
+            timeout: config.transport.request_timeout,
         })
     }
 }
@@ -139,6 +142,7 @@ where
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
             .send::<LeaveResponseBody, _, _, _>(&client.transport, deserializer)
             .await

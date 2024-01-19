@@ -6,16 +6,16 @@ use crate::{
     dx::subscribe::{
         event_engine::{
             effects::SubscribeEffectExecutor, types::SubscriptionParams, SubscribeEvent,
-            SubscribeInput,
+            SubscriptionInput,
         },
-        SubscribeCursor,
+        SubscriptionCursor,
     },
     lib::alloc::{sync::Arc, vec, vec::Vec},
 };
 
 pub(crate) async fn execute(
-    input: &SubscribeInput,
-    cursor: &SubscribeCursor,
+    input: &SubscriptionInput,
+    cursor: &SubscriptionCursor,
     effect_id: &str,
     executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
@@ -82,7 +82,7 @@ mod should {
         });
 
         let result = execute(
-            &SubscribeInput::new(
+            &SubscriptionInput::new(
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),
@@ -112,7 +112,7 @@ mod should {
         });
 
         let result = execute(
-            &SubscribeInput::new(
+            &SubscriptionInput::new(
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),

@@ -1,5 +1,7 @@
 //! Subscription types module.
 
+use base64::{engine::general_purpose, Engine};
+
 use crate::{
     core::{CryptoProvider, PubNubError, ScalarValue},
     dx::subscribe::result::{Envelope, EnvelopePayload, ObjectDataBody, Update},
@@ -12,10 +14,16 @@ use crate::{
             vec::Vec,
         },
         collections::HashMap,
-        core::{fmt::Formatter, result::Result},
+        core::{
+            cmp::{Ord, Ordering, PartialOrd},
+            fmt::{Debug, Formatter},
+            result::Result,
+        },
     },
 };
-use base64::{engine::general_purpose, Engine};
+
+#[cfg(not(feature = "serde"))]
+use crate::lib::alloc::vec;
 
 /// Subscription event.
 ///
@@ -25,7 +33,7 @@ use base64::{engine::general_purpose, Engine};
 #[derive(Debug, Clone)]
 pub enum SubscribeStreamEvent {
     /// Subscription status update.
-    Status(SubscribeStatus),
+    Status(ConnectionStatus),
 
     /// Real-time update.
     Update(Update),
@@ -72,13 +80,27 @@ pub enum SubscribeMessageType {
     File = 4,
 }
 
+/// Subscription behaviour options.
+///
+/// Subscription behaviour with real-time events can be adjusted using provided
+/// options. Currently, subscription can be instructed to:
+/// * listen presence events for channels and groups
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SubscriptionOptions {
+    /// Whether presence events should be received.
+    ///
+    /// Whether presence updates for `userId` should be delivered through
+    /// [`Subscription2`] listener streams or not.
+    ReceivePresenceEvents,
+}
+
 /// Time cursor.
 ///
 /// Cursor used by subscription loop to identify point in time after
 /// which updates will be delivered.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-pub struct SubscribeCursor {
+pub struct SubscriptionCursor {
     /// PubNub high-precision timestamp.
     ///
     /// Aside of specifying exact time of receiving data / event this token used
@@ -91,9 +113,55 @@ pub struct SubscribeCursor {
     pub region: u32,
 }
 
+impl PartialOrd for SubscriptionCursor {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+
+    fn lt(&self, other: &Self) -> bool {
+        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
+        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
+        lhs < rhs
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
+        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
+        lhs <= rhs
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
+        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
+        lhs > rhs
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
+        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
+        lhs >= rhs
+    }
+}
+
+impl Ord for SubscriptionCursor {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+    }
+}
+
+impl Debug for SubscriptionCursor {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "SubscriptionCursor {{ timetoken: {}, region: {} }}",
+            self.timetoken, self.region
+        )
+    }
+}
+
 /// Subscription statuses.
-#[derive(Debug, Clone, PartialEq)]
-pub enum SubscribeStatus {
+#[derive(Clone, PartialEq)]
+pub enum ConnectionStatus {
     /// Successfully connected and receiving real-time updates.
     Connected,
 
@@ -106,6 +174,9 @@ pub enum SubscribeStatus {
 
     /// Connection attempt failed.
     ConnectionError(PubNubError),
+
+    /// Unexpected disconnection.
+    DisconnectedUnexpectedly(PubNubError),
 }
 
 /// Presence update information.
@@ -135,6 +206,19 @@ pub enum Presence {
 
         /// Current channel occupancy after user joined.
         occupancy: usize,
+
+        /// The user's state associated with the channel has been updated.
+        #[cfg(feature = "serde")]
+        data: Option<serde_json::Value>,
+
+        /// The user's state associated with the channel has been updated.
+        #[cfg(not(feature = "serde"))]
+        data: Option<Vec<u8>>,
+
+        /// PubNub high-precision timestamp.
+        ///
+        /// Time when event has been emitted.
+        event_timestamp: usize,
     },
 
     /// Remote user `leave` update.
@@ -156,6 +240,11 @@ pub enum Presence {
 
         /// Unique identification of the user which left the channel.
         uuid: String,
+
+        /// PubNub high-precision timestamp.
+        ///
+        /// Time when event has been emitted.
+        event_timestamp: usize,
     },
 
     /// Remote user `timeout` update.
@@ -177,6 +266,11 @@ pub enum Presence {
 
         /// Unique identification of the user which timeout the channel.
         uuid: String,
+
+        /// PubNub high-precision timestamp.
+        ///
+        /// Time when event has been emitted.
+        event_timestamp: usize,
     },
 
     /// Channel `interval` presence update.
@@ -208,6 +302,11 @@ pub enum Presence {
         /// The list of unique user identifiers that `timeout` the channel since
         /// the last interval presence update.
         timeout: Option<Vec<String>>,
+
+        /// PubNub high-precision timestamp.
+        ///
+        /// Time when event has been emitted.
+        event_timestamp: usize,
     },
 
     /// Remote user `state` change update.
@@ -235,28 +334,34 @@ pub enum Presence {
         /// The user's state associated with the channel has been updated.
         #[cfg(not(feature = "serde"))]
         data: Vec<u8>,
+
+        /// PubNub high-precision timestamp.
+        ///
+        /// Time when event has been emitted.
+        event_timestamp: usize,
     },
 }
 
-/// Objects update information.
+/// App Context object update information.
 ///
-/// Enum provides [`Object::Channel`], [`Object::Uuid`] and
-/// [`Object::Membership`] variants for updates listener. These variants allow
-/// listener understand how objects and their relationship changes.
+/// Enum provides [`AppContext::Channel`], [`AppContext::Uuid`] and
+/// [`AppContext::Membership`] variants for updates listener. These variants
+/// allow listener understand how App Context objects and their relationship
+/// changes.
 #[derive(Debug, Clone)]
-pub enum Object {
-    /// `Channel` object update.
+pub enum AppContext {
+    /// `Channel` metadata object update.
     Channel {
-        /// The type of event that happened during the object update.
+        /// The type of event that happened during the metadata object update.
         event: Option<ObjectEvent>,
 
-        /// Time when `channel` object has been updated.
+        /// Time when metadata has been updated.
         timestamp: Option<usize>,
 
-        /// Given name of the channel object.
+        /// Given name of the metadata object.
         name: Option<String>,
 
-        /// `Channel` object additional description.
+        /// Metadata additional description.
         description: Option<String>,
 
         /// `Channel` object type information.
@@ -336,7 +441,7 @@ pub enum Object {
         timestamp: Option<usize>,
 
         /// `Channel` object within which `uuid` object registered as member.
-        channel: Box<Object>,
+        channel: Box<AppContext>,
 
         /// Flatten `HashMap` with additional information associated with
         /// `membership` object.
@@ -439,7 +544,6 @@ pub struct MessageAction {
 /// [`File`] type provides to the updates listener information about shared
 /// files.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct File {
     /// Identifier of client which sent shared file.
     pub sender: String,
@@ -454,13 +558,13 @@ pub struct File {
     pub subscription: String,
 
     /// Message which has been associated with uploaded file.
-    message: String,
+    pub message: String,
 
     /// Unique identifier of uploaded file.
-    id: String,
+    pub id: String,
 
     /// Actual name with which file has been stored.
-    name: String,
+    pub name: String,
 }
 
 /// Object update event types.
@@ -483,11 +587,20 @@ pub enum MessageActionEvent {
     Delete,
 }
 
-impl Default for SubscribeCursor {
+impl Default for SubscriptionCursor {
     fn default() -> Self {
         Self {
             timetoken: "0".into(),
             region: 0,
+        }
+    }
+}
+
+impl From<String> for SubscriptionCursor {
+    fn from(value: String) -> Self {
+        Self {
+            timetoken: value,
+            ..Default::default()
         }
     }
 }
@@ -520,26 +633,29 @@ impl TryFrom<String> for MessageActionEvent {
     }
 }
 
-impl From<SubscribeCursor> for HashMap<String, String> {
-    fn from(value: SubscribeCursor) -> Self {
+impl From<SubscriptionCursor> for HashMap<String, String> {
+    fn from(value: SubscriptionCursor) -> Self {
         if value.timetoken.eq(&"0") {
-            HashMap::from([("tt".into(), value.timetoken)])
+            HashMap::from([(String::from("tt"), value.timetoken)])
         } else {
             HashMap::from([
-                ("tt".into(), value.timetoken.to_string()),
-                ("tr".into(), value.region.to_string()),
+                (String::from("tt"), value.timetoken.to_string()),
+                (String::from("tr"), value.region.to_string()),
             ])
         }
     }
 }
 
-impl core::fmt::Display for SubscribeStatus {
+impl Debug for ConnectionStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Connected => write!(f, "Connected"),
             Self::Reconnected => write!(f, "Reconnected"),
             Self::Disconnected => write!(f, "Disconnected"),
             Self::ConnectionError(err) => write!(f, "ConnectionError({err:?})"),
+            ConnectionStatus::DisconnectedUnexpectedly(err) => {
+                write!(f, "DisconnectedUnexpectedly({err:?})")
+            }
         }
     }
 }
@@ -552,26 +668,64 @@ impl Presence {
     /// which presence update has been delivered.
     pub(crate) fn subscription(&self) -> String {
         match self {
-            Presence::Join { subscription, .. }
-            | Presence::Leave { subscription, .. }
-            | Presence::Timeout { subscription, .. }
-            | Presence::Interval { subscription, .. }
-            | Presence::StateChange { subscription, .. } => subscription.clone(),
+            Self::Join { subscription, .. }
+            | Self::Leave { subscription, .. }
+            | Self::Timeout { subscription, .. }
+            | Self::Interval { subscription, .. }
+            | Self::StateChange { subscription, .. } => subscription.clone(),
+        }
+    }
+
+    /// PubNub high-precision presence event timestamp.
+    ///
+    /// # Returns
+    ///
+    /// Returns time when presence event has been emitted.
+    pub(crate) fn event_timestamp(&self) -> usize {
+        match self {
+            Self::Join {
+                event_timestamp, ..
+            }
+            | Self::Leave {
+                event_timestamp, ..
+            }
+            | Self::Timeout {
+                event_timestamp, ..
+            }
+            | Self::Interval {
+                event_timestamp, ..
+            }
+            | Self::StateChange {
+                event_timestamp, ..
+            } => *event_timestamp,
         }
     }
 }
 
 #[cfg(feature = "std")]
-impl Object {
+impl AppContext {
     /// Name of subscription.
     ///
     /// Name of channel or channel group on which client subscribed and through
     /// which object update has been triggered.
     pub(crate) fn subscription(&self) -> String {
         match self {
-            Object::Channel { subscription, .. }
-            | Object::Uuid { subscription, .. }
-            | Object::Membership { subscription, .. } => subscription.clone(),
+            Self::Channel { subscription, .. }
+            | Self::Uuid { subscription, .. }
+            | Self::Membership { subscription, .. } => subscription.clone(),
+        }
+    }
+
+    /// PubNub high-precision AppContext event timestamp.
+    ///
+    /// # Returns
+    ///
+    /// Returns time when AppContext event has been emitted.
+    pub(crate) fn event_timestamp(&self) -> usize {
+        match self {
+            Self::Channel { timestamp, .. }
+            | Self::Uuid { timestamp, .. }
+            | Self::Membership { timestamp, .. } => timestamp.unwrap_or(0),
         }
     }
 }
@@ -621,6 +775,7 @@ impl TryFrom<Envelope> for Presence {
     type Error = PubNubError;
 
     fn try_from(value: Envelope) -> Result<Self, Self::Error> {
+        let event_timestamp = value.published.timetoken.parse::<usize>().ok().unwrap_or(0);
         if let EnvelopePayload::Presence {
             action,
             timestamp,
@@ -646,6 +801,8 @@ impl TryFrom<Envelope> for Presence {
                     channel,
                     subscription,
                     occupancy: occupancy.unwrap_or(0),
+                    data,
+                    event_timestamp,
                 }),
                 "leave" => Ok(Self::Leave {
                     timestamp,
@@ -655,6 +812,7 @@ impl TryFrom<Envelope> for Presence {
                     channel,
                     subscription,
                     occupancy: occupancy.unwrap_or(0),
+                    event_timestamp,
                 }),
                 "timeout" => Ok(Self::Timeout {
                     timestamp,
@@ -664,6 +822,7 @@ impl TryFrom<Envelope> for Presence {
                     channel,
                     subscription,
                     occupancy: occupancy.unwrap_or(0),
+                    event_timestamp,
                 }),
                 "interval" => Ok(Self::Interval {
                     timestamp,
@@ -673,6 +832,7 @@ impl TryFrom<Envelope> for Presence {
                     join,
                     leave,
                     timeout,
+                    event_timestamp,
                 }),
                 _ => Ok(Self::StateChange {
                     timestamp,
@@ -681,7 +841,11 @@ impl TryFrom<Envelope> for Presence {
                     uuid: uuid.unwrap_or("".to_string()),
                     channel,
                     subscription,
-                    data,
+                    #[cfg(feature = "serde")]
+                    data: data.unwrap_or(serde_json::Value::Null),
+                    #[cfg(not(feature = "serde"))]
+                    data: data.unwrap_or(vec![]),
+                    event_timestamp,
                 }),
             }
         } else {
@@ -692,7 +856,7 @@ impl TryFrom<Envelope> for Presence {
     }
 }
 
-impl TryFrom<Envelope> for Object {
+impl TryFrom<Envelope> for AppContext {
     type Error = PubNubError;
 
     fn try_from(value: Envelope) -> Result<Self, Self::Error> {
@@ -778,7 +942,7 @@ impl TryFrom<Envelope> for Object {
                         Ok(Self::Membership {
                             event: Some(event.try_into()?),
                             timestamp: timestamp.ok(),
-                            channel: Box::new(Object::Channel {
+                            channel: Box::new(AppContext::Channel {
                                 event: None,
                                 timestamp: None,
                                 name,
@@ -915,8 +1079,9 @@ fn resolve_subscription_value(subscription: Option<String>, channel: &str) -> St
 // TODO: add tests for complicated forms.
 #[cfg(test)]
 mod should {
-    use super::*;
     use test_case::test_case;
+
+    use super::*;
 
     #[test_case(
         None,

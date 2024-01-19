@@ -109,8 +109,8 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///     }
     /// }
     ///
-    /// impl<'de> Deserializer<'de, GrantTokenResponseBody> for MyDeserializer {
-    ///     fn deserialize(&self, response: &'de [u8]) -> Result<GrantTokenResult, PubNubError> {
+    /// impl<'de> Deserializer for MyDeserializer {
+    ///     fn deserialize<GrantTokenResponseBody>(&self, response: &[u8]) -> Result<GrantTokenResult, PubNubError> {
     ///         // ...
     /// #        Ok(GrantTokenResult { token: "<generated token>".into() })
     ///     }
@@ -131,7 +131,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// pubnub
     ///     .grant_token(10)
     ///     .serialize_with(MySerializer)
-    ///     .derialize_with(MyDeserializer)
+    ///     .deserialize_with(MyDeserializer)
     ///     .resources(&[permissions::channel("test-channel").read().write()])
     ///     .meta(HashMap::from([
     ///          ("role".into(), "administrator".into()),

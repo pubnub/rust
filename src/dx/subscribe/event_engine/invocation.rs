@@ -1,9 +1,9 @@
 use crate::{
     core::{event_engine::EffectInvocation, PubNubError},
     dx::subscribe::{
-        event_engine::{SubscribeEffect, SubscribeEvent, SubscribeInput},
+        event_engine::{SubscribeEffect, SubscribeEvent, SubscriptionInput},
         result::Update,
-        SubscribeCursor, SubscribeStatus,
+        ConnectionStatus, SubscriptionCursor,
     },
     lib::{
         alloc::vec::Vec,
@@ -14,7 +14,7 @@ use crate::{
 /// Subscribe effect invocations
 ///
 /// Invocation is form of intention to call some action without any information
-/// about it's implementation.
+/// about its implementation.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) enum SubscribeEffectInvocation {
@@ -24,13 +24,13 @@ pub(crate) enum SubscribeEffectInvocation {
         ///
         /// Object contains list of channels and groups which will be source of
         /// real-time updates after initial subscription completion.
-        input: SubscribeInput,
+        input: SubscriptionInput,
 
         /// Time cursor.
         ///
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
-        cursor: Option<SubscribeCursor>,
+        cursor: Option<SubscriptionCursor>,
     },
 
     /// Cancel initial subscribe effect invocation.
@@ -42,13 +42,13 @@ pub(crate) enum SubscribeEffectInvocation {
         ///
         /// Object contains list of channels and groups which has been used
         /// during recently failed initial subscription.
-        input: SubscribeInput,
+        input: SubscriptionInput,
 
         /// Time cursor.
         ///
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
-        cursor: Option<SubscribeCursor>,
+        cursor: Option<SubscriptionCursor>,
 
         /// Current initial subscribe retry attempt.
         ///
@@ -68,13 +68,13 @@ pub(crate) enum SubscribeEffectInvocation {
         ///
         /// Object contains list of channels and groups which real-time updates
         /// will be delivered.
-        input: SubscribeInput,
+        input: SubscriptionInput,
 
         /// Time cursor.
         ///
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
-        cursor: SubscribeCursor,
+        cursor: SubscriptionCursor,
     },
 
     /// Cancel receive updates effect invocation.
@@ -86,13 +86,13 @@ pub(crate) enum SubscribeEffectInvocation {
         ///
         /// Object contains list of channels and groups which has been used
         /// during recently failed receive updates.
-        input: SubscribeInput,
+        input: SubscriptionInput,
 
         /// Time cursor.
         ///
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
-        cursor: SubscribeCursor,
+        cursor: SubscriptionCursor,
 
         /// Current receive retry attempt.
         ///
@@ -107,10 +107,13 @@ pub(crate) enum SubscribeEffectInvocation {
     CancelReceiveReconnect,
 
     /// Status change notification effect invocation.
-    EmitStatus(SubscribeStatus),
+    EmitStatus(ConnectionStatus),
 
     /// Received updates notification effect invocation.
-    EmitMessages(Vec<Update>),
+    EmitMessages(Vec<Update>, SubscriptionCursor),
+
+    /// Terminate Subscribe Event Engine processing loop.
+    TerminateEventEngine,
 }
 
 impl EffectInvocation for SubscribeEffectInvocation {
@@ -120,19 +123,20 @@ impl EffectInvocation for SubscribeEffectInvocation {
     fn id(&self) -> &str {
         match self {
             Self::Handshake { .. } => "HANDSHAKE",
-            Self::CancelHandshake => "CANCEL_HANDSHAKE",
+            Self::CancelHandshake { .. } => "CANCEL_HANDSHAKE",
             Self::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT",
-            Self::CancelHandshakeReconnect => "CANCEL_HANDSHAKE_RECONNECT",
+            Self::CancelHandshakeReconnect { .. } => "CANCEL_HANDSHAKE_RECONNECT",
             Self::Receive { .. } => "RECEIVE_MESSAGES",
             Self::CancelReceive { .. } => "CANCEL_RECEIVE_MESSAGES",
             Self::ReceiveReconnect { .. } => "RECEIVE_RECONNECT",
             Self::CancelReceiveReconnect { .. } => "CANCEL_RECEIVE_RECONNECT",
-            Self::EmitStatus(_status) => "EMIT_STATUS",
-            Self::EmitMessages(_messages) => "EMIT_MESSAGES",
+            Self::EmitStatus(_) => "EMIT_STATUS",
+            Self::EmitMessages(_, _) => "EMIT_MESSAGES",
+            Self::TerminateEventEngine => "TERMINATE_EVENT_ENGINE",
         }
     }
 
-    fn managed(&self) -> bool {
+    fn is_managed(&self) -> bool {
         matches!(
             self,
             Self::Handshake { .. }
@@ -142,12 +146,12 @@ impl EffectInvocation for SubscribeEffectInvocation {
         )
     }
 
-    fn cancelling(&self) -> bool {
+    fn is_cancelling(&self) -> bool {
         matches!(
             self,
-            Self::CancelHandshake
-                | Self::CancelHandshakeReconnect
-                | Self::CancelReceive
+            Self::CancelHandshake { .. }
+                | Self::CancelHandshakeReconnect { .. }
+                | Self::CancelReceive { .. }
                 | Self::CancelReceiveReconnect
         )
     }
@@ -162,6 +166,10 @@ impl EffectInvocation for SubscribeEffectInvocation {
             || (matches!(effect, SubscribeEffect::ReceiveReconnect { .. })
                 && matches!(self, Self::CancelReceiveReconnect { .. }))
     }
+
+    fn is_terminating(&self) -> bool {
+        matches!(self, Self::TerminateEventEngine)
+    }
 }
 
 impl Display for SubscribeEffectInvocation {
@@ -175,8 +183,9 @@ impl Display for SubscribeEffectInvocation {
             Self::CancelReceive { .. } => write!(f, "CANCEL_RECEIVE_MESSAGES"),
             Self::ReceiveReconnect { .. } => write!(f, "RECEIVE_RECONNECT"),
             Self::CancelReceiveReconnect { .. } => write!(f, "CANCEL_RECEIVE_RECONNECT"),
-            Self::EmitStatus(status) => write!(f, "EMIT_STATUS({})", status),
-            Self::EmitMessages(messages) => write!(f, "EMIT_MESSAGES({:?})", messages),
+            Self::EmitStatus(status) => write!(f, "EMIT_STATUS({status:?})"),
+            Self::EmitMessages(messages, _) => write!(f, "EMIT_MESSAGES({messages:?})"),
+            Self::TerminateEventEngine => write!(f, "TERMINATE_EVENT_ENGINE"),
         }
     }
 }

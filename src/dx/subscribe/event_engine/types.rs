@@ -1,6 +1,6 @@
 //! Subscribe event engine module types.
 //!
-//! This module contains the [`SubscribeInput`] type, which represents
+//! This module contains the [`SubscriptionInput`] type, which represents
 //! user-provided channels and groups for which real-time updates should be
 //! retrieved from the [`PubNub`] network.
 //!
@@ -10,9 +10,12 @@ use crate::{
     core::PubNubError,
     lib::{
         alloc::collections::HashSet,
-        core::ops::{Add, AddAssign, Sub, SubAssign},
+        core::{
+            iter::Sum,
+            ops::{Add, AddAssign, Sub, SubAssign},
+        },
     },
-    subscribe::SubscribeCursor,
+    subscribe::SubscriptionCursor,
 };
 
 /// User-provided channels and groups for subscription.
@@ -22,7 +25,7 @@ use crate::{
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[derive(Clone, Debug, PartialEq)]
-pub struct SubscribeInput {
+pub struct SubscriptionInput {
     /// Optional list of channels.
     ///
     /// List of channels for which real-time updates should be retrieved
@@ -45,7 +48,7 @@ pub struct SubscribeInput {
     pub is_empty: bool,
 }
 
-impl SubscribeInput {
+impl SubscriptionInput {
     pub fn new(channels: &Option<Vec<String>>, channel_groups: &Option<Vec<String>>) -> Self {
         let channels = channels.as_ref().map(|channels| {
             channels.iter().fold(HashSet::new(), |mut acc, channel| {
@@ -70,11 +73,25 @@ impl SubscribeInput {
         }
     }
 
+    /// Check if the given name is contained in the channel or channel group.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - A string reference containing the name to be checked.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the name is found in the channel or channel group,
+    /// `false` otherwise.
+    pub fn contains(&self, name: &str) -> bool {
+        self.contains_channel(name) || self.contains_channel_group(name)
+    }
+
     pub fn channels(&self) -> Option<Vec<String>> {
         self.channels.clone().map(|ch| ch.into_iter().collect())
     }
 
-    pub fn contains_channel(&self, channel: &String) -> bool {
+    pub fn contains_channel(&self, channel: &str) -> bool {
         self.channels
             .as_ref()
             .map_or(false, |channels| channels.contains(channel))
@@ -86,7 +103,7 @@ impl SubscribeInput {
             .map(|ch| ch.into_iter().collect())
     }
 
-    pub fn contains_channel_group(&self, channel_group: &String) -> bool {
+    pub fn contains_channel_group(&self, channel_group: &str) -> bool {
         self.channel_groups
             .as_ref()
             .map_or(false, |channel_groups| {
@@ -120,7 +137,7 @@ impl SubscribeInput {
     }
 }
 
-impl Add for SubscribeInput {
+impl Add for SubscriptionInput {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -137,13 +154,13 @@ impl Add for SubscribeInput {
     }
 }
 
-impl Default for SubscribeInput {
+impl Default for SubscriptionInput {
     fn default() -> Self {
-        SubscribeInput::new(&None, &None)
+        SubscriptionInput::new(&None, &None)
     }
 }
 
-impl AddAssign for SubscribeInput {
+impl AddAssign for SubscriptionInput {
     fn add_assign(&mut self, rhs: Self) {
         let channel_groups = self.join_sets(&self.channel_groups, &rhs.channel_groups);
         let channels = self.join_sets(&self.channels, &rhs.channels);
@@ -156,7 +173,7 @@ impl AddAssign for SubscribeInput {
     }
 }
 
-impl Sub for SubscribeInput {
+impl Sub for SubscriptionInput {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -173,7 +190,7 @@ impl Sub for SubscribeInput {
     }
 }
 
-impl SubAssign for SubscribeInput {
+impl SubAssign for SubscriptionInput {
     fn sub_assign(&mut self, rhs: Self) {
         let channel_groups = self.sub_sets(&self.channel_groups, &rhs.channel_groups);
         let channels = self.sub_sets(&self.channels, &rhs.channels);
@@ -183,6 +200,12 @@ impl SubAssign for SubscribeInput {
         self.channels = channels;
         self.channel_groups = channel_groups;
         self.is_empty = channel_groups_is_empty && channels_is_empty;
+    }
+}
+
+impl Sum for SubscriptionInput {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Default::default(), Add::add)
     }
 }
 
@@ -200,7 +223,7 @@ pub(crate) struct SubscriptionParams<'execution> {
     pub channel_groups: &'execution Option<Vec<String>>,
 
     /// Time cursor.
-    pub cursor: Option<&'execution SubscribeCursor>,
+    pub cursor: Option<&'execution SubscriptionCursor>,
 
     /// How many consequent retry attempts has been made.
     pub attempt: u8,
@@ -220,13 +243,13 @@ mod it_should {
 
     #[test]
     fn create_empty_input() {
-        let input = SubscribeInput::new(&None, &None);
+        let input = SubscriptionInput::new(&None, &None);
         assert!(input.is_empty);
     }
 
     #[test]
     fn create_input_with_unique_channels() {
-        let input = SubscribeInput::new(
+        let input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -251,7 +274,7 @@ mod it_should {
 
     #[test]
     fn create_input_with_unique_channel_groups() {
-        let input = SubscribeInput::new(
+        let input = SubscriptionInput::new(
             &None,
             &Some(vec![
                 "channel-group-1".into(),
@@ -276,8 +299,8 @@ mod it_should {
 
     #[test]
     fn add_unique_channels_to_empty_input() {
-        let empty_input = SubscribeInput::new(&None, &None);
-        let input = SubscribeInput::new(
+        let empty_input = SubscriptionInput::new(&None, &None);
+        let input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -307,8 +330,8 @@ mod it_should {
 
     #[test]
     fn add_unique_channel_groups_to_empty_input() {
-        let empty_input = SubscribeInput::new(&None, &None);
-        let input = SubscribeInput::new(
+        let empty_input = SubscriptionInput::new(&None, &None);
+        let input = SubscriptionInput::new(
             &None,
             &Some(vec![
                 "channel-group-1".into(),
@@ -338,7 +361,7 @@ mod it_should {
 
     #[test]
     fn add_unique_channels_and_channel_groups_to_existing_input() {
-        let existing_input = SubscribeInput::new(
+        let existing_input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-4".into(),
@@ -350,7 +373,7 @@ mod it_should {
                 "channel-group-5".into(),
             ]),
         );
-        let input = SubscribeInput::new(
+        let input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -404,7 +427,7 @@ mod it_should {
 
     #[test]
     fn add_assign_unique_channels_and_channel_groups_to_existing_input() {
-        let mut existing_input = SubscribeInput::new(
+        let mut existing_input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-4".into(),
@@ -416,7 +439,7 @@ mod it_should {
                 "channel-group-5".into(),
             ]),
         );
-        let input = SubscribeInput::new(
+        let input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -470,8 +493,8 @@ mod it_should {
 
     #[test]
     fn remove_channels_from_empty_input() {
-        let empty_input = SubscribeInput::new(&None, &None);
-        let input = SubscribeInput::new(
+        let empty_input = SubscriptionInput::new(&None, &None);
+        let input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -491,8 +514,8 @@ mod it_should {
 
     #[test]
     fn remove_channel_groups_from_empty_input() {
-        let empty_input = SubscribeInput::new(&None, &None);
-        let input = SubscribeInput::new(
+        let empty_input = SubscriptionInput::new(&None, &None);
+        let input = SubscriptionInput::new(
             &None,
             &Some(vec![
                 "channel-group-1".into(),
@@ -512,7 +535,7 @@ mod it_should {
 
     #[test]
     fn remove_unique_channels_from_existing_input() {
-        let existing_input = SubscribeInput::new(
+        let existing_input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -524,7 +547,8 @@ mod it_should {
                 "channel-group-3".into(),
             ]),
         );
-        let input = SubscribeInput::new(&Some(vec!["channel-2".into(), "channel-2".into()]), &None);
+        let input =
+            SubscriptionInput::new(&Some(vec!["channel-2".into(), "channel-2".into()]), &None);
 
         assert!(!existing_input.is_empty);
         assert!(!input.is_empty);
@@ -562,7 +586,7 @@ mod it_should {
 
     #[test]
     fn remove_unique_channel_groups_from_existing_input() {
-        let existing_input = SubscribeInput::new(
+        let existing_input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -574,7 +598,7 @@ mod it_should {
                 "channel-group-3".into(),
             ]),
         );
-        let input = SubscribeInput::new(&None, &Some(vec!["channel-group-1".into()]));
+        let input = SubscriptionInput::new(&None, &Some(vec!["channel-group-1".into()]));
 
         assert!(!existing_input.is_empty);
         assert!(!input.is_empty);
@@ -612,7 +636,7 @@ mod it_should {
 
     #[test]
     fn remove_unique_channels_and_channel_groups_from_existing_input() {
-        let existing_input = SubscribeInput::new(
+        let existing_input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -624,7 +648,7 @@ mod it_should {
                 "channel-group-3".into(),
             ]),
         );
-        let input = SubscribeInput::new(
+        let input = SubscriptionInput::new(
             &Some(vec!["channel-3".into()]),
             &Some(vec!["channel-group-2".into(), "channel-group-3".into()]),
         );
@@ -661,7 +685,7 @@ mod it_should {
 
     #[test]
     fn remove_assign_unique_channels_and_channel_groups_from_existing_input() {
-        let mut existing_input = SubscribeInput::new(
+        let mut existing_input = SubscriptionInput::new(
             &Some(vec![
                 "channel-1".into(),
                 "channel-2".into(),
@@ -673,7 +697,7 @@ mod it_should {
                 "channel-group-3".into(),
             ]),
         );
-        let input = SubscribeInput::new(
+        let input = SubscriptionInput::new(
             &Some(vec!["channel-3".into()]),
             &Some(vec!["channel-group-2".into(), "channel-group-3".into()]),
         );
@@ -710,11 +734,11 @@ mod it_should {
 
     #[test]
     fn remove_all_channels_and_channel_groups_from_existing_input() {
-        let existing_input = SubscribeInput::new(
+        let existing_input = SubscriptionInput::new(
             &Some(vec!["channel-1".into(), "channel-2".into()]),
             &Some(vec!["channel-group-1".into(), "channel-group-2".into()]),
         );
-        let input = SubscribeInput::new(
+        let input = SubscriptionInput::new(
             &Some(vec!["channel-1".into(), "channel-2".into()]),
             &Some(vec!["channel-group-1".into(), "channel-group-2".into()]),
         );

@@ -45,7 +45,7 @@ pub(crate) trait State: Clone + PartialEq {
     /// effect invocations of target state.
     fn transition_to(
         &self,
-        state: Self::State,
+        state: Option<Self::State>,
         invocations: Option<Vec<Self::Invocation>>,
     ) -> Transition<Self::State, Self::Invocation>;
 }

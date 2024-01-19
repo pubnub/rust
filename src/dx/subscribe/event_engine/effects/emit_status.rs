@@ -1,14 +1,14 @@
 use crate::{
     dx::subscribe::{
         event_engine::{effects::EmitStatusEffectExecutor, SubscribeEvent},
-        SubscribeStatus,
+        ConnectionStatus,
     },
     lib::alloc::{sync::Arc, vec, vec::Vec},
 };
 use log::info;
 
 pub(super) async fn execute(
-    status: SubscribeStatus,
+    status: ConnectionStatus,
     executor: &Arc<EmitStatusEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!("Emit status: {status:?}");
@@ -25,9 +25,9 @@ mod should {
     #[tokio::test]
     async fn emit_expected_status() {
         let emit_status_function: Arc<EmitStatusEffectExecutor> = Arc::new(|status| {
-            assert!(matches!(status, SubscribeStatus::Connected));
+            assert!(matches!(status, ConnectionStatus::Connected));
         });
 
-        execute(SubscribeStatus::Connected, &emit_status_function).await;
+        execute(ConnectionStatus::Connected, &emit_status_function).await;
     }
 }

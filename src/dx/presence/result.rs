@@ -22,26 +22,9 @@ use crate::{
 pub struct HeartbeatResult;
 
 /// Presence service response body for heartbeat.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HeartbeatResponseBody {
-    /// This is a success response body for a announce heartbeat operation in
-    /// the Presence service.
-    ///
-    /// It contains information about the service that have the response and
-    /// operation result message.
-    ///
-    /// # Example
-    /// ```json
-    /// {
-    ///     "status": 200,
-    ///     "message": "OK",
-    ///     "service": "Presence"
-    /// }
-    /// ```
-    SuccessResponse(APISuccessBodyWithMessage),
-
     /// This is an error response body for a announce heartbeat operation in the
     /// Presence service.
     /// It contains information about the service that provided the response and
@@ -66,6 +49,22 @@ pub enum HeartbeatResponseBody {
     /// }
     /// ```
     ErrorResponse(APIErrorBody),
+
+    /// This is a success response body for a announce heartbeat operation in
+    /// the Presence service.
+    ///
+    /// It contains information about the service that have the response and
+    /// operation result message.
+    ///
+    /// # Example
+    /// ```json
+    /// {
+    ///     "status": 200,
+    ///     "message": "OK",
+    ///     "service": "Presence"
+    /// }
+    /// ```
+    SuccessResponse(APISuccessBodyWithMessage),
 }
 
 impl TryFrom<HeartbeatResponseBody> for HeartbeatResult {
@@ -84,8 +83,7 @@ impl TryFrom<HeartbeatResponseBody> for HeartbeatResult {
 pub struct LeaveResult;
 
 /// Presence service response body for leave.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LeaveResponseBody {
     /// This is a success response body for a announce leave operation in

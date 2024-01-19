@@ -2,22 +2,26 @@ use futures::TryFutureExt;
 use log::info;
 
 use crate::{
-    core::{PubNubError, RequestRetryPolicy},
-    dx::subscribe::event_engine::{
-        effects::SubscribeEffectExecutor, SubscribeEvent, SubscribeInput, SubscriptionParams,
+    core::{PubNubError, RequestRetryConfiguration},
+    dx::subscribe::{
+        event_engine::{
+            effects::SubscribeEffectExecutor, SubscribeEvent, SubscriptionInput, SubscriptionParams,
+        },
+        SubscriptionCursor,
     },
     lib::alloc::{sync::Arc, vec, vec::Vec},
 };
 
 pub(super) async fn execute(
-    input: &SubscribeInput,
+    input: &SubscriptionInput,
+    cursor: &Option<SubscriptionCursor>,
     attempt: u8,
     reason: PubNubError,
     effect_id: &str,
-    retry_policy: &RequestRetryPolicy,
+    retry_policy: &RequestRetryConfiguration,
     executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
-    if !retry_policy.retriable(&attempt, Some(&reason)) {
+    if !retry_policy.retriable(Some("/v2/subscribe"), &attempt, Some(&reason)) {
         return vec![SubscribeEvent::HandshakeReconnectGiveUp { reason }];
     }
 
@@ -49,7 +53,7 @@ pub(super) async fn execute(
         },
         |subscribe_result| {
             vec![SubscribeEvent::HandshakeReconnectSuccess {
-                cursor: subscribe_result.cursor,
+                cursor: cursor.clone().unwrap_or(subscribe_result.cursor),
             }]
         },
     )
@@ -59,6 +63,7 @@ pub(super) async fn execute(
 #[cfg(test)]
 mod should {
     use super::*;
+    use crate::core::TransportResponse;
     use crate::{core::PubNubError, dx::subscribe::result::SubscribeResult};
     use futures::FutureExt;
 
@@ -73,7 +78,10 @@ mod should {
                 params.reason.unwrap(),
                 PubNubError::Transport {
                     details: "test".into(),
-                    response: None
+                    response: Some(Box::new(TransportResponse {
+                        status: 500,
+                        ..Default::default()
+                    }))
                 }
             );
             assert_eq!(params.effect_id, "id");
@@ -88,19 +96,24 @@ mod should {
         });
 
         let result = execute(
-            &SubscribeInput::new(
+            &SubscriptionInput::new(
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),
+            &None,
             1,
             PubNubError::Transport {
                 details: "test".into(),
-                response: None,
+                response: Some(Box::new(TransportResponse {
+                    status: 500,
+                    ..Default::default()
+                })),
             },
             "id",
-            &RequestRetryPolicy::Linear {
+            &RequestRetryConfiguration::Linear {
                 delay: 0,
                 max_retry: 1,
+                excluded_endpoints: None,
             },
             &mock_handshake_function,
         )
@@ -114,29 +127,76 @@ mod should {
     }
 
     #[tokio::test]
-    async fn return_handshake_reconnect_failure_event_on_err() {
+    async fn return_handshake_reconnect_give_up_event_on_err() {
         let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
             async move {
                 Err(PubNubError::Transport {
                     details: "test".into(),
-                    response: None,
+                    response: Some(Box::new(TransportResponse {
+                        status: 500,
+                        ..Default::default()
+                    })),
                 })
             }
             .boxed()
         });
 
         let result = execute(
-            &SubscribeInput::new(
+            &SubscriptionInput::new(
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),
+            &None,
+            11,
+            PubNubError::Transport {
+                details: "test".into(),
+                response: None,
+            },
+            "id",
+            &RequestRetryConfiguration::Linear {
+                max_retry: 10,
+                delay: 0,
+                excluded_endpoints: None,
+            },
+            &mock_handshake_function,
+        )
+        .await;
+
+        assert!(!result.is_empty());
+        assert!(matches!(
+            result.first().unwrap(),
+            SubscribeEvent::HandshakeReconnectGiveUp { .. }
+        ));
+    }
+
+    #[tokio::test]
+    async fn return_handshake_reconnect_give_up_event_on_err_with_none_auto_retry_policy() {
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> = Arc::new(move |_| {
+            async move {
+                Err(PubNubError::Transport {
+                    details: "test".into(),
+                    response: Some(Box::new(TransportResponse {
+                        status: 500,
+                        ..Default::default()
+                    })),
+                })
+            }
+            .boxed()
+        });
+
+        let result = execute(
+            &SubscriptionInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
+            &None,
             1,
             PubNubError::Transport {
                 details: "test".into(),
                 response: None,
             },
             "id",
-            &RequestRetryPolicy::None,
+            &RequestRetryConfiguration::None,
             &mock_handshake_function,
         )
         .await;

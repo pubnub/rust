@@ -6,6 +6,9 @@
 
 use derive_builder::Builder;
 
+#[cfg(feature = "std")]
+use crate::lib::alloc::sync::Arc;
+
 use crate::{
     core::{
         utils::{
@@ -34,6 +37,10 @@ use crate::{
         collections::HashMap,
     },
 };
+
+#[cfg(feature = "std")]
+/// Request execution handling closure.
+pub(crate) type SetStateExecuteCall = Arc<dyn Fn(Vec<String>, Option<Vec<u8>>)>;
 
 /// The [`SetStateRequestBuilder`] is used to build `user_id` associated state
 /// update request that is sent to the [`PubNub`] network.
@@ -83,16 +90,18 @@ pub struct SetStateRequest<T, D> {
     /// # Example:
     /// ```rust,no_run
     /// # use std::collections::HashMap;
+    /// # use pubnub::core::Serialize;
     /// # fn main() {
     /// let state = HashMap::<String, bool>::from([
-    ///     ("is_owner".into(), false),
-    ///     ("is_admin".into(), true)
-    /// ]);
+    ///     ("is_owner".to_string(), false),
+    ///     ("is_admin".to_string(), true)
+    /// ]).serialize();
     /// # }
     /// ```
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
-        setter(custom, strip_option)
+        setter(custom, strip_option),
+        default = "None"
     )]
     pub(in crate::dx::presence) state: Option<Vec<u8>>,
 
@@ -100,6 +109,14 @@ pub struct SetStateRequest<T, D> {
     /// Identifier for which `state` should be associated for provided list of
     /// channels and groups.
     pub(in crate::dx::presence) user_id: String,
+
+    #[cfg(feature = "std")]
+    #[builder(
+        field(vis = "pub(in crate::dx::presence)"),
+        setter(custom, strip_option)
+    )]
+    /// Set presence state request execution callback.
+    pub(in crate::dx::presence) on_execute: SetStateExecuteCall,
 }
 
 impl<T, D> SetStateRequestBuilder<T, D> {
@@ -136,7 +153,7 @@ impl<T, D> SetStateRequest<T, D> {
     pub(in crate::dx::presence) fn transport_request(
         &self,
     ) -> Result<TransportRequest, PubNubError> {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let config = &self.pubnub_client.config;
         let mut query: HashMap<String, String> = HashMap::new();
 
         // Serialize list of channel groups and add into query parameters list.
@@ -153,14 +170,17 @@ impl<T, D> SetStateRequest<T, D> {
 
         Ok(TransportRequest {
             path: format!(
-                "/v2/presence/sub-key/{sub_key}/channel/{}/uuid/{}/data",
+                "/v2/presence/sub-key/{}/channel/{}/uuid/{}/data",
+                &config.subscribe_key,
                 url_encoded_channels(&self.channels),
                 url_encode_extended(self.user_id.as_bytes(), UrlEncodeExtension::NonChannelPath)
             ),
             query_parameters: query,
             method: TransportMethod::Get,
-            headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
+            headers: [(CONTENT_TYPE.to_string(), APPLICATION_JSON.to_string())].into(),
             body: None,
+            #[cfg(feature = "std")]
+            timeout: config.transport.request_timeout,
         })
     }
 }
@@ -173,9 +193,16 @@ where
     /// Build and call asynchronous request.
     pub async fn execute(self) -> Result<SetStateResult, PubNubError> {
         let request = self.request()?;
+
+        #[cfg(feature = "std")]
+        if !request.channels.is_empty() {
+            request.on_execute.clone()(request.channels.clone(), request.state.clone());
+        }
+
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
             .send::<SetStateResponseBody, _, _, _>(&client.transport, deserializer)
             .await

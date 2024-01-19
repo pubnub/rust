@@ -28,7 +28,8 @@ use crate::{
 
 /// The Here Now request builder.
 ///
-/// Allows you to build a Here Now request that is sent to the [`PubNub`] network.
+/// Allows you to build a Here Now request that is sent to the [`PubNub`]
+/// network.
 ///
 /// This struct is used by the [`here_now`] method of the [`PubNubClient`].
 /// The [`here_now`] method is used to acquire information about the current
@@ -72,7 +73,8 @@ pub struct HereNowRequest<T, D> {
     )]
     pub(in crate::dx::presence) include_user_id: bool,
 
-    /// Whether to include state information of users subscribed to the channel(s).
+    /// Whether to include state information of users subscribed to the
+    /// channel(s).
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
         setter(strip_option),
@@ -111,7 +113,7 @@ impl<T, D> HereNowRequest<T, D> {
     pub(in crate::dx::presence) fn transport_request(
         &self,
     ) -> Result<TransportRequest, PubNubError> {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let config = &self.pubnub_client.config;
         let mut query: HashMap<String, String> = HashMap::new();
 
         // Serialize list of channel groups and add into query parameters list.
@@ -127,13 +129,16 @@ impl<T, D> HereNowRequest<T, D> {
 
         Ok(TransportRequest {
             path: format!(
-                "/v2/presence/sub-key/{sub_key}/channel/{}",
+                "/v2/presence/sub-key/{}/channel/{}",
+                &config.subscribe_key,
                 url_encoded_channels(&self.channels),
             ),
             query_parameters: query,
             method: TransportMethod::Get,
             headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             body: None,
+            #[cfg(feature = "std")]
+            timeout: config.transport.request_timeout,
         })
     }
 }

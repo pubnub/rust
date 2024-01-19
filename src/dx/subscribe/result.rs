@@ -8,7 +8,7 @@ use crate::{
     core::{service_response::APIErrorBody, PubNubError, ScalarValue},
     dx::subscribe::{
         types::Message,
-        File, MessageAction, Object, Presence, {SubscribeCursor, SubscribeMessageType},
+        AppContext, File, MessageAction, Presence, {SubscribeMessageType, SubscriptionCursor},
     },
     lib::{
         alloc::{
@@ -30,7 +30,7 @@ pub struct SubscribeResult {
     ///
     /// Next time cursor which can be used to fetch newer updates or
     /// catchup / restore subscription from specific point in time.
-    pub cursor: SubscribeCursor,
+    pub cursor: SubscriptionCursor,
 
     /// Received real-time updates.
     ///
@@ -64,7 +64,7 @@ pub enum Update {
     Presence(Presence),
 
     /// Object real-time update.
-    Object(Object),
+    AppContext(AppContext),
 
     /// Message's actions real-time update.
     MessageAction(MessageAction),
@@ -184,7 +184,7 @@ pub struct APISuccessBody {
     /// The cursor contains information about the start of the next real-time
     /// update timeframe.
     #[cfg_attr(feature = "serde", serde(rename = "t"))]
-    pub cursor: SubscribeCursor,
+    pub cursor: SubscriptionCursor,
 
     /// List of updates.
     ///
@@ -234,7 +234,7 @@ pub struct Envelope {
     ///
     /// [`PubNub`]: https://www.pubnub.com
     #[cfg_attr(feature = "serde", serde(rename = "p"))]
-    pub published: SubscribeCursor,
+    pub published: SubscriptionCursor,
 
     /// Name of channel where update received.
     #[cfg_attr(feature = "serde", serde(rename = "c"))]
@@ -304,11 +304,11 @@ pub enum EnvelopePayload {
 
         /// The user's state associated with the channel has been updated.
         #[cfg(feature = "serde")]
-        data: serde_json::Value,
+        data: Option<serde_json::Value>,
 
         /// The user's state associated with the channel has been updated.
         #[cfg(not(feature = "serde"))]
-        data: Vec<u8>,
+        data: Option<Vec<u8>>,
 
         /// The list of unique user identifiers that `joined` the channel since
         /// the last interval presence update.
@@ -550,11 +550,26 @@ impl Update {
     /// which real-time update has been delivered.
     pub(crate) fn subscription(&self) -> String {
         match self {
-            Update::Presence(presence) => presence.subscription(),
-            Update::Object(object) => object.subscription(),
-            Update::MessageAction(action) => action.subscription.clone(),
-            Update::File(file) => file.subscription.clone(),
-            Update::Message(message) | Update::Signal(message) => message.subscription.clone(),
+            Self::Presence(presence) => presence.subscription(),
+            Self::AppContext(object) => object.subscription(),
+            Self::MessageAction(reaction) => reaction.subscription.clone(),
+            Self::File(file) => file.subscription.clone(),
+            Self::Message(message) | Self::Signal(message) => message.subscription.clone(),
+        }
+    }
+
+    /// PubNub high-precision event timestamp.
+    ///
+    /// # Returns
+    ///
+    /// Returns time when event has been emitted.
+    pub(crate) fn event_timestamp(&self) -> usize {
+        match self {
+            Self::Presence(presence) => presence.event_timestamp(),
+            Self::AppContext(object) => object.event_timestamp(),
+            Self::MessageAction(reaction) => reaction.timestamp,
+            Self::File(file) => file.timestamp,
+            Self::Message(message) | Self::Signal(message) => message.timestamp,
         }
     }
 }
@@ -568,7 +583,7 @@ impl TryFrom<Envelope> for Update {
             EnvelopePayload::Object { .. }
                 if matches!(value.message_type, SubscribeMessageType::Object) =>
             {
-                Ok(Update::Object(value.try_into()?))
+                Ok(Update::AppContext(value.try_into()?))
             }
             EnvelopePayload::MessageAction { .. }
                 if matches!(value.message_type, SubscribeMessageType::MessageAction) =>

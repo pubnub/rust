@@ -41,7 +41,7 @@ pub(crate) enum PresenceState {
 
     /// Cooling down state.
     ///
-    /// Heartbeating idle state in which it stay for configured amount of time.
+    /// Heartbeating idle state in which it stays for configured amount of time.
     Cooldown {
         /// User input with channels and groups.
         ///
@@ -101,14 +101,19 @@ impl PresenceState {
     /// Handle `joined` event.
     fn presence_joined_transition(
         &self,
+        heartbeat_interval: u64,
         channels: &Option<Vec<String>>,
         channel_groups: &Option<Vec<String>>,
     ) -> Option<Transition<Self, PresenceEffectInvocation>> {
+        if heartbeat_interval == 0 {
+            return None;
+        }
+
         let event_input = PresenceInput::new(channels, channel_groups);
 
         match self {
             Self::Inactive => {
-                Some(self.transition_to(Self::Heartbeating { input: event_input }, None))
+                Some(self.transition_to(Some(Self::Heartbeating { input: event_input }), None))
             }
             Self::Heartbeating { input }
             | Self::Cooldown { input }
@@ -119,11 +124,11 @@ impl PresenceState {
             {
                 let input = input.clone() + event_input;
                 Some(self.transition_to(
-                    if !matches!(self, Self::Stopped { .. }) {
+                    Some(if !matches!(self, Self::Stopped { .. }) {
                         Self::Heartbeating { input }
                     } else {
                         Self::Stopped { input }
-                    },
+                    }),
                     None,
                 ))
             }
@@ -134,13 +139,13 @@ impl PresenceState {
     /// Handle `left` event.
     fn presence_left_transition(
         &self,
+        suppress_leave_events: bool,
         channels: &Option<Vec<String>>,
         channel_groups: &Option<Vec<String>>,
     ) -> Option<Transition<Self, PresenceEffectInvocation>> {
         let event_input = PresenceInput::new(channels, channel_groups);
 
         match self {
-            Self::Inactive => Some(self.transition_to(Self::Stopped { input: event_input }, None)),
             Self::Heartbeating { input }
             | Self::Cooldown { input }
             | Self::Reconnecting { input, .. }
@@ -152,7 +157,7 @@ impl PresenceState {
 
                 (!channels_to_leave.is_empty).then(|| {
                     self.transition_to(
-                        if !channels_for_heartbeating.is_empty {
+                        Some(if !channels_for_heartbeating.is_empty {
                             if !matches!(self, Self::Stopped { .. }) {
                                 Self::Heartbeating {
                                     input: channels_for_heartbeating,
@@ -164,29 +169,39 @@ impl PresenceState {
                             }
                         } else {
                             Self::Inactive
-                        },
-                        Some(vec![Leave {
-                            input: channels_to_leave,
-                        }]),
+                        }),
+                        (!matches!(self, Self::Stopped { .. }) && !suppress_leave_events).then(
+                            || {
+                                vec![Leave {
+                                    input: channels_to_leave,
+                                }]
+                            },
+                        ),
                     )
                 })
             }
+            _ => None,
         }
     }
 
     /// Handle `left all` event.
-    fn presence_left_all_transition(&self) -> Option<Transition<Self, PresenceEffectInvocation>> {
+    fn presence_left_all_transition(
+        &self,
+        suppress_leave_events: bool,
+    ) -> Option<Transition<Self, PresenceEffectInvocation>> {
         match self {
             Self::Heartbeating { input }
             | Self::Cooldown { input }
             | Self::Reconnecting { input, .. }
             | Self::Failed { input, .. } => Some(self.transition_to(
-                Self::Inactive,
-                Some(vec![Leave {
-                    input: input.clone(),
-                }]),
+                Some(Self::Inactive),
+                (!suppress_leave_events).then(|| {
+                    vec![Leave {
+                        input: input.clone(),
+                    }]
+                }),
             )),
-            Self::Stopped { .. } => Some(self.transition_to(Self::Inactive, None)),
+            Self::Stopped { .. } => Some(self.transition_to(Some(Self::Inactive), None)),
             _ => None,
         }
     }
@@ -198,9 +213,9 @@ impl PresenceState {
         match self {
             Self::Heartbeating { input } | Self::Reconnecting { input, .. } => {
                 Some(self.transition_to(
-                    Self::Cooldown {
+                    Some(Self::Cooldown {
                         input: input.clone(),
-                    },
+                    }),
                     None,
                 ))
             }
@@ -213,23 +228,29 @@ impl PresenceState {
         &self,
         reason: &PubNubError,
     ) -> Option<Transition<Self, PresenceEffectInvocation>> {
+        // Request cancellation shouldn't cause any transition because there
+        // will be another event after this.
+        if matches!(reason, PubNubError::RequestCancel { .. }) {
+            return None;
+        }
+
         match self {
             Self::Heartbeating { input } => Some(self.transition_to(
-                Self::Reconnecting {
+                Some(Self::Reconnecting {
                     input: input.clone(),
                     attempts: 1,
                     reason: reason.clone(),
-                },
+                }),
                 None,
             )),
             Self::Reconnecting {
                 input, attempts, ..
             } => Some(self.transition_to(
-                Self::Reconnecting {
+                Some(Self::Reconnecting {
                     input: input.clone(),
                     attempts: attempts + 1,
                     reason: reason.clone(),
-                },
+                }),
                 None,
             )),
             _ => None,
@@ -243,10 +264,10 @@ impl PresenceState {
     ) -> Option<Transition<Self, PresenceEffectInvocation>> {
         match self {
             Self::Reconnecting { input, .. } => Some(self.transition_to(
-                Self::Failed {
+                Some(Self::Failed {
                     input: input.clone(),
                     reason: reason.clone(),
-                },
+                }),
                 None,
             )),
             _ => None,
@@ -257,9 +278,9 @@ impl PresenceState {
     fn presence_reconnect_transition(&self) -> Option<Transition<Self, PresenceEffectInvocation>> {
         match self {
             Self::Stopped { input } | Self::Failed { input, .. } => Some(self.transition_to(
-                Self::Heartbeating {
+                Some(Self::Heartbeating {
                     input: input.clone(),
-                },
+                }),
                 None,
             )),
             _ => None,
@@ -273,9 +294,9 @@ impl PresenceState {
             | Self::Cooldown { input }
             | Self::Reconnecting { input, .. }
             | Self::Failed { input, .. } => Some(self.transition_to(
-                Self::Stopped {
+                Some(Self::Stopped {
                     input: input.clone(),
-                },
+                }),
                 Some(vec![Leave {
                     input: input.clone(),
                 }]),
@@ -288,9 +309,9 @@ impl PresenceState {
     fn presence_times_up_transition(&self) -> Option<Transition<Self, PresenceEffectInvocation>> {
         match self {
             Self::Cooldown { input } => Some(self.transition_to(
-                Self::Heartbeating {
+                Some(Self::Heartbeating {
                     input: input.clone(),
-                },
+                }),
                 None,
             )),
             _ => None,
@@ -325,6 +346,7 @@ impl State for PresenceState {
     }
 
     fn exit(&self) -> Option<Vec<Self::Invocation>> {
+        log::debug!("~~~~~~~~~~ EXIT: {self:?}");
         match self {
             PresenceState::Cooldown { .. } => Some(vec![CancelWait]),
             PresenceState::Reconnecting { .. } => Some(vec![CancelDelayedHeartbeat]),
@@ -338,14 +360,18 @@ impl State for PresenceState {
     ) -> Option<Transition<Self::State, Self::Invocation>> {
         match event {
             PresenceEvent::Joined {
+                heartbeat_interval,
                 channels,
                 channel_groups,
-            } => self.presence_joined_transition(channels, channel_groups),
+            } => self.presence_joined_transition(*heartbeat_interval, channels, channel_groups),
             PresenceEvent::Left {
+                suppress_leave_events,
                 channels,
                 channel_groups,
-            } => self.presence_left_transition(channels, channel_groups),
-            PresenceEvent::LeftAll => self.presence_left_all_transition(),
+            } => self.presence_left_transition(*suppress_leave_events, channels, channel_groups),
+            PresenceEvent::LeftAll {
+                suppress_leave_events,
+            } => self.presence_left_all_transition(*suppress_leave_events),
             PresenceEvent::HeartbeatSuccess => self.presence_heartbeat_success_transition(),
             PresenceEvent::HeartbeatFailure { reason } => {
                 self.presence_heartbeat_failed_transition(reason)
@@ -361,19 +387,25 @@ impl State for PresenceState {
 
     fn transition_to(
         &self,
-        state: Self::State,
+        state: Option<Self::State>,
         invocations: Option<Vec<Self::Invocation>>,
     ) -> Transition<Self::State, Self::Invocation> {
-        Transition {
-            invocations: self
-                .exit()
-                .unwrap_or_default()
-                .into_iter()
-                .chain(invocations.unwrap_or_default())
-                .chain(state.enter().unwrap_or_default())
-                .collect(),
-            state,
-        }
+        let on_enter_invocations = match state.clone() {
+            Some(state) => state.enter().unwrap_or_default(),
+            None => vec![],
+        };
+
+        let invocations = self
+            .exit()
+            .unwrap_or_default()
+            .into_iter()
+            .chain(invocations.unwrap_or_default())
+            .chain(on_enter_invocations)
+            .collect();
+
+        log::debug!("~~~~~~>> COLLECTED INVOCATIONS: {invocations:?}");
+
+        Transition { invocations, state }
     }
 }
 
@@ -383,7 +415,7 @@ mod it_should {
     use crate::presence::event_engine::effects::LeaveEffectExecutor;
     use crate::presence::LeaveResult;
     use crate::{
-        core::{event_engine::EventEngine, RequestRetryPolicy},
+        core::{event_engine::EventEngine, RequestRetryConfiguration},
         lib::alloc::sync::Arc,
         presence::{
             event_engine::{
@@ -414,7 +446,7 @@ mod it_should {
                 delayed_heartbeat_call,
                 leave_call,
                 wait_call,
-                RequestRetryPolicy::None,
+                RequestRetryConfiguration::None,
                 tx,
             ),
             start_state,
@@ -425,6 +457,7 @@ mod it_should {
     #[test_case(
         PresenceState::Inactive,
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
         },
@@ -443,6 +476,16 @@ mod it_should {
         },
         PresenceState::Inactive;
         "to not change on unexpected event"
+    )]
+    #[test_case(
+        PresenceState::Inactive,
+        PresenceEvent::Joined {
+            heartbeat_interval: 0,
+            channels: Some(vec!["ch1".to_string()]),
+            channel_groups: Some(vec!["gr1".to_string()]),
+        },
+        PresenceState::Inactive;
+        "to not change with 0 presence interval"
     )]
     #[tokio::test]
     async fn transition_for_inactive_state(
@@ -468,6 +511,7 @@ mod it_should {
             )
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch2".to_string()]),
             channel_groups: Some(vec!["gr2".to_string()]),
         },
@@ -487,6 +531,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: None,
             channel_groups: Some(vec!["gr1".to_string()]),
         },
@@ -506,6 +551,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string(), "ch2".to_string()]),
             channel_groups: Some(vec!["gr1".to_string(), "gr2".to_string()]),
         },
@@ -571,7 +617,9 @@ mod it_should {
                 &Some(vec!["gr1".to_string()])
             )
         },
-        PresenceEvent::LeftAll,
+        PresenceEvent::LeftAll {
+            suppress_leave_events: false
+        },
         PresenceState::Inactive;
         "to inactive on left all"
     )]
@@ -583,6 +631,7 @@ mod it_should {
             )
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
         },
@@ -602,6 +651,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: None,
             channel_groups: Some(vec!["gr3".to_string()]),
         },
@@ -655,6 +705,7 @@ mod it_should {
             )
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch2".to_string()]),
             channel_groups: Some(vec!["gr2".to_string()]),
         },
@@ -674,6 +725,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: None,
         },
@@ -693,6 +745,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string(), "ch2".to_string()]),
             channel_groups: Some(vec!["gr1".to_string(), "gr2".to_string()]),
         },
@@ -738,7 +791,9 @@ mod it_should {
                 &Some(vec!["gr1".to_string()])
             )
         },
-        PresenceEvent::LeftAll,
+        PresenceEvent::LeftAll {
+            suppress_leave_events: false,
+        },
         PresenceState::Inactive;
         "to inactive on left all"
     )]
@@ -750,6 +805,7 @@ mod it_should {
             )
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
         },
@@ -769,6 +825,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: None,
             channel_groups: Some(vec!["gr3".to_string()]),
         },
@@ -846,6 +903,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch2".to_string()]),
             channel_groups: Some(vec!["gr2".to_string()]),
         },
@@ -867,6 +925,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: None,
         },
@@ -888,6 +947,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string(), "ch2".to_string()]),
             channel_groups: Some(vec!["gr1".to_string(), "gr2".to_string()]),
         },
@@ -960,7 +1020,9 @@ mod it_should {
             attempts: 1,
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
-        PresenceEvent::LeftAll,
+        PresenceEvent::LeftAll {
+            suppress_leave_events: false,
+        },
         PresenceState::Inactive;
         "to inactive on left all"
     )]
@@ -974,6 +1036,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
         },
@@ -997,6 +1060,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: None,
             channel_groups: Some(vec!["gr3".to_string()]),
         },
@@ -1054,6 +1118,7 @@ mod it_should {
             )
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch2".to_string()]),
             channel_groups: Some(vec!["gr2".to_string()]),
         },
@@ -1073,6 +1138,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: None,
         },
@@ -1092,6 +1158,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string(), "ch2".to_string()]),
             channel_groups: Some(vec!["gr1".to_string(), "gr2".to_string()]),
         },
@@ -1121,7 +1188,9 @@ mod it_should {
                 &Some(vec!["gr1".to_string()])
             )
         },
-        PresenceEvent::LeftAll,
+        PresenceEvent::LeftAll {
+            suppress_leave_events: false,
+        },
         PresenceState::Inactive;
         "to inactive on left all"
     )]
@@ -1133,6 +1202,7 @@ mod it_should {
             )
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
         },
@@ -1152,6 +1222,7 @@ mod it_should {
             )
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: None,
             channel_groups: Some(vec!["gr3".to_string()]),
         },
@@ -1204,6 +1275,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch2".to_string()]),
             channel_groups: Some(vec!["gr2".to_string()]),
         },
@@ -1224,6 +1296,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: None,
         },
@@ -1244,6 +1317,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: Some(vec!["ch1".to_string(), "ch2".to_string()]),
             channel_groups: Some(vec!["gr1".to_string(), "gr2".to_string()]),
         },
@@ -1292,7 +1366,9 @@ mod it_should {
             ),
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
-        PresenceEvent::LeftAll,
+        PresenceEvent::LeftAll {
+            suppress_leave_events: false,
+        },
         PresenceState::Inactive;
         "to inactive on left all"
     )]
@@ -1305,6 +1381,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Joined {
+            heartbeat_interval: 10,
             channels: Some(vec!["ch1".to_string()]),
             channel_groups: Some(vec!["gr1".to_string()]),
         },
@@ -1326,6 +1403,7 @@ mod it_should {
             reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
         },
         PresenceEvent::Left {
+            suppress_leave_events: false,
             channels: None,
             channel_groups: Some(vec!["gr3".to_string()]),
         },

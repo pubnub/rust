@@ -18,7 +18,7 @@ use crate::{
     core::{blocking, Deserializer, PubNubError, Transport},
     dx::{
         pubnub_client::PubNubClientInstance,
-        subscribe::{SubscribeCursor, Update},
+        subscribe::{SubscriptionCursor, Update},
     },
     lib::alloc::{collections::VecDeque, string::String, string::ToString, vec::Vec},
 };
@@ -90,12 +90,8 @@ pub struct RawSubscription<T, D> {
     /// announced for `user_id`.
     ///
     /// By default it is set to **300** seconds.
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        setter(strip_option),
-        default = "Some(300)"
-    )]
-    pub(in crate::dx::subscribe) heartbeat: Option<u32>,
+    #[builder(field(vis = "pub(in crate::dx::subscribe)"))]
+    pub(in crate::dx::subscribe) heartbeat: u64,
 
     /// Message filtering predicate.
     ///
@@ -183,7 +179,7 @@ where
     pub fn stream(self) -> impl futures::Stream<Item = Result<Update, PubNubError>> {
         let cursor = self
             .cursor
-            .map(|tt| SubscribeCursor {
+            .map(|tt| SubscriptionCursor {
                 timetoken: tt.to_string(),
                 region: 0,
             })
@@ -203,11 +199,8 @@ where
                     .subscribe_request()
                     .cursor(ctx.cursor.clone())
                     .channels(ctx.subscription.channels.clone())
-                    .channel_groups(ctx.subscription.channel_groups.clone());
-
-                if let Some(heartbeat) = ctx.subscription.heartbeat {
-                    request = request.heartbeat(heartbeat);
-                }
+                    .channel_groups(ctx.subscription.channel_groups.clone())
+                    .heartbeat(ctx.subscription.heartbeat);
 
                 if let Some(filter_expr) = ctx.subscription.filter_expression.clone() {
                     request = request.filter_expression(filter_expr);
@@ -246,7 +239,7 @@ where
     pub fn iter(self) -> RawSubscriptionIter<T, D> {
         let cursor = self
             .cursor
-            .map(|tt| SubscribeCursor {
+            .map(|tt| SubscriptionCursor {
                 timetoken: tt.to_string(),
                 region: 0,
             })
@@ -279,11 +272,8 @@ where
                 .subscribe_request()
                 .cursor(ctx.cursor.clone())
                 .channels(ctx.subscription.channels.clone())
-                .channel_groups(ctx.subscription.channel_groups.clone());
-
-            if let Some(heartbeat) = ctx.subscription.heartbeat {
-                request = request.heartbeat(heartbeat);
-            }
+                .channel_groups(ctx.subscription.channel_groups.clone())
+                .heartbeat(ctx.subscription.heartbeat);
 
             if let Some(filter_expr) = ctx.subscription.filter_expression.clone() {
                 request = request.filter_expression(filter_expr);
@@ -322,7 +312,7 @@ where
 
 struct SubscriptionContext<T, D> {
     subscription: RawSubscription<T, D>,
-    cursor: SubscribeCursor,
+    cursor: SubscriptionCursor,
     messages: VecDeque<Result<Update, PubNubError>>,
 }
 
@@ -377,6 +367,7 @@ mod should {
     fn sut() -> RawSubscriptionBuilder<PubNubMiddleware<MockTransport>, DeserializerSerde> {
         RawSubscriptionBuilder {
             pubnub_client: Some(client()),
+            heartbeat: Some(300),
             ..Default::default()
         }
     }

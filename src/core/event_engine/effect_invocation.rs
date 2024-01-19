@@ -12,11 +12,15 @@ pub(crate) trait EffectInvocation {
     fn id(&self) -> &str;
 
     /// Whether invoked effect lifetime should be managed by dispatcher or not.
-    fn managed(&self) -> bool;
+    fn is_managed(&self) -> bool;
 
     /// Whether effect invocation cancels managed effect or not.
-    fn cancelling(&self) -> bool;
+    fn is_cancelling(&self) -> bool;
 
     /// Whether effect invocation cancels specific managed effect or not.
     fn cancelling_effect(&self, effect: &Self::Effect) -> bool;
+
+    /// Whether invoked effect invocation should terminate current Event Engine
+    /// processing loop or not.
+    fn is_terminating(&self) -> bool;
 }

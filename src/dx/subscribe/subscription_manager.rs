@@ -3,27 +3,36 @@
 //! This module contains manager which is responsible for tracking and updating
 //! active subscription streams.
 
+use spin::RwLock;
+
+use crate::subscribe::traits::EventHandler;
 use crate::{
     dx::subscribe::{
-        event_engine::{event::SubscribeEvent, SubscribeEventEngine, SubscribeInput},
+        event_engine::{
+            event::SubscribeEvent, SubscribeEffectInvocation, SubscribeEventEngine,
+            SubscriptionInput,
+        },
         result::Update,
-        subscription::Subscription,
-        SubscribeCursor, SubscribeStatus,
+        ConnectionStatus, PubNubClientInstance, Subscription, SubscriptionCursor,
     },
     lib::{
-        alloc::{sync::Arc, vec::Vec},
+        alloc::{
+            sync::{Arc, Weak},
+            vec::Vec,
+        },
+        collections::HashMap,
         core::{
-            fmt::Debug,
+            fmt::{Debug, Formatter},
             ops::{Deref, DerefMut},
         },
     },
 };
-use std::fmt::Formatter;
 
+#[cfg(feature = "presence")]
 pub(in crate::dx::subscribe) type PresenceCall =
     dyn Fn(Option<Vec<String>>, Option<Vec<String>>) + Send + Sync;
 
-/// Active subscriptions manager.
+/// Active subscriptions' manager.
 ///
 /// [`PubNubClient`] allows to have multiple [`subscription`] objects which will
 /// be used to deliver real-time updates on channels and groups specified during
@@ -32,42 +41,44 @@ pub(in crate::dx::subscribe) type PresenceCall =
 /// [`subscription`]: crate::Subscription
 /// [`PubNubClient`]: crate::PubNubClient
 #[derive(Debug)]
-pub(crate) struct SubscriptionManager {
-    pub(crate) inner: Arc<SubscriptionManagerRef>,
+pub(crate) struct SubscriptionManager<T, D> {
+    pub(crate) inner: Arc<SubscriptionManagerRef<T, D>>,
 }
 
-impl SubscriptionManager {
+impl<T, D> SubscriptionManager<T, D> {
     pub fn new(
         event_engine: Arc<SubscribeEventEngine>,
-        heartbeat_call: Arc<PresenceCall>,
-        leave_call: Arc<PresenceCall>,
+        #[cfg(feature = "presence")] heartbeat_call: Arc<PresenceCall>,
+        #[cfg(feature = "presence")] leave_call: Arc<PresenceCall>,
     ) -> Self {
         Self {
             inner: Arc::new(SubscriptionManagerRef {
                 event_engine,
-                subscribers: Default::default(),
-                _heartbeat_call: heartbeat_call,
-                _leave_call: leave_call,
+                event_handlers: Default::default(),
+                #[cfg(feature = "presence")]
+                heartbeat_call,
+                #[cfg(feature = "presence")]
+                leave_call,
             }),
         }
     }
 }
 
-impl Deref for SubscriptionManager {
-    type Target = SubscriptionManagerRef;
+impl<T, D> Deref for SubscriptionManager<T, D> {
+    type Target = SubscriptionManagerRef<T, D>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl DerefMut for SubscriptionManager {
+impl<T, D> DerefMut for SubscriptionManager<T, D> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         Arc::get_mut(&mut self.inner).expect("Presence configuration is not unique.")
     }
 }
 
-impl Clone for SubscriptionManager {
+impl<T, D> Clone for SubscriptionManager<T, D> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -75,52 +86,83 @@ impl Clone for SubscriptionManager {
     }
 }
 
-/// Active subscriptions manager.
+/// Active subscriptions' manager reference.
 ///
-/// [`PubNubClient`] allows to have multiple [`subscription`] objects which will
-/// be used to deliver real-time updates on channels and groups specified during
-/// [`subscribe`] method call.
+/// This struct contains the actual subscriptions' manager state. It is wrapped
+/// in an Arc by [`SubscriptionManager`] and uses internal mutability for its
+/// internal state.
 ///
-/// [`subscription`]: crate::Subscription
-/// [`PubNubClient`]: crate::PubNubClient
-pub(crate) struct SubscriptionManagerRef {
+/// Not intended to be used directly. Use [`SubscriptionManager`] instead.
+pub(crate) struct SubscriptionManagerRef<T, D> {
     /// Subscription event engine.
     ///
     /// State machine which is responsible for subscription loop maintenance.
     event_engine: Arc<SubscribeEventEngine>,
 
-    /// List of registered subscribers.
+    /// List of registered event handlers.
     ///
-    /// List of subscribers which will receive real-time updates.
-    subscribers: Vec<Subscription>,
+    /// List of handlers which will receive real-time events and dispatch them
+    /// to the listeners.
+    event_handlers: RwLock<HashMap<String, Weak<dyn EventHandler<T, D> + Send + Sync>>>,
 
     /// Presence `join` announcement.
     ///
     /// Announces `user_id` presence on specified channels and groups.
-    _heartbeat_call: Arc<PresenceCall>,
+    #[cfg(feature = "presence")]
+    heartbeat_call: Arc<PresenceCall>,
 
     /// Presence `leave` announcement.
     ///
     /// Announces `user_id` `leave` from specified channels and groups.
-    _leave_call: Arc<PresenceCall>,
+    #[cfg(feature = "presence")]
+    leave_call: Arc<PresenceCall>,
 }
 
-impl SubscriptionManagerRef {
-    pub fn notify_new_status(&self, status: &SubscribeStatus) {
-        self.subscribers.iter().for_each(|subscription| {
-            subscription.handle_status(status.clone());
+impl<T, D> SubscriptionManagerRef<T, D>
+where
+    T: Send + Sync,
+    D: Send + Sync,
+{
+    pub fn notify_new_status(&self, status: &ConnectionStatus) {
+        if let Some(client) = self.client() {
+            client.handle_status(status.clone())
+        }
+    }
+
+    pub fn notify_new_messages(&self, cursor: SubscriptionCursor, events: Vec<Update>) {
+        if let Some(client) = self.client() {
+            client.handle_events(cursor.clone(), &events)
+        }
+
+        self.event_handlers.write().retain(|_, weak_handler| {
+            if let Some(handler) = weak_handler.upgrade().clone() {
+                handler.handle_events(cursor.clone(), &events);
+                true
+            } else {
+                false
+            }
         });
     }
 
-    pub fn notify_new_messages(&self, messages: Vec<Update>) {
-        self.subscribers.iter().for_each(|subscription| {
-            subscription.handle_messages(&messages);
-        });
-    }
+    pub fn register(
+        &mut self,
+        event_handler: &Weak<dyn EventHandler<T, D> + Send + Sync>,
+        cursor: Option<SubscriptionCursor>,
+    ) {
+        let Some(upgraded_event_handler) = event_handler.upgrade().clone() else {
+            return;
+        };
 
-    pub fn register(&mut self, subscription: Subscription) {
-        let cursor = subscription.cursor;
-        self.subscribers.push(subscription);
+        let event_handler_id = upgraded_event_handler.id();
+        if self.event_handlers.read().contains_key(event_handler_id) {
+            return;
+        }
+
+        {
+            self.event_handlers
+                .write()
+                .insert(event_handler_id.clone(), event_handler.clone());
+        }
 
         if let Some(cursor) = cursor {
             self.restore_subscription(cursor);
@@ -129,27 +171,63 @@ impl SubscriptionManagerRef {
         }
     }
 
-    pub fn unregister(&mut self, subscription: Subscription) {
-        if let Some(position) = self
-            .subscribers
-            .iter()
-            .position(|val| val.id.eq(&subscription.id))
+    pub fn update(
+        &self,
+        event_handler: &Weak<dyn EventHandler<T, D> + Send + Sync>,
+        removed: Option<&[Arc<Subscription<T, D>>]>,
+    ) {
+        let Some(upgraded_event_handler) = event_handler.upgrade().clone() else {
+            return;
+        };
+
+        if !self
+            .event_handlers
+            .read()
+            .contains_key(upgraded_event_handler.id())
         {
-            self.subscribers.swap_remove(position);
+            return;
         }
 
-        self.change_subscription(Some(&subscription.input));
+        // Handle subscriptions' set subscriptions subset which has been removed from
+        // it.
+        let removed = removed.map(|removed| {
+            removed
+                .iter()
+                .filter(|subscription| subscription.entity.subscriptions_count().gt(&0))
+                .fold(SubscriptionInput::default(), |mut acc, subscription| {
+                    acc += subscription.subscription_input.clone();
+                    acc
+                })
+        });
+
+        self.change_subscription(removed.as_ref());
+    }
+
+    pub fn unregister(&mut self, event_handler: &Weak<dyn EventHandler<T, D> + Send + Sync>) {
+        let Some(upgraded_event_handler) = event_handler.upgrade().clone() else {
+            return;
+        };
+
+        let event_handler_id = upgraded_event_handler.id();
+        if !self.event_handlers.read().contains_key(event_handler_id) {
+            return;
+        }
+
+        {
+            self.event_handlers.write().remove(event_handler_id);
+        }
+
+        self.change_subscription(Some(&upgraded_event_handler.subscription_input(false)));
     }
 
     // TODO: why call it on drop fails tests?
     #[allow(dead_code)]
     pub fn unregister_all(&mut self) {
         let inputs = self.current_input();
+        {
+            self.event_handlers.write().clear();
+        }
 
-        self.subscribers
-            .iter_mut()
-            .for_each(|subscription| subscription.invalidate());
-        self.subscribers.clear();
         self.change_subscription(Some(&inputs));
     }
 
@@ -157,90 +235,143 @@ impl SubscriptionManagerRef {
         self.event_engine.process(&SubscribeEvent::Disconnect);
     }
 
-    pub fn reconnect(&self) {
-        self.event_engine.process(&SubscribeEvent::Reconnect);
+    pub fn reconnect(&self, cursor: Option<SubscriptionCursor>) {
+        self.event_engine
+            .process(&SubscribeEvent::Reconnect { cursor });
     }
 
-    fn change_subscription(&self, _removed: Option<&SubscribeInput>) {
-        let inputs = self.current_input();
+    /// Returns the current subscription input.
+    ///
+    /// Gather subscriptions from all registered (active) event handlers.
+    ///
+    /// # Returns
+    ///
+    /// - [`SubscriptionInput`]: The sum of all subscription inputs from the
+    ///   event handlers.
+    pub fn current_input(&self) -> SubscriptionInput {
+        self.event_handlers
+            .read()
+            .values()
+            .filter_map(|weak_handler| weak_handler.upgrade().clone())
+            .map(|handler| handler.subscription_input(false).clone())
+            .sum()
+    }
 
-        // TODO: Uncomment after contract test server fix.
-        // #[cfg(feature = "presence")]
-        // {
-        //     (!inputs.is_empty)
-        //         .then(|| self.heartbeat_call.as_ref()(inputs.channels(),
-        // inputs.channel_groups()));
-        //
-        //     if let Some(removed) = removed {
-        //         (!removed.is_empty).then(|| {
-        //             self.leave_call.as_ref()(removed.channels(),
-        // removed.channel_groups())         });
-        //     }
-        // }
+    /// Terminate subscription manager.
+    ///
+    /// Gracefully terminate all ongoing tasks including detached event engine
+    /// loop.
+    #[allow(dead_code)]
+    pub fn terminate(&self) {
+        self.event_engine
+            .stop(SubscribeEffectInvocation::TerminateEventEngine);
+    }
+
+    fn change_subscription(&self, removed: Option<&SubscriptionInput>) {
+        let mut inputs = self.current_input();
+
+        if let Some(removed) = removed {
+            inputs -= removed.clone();
+        }
+
+        let channels = inputs.channels();
+        let channel_groups = inputs.channel_groups();
+
+        #[cfg(feature = "presence")]
+        {
+            (!inputs.is_empty && removed.is_none())
+                .then(|| self.heartbeat_call.as_ref()(channels.clone(), channel_groups.clone()));
+
+            if let Some(removed) = removed {
+                if !removed.is_empty {
+                    self.leave_call.as_ref()(removed.channels(), removed.channel_groups());
+                }
+            }
+        }
 
         self.event_engine
             .process(&SubscribeEvent::SubscriptionChanged {
-                channels: inputs.channels(),
-                channel_groups: inputs.channel_groups(),
+                channels,
+                channel_groups,
             });
     }
 
-    fn restore_subscription(&self, cursor: u64) {
+    fn restore_subscription(&self, cursor: SubscriptionCursor) {
         let inputs = self.current_input();
 
-        // TODO: Uncomment after contract test server fix.
-        // #[cfg(feature = "presence")]
-        // if !inputs.is_empty {
-        //     self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups());
-        // }
+        #[cfg(feature = "presence")]
+        if !inputs.is_empty {
+            self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups());
+        }
 
         self.event_engine
             .process(&SubscribeEvent::SubscriptionRestored {
                 channels: inputs.channels(),
                 channel_groups: inputs.channel_groups(),
-                cursor: SubscribeCursor {
-                    timetoken: cursor.to_string(),
-                    region: 0,
-                },
+                cursor,
             });
     }
 
-    pub(crate) fn current_input(&self) -> SubscribeInput {
-        self.subscribers.iter().fold(
-            SubscribeInput::new(&None, &None),
-            |mut input, subscription| {
-                input += subscription.input.clone();
-                input
-            },
-        )
+    /// [`PubNubClientInstance`] associated with any of the event handlers.
+    ///
+    /// # Returns
+    ///
+    /// Reference on the underlying [`PubNubClientInstance`] instance of event
+    /// handler.
+    fn client(&self) -> Option<Arc<PubNubClientInstance<T, D>>> {
+        let event_handlers = self.event_handlers.read();
+        let mut client = None;
+        if !event_handlers.is_empty() {
+            if let Some((_, handler)) = event_handlers.iter().next() {
+                if let Some(handler) = handler.upgrade().clone() {
+                    client = handler.client().upgrade().clone();
+                }
+            }
+        }
+
+        client
     }
 }
 
-impl Debug for SubscriptionManagerRef {
+impl<T, D> Debug for SubscriptionManagerRef<T, D> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "SubscriptionManagerRef {{\n\tevent_engine: {:?}\n\tsubscribers: {:?}\n}}",
-            self.event_engine, self.subscribers
+            "SubscriptionManagerRef {{ event_engine: {:?}, event handlers: {:?} }}",
+            self.event_engine, self.event_handlers
         )
     }
 }
 
 #[cfg(test)]
 mod should {
+    use futures::{FutureExt, StreamExt};
+
     use super::*;
     use crate::{
-        core::RequestRetryPolicy,
+        core::RequestRetryConfiguration,
         dx::subscribe::{
             event_engine::{SubscribeEffectHandler, SubscribeState},
             result::SubscribeResult,
-            subscription::SubscriptionBuilder,
             types::Message,
+            EventEmitter, Subscriber, Update,
         },
         lib::alloc::sync::Arc,
         providers::futures_tokio::RuntimeTokio,
+        Keyset, PubNubClient, PubNubClientBuilder,
     };
-    use spin::RwLock;
+
+    fn client() -> PubNubClient {
+        PubNubClientBuilder::with_reqwest_transport()
+            .with_keyset(Keyset {
+                subscribe_key: "",
+                publish_key: Some(""),
+                secret_key: None,
+            })
+            .with_user_id("user_id")
+            .build()
+            .unwrap()
+    }
 
     fn event_engine() -> Arc<SubscribeEventEngine> {
         let (cancel_tx, _) = async_channel::bounded(1);
@@ -248,20 +379,21 @@ mod should {
         SubscribeEventEngine::new(
             SubscribeEffectHandler::new(
                 Arc::new(move |_| {
-                    Box::pin(async move {
+                    async move {
                         Ok(SubscribeResult {
                             cursor: Default::default(),
                             messages: Default::default(),
                         })
-                    })
+                    }
+                    .boxed()
                 }),
                 Arc::new(|_| {
                     // Do nothing yet
                 }),
-                Arc::new(Box::new(|_| {
+                Arc::new(Box::new(|_, _| {
                     // Do nothing yet
                 })),
-                RequestRetryPolicy::None,
+                RequestRetryConfiguration::None,
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,
@@ -271,112 +403,84 @@ mod should {
 
     #[tokio::test]
     async fn register_subscription() {
+        let client = client();
         let mut manager = SubscriptionManager::new(
             event_engine(),
+            #[cfg(feature = "presence")]
             Arc::new(|channels, _| {
                 assert!(channels.is_some());
                 assert_eq!(channels.unwrap().len(), 1);
             }),
+            #[cfg(feature = "presence")]
             Arc::new(|_, _| {}),
         );
-        let dummy_manager =
-            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
+        let channel = client.create_channel("test");
+        let subscription = channel.subscription(None);
+        let weak_subscription = &Arc::downgrade(&subscription);
+        let weak_handler: Weak<dyn EventHandler<_, _> + Send + Sync> = weak_subscription.clone();
 
-        let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
-            ..Default::default()
-        }
-        .channels(["test".into()])
-        .execute()
-        .unwrap();
+        manager.register(&weak_handler, None);
 
-        manager.register(subscription);
-
-        assert_eq!(manager.subscribers.len(), 1);
+        assert_eq!(manager.event_handlers.read().len(), 1);
     }
 
     #[tokio::test]
     async fn unregister_subscription() {
+        let client = client();
         let mut manager = SubscriptionManager::new(
             event_engine(),
+            #[cfg(feature = "presence")]
             Arc::new(|_, _| {}),
+            #[cfg(feature = "presence")]
             Arc::new(|channels, _| {
                 assert!(channels.is_some());
                 assert_eq!(channels.unwrap().len(), 1);
             }),
         );
-        let dummy_manager =
-            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
+        let channel = client.create_channel("test");
+        let subscription = channel.subscription(None);
+        let weak_subscription = &Arc::downgrade(&subscription);
+        let weak_handler: Weak<dyn EventHandler<_, _> + Send + Sync> = weak_subscription.clone();
 
-        let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
-            ..Default::default()
-        }
-        .channels(["test".into()])
-        .execute()
-        .unwrap();
+        manager.register(&weak_handler, None);
+        manager.unregister(&weak_handler);
 
-        manager.register(subscription.clone());
-        manager.unregister(subscription);
-
-        assert_eq!(manager.subscribers.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn notify_subscription_about_statuses() {
-        let mut manager =
-            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
-        let dummy_manager =
-            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
-
-        let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
-            ..Default::default()
-        }
-        .channels(["test".into()])
-        .execute()
-        .unwrap();
-
-        manager.register(subscription.clone());
-        manager.notify_new_status(&SubscribeStatus::Connected);
-
-        use futures::StreamExt;
-        assert_eq!(
-            subscription
-                .status_stream()
-                .next()
-                .await
-                .iter()
-                .next()
-                .unwrap(),
-            &SubscribeStatus::Connected
-        );
+        assert_eq!(manager.event_handlers.read().len(), 0);
     }
 
     #[tokio::test]
     async fn notify_subscription_about_updates() {
-        let mut manager =
-            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
-        let dummy_manager =
-            SubscriptionManager::new(event_engine(), Arc::new(|_, _| {}), Arc::new(|_, _| {}));
+        let client = client();
+        let mut manager = SubscriptionManager::new(
+            event_engine(),
+            #[cfg(feature = "presence")]
+            Arc::new(|_, _| {}),
+            #[cfg(feature = "presence")]
+            Arc::new(|_, _| {}),
+        );
+        let cursor: SubscriptionCursor = "15800701771129796".to_string().into();
+        let channel = client.create_channel("test");
+        let subscription = channel.subscription(None);
+        let weak_subscription = Arc::downgrade(&subscription);
+        let weak_handler: Weak<dyn EventHandler<_, _> + Send + Sync> = weak_subscription.clone();
 
-        let subscription = SubscriptionBuilder {
-            subscription: Some(Arc::new(RwLock::new(Some(dummy_manager)))),
-            ..Default::default()
+        // Simulate `.subscribe()` call.
+        {
+            let mut is_subscribed = subscription.is_subscribed.write();
+            *is_subscribed = true;
         }
-        .channels(["test".into()])
-        .execute()
-        .unwrap();
+        manager.register(&weak_handler, Some(cursor.clone()));
 
-        manager.register(subscription.clone());
+        manager.notify_new_messages(
+            cursor.clone(),
+            vec![Update::Message(Message {
+                channel: "test".into(),
+                subscription: "test".into(),
+                timestamp: cursor.timetoken.parse::<usize>().ok().unwrap(),
+                ..Default::default()
+            })],
+        );
 
-        manager.notify_new_messages(vec![Update::Message(Message {
-            channel: "test".into(),
-            subscription: "test".into(),
-            ..Default::default()
-        })]);
-
-        use futures::StreamExt;
-        assert!(subscription.message_stream().next().await.is_some());
+        assert!(subscription.messages_stream().next().await.is_some());
     }
 }

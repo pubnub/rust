@@ -1,6 +1,8 @@
-use crate::core::runtime::Runtime;
 use crate::{
-    core::event_engine::{Effect, EffectHandler, EffectInvocation},
+    core::{
+        event_engine::{Effect, EffectHandler, EffectInvocation},
+        runtime::Runtime,
+    },
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
 use async_channel::Receiver;
@@ -44,7 +46,7 @@ where
     EH: EffectHandler<EI, EF> + Send + Sync + 'static,
     EF: Effect<Invocation = EI> + 'static,
 {
-    /// Create new effects dispatcher.
+    /// Create new an effects dispatcher.
     pub fn new(handler: EH, channel: Receiver<EI>) -> Self {
         EffectDispatcher {
             handler,
@@ -62,39 +64,62 @@ where
     {
         let mut started_slot = self.started.write();
         let runtime_clone = runtime.clone();
-        let cloned_self = self.clone();
+        let cloned_self = Arc::downgrade(self);
 
         runtime.spawn(async move {
-            log::info!("Subscribe engine has started!");
+            log::info!("Event engine has started!");
+            let mut is_active = true;
 
             loop {
-                match cloned_self.invocations_channel.recv().await {
-                    Ok(invocation) => {
-                        log::debug!("Received invocation: {}", invocation.id());
+                let Some(strong_self) = cloned_self.upgrade() else {
+                    break;
+                };
 
-                        let effect = cloned_self.dispatch(&invocation);
+                let invocation = strong_self.invocations_channel.recv().await;
+                match invocation {
+                    Ok(invocation) => {
+                        log::debug!(
+                            "~~~~~~~ INVOCATION: {} | IS ACTIVE? {is_active:?}",
+                            invocation.id()
+                        );
+                        if !is_active || invocation.is_terminating() {
+                            log::debug!("Received event engine termination invocation");
+                            break;
+                        }
+
+                        let effect = strong_self.dispatch(&invocation);
                         let task_completion = completion.clone();
 
                         if let Some(effect) = effect {
-                            log::debug!("Dispatched effect: {}", effect.id());
+                            log::debug!("Dispatched effect: {}", effect.name());
                             let cloned_self = cloned_self.clone();
 
                             runtime_clone.spawn(async move {
-                                let events = effect.run().await;
+                                if let Some(strong_self) = cloned_self.upgrade() {
+                                    let events = effect.run().await;
 
-                                if invocation.managed() {
-                                    cloned_self.remove_managed_effect(effect.id());
+                                    if invocation.is_managed() {
+                                        strong_self.remove_managed_effect(effect.id());
+                                    }
+
+                                    task_completion(events);
+                                } else {
+                                    task_completion(vec![])
                                 }
-
-                                task_completion(events);
                             });
+                        } else if invocation.is_cancelling() {
+                            log::debug!("Dispatched effect: {}", invocation.id());
                         }
                     }
                     Err(err) => {
+                        is_active = false;
                         log::error!("Receive error: {err:?}");
+                        break;
                     }
                 }
             }
+            is_active = false;
+            log::info!("Event engine has stopped!");
         });
 
         *started_slot = true;
@@ -105,14 +130,14 @@ where
         if let Some(effect) = self.handler.create(invocation) {
             let effect = Arc::new(effect);
 
-            if invocation.managed() {
+            if invocation.is_managed() {
                 let mut managed = self.managed.write();
                 managed.push(effect.clone());
             }
 
             Some(effect)
         } else {
-            if invocation.cancelling() {
+            if invocation.is_cancelling() {
                 self.cancel_effect(invocation);
             }
 
@@ -127,6 +152,7 @@ where
     fn cancel_effect(&self, invocation: &EI) {
         let mut managed = self.managed.write();
         if let Some(position) = managed.iter().position(|e| invocation.cancelling_effect(e)) {
+            log::debug!("~~~~~~ CANCELLING");
             managed.remove(position).cancel();
         }
     }
@@ -165,6 +191,14 @@ mod should {
     impl Effect for TestEffect {
         type Invocation = TestInvocation;
 
+        fn name(&self) -> String {
+            match self {
+                Self::One => "EFFECT_ONE".into(),
+                Self::Two => "EFFECT_TWO".into(),
+                Self::Three => "EFFECT_THREE".into(),
+            }
+        }
+
         fn id(&self) -> String {
             match self {
                 Self::One => "EFFECT_ONE".into(),
@@ -202,11 +236,11 @@ mod should {
             }
         }
 
-        fn managed(&self) -> bool {
+        fn is_managed(&self) -> bool {
             matches!(self, Self::Two | Self::Three)
         }
 
-        fn cancelling(&self) -> bool {
+        fn is_cancelling(&self) -> bool {
             matches!(self, Self::CancelThree)
         }
 
@@ -215,6 +249,10 @@ mod should {
                 TestInvocation::CancelThree => matches!(effect, TestEffect::Three),
                 _ => false,
             }
+        }
+
+        fn is_terminating(&self) -> bool {
+            false
         }
     }
 
@@ -244,6 +282,10 @@ mod should {
         }
 
         async fn sleep(self, _delay: u64) {
+            // Do nothing.
+        }
+
+        async fn sleep_microseconds(self, _delay: u64) {
             // Do nothing.
         }
     }

@@ -80,6 +80,10 @@ pub struct TransportRequest {
 
     /// body to be sent with the request
     pub body: Option<Vec<u8>>,
+
+    /// request timeout
+    #[cfg(feature = "std")]
+    pub timeout: u64,
 }
 
 impl TransportRequest {
@@ -91,6 +95,8 @@ impl TransportRequest {
         &self,
         transport: &T,
         deserializer: Arc<D>,
+
+        #[cfg(feature = "std")] guard: &DetachedClientsGuard,
     ) -> Result<R, PubNubError>
     where
         B: for<'de> super::Deserialize<'de>,
@@ -98,12 +104,36 @@ impl TransportRequest {
         T: super::Transport,
         D: super::Deserializer + 'static,
     {
-        // Request configured endpoint.
-        let response = transport.send(self.clone()).await?;
-        Self::deserialize(
-            response.clone(),
-            Box::new(move |bytes| deserializer.deserialize(bytes)),
-        )
+        #[cfg(feature = "std")]
+        {
+            let channel = guard.notify_channel_rx.clone();
+            guard.increase_detached_count_by(1);
+
+            // Request configured endpoint.
+            select_biased! {
+                _ = channel.recv().fuse() => {
+                    guard.decrease_detached_count_by(1);
+                    Err(PubNubError::RequestCancel { details: "PubNub client instance dropped".into() })
+                }
+                response = transport.send(self.clone()).fuse() => {
+                    guard.decrease_detached_count_by(1);
+                    return Self::deserialize(
+                        response?.clone(),
+                        Box::new(move |bytes| deserializer.deserialize(bytes)),
+                    )
+                }
+            }
+        }
+
+        #[cfg(not(feature = "std"))]
+        {
+            // Request configured endpoint.
+            let response = transport.send(self.clone()).await;
+            Self::deserialize(
+                response?.clone(),
+                Box::new(move |bytes| deserializer.deserialize(bytes)),
+            )
+        }
     }
 
     /// Send async request and process [`PubNub API`] response.
@@ -122,13 +152,13 @@ impl TransportRequest {
         D: super::Deserializer + 'static,
     {
         // Request configured endpoint.
-        let response = transport.send(self.clone()).await?;
-
+        let response = transport.send(self.clone()).await;
         Self::deserialize(
-            response.clone(),
+            response?.clone(),
             Box::new(move |bytes| deserializer.deserialize(bytes)),
         )
     }
+
     /// Send async request and process [`PubNub API`] response.
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs

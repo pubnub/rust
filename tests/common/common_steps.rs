@@ -1,9 +1,12 @@
 use cucumber::gherkin::Scenario;
 use cucumber::{given, then, World};
-use pubnub::core::RequestRetryPolicy;
-use pubnub::dx::subscribe::subscription::Subscription;
+use std::collections::HashMap;
+
+use pubnub::providers::deserialization_serde::DeserializerSerde;
+use pubnub::subscribe::{Subscription, SubscriptionSet};
+use pubnub::transport::middleware::PubNubMiddleware;
 use pubnub::{
-    core::PubNubError,
+    core::{PubNubError, RequestRetryConfiguration},
     dx::{
         access::{permissions, GrantTokenResult, RevokeTokenResult},
         publish::PublishResult,
@@ -12,6 +15,7 @@ use pubnub::{
     Keyset, PubNubClient, PubNubClientBuilder,
 };
 use std::fmt::Debug;
+use std::sync::Arc;
 
 /// Type of resource for which permissions currently configured.
 #[derive(Default, Debug)]
@@ -135,11 +139,19 @@ impl Default for CryptoModuleState {
 
 #[derive(Debug, World)]
 pub struct PubNubWorld {
+    pub pubnub: Option<PubNubClient>,
     pub scenario: Option<Scenario>,
     pub keyset: pubnub::Keyset<String>,
     pub publish_result: Result<PublishResult, PubNubError>,
-    pub subscription: Result<Subscription, PubNubError>,
-    pub retry_policy: Option<RequestRetryPolicy>,
+    pub subscription:
+        Option<Arc<SubscriptionSet<PubNubMiddleware<TransportReqwest>, DeserializerSerde>>>,
+    pub subscriptions: Option<
+        HashMap<String, Arc<Subscription<PubNubMiddleware<TransportReqwest>, DeserializerSerde>>>,
+    >,
+    pub retry_policy: Option<RequestRetryConfiguration>,
+    pub heartbeat_value: Option<u64>,
+    pub heartbeat_interval: Option<u64>,
+    pub suppress_leave_events: bool,
     pub pam_state: PAMState,
     pub crypto_state: CryptoModuleState,
     pub api_error: Option<PubNubError>,
@@ -149,6 +161,7 @@ pub struct PubNubWorld {
 impl Default for PubNubWorld {
     fn default() -> Self {
         PubNubWorld {
+            pubnub: None,
             scenario: None,
             keyset: Keyset::<String> {
                 subscribe_key: "demo".to_owned(),
@@ -159,20 +172,30 @@ impl Default for PubNubWorld {
                 details: "This is default value".into(),
                 response: None,
             }),
-            subscription: Err(PubNubError::Transport {
-                details: "This is default value".into(),
-                response: None,
-            }),
+            subscription: None,
+            subscriptions: None,
             is_succeed: false,
             pam_state: PAMState::default(),
             crypto_state: CryptoModuleState::default(),
             api_error: None,
             retry_policy: None,
+            heartbeat_value: None,
+            heartbeat_interval: None,
+            suppress_leave_events: false,
         }
     }
 }
 
 impl PubNubWorld {
+    pub async fn reset(&mut self) {
+        self.subscription = None;
+        self.retry_policy = None;
+        self.pubnub.as_ref().unwrap().terminate();
+        // self.pubnub = None;
+        log::debug!("\n\n\n\n\n\n\n\n~~~~~~~~~~~~~~~~~~~~~ WE ARE DONE");
+        // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    }
+
     pub fn get_pubnub(&self, keyset: Keyset<String>) -> PubNubClient {
         let transport = {
             let mut transport = TransportReqwest::default();
@@ -182,18 +205,30 @@ impl PubNubWorld {
 
         let mut builder = PubNubClientBuilder::with_transport(transport)
             .with_keyset(keyset)
-            .with_user_id("test");
+            .with_user_id("test")
+            .with_suppress_leave_events(self.suppress_leave_events);
 
         if let Some(retry_policy) = &self.retry_policy {
-            builder = builder.with_retry_policy(retry_policy.clone());
+            builder = builder.with_retry_configuration(retry_policy.clone());
         }
 
-        builder.build().unwrap()
+        if let Some(heartbeat_value) = &self.heartbeat_value {
+            builder = builder.with_heartbeat_value(*heartbeat_value);
+        }
+
+        if let Some(heartbeat_interval) = &self.heartbeat_interval {
+            builder = builder.with_heartbeat_interval(*heartbeat_interval);
+        }
+
+        let instance = builder.build().unwrap();
+
+        instance
     }
 }
 
 #[given("the demo keyset")]
 #[given("the demo keyset with event engine enabled")]
+#[given("the demo keyset with Presence EE enabled")]
 fn set_keyset(world: &mut PubNubWorld) {
     world.keyset = Keyset {
         subscribe_key: "demo".into(),
@@ -205,11 +240,26 @@ fn set_keyset(world: &mut PubNubWorld) {
 #[given(regex = r"^a (.*) reconnection policy with ([0-9]+) retries")]
 fn set_with_retries(world: &mut PubNubWorld, retry_type: String, max_retry: u8) {
     if retry_type.eq("linear") {
-        world.retry_policy = Some(RequestRetryPolicy::Linear {
+        world.retry_policy = Some(RequestRetryConfiguration::Linear {
             max_retry,
             delay: 0,
+            excluded_endpoints: None,
         })
     }
+}
+
+#[given(
+    regex = r"^heartbeatInterval set to '([0-9]+)', timeout set to '([0-9]+)' and suppressLeaveEvents set to '(true|false)'"
+)]
+fn set_presence_options(
+    world: &mut PubNubWorld,
+    interval: u64,
+    timeout: u64,
+    suppress_leave: bool,
+) {
+    world.heartbeat_interval = Some(interval);
+    world.heartbeat_value = Some(timeout);
+    world.suppress_leave_events = suppress_leave;
 }
 
 #[given(regex = r"^I have a keyset with access manager enabled(.*)?")]

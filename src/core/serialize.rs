@@ -26,7 +26,7 @@ use crate::lib::alloc::vec::Vec;
 /// }
 ///  
 /// impl Serialize for Foo {
-///   fn serialize(self) -> Result<Vec<u8>, PubNubError> {
+///   fn serialize(&self) -> Result<Vec<u8>, PubNubError> {
 ///     Ok(format!("{{\"bar\":\"{}\"}}", self.bar).into_bytes())
 ///   }
 /// }
@@ -40,7 +40,8 @@ pub trait Serialize {
     /// Serialize the value
     ///
     /// # Errors
-    /// Should return an [`PubNubError::SerializeError`] if the value cannot be serialized.
+    /// Should return an [`PubNubError::SerializeError`] if the value cannot be
+    /// serialized.
     ///
     /// # Examples
     /// ```
@@ -49,12 +50,12 @@ pub trait Serialize {
     /// struct Foo;
     ///
     /// impl Serialize for Foo {
-    ///    fn serialize(self) -> Result<Vec<u8>, PubNubError> {
+    ///    fn serialize(&self) -> Result<Vec<u8>, PubNubError> {
     ///         Ok(vec![1, 2, 3])
     ///    }
     /// }
     /// ```
     ///
     /// [`PubNubError::SerializeError`]: ../error/enum.PubNubError.html#variant.SerializeError
-    fn serialize(self) -> Result<Vec<u8>, PubNubError>;
+    fn serialize(&self) -> Result<Vec<u8>, PubNubError>;
 }

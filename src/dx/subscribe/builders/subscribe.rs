@@ -21,7 +21,7 @@ use crate::{
     },
     dx::{
         pubnub_client::PubNubClientInstance,
-        subscribe::{builders, result::SubscribeResult, SubscribeCursor, SubscribeResponseBody},
+        subscribe::{builders, result::SubscribeResult, SubscribeResponseBody, SubscriptionCursor},
     },
     lib::{
         alloc::{
@@ -33,6 +33,8 @@ use crate::{
     },
 };
 
+#[cfg(all(feature = "presence", feature = "std"))]
+use crate::lib::alloc::vec;
 #[cfg(feature = "std")]
 use crate::{core::event_engine::cancel::CancellationTask, lib::alloc::sync::Arc};
 
@@ -84,7 +86,36 @@ pub(crate) struct SubscribeRequest<T, D> {
         setter(strip_option),
         default = "Default::default()"
     )]
-    pub(in crate::dx::subscribe) cursor: SubscribeCursor,
+    pub(in crate::dx::subscribe) cursor: SubscriptionCursor,
+
+    /// A state that should be associated with the `user_id`.
+    ///
+    /// `state` object should be a `HashMap` with channel names as keys and
+    /// serialized `state` as values. State with heartbeat can be set **only**
+    /// for channels.
+    ///
+    /// # Example:
+    /// ```rust,no_run
+    /// # use std::collections::HashMap;
+    /// # use pubnub::core::Serialize;
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let state = HashMap::<String, Vec<u8>>::from([(
+    ///     "announce".to_string(),
+    ///     HashMap::<String, bool>::from([
+    ///         ("is_owner".to_string(), false),
+    ///         ("is_admin".to_string(), true)
+    ///     ]).serialize()?
+    /// )]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "presence")]
+    #[builder(
+        field(vis = "pub(in crate::dx::subscribe)"),
+        setter(custom, strip_option),
+        default = "None"
+    )]
+    pub(in crate::dx::subscribe) state: Option<Vec<u8>>,
 
     /// `user_id`presence timeout period.
     ///
@@ -95,12 +126,8 @@ pub(crate) struct SubscribeRequest<T, D> {
     /// announced for `user_id`.
     ///
     /// By default it is set to **300** seconds.
-    #[builder(
-        field(vis = "pub(in crate::dx::subscribe)"),
-        setter(strip_option),
-        default = "300"
-    )]
-    pub(in crate::dx::subscribe) heartbeat: u32,
+    #[builder(field(vis = "pub(in crate::dx::subscribe)"))]
+    pub(in crate::dx::subscribe) heartbeat: u64,
 
     /// Message filtering predicate.
     ///
@@ -119,6 +146,28 @@ pub(crate) struct SubscribeRequest<T, D> {
 }
 
 impl<T, D> SubscribeRequestBuilder<T, D> {
+    /// A state that should be associated with the `user_id`.
+    ///
+    /// `state` object should be a `HashMap` with channel names as keys and
+    /// nested `HashMap` with values. State with subscribe can be set **only**
+    /// for channels.
+    #[cfg(all(feature = "presence", feature = "std"))]
+    pub(in crate::dx::subscribe) fn state(mut self, state: HashMap<String, Vec<u8>>) -> Self {
+        let mut serialized_state = vec![b'{'];
+        for (key, mut value) in state {
+            serialized_state.append(&mut format!("\"{}\":", key).as_bytes().to_vec());
+            serialized_state.append(&mut value);
+            serialized_state.push(b',');
+        }
+        if serialized_state.last() == Some(&b',') {
+            serialized_state.pop();
+        }
+        serialized_state.push(b'}');
+
+        self.state = Some(Some(serialized_state));
+        self
+    }
+
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
@@ -145,14 +194,26 @@ impl<T, D> SubscribeRequestBuilder<T, D> {
 
 impl<T, D> SubscribeRequest<T, D> {
     /// Create transport request from the request builder.
-    pub(in crate::dx::subscribe) fn transport_request(&self) -> TransportRequest {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+    pub(in crate::dx::subscribe) fn transport_request(
+        &self,
+    ) -> Result<TransportRequest, PubNubError> {
+        let config = &self.pubnub_client.config;
+        let sub_key = &config.subscribe_key;
         let mut query: HashMap<String, String> = HashMap::new();
         query.extend::<HashMap<String, String>>(self.cursor.clone().into());
 
         // Serialize list of channel groups and add into query parameters list.
         url_encoded_channel_groups(&self.channel_groups)
             .and_then(|groups| query.insert("channel-group".into(), groups));
+
+        #[cfg(feature = "presence")]
+        if let Some(state) = self.state.as_ref() {
+            let state_json =
+                String::from_utf8(state.clone()).map_err(|err| PubNubError::Serialization {
+                    details: err.to_string(),
+                })?;
+            query.insert("state".into(), state_json);
+        }
 
         self.filter_expression
             .as_ref()
@@ -166,15 +227,17 @@ impl<T, D> SubscribeRequest<T, D> {
 
         query.insert("heartbeat".into(), self.heartbeat.to_string());
 
-        TransportRequest {
+        Ok(TransportRequest {
             path: format!(
                 "/v2/subscribe/{sub_key}/{}/0",
                 url_encoded_channels(&self.channels)
             ),
             query_parameters: query,
             method: TransportMethod::Get,
+            #[cfg(feature = "std")]
+            timeout: config.transport.subscribe_request_timeout,
             ..Default::default()
-        }
+        })
     }
 }
 
@@ -186,9 +249,10 @@ where
     /// Build and call asynchronous request.
     pub async fn execute(self) -> Result<SubscribeResult, PubNubError> {
         let request = self.request()?;
-        let transport_request = request.transport_request();
+        let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
             .send::<SubscribeResponseBody, _, _, _>(&client.transport, deserializer)
             .await
@@ -241,7 +305,7 @@ where
             .build()
             .map_err(|err| PubNubError::general_api_error(err.to_string(), None, None))?;
 
-        let transport_request = request.transport_request();
+        let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
         transport_request

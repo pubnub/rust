@@ -113,7 +113,7 @@ impl<T, D> GetStateRequest<T, D> {
     pub(in crate::dx::presence) fn transport_request(
         &self,
     ) -> Result<TransportRequest, PubNubError> {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let config = &self.pubnub_client.config;
         let mut query: HashMap<String, String> = HashMap::new();
 
         // Serialize list of channel groups and add into query parameters list.
@@ -122,7 +122,8 @@ impl<T, D> GetStateRequest<T, D> {
 
         Ok(TransportRequest {
             path: format!(
-                "/v2/presence/sub-key/{sub_key}/channel/{}/uuid/{}",
+                "/v2/presence/sub-key/{}/channel/{}/uuid/{}",
+                &config.subscribe_key,
                 url_encoded_channels(&self.channels),
                 url_encode_extended(self.user_id.as_bytes(), UrlEncodeExtension::NonChannelPath)
             ),
@@ -130,6 +131,8 @@ impl<T, D> GetStateRequest<T, D> {
             method: TransportMethod::Get,
             headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             body: None,
+            #[cfg(feature = "std")]
+            timeout: config.transport.request_timeout,
         })
     }
 }
@@ -145,6 +148,7 @@ where
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
             .send::<GetStateResponseBody, _, _, _>(&client.transport, deserializer)
             .await

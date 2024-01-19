@@ -108,16 +108,18 @@ where
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let config = &self.pubnub_client.config;
         let payload = GrantTokenPayload::new(self);
         let body = self.serializer.serialize(&payload).unwrap_or(vec![]);
 
         TransportRequest {
-            path: format!("/v3/pam/{}/grant", sub_key),
+            path: format!("/v3/pam/{}/grant", &config.subscribe_key),
             query_parameters: Default::default(),
             method: TransportMethod::Post,
             headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
             body: if !body.is_empty() { Some(body) } else { None },
+            #[cfg(feature = "std")]
+            timeout: config.transport.request_timeout,
         }
     }
 }
@@ -150,6 +152,7 @@ where
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
             .send::<GrantTokenResponseBody, _, _, _>(&client.transport, deserializer)
             .await

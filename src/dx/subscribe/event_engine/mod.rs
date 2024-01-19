@@ -28,7 +28,7 @@ pub(crate) mod state;
 
 #[doc(inline)]
 #[allow(unused_imports)]
-pub(in crate::dx::subscribe) use types::{SubscribeInput, SubscriptionParams};
+pub(in crate::dx::subscribe) use types::{SubscriptionInput, SubscriptionParams};
 pub(in crate::dx::subscribe) mod types;
 
 pub(crate) type SubscribeEventEngine =

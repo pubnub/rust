@@ -4,9 +4,10 @@
 //! event engine for
 
 use async_channel::Sender;
+use uuid::Uuid;
 
 use crate::{
-    core::{event_engine::EffectHandler, RequestRetryPolicy},
+    core::{event_engine::EffectHandler, RequestRetryConfiguration},
     lib::{
         alloc::sync::Arc,
         core::fmt::{Debug, Formatter, Result},
@@ -35,7 +36,7 @@ pub(crate) struct PresenceEffectHandler {
     wait_call: Arc<WaitEffectExecutor>,
 
     /// Retry policy.
-    retry_policy: RequestRetryPolicy,
+    retry_policy: RequestRetryConfiguration,
 
     /// Cancellation channel.
     cancellation_channel: Sender<String>,
@@ -48,7 +49,7 @@ impl PresenceEffectHandler {
         delayed_heartbeat_call: Arc<HeartbeatEffectExecutor>,
         leave_call: Arc<LeaveEffectExecutor>,
         wait_call: Arc<WaitEffectExecutor>,
-        retry_policy: RequestRetryPolicy,
+        retry_policy: RequestRetryConfiguration,
         cancellation_channel: Sender<String>,
     ) -> Self {
         Self {
@@ -66,6 +67,7 @@ impl EffectHandler<PresenceEffectInvocation, PresenceEffect> for PresenceEffectH
     fn create(&self, invocation: &PresenceEffectInvocation) -> Option<PresenceEffect> {
         match invocation {
             PresenceEffectInvocation::Heartbeat { input } => Some(PresenceEffect::Heartbeat {
+                id: Uuid::new_v4().to_string(),
                 input: input.clone(),
                 executor: self.heartbeat_call.clone(),
             }),
@@ -74,6 +76,7 @@ impl EffectHandler<PresenceEffectInvocation, PresenceEffect> for PresenceEffectH
                 attempts,
                 reason,
             } => Some(PresenceEffect::DelayedHeartbeat {
+                id: Uuid::new_v4().to_string(),
                 input: input.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
@@ -82,10 +85,12 @@ impl EffectHandler<PresenceEffectInvocation, PresenceEffect> for PresenceEffectH
                 cancellation_channel: self.cancellation_channel.clone(),
             }),
             PresenceEffectInvocation::Leave { input } => Some(PresenceEffect::Leave {
+                id: Uuid::new_v4().to_string(),
                 input: input.clone(),
                 executor: self.leave_call.clone(),
             }),
             PresenceEffectInvocation::Wait { input } => Some(PresenceEffect::Wait {
+                id: Uuid::new_v4().to_string(),
                 input: input.clone(),
                 executor: self.wait_call.clone(),
                 cancellation_channel: self.cancellation_channel.clone(),
