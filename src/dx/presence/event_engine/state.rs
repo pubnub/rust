@@ -346,7 +346,6 @@ impl State for PresenceState {
     }
 
     fn exit(&self) -> Option<Vec<Self::Invocation>> {
-        log::debug!("~~~~~~~~~~ EXIT: {self:?}");
         match self {
             PresenceState::Cooldown { .. } => Some(vec![CancelWait]),
             PresenceState::Reconnecting { .. } => Some(vec![CancelDelayedHeartbeat]),
@@ -402,8 +401,6 @@ impl State for PresenceState {
             .chain(invocations.unwrap_or_default())
             .chain(on_enter_invocations)
             .collect();
-
-        log::debug!("~~~~~~>> COLLECTED INVOCATIONS: {invocations:?}");
 
         Transition { invocations, state }
     }

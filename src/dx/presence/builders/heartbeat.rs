@@ -231,7 +231,6 @@ impl<T, D> HeartbeatRequestBuilder<T, D> {
     }
 }
 
-#[allow(dead_code)]
 impl<T, D> HeartbeatRequestBuilder<T, D>
 where
     T: Transport,
@@ -284,7 +283,6 @@ where
     }
 }
 
-#[allow(dead_code)]
 #[cfg(feature = "blocking")]
 impl<T, D> HeartbeatRequestBuilder<T, D>
 where

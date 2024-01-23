@@ -50,7 +50,6 @@ pub struct ChannelMetadataRef<T, D> {
     /// * subscription
     ///
     /// [`PubNubClientInstance`]: PubNubClientInstance
-    #[allow(unused)]
     client: Arc<PubNubClientInstance<T, D>>,
 
     /// Unique channel metadata object identifier.

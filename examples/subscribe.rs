@@ -131,24 +131,18 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // You can also cancel the subscription at any time.
     // subscription.unsubscribe();
 
-    println!("~~~~~~~~> DISCONNECT");
     client.disconnect();
 
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-    println!("~~~~~~~~> RECONNECT");
     client.reconnect(None);
 
     // Let event engine process unsubscribe request
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-    println!("~~~~~~~~> UNSUBSCRIBE ALL...");
-
     // Clean up before complete work with PubNub client instance.
     client.unsubscribe_all();
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-    println!("~~~~~~~~> UNSUBSCRIBE ALL. DONE");
 
     Ok(())
 }

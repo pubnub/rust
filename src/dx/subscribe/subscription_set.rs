@@ -333,10 +333,13 @@ where
     pub fn add_subscriptions(&self, subscriptions: Vec<Arc<Subscription<T, D>>>) {
         let unique_subscriptions =
             SubscriptionSet::unique_subscriptions_from_list(Some(self), subscriptions);
-        let mut subscription_input = self.subscription_input.write();
-        let mut subscriptions_slot = self.subscriptions.write();
-        *subscription_input += Self::subscription_input_from_list(&unique_subscriptions, true);
-        subscriptions_slot.extend(unique_subscriptions.clone());
+        {
+            let mut subscription_input = self.subscription_input.write();
+            *subscription_input += Self::subscription_input_from_list(&unique_subscriptions, true);
+            self.subscriptions
+                .write()
+                .extend(unique_subscriptions.clone());
+        }
 
         // Check whether subscription change required or not.
         if !self.is_subscribed() || unique_subscriptions.is_empty() {
@@ -398,15 +401,20 @@ where
     /// # }
     /// ```
     pub fn sub_subscriptions(&self, subscriptions: Vec<Arc<Subscription<T, D>>>) {
-        let mut subscription_input = self.subscription_input.write();
-        let mut subscriptions_slot = self.subscriptions.write();
-        let removed: Vec<Arc<Subscription<T, D>>> =
+        let removed: Vec<Arc<Subscription<T, D>>> = {
+            let subscriptions_slot = self.subscriptions.read();
             Self::unique_subscriptions_from_list(None, subscriptions)
                 .into_iter()
                 .filter(|subscription| subscriptions_slot.contains(subscription))
-                .collect();
-        subscriptions_slot.retain(|subscription| !removed.contains(subscription));
-        *subscription_input -= Self::subscription_input_from_list(&removed, true);
+                .collect()
+        };
+
+        {
+            let mut subscription_input = self.subscription_input.write();
+            *subscription_input -= Self::subscription_input_from_list(&removed, true);
+            let mut subscription_slot = self.subscriptions.write();
+            subscription_slot.retain(|subscription| !removed.contains(subscription));
+        }
 
         // Check whether subscription change required or not.
         if !self.is_subscribed() || removed.is_empty() {
@@ -597,58 +605,38 @@ where
     D: Deserializer + Send + Sync + 'static,
 {
     fn subscribe(&self, cursor: Option<SubscriptionCursor>) {
-        log::debug!("~~~~~~~>>>> 3");
         let mut is_subscribed = self.is_subscribed.write();
-        log::debug!("~~~~~~~>>>> 4");
         if *is_subscribed {
-            log::debug!("~~~~~~~>>>> 5");
             return;
         }
-        log::debug!("~~~~~~~>>>> 6");
         *is_subscribed = true;
 
         if cursor.is_some() {
-            log::debug!("~~~~~~~>>>> 7");
             let mut cursor_slot = self.cursor.write();
             if let Some(current_cursor) = cursor_slot.as_ref() {
-                log::debug!("~~~~~~~>>>> 8");
                 let catchup_cursor = cursor.clone().unwrap_or_default();
                 catchup_cursor
                     .gt(current_cursor)
                     .then(|| *cursor_slot = Some(catchup_cursor));
             } else {
-                log::debug!("~~~~~~~>>>> 9");
                 *cursor_slot = cursor.clone();
             }
-            log::debug!("~~~~~~~>>>> 10");
         }
-        log::debug!("~~~~~~~>>>> 11");
 
         let Some(client) = self.client().upgrade().clone() else {
-            log::debug!("~~~~~~~>>>> 12");
             return;
         };
 
-        log::debug!("~~~~~~~>>>> 13");
         let manager = client.subscription_manager();
-        {
-            log::debug!("~~~~~~~>>>> 14: {:?}", manager.read().is_some());
-        }
         if let Some(manager) = manager.write().as_mut() {
-            log::debug!("~~~~~~~>>>> 15");
             // Mark entities as "in-use" by subscription.
             self.subscriptions.read().iter().for_each(|subscription| {
-                log::debug!("~~~~~~~>>>> 16: {:?}", subscription.entity);
                 subscription.entity.increase_subscriptions_count();
             });
-            log::debug!("~~~~~~~>>>> 17");
 
             if let Some((_, handler)) = self.clones.read().iter().next() {
-                log::debug!("~~~~~~~>>>> 18");
                 let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                log::debug!("~~~~~~~>>>> 19: {handler:?}");
                 manager.register(&handler, cursor);
-                log::debug!("~~~~~~~>>>> 20");
             }
         };
     }

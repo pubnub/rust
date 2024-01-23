@@ -30,7 +30,7 @@ pub(crate) mod presence_manager;
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub(crate) use event_engine::{
-    types::PresenceParameters, PresenceEffectHandler, PresenceEventEngine, PresenceState,
+    PresenceEffectHandler, PresenceEventEngine, PresenceParameters, PresenceState,
 };
 #[cfg(feature = "std")]
 pub(crate) mod event_engine;
@@ -479,7 +479,6 @@ where
     D: Deserializer + 'static,
 {
     /// Announce `join` for `user_id` on provided channels and groups.
-    #[allow(dead_code)]
     pub(crate) fn announce_join(
         &self,
         channels: Option<Vec<String>>,
@@ -493,7 +492,6 @@ where
     }
 
     /// Announce `leave` for `user_id` on provided channels and groups.
-    #[allow(dead_code)]
     pub(crate) fn announce_left(
         &self,
         channels: Option<Vec<String>>,
@@ -506,6 +504,15 @@ where
         };
     }
 
+    /// Announce `leave` for `user_id` on all active channels and groups.
+    pub(crate) fn announce_left_all(&self) {
+        {
+            if let Some(presence) = self.presence_manager().read().as_ref() {
+                presence.announce_left_all();
+            }
+        }
+    }
+
     /// Presence manager which maintains Presence EE.
     ///
     /// # Returns
@@ -513,6 +520,10 @@ where
     /// Returns an [`PresenceManager`] which represents the manager.
     #[cfg(all(feature = "presence", feature = "std"))]
     pub(crate) fn presence_manager(&self) -> Arc<RwLock<Option<PresenceManager>>> {
+        if self.config.presence.heartbeat_interval.unwrap_or(0).eq(&0) {
+            return self.presence.clone();
+        }
+
         {
             let mut slot = self.presence.write();
             if slot.is_none() {

@@ -50,7 +50,6 @@ pub struct UuidMetadataRef<T, D> {
     /// * subscription
     ///
     /// [`PubNubClientInstance`]: PubNubClientInstance
-    #[allow(unused)]
     client: Arc<PubNubClientInstance<T, D>>,
 
     /// Unique uuid metadata object identifier.

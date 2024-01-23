@@ -43,7 +43,6 @@ impl PresenceManager {
     ///
     /// Gracefully terminate all ongoing tasks including detached event engine
     /// loop.
-    #[allow(dead_code)]
     pub fn terminate(&self) {
         self.event_engine
             .stop(PresenceEffectInvocation::TerminateEventEngine);
@@ -115,6 +114,13 @@ impl PresenceManagerRef {
             suppress_leave_events: self.suppress_leave_events,
             channels,
             channel_groups,
+        })
+    }
+
+    /// Announce `leave` for `user_id` on all active channels and groups.
+    pub(crate) fn announce_left_all(&self) {
+        self.event_engine.process(&PresenceEvent::LeftAll {
+            suppress_leave_events: self.suppress_leave_events,
         })
     }
 

@@ -27,7 +27,6 @@ use crate::{
 
 /// States of subscribe state machine.
 #[derive(Debug, Clone, PartialEq)]
-#[allow(dead_code)]
 pub(crate) enum SubscribeState {
     /// Unsubscribed state.
     ///

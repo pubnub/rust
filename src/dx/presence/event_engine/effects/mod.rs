@@ -13,10 +13,7 @@ use crate::{
         core::fmt::{Debug, Formatter},
     },
     presence::{
-        event_engine::{
-            types::{PresenceInput, PresenceParameters},
-            PresenceEffectInvocation,
-        },
+        event_engine::{PresenceEffectInvocation, PresenceInput, PresenceParameters},
         HeartbeatResult, LeaveResult,
     },
 };
@@ -53,7 +50,6 @@ pub(in crate::dx::presence) type LeaveEffectExecutor = dyn Fn(PresenceParameters
     + Sync;
 
 /// Presence state machine effects.
-#[allow(dead_code)]
 pub(crate) enum PresenceEffect {
     /// Heartbeat effect invocation.
     Heartbeat {

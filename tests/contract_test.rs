@@ -73,7 +73,7 @@ fn is_ignored_feature_set_tag(feature: &str, tags: &[String]) -> bool {
 
 fn is_ignored_scenario_tag(feature: &str, tags: &[String]) -> bool {
     // If specific contract should be tested, it's name should be added below.
-    let tested_contract = "presenceJoinWithAnError";
+    let tested_contract = "";
 
     tags.contains(&"na=rust".to_string())
         || !feature_allows_beta(feature) && tags.iter().any(|tag| tag.starts_with("beta"))
@@ -159,11 +159,7 @@ async fn main() {
             })
         })
         .after(|_feature, _, _rule, _scenario, world| {
-            futures::FutureExt::boxed(async move {
-                world.unwrap().reset().await;
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                // await; await; clear_log_file();
-            })
+            futures::FutureExt::boxed(async move { world.unwrap().reset().await })
         })
         .with_writer(
             writer::Basic::stdout()

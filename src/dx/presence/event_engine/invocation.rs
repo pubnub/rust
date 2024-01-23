@@ -10,7 +10,6 @@ use crate::{
 };
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) enum PresenceEffectInvocation {
     /// Heartbeat effect invocation.
     Heartbeat {

@@ -11,9 +11,7 @@ use crate::{
     core::{PubNubError, RequestRetryConfiguration},
     lib::alloc::{sync::Arc, vec, vec::Vec},
     presence::event_engine::{
-        effects::HeartbeatEffectExecutor,
-        types::{PresenceInput, PresenceParameters},
-        PresenceEvent,
+        effects::HeartbeatEffectExecutor, PresenceEvent, PresenceInput, PresenceParameters,
     },
 };
 

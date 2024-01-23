@@ -196,7 +196,7 @@ where
 
         #[cfg(feature = "std")]
         if !request.channels.is_empty() {
-            request.on_execute.clone()(request.channels.clone(), request.state.clone());
+            (request.on_execute)(request.channels.clone(), request.state.clone());
         }
 
         let transport_request = request.transport_request()?;
@@ -209,7 +209,6 @@ where
     }
 }
 
-#[allow(dead_code)]
 #[cfg(feature = "blocking")]
 impl<T, D> SetStateRequestBuilder<T, D>
 where

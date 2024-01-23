@@ -39,9 +39,16 @@ pub(super) async fn execute(
             vec![SubscribeEvent::HandshakeFailure { reason: error }]
         },
         |subscribe_result| {
-            vec![SubscribeEvent::HandshakeSuccess {
-                cursor: cursor.clone().unwrap_or(subscribe_result.cursor),
-            }]
+            let cursor = {
+                if cursor.is_none() {
+                    subscribe_result.cursor
+                } else {
+                    let mut cursor = cursor.clone().unwrap_or_default();
+                    cursor.region = subscribe_result.cursor.region;
+                    cursor
+                }
+            };
+            vec![SubscribeEvent::HandshakeSuccess { cursor }]
         },
     )
     .await

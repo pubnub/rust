@@ -22,12 +22,10 @@ pub(crate) use event::SubscribeEvent;
 pub(crate) mod event;
 
 #[doc(inline)]
-#[allow(unused_imports)]
 pub(crate) use state::SubscribeState;
 pub(crate) mod state;
 
 #[doc(inline)]
-#[allow(unused_imports)]
 pub(in crate::dx::subscribe) use types::{SubscriptionInput, SubscriptionParams};
 pub(in crate::dx::subscribe) mod types;
 
@@ -37,7 +35,6 @@ pub(crate) type SubscribeEventEngine =
 impl
     EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>
 {
-    #[allow(dead_code)]
     pub(in crate::dx::subscribe) fn current_subscription(
         &self,
     ) -> (Option<Vec<String>>, Option<Vec<String>>) {

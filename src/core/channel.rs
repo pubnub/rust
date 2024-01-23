@@ -49,7 +49,6 @@ pub struct ChannelRef<T, D> {
     /// * subscription
     ///
     /// [`PubNubClientInstance`]: PubNubClientInstance
-    #[allow(unused)]
     client: Arc<PubNubClientInstance<T, D>>,
 
     /// Unique channel name.

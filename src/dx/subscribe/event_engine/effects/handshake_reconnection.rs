@@ -52,9 +52,16 @@ pub(super) async fn execute(
                 .unwrap_or(vec![])
         },
         |subscribe_result| {
-            vec![SubscribeEvent::HandshakeReconnectSuccess {
-                cursor: cursor.clone().unwrap_or(subscribe_result.cursor),
-            }]
+            let cursor = {
+                if cursor.is_none() {
+                    subscribe_result.cursor
+                } else {
+                    let mut cursor = cursor.clone().unwrap_or_default();
+                    cursor.region = subscribe_result.cursor.region;
+                    cursor
+                }
+            };
+            vec![SubscribeEvent::HandshakeReconnectSuccess { cursor }]
         },
     )
     .await

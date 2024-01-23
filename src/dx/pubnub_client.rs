@@ -10,6 +10,7 @@
 use derive_builder::Builder;
 use log::info;
 use spin::{Mutex, RwLock};
+use std::cmp::max;
 use uuid::Uuid;
 
 #[cfg(all(
@@ -40,9 +41,8 @@ use crate::transport::TransportReqwest;
 #[cfg(feature = "std")]
 use crate::core::RequestRetryConfiguration;
 
-use crate::core::{Deserialize, Transport};
 use crate::{
-    core::{CryptoProvider, PubNubEntity, PubNubError},
+    core::{CryptoProvider, PubNubEntity, PubNubError, Transport},
     lib::{
         alloc::{
             borrow::ToOwned,
@@ -884,11 +884,11 @@ where
 {
     #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
     pub fn terminate(&self) {
-        #[cfg(all(feature = "subscribe", feature = "std"))]
+        #[cfg(feature = "subscribe")]
         if let Some(manager) = self.subscription_manager().read().as_ref() {
             manager.terminate();
         }
-        #[cfg(all(feature = "presence", feature = "std"))]
+        #[cfg(feature = "presence")]
         if let Some(manager) = self.presence_manager().read().as_ref() {
             manager.terminate();
         }
@@ -923,6 +923,7 @@ impl<T, D> PubNubClientConfigBuilder<T, D> {
     #[cfg(any(feature = "subscribe", feature = "presence"))]
     pub fn with_heartbeat_value(mut self, value: u64) -> Self {
         if let Some(configuration) = self.config.as_mut() {
+            let value = max(20, value);
             configuration.presence.heartbeat_value = value;
 
             #[cfg(feature = "std")]

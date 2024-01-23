@@ -193,7 +193,7 @@ where
         let removed = removed.map(|removed| {
             removed
                 .iter()
-                .filter(|subscription| subscription.entity.subscriptions_count().gt(&0))
+                .filter(|subscription| subscription.entity.subscriptions_count().eq(&0))
                 .fold(SubscriptionInput::default(), |mut acc, subscription| {
                     acc += subscription.subscription_input.clone();
                     acc
@@ -221,7 +221,6 @@ where
     }
 
     // TODO: why call it on drop fails tests?
-    #[allow(dead_code)]
     pub fn unregister_all(&mut self) {
         let inputs = self.current_input();
         {
@@ -261,7 +260,6 @@ where
     ///
     /// Gracefully terminate all ongoing tasks including detached event engine
     /// loop.
-    #[allow(dead_code)]
     pub fn terminate(&self) {
         self.event_engine
             .stop(SubscribeEffectInvocation::TerminateEventEngine);

@@ -43,7 +43,6 @@ pub(crate) mod cancel;
 /// [`EventEngine`] is the core of state machines used in PubNub client and
 /// manages current system state and handles external events.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) struct EventEngine<S, EH, EF, EI>
 where
     EI: EffectInvocation<Effect = EF> + Send + Sync,
@@ -63,6 +62,14 @@ where
 
     /// Current event engine state.
     current_state: RwLock<S>,
+
+    /// Whether Event Engine still active.
+    ///
+    /// Event Engine can be used as long as it is active.  
+    ///
+    /// > Note: Activity can be changed in case of whole stack termination. Can
+    /// > be in case of call to unsubscribe all.
+    active: RwLock<bool>,
 }
 
 impl<S, EH, EF, EI> EventEngine<S, EH, EF, EI>
@@ -84,6 +91,7 @@ where
             effect_dispatcher,
             effect_dispatcher_channel: channel_tx,
             current_state: RwLock::new(state),
+            active: RwLock::new(true),
         });
 
         engine.start(runtime);
@@ -92,7 +100,6 @@ where
     }
 
     /// Retrieve current engine state.
-    #[allow(dead_code)]
     pub fn current_state(&self) -> S {
         (*self.current_state.read()).clone()
     }
@@ -101,8 +108,12 @@ where
     ///
     /// Process event passed to the system and perform required transitions to
     /// new state if required.
-    #[allow(dead_code)]
     pub fn process(&self, event: &EI::Event) {
+        if !*self.active.read() {
+            log::debug!("Can't process events because the event engine is not active.");
+            return;
+        };
+
         log::debug!("Processing event: {}", event.id());
 
         let transition = {
@@ -121,6 +132,11 @@ where
     /// * update current state
     /// * call effects dispatcher to process effect invocation
     fn process_transition(&self, transition: Transition<S::State, S::Invocation>) {
+        if !*self.active.read() {
+            log::debug!("Can't process transition because the event engine is not active.");
+            return;
+        };
+
         if let Some(state) = transition.state {
             let mut writable_state = self.current_state.write();
             *writable_state = state;
@@ -156,9 +172,11 @@ where
     ///
     /// > Note: Should be provided effect information which respond with `true`
     /// for `is_terminating` method call.
-    #[allow(dead_code)]
     pub fn stop(&self, invocation: EI) {
-        self.effect_dispatcher_channel.close();
+        {
+            *self.active.write() = false;
+        }
+
         if let Err(error) = self.effect_dispatcher_channel.send_blocking(invocation) {
             error!("Unable dispatch invocation: {error:?}")
         }

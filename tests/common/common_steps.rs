@@ -188,12 +188,13 @@ impl Default for PubNubWorld {
 
 impl PubNubWorld {
     pub async fn reset(&mut self) {
-        self.subscription = None;
+        // self.subscription = None;
         self.retry_policy = None;
-        self.pubnub.as_ref().unwrap().terminate();
-        // self.pubnub = None;
-        log::debug!("\n\n\n\n\n\n\n\n~~~~~~~~~~~~~~~~~~~~~ WE ARE DONE");
-        // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        if let Some(pubnub) = self.pubnub.as_ref() {
+            pubnub.terminate();
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        }
+        self.pubnub = None;
     }
 
     pub fn get_pubnub(&self, keyset: Keyset<String>) -> PubNubClient {

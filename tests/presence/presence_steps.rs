@@ -1,6 +1,7 @@
 use cucumber::gherkin::Table;
 use cucumber::{codegen::Regex, gherkin::Step, then, when};
 use futures::{select_biased, FutureExt, StreamExt};
+use log::Log;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 
@@ -61,7 +62,6 @@ fn events_and_invocations_history() -> Vec<Vec<String>> {
     lines
 }
 
-#[allow(dead_code)]
 fn event_occurrence_count(history: Vec<Vec<String>>, event: String) -> usize {
     history
         .iter()
@@ -69,7 +69,6 @@ fn event_occurrence_count(history: Vec<Vec<String>>, event: String) -> usize {
         .count()
 }
 
-#[allow(dead_code)]
 fn invocation_occurrence_count(history: Vec<Vec<String>>, invocation: String) -> usize {
     history
         .iter()
@@ -79,6 +78,8 @@ fn invocation_occurrence_count(history: Vec<Vec<String>>, invocation: String) ->
 
 /// Match list of events and invocations pairs to table defined in step.
 fn match_history_to_feature(history: Vec<Vec<String>>, table: &Table) {
+    log::logger().flush();
+
     (!table.rows.iter().skip(1).eq(history.iter())).then(|| {
         let expected = {
             table
@@ -133,12 +134,10 @@ async fn join(
                 );
                 acc
             });
-    log::debug!("~~~~~~~>>>> 1");
     let subscription = SubscriptionSet::new_with_subscriptions(
         subscriptions.values().cloned().collect(),
         options.clone(),
     );
-    log::debug!("~~~~~~~>>>> 2: {subscription:?}");
     subscription.subscribe(None);
     world.subscription = Some(subscription);
     world.subscriptions = Some(subscriptions);
@@ -178,10 +177,10 @@ async fn wait_presence_join(world: &mut PubNubWorld) {
         _ = tokio::time::sleep(tokio::time::Duration::from_secs(2)).fuse() => panic!("No service response"),
         update = subscription.next().fuse() => {
             match update.clone().unwrap() {
-                Presence::Join { .. } => println!("Presence events received from server"),
+                Presence::Join { .. } => {},
                 _ => panic!("Unexpected presence update received: {update:?}"),
             };
-            // Flush rest of the presence events.
+
             subscription.next().await;
             subscription.next().await;
         }
@@ -207,6 +206,11 @@ async fn receive_an_error_heartbeat_retry(world: &mut PubNubWorld) {
         event_occurrence_count(history, "HEARTBEAT_GIVEUP".into()),
         1
     );
+}
+
+#[then("I don't observe any Events and Invocations of the Presence EE")]
+async fn event_engine_history_empty(_world: &mut PubNubWorld, step: &Step) {
+    assert_eq!(events_and_invocations_history().len(), 0);
 }
 
 #[then("I observe the following Events and Invocations of the Presence EE:")]

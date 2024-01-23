@@ -197,7 +197,6 @@ pub struct APISuccessBody {
 /// Single entry from subscribe response
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[allow(dead_code)]
 pub struct Envelope {
     /// Shard number on which the event has been stored.
     #[cfg_attr(feature = "serde", serde(rename = "a"))]
@@ -390,7 +389,6 @@ pub enum EnvelopePayload {
 /// Information about object for which update has been generated.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
-#[allow(dead_code)]
 pub enum ObjectDataBody {
     /// `Channel` object update payload body.
     Channel {
@@ -536,7 +534,6 @@ impl TryFrom<SubscribeResponseBody> for SubscribeResult {
 
 impl Envelope {
     /// Default message type.
-    #[allow(dead_code)]
     fn default_message_type() -> SubscribeMessageType {
         SubscribeMessageType::Message
     }

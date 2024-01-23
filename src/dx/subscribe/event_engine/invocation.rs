@@ -16,7 +16,6 @@ use crate::{
 /// Invocation is form of intention to call some action without any information
 /// about its implementation.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) enum SubscribeEffectInvocation {
     /// Initial subscribe effect invocation.
     Handshake {

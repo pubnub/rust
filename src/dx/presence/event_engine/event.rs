@@ -51,7 +51,6 @@ pub(crate) enum PresenceEvent {
     /// Announce leave on all channels and groups.
     ///
     /// Announce `user_id` leave from all channels and groups.
-    #[allow(dead_code)]
     LeftAll {
         /// Whether `user_id` leave should be announced or not.
         ///
@@ -96,7 +95,6 @@ pub(crate) enum PresenceEvent {
     ///
     /// Emitted when `delay` reaches the end and should transit to the next
     /// state.
-    #[allow(dead_code)]
     TimesUp,
 }
 

@@ -155,7 +155,6 @@ where
     }
 }
 
-#[allow(dead_code)]
 #[cfg(feature = "blocking")]
 impl<T, D> GetStateRequestBuilder<T, D>
 where

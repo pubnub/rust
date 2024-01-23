@@ -6,11 +6,11 @@ use crate::{
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
 use async_channel::Receiver;
+use log::Log;
 use spin::rwlock::RwLock;
 
 /// State machine effects dispatcher.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) struct EffectDispatcher<EH, EF, EI>
 where
     EI: EffectInvocation<Effect = EF> + Send + Sync,
@@ -62,32 +62,23 @@ where
         R: Runtime + 'static,
         C: Fn(Vec<<EI as EffectInvocation>::Event>) + Clone + Send + 'static,
     {
-        let mut started_slot = self.started.write();
         let runtime_clone = runtime.clone();
-        let cloned_self = Arc::downgrade(self);
+        let cloned_self = self.clone();
 
         runtime.spawn(async move {
             log::info!("Event engine has started!");
-            let mut is_active = true;
 
             loop {
-                let Some(strong_self) = cloned_self.upgrade() else {
-                    break;
-                };
-
-                let invocation = strong_self.invocations_channel.recv().await;
+                let invocation = cloned_self.invocations_channel.recv().await;
                 match invocation {
                     Ok(invocation) => {
-                        log::debug!(
-                            "~~~~~~~ INVOCATION: {} | IS ACTIVE? {is_active:?}",
-                            invocation.id()
-                        );
-                        if !is_active || invocation.is_terminating() {
+                        if invocation.is_terminating() {
                             log::debug!("Received event engine termination invocation");
                             break;
                         }
 
-                        let effect = strong_self.dispatch(&invocation);
+                        log::debug!("Received invocation: {}", invocation.id());
+                        let effect = cloned_self.dispatch(&invocation);
                         let task_completion = completion.clone();
 
                         if let Some(effect) = effect {
@@ -95,34 +86,29 @@ where
                             let cloned_self = cloned_self.clone();
 
                             runtime_clone.spawn(async move {
-                                if let Some(strong_self) = cloned_self.upgrade() {
-                                    let events = effect.run().await;
+                                let events = effect.run().await;
 
-                                    if invocation.is_managed() {
-                                        strong_self.remove_managed_effect(effect.id());
-                                    }
-
-                                    task_completion(events);
-                                } else {
-                                    task_completion(vec![])
+                                if invocation.is_managed() {
+                                    cloned_self.remove_managed_effect(effect.id());
                                 }
+
+                                task_completion(events);
                             });
                         } else if invocation.is_cancelling() {
                             log::debug!("Dispatched effect: {}", invocation.id());
                         }
                     }
                     Err(err) => {
-                        is_active = false;
                         log::error!("Receive error: {err:?}");
                         break;
                     }
                 }
             }
-            is_active = false;
+            *cloned_self.started.write() = false;
             log::info!("Event engine has stopped!");
         });
 
-        *started_slot = true;
+        *self.started.write() = true;
     }
 
     /// Dispatch effect associated with `invocation`.
@@ -152,13 +138,11 @@ where
     fn cancel_effect(&self, invocation: &EI) {
         let mut managed = self.managed.write();
         if let Some(position) = managed.iter().position(|e| invocation.cancelling_effect(e)) {
-            log::debug!("~~~~~~ CANCELLING");
             managed.remove(position).cancel();
         }
     }
 
     /// Remove managed effect.
-    #[allow(dead_code)]
     fn remove_managed_effect(&self, effect_id: String) {
         let mut managed = self.managed.write();
         if let Some(position) = managed.iter().position(|ef| ef.id() == effect_id) {

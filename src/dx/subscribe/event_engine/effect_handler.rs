@@ -18,7 +18,6 @@ use crate::{
 ///
 /// Handler responsible for effects implementation and creation in response on
 /// effect invocation.
-#[allow(dead_code)]
 pub(crate) struct SubscribeEffectHandler {
     /// Subscribe call function pointer.
     subscribe_call: Arc<SubscribeEffectExecutor>,

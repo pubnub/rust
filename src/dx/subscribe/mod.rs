@@ -388,6 +388,9 @@ where
                 manager.unregister_all()
             }
         }
+
+        #[cfg(feature = "presence")]
+        self.announce_left_all();
     }
 
     /// Subscription manager which maintains Subscription EE.
@@ -395,7 +398,7 @@ where
     /// # Returns
     ///
     /// Returns an [`SubscriptionManager`] which represents the manager.
-    #[cfg(all(feature = "subscribe", feature = "std"))]
+    #[cfg(feature = "subscribe")]
     pub(crate) fn subscription_manager(&self) -> Arc<RwLock<Option<SubscriptionManager<T, D>>>> {
         {
             // Initialize subscription module when it will be first required.
@@ -521,12 +524,10 @@ where
         channels: Option<Vec<String>>,
         channel_groups: Option<Vec<String>>,
     ) {
-        let channels = Self::presence_filtered_entries(channels);
-        let channel_groups = Self::presence_filtered_entries(channel_groups);
-
-        if let Some(presence) = client.presence_manager().read().as_ref() {
-            presence.announce_join(channels, channel_groups);
-        }
+        client.announce_join(
+            Self::presence_filtered_entries(channels),
+            Self::presence_filtered_entries(channel_groups),
+        );
     }
 
     /// Subscription event engine presence `leave` announcement.
@@ -535,21 +536,16 @@ where
     /// presence event engine state:
     /// * can operate - call `leave` announcement
     /// * can't operate (heartbeat interval not set) - make direct `leave` call.
-    #[cfg(feature = "presence")]
+    #[cfg(all(feature = "presence", feature = "std"))]
     fn subscribe_leave_call(
         client: Self,
         channels: Option<Vec<String>>,
         channel_groups: Option<Vec<String>>,
     ) {
-        #[cfg(feature = "presence")]
-        {
-            let channels = Self::presence_filtered_entries(channels);
-            let channel_groups = Self::presence_filtered_entries(channel_groups);
-
-            if let Some(presence) = client.presence_manager().read().as_ref() {
-                presence.announce_left(channels, channel_groups);
-            }
-        }
+        client.announce_left(
+            Self::presence_filtered_entries(channels),
+            Self::presence_filtered_entries(channel_groups),
+        );
     }
 
     fn emit_status(client: Self, status: &ConnectionStatus) {
