@@ -5,7 +5,6 @@
 //! attach listeners to the specific event types.
 
 use spin::RwLock;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::core::{Deserializer, Transport};
@@ -20,9 +19,10 @@ use crate::{
             vec,
             vec::Vec,
         },
+        collections::HashMap,
         core::{
             fmt::{Debug, Formatter, Result},
-            ops::{Deref, DerefMut},
+            ops::{Add, AddAssign, Deref, DerefMut, Sub, SubAssign},
         },
     },
     subscribe::{
@@ -76,8 +76,11 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let channels = client.create_channels(&["my_channel_1", "my_channel_2"]);
-/// let subscription = channels[0].subscription(None).add(channels[1].subscription(None));
+/// let channels = client.channels(&["my_channel_1", "my_channel_2"]);
+/// // Two `Subscription` instances can be added to create `SubscriptionSet` which can be used
+/// // to attach listeners and subscribe in one place for both subscriptions used in addition
+/// // operation.
+/// let subscription = channels[0].subscription(None) + channels[1].subscription(None);
 /// #     Ok(())
 /// # }
 /// ```
@@ -85,18 +88,8 @@ pub struct SubscriptionSet<
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 > {
-    /// Unique event handler instance identifier.
-    ///
-    /// [`SubscriptionSet`] can be cloned, but the internal state is always
-    /// bound to the same reference of [`SubscriptionSetRef`] with the same
-    /// `id`.
-    pub(super) instance_id: String,
-
     /// Subscriptions set reference.
-    inner: Arc<SubscriptionSetRef<T, D>>,
-
-    /// Real-time event dispatcher.
-    event_dispatcher: EventDispatcher,
+    pub(super) inner: Arc<SubscriptionSetRef<T, D>>,
 }
 
 /// Entities subscriptions set reference.
@@ -106,8 +99,33 @@ pub struct SubscriptionSet<
 /// for its internal state.
 ///
 /// Not intended to be used directly. Use [`SubscriptionSet`] instead.
-#[derive(Debug)]
 pub struct SubscriptionSetRef<
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
+> {
+    /// Unique event handler instance identifier.
+    ///
+    /// [`SubscriptionSet`] can be cloned, but the internal state is always
+    /// bound to the same reference of [`SubscriptionSetState`] with the
+    /// same `id`.
+    pub(super) instance_id: String,
+
+    /// Subscriptions set reference.
+    state: Arc<SubscriptionSetState<T, D>>,
+
+    /// Real-time event dispatcher.
+    event_dispatcher: EventDispatcher,
+}
+
+/// Shared entities subscriptions set state.
+///
+/// This struct contains the actual entities subscriptions set state.
+/// It's wrapped in `Arc` by [`SubscriptionSet`] and uses interior mutability
+/// for its internal state.
+///
+/// Not intended to be used directly. Use [`SubscriptionSet`] instead.
+#[derive(Debug)]
+pub struct SubscriptionSetState<
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 > {
@@ -118,7 +136,7 @@ pub struct SubscriptionSetRef<
     pub(super) client: Weak<PubNubClientInstance<T, D>>,
 
     /// Grouped subscriptions list.
-    pub(crate) subscriptions: RwLock<Vec<Arc<Subscription<T, D>>>>,
+    pub(crate) subscriptions: RwLock<Vec<Subscription<T, D>>>,
 
     /// Whether set is currently subscribed and active.
     pub(super) is_subscribed: Arc<RwLock<bool>>,
@@ -138,7 +156,7 @@ pub struct SubscriptionSetRef<
 
     /// The list of weak references to all [`SubscriptionSet`] clones created
     /// for this reference.
-    clones: RwLock<HashMap<String, Weak<SubscriptionSet<T, D>>>>,
+    clones: RwLock<HashMap<String, Weak<SubscriptionSetRef<T, D>>>>,
 }
 
 impl<T, D> SubscriptionSet<T, D>
@@ -162,16 +180,13 @@ where
     pub(crate) fn new(
         entities: Vec<PubNubEntity<T, D>>,
         options: Option<Vec<SubscriptionOptions>>,
-    ) -> Arc<Self> {
-        let subscriptions = entities
-            .into_iter()
-            .map(|entity| entity.subscription(options.clone()))
-            .collect::<Vec<Arc<Subscription<T, D>>>>();
-
-        Self::new_with_subscriptions(subscriptions, options)
+    ) -> Self {
+        Self {
+            inner: SubscriptionSetRef::new(entities, options),
+        }
     }
 
-    /// Create subscription set from given subscriptions list.
+    /// Create subscription set reference from given subscriptions list.
     ///
     /// # Arguments
     ///
@@ -188,41 +203,373 @@ where
     ///
     /// This function will panic if the `subscriptions` vector is empty.
     pub fn new_with_subscriptions(
-        subscriptions: Vec<Arc<Subscription<T, D>>>,
+        subscriptions: Vec<Subscription<T, D>>,
+        options: Option<Vec<SubscriptionOptions>>,
+    ) -> Self {
+        Self {
+            inner: SubscriptionSetRef::new_with_subscriptions(subscriptions, options),
+        }
+    }
+
+    /// Creates a clone of the subscription set with an empty event dispatcher.
+    ///
+    /// Empty clones have the same subscription set state but an empty list of
+    /// real-time event listeners, which makes it possible to attach listeners
+    /// specific to the context. When the cloned subscription set goes out of
+    /// scope, all associated listeners will be invalidated and released.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let client = // PubNubClient
+    /// #     PubNubClientBuilder::with_reqwest_transport()
+    /// #         .with_keyset(Keyset {
+    /// #              subscribe_key: "demo",
+    /// #              publish_key: Some("demo"),
+    /// #              secret_key: Some("demo")
+    /// #          })
+    /// #         .with_user_id("uuid")
+    /// #         .build()?;
+    /// let subscription = client.subscription(Some(&["my_channel_1", "my_channel_2"]), Some(&["my_group"]), None);
+    /// // ...
+    /// // We need to pass subscription into other component which would like to
+    /// // have own listeners to handle real-time events.
+    /// let empty_subscription = subscription.clone_empty();
+    /// // self.other_component(empty_subscription);    
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// A new instance of the subscription object with an empty event
+    /// dispatcher.
+    pub fn clone_empty(&self) -> Self {
+        Self {
+            inner: self.inner.clone_empty(),
+        }
+    }
+
+    /// Aggregate subscriptions' input.
+    ///
+    /// # Arguments
+    ///
+    /// * `subscriptions` - A slice of `Subscription<T, D>` representing a list
+    ///   of subscriptions.
+    /// * `include_inactive` - Whether _unused_ entities should be included into
+    ///   the subscription input or not.
+    ///
+    /// # Returns
+    ///
+    /// `SubscriptionInput` which contains input from all `subscriptions`.
+    fn subscription_input_from_list(
+        subscriptions: &[Subscription<T, D>],
+        include_inactive: bool,
+    ) -> SubscriptionInput {
+        let input = subscriptions
+            .iter()
+            .map(|subscription| {
+                if !include_inactive && subscription.entity.subscriptions_count().eq(&0) {
+                    return Default::default();
+                }
+
+                subscription.subscription_input.clone()
+            })
+            .sum();
+
+        input
+    }
+
+    /// Filter unique subscriptions.
+    ///
+    /// Filter out duplicates and subscriptions which is already part of the
+    /// `set`.
+    ///
+    /// # Arguments
+    ///
+    /// * `set` - An optional reference to a subscription set.
+    /// * `subscriptions` - Vector of [`Subscription`] which should be filtered.
+    ///
+    /// # Returns
+    ///
+    /// Vector with unique subscriptions which is not part of the `set`.
+    fn unique_subscriptions_from_list(
+        set: Option<&Self>,
+        subscriptions: Vec<Subscription<T, D>>,
+    ) -> Vec<Subscription<T, D>> {
+        let subscriptions_slot = if let Some(set) = set {
+            set.subscriptions.read().clone()
+        } else {
+            vec![]
+        };
+
+        let mut unique_subscriptions = Vec::with_capacity(subscriptions.len());
+        subscriptions.into_iter().for_each(|subscription| {
+            if !unique_subscriptions.contains(&subscription)
+                && !subscriptions_slot.contains(&subscription)
+            {
+                unique_subscriptions.push(subscription);
+            }
+        });
+
+        unique_subscriptions
+    }
+}
+
+impl<T, D> Deref for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
+{
+    type Target = SubscriptionSetRef<T, D>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T, D> DerefMut for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.inner)
+            .expect("Multiple mutable references to the SubscriptionSet are not allowed")
+    }
+}
+
+impl<T, D> Clone for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<T, D> Debug for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f,
+            "SubscriptionSet {{ id: {}, subscription_input: {:?}, is_subscribed: {}, cursor: {:?}, \
+            options: {:?}, subscriptions: {:?}}}",
+            self.id,
+            self.subscription_input,
+            self.is_subscribed(),
+            self.cursor.read().clone(),
+            self.options,
+            self.subscriptions
+        )
+    }
+}
+
+impl<T, D> Add for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
+{
+    type Output = SubscriptionSet<T, D>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut subscriptions = {
+            let other_subscriptions = rhs.subscriptions.read();
+            SubscriptionSet::unique_subscriptions_from_list(
+                Some(&self),
+                other_subscriptions.clone(),
+            )
+        };
+        subscriptions.extend(self.subscriptions.read().clone());
+
+        SubscriptionSet::new_with_subscriptions(subscriptions, None)
+    }
+}
+impl<T, D> AddAssign for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
+{
+    fn add_assign(&mut self, rhs: Self) {
+        let unique_subscriptions = {
+            let other_subscriptions = rhs.subscriptions.read();
+            SubscriptionSet::unique_subscriptions_from_list(Some(self), other_subscriptions.clone())
+        };
+
+        {
+            let mut subscription_input = self.subscription_input.write();
+            *subscription_input += Self::subscription_input_from_list(&unique_subscriptions, true);
+            self.subscriptions
+                .write()
+                .extend(unique_subscriptions.clone());
+        }
+
+        // Check whether subscription change required or not.
+        if !self.is_subscribed() || unique_subscriptions.is_empty() {
+            return;
+        }
+
+        let Some(client) = self.client().upgrade().clone() else {
+            return;
+        };
+
+        if let Some(manager) = client.subscription_manager(true).write().as_mut() {
+            // Mark entities as "in-use" by subscription.
+            unique_subscriptions.iter().for_each(|subscription| {
+                subscription.entity.increase_subscriptions_count();
+            });
+
+            // Notify manager to update its state with new subscriptions.
+            if let Some((_, handler)) = self.clones.read().iter().next() {
+                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                manager.update(&handler, None);
+            }
+        };
+    }
+}
+impl<T, D> Sub for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
+{
+    type Output = SubscriptionSet<T, D>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let removed: Vec<Subscription<T, D>> = {
+            let other_subscriptions = rhs.subscriptions.read();
+            let subscriptions_slot = self.subscriptions.read();
+            Self::unique_subscriptions_from_list(None, other_subscriptions.clone())
+                .into_iter()
+                .filter(|subscription| subscriptions_slot.contains(subscription))
+                .collect()
+        };
+        let mut subscriptions = self.subscriptions.read().clone();
+        subscriptions.retain(|subscription| !removed.contains(subscription));
+
+        SubscriptionSet::new_with_subscriptions(subscriptions, None)
+    }
+}
+impl<T, D> SubAssign for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
+{
+    fn sub_assign(&mut self, rhs: Self) {
+        let removed: Vec<Subscription<T, D>> = {
+            let other_subscriptions = rhs.subscriptions.read();
+            let subscriptions_slot = self.subscriptions.read();
+            Self::unique_subscriptions_from_list(None, other_subscriptions.clone())
+                .into_iter()
+                .filter(|subscription| subscriptions_slot.contains(subscription))
+                .collect()
+        };
+
+        {
+            let mut subscription_input = self.subscription_input.write();
+            *subscription_input -= Self::subscription_input_from_list(&removed, true);
+            let mut subscription_slot = self.subscriptions.write();
+            subscription_slot.retain(|subscription| !removed.contains(subscription));
+        }
+
+        // Check whether subscription change required or not.
+        if !self.is_subscribed() || removed.is_empty() {
+            return;
+        }
+
+        let Some(client) = self.client().upgrade().clone() else {
+            return;
+        };
+
+        // Mark entities as "not in-use" by subscription.
+        removed.iter().for_each(|subscription| {
+            subscription.entity.decrease_subscriptions_count();
+        });
+
+        if let Some(manager) = client.subscription_manager(true).write().as_mut() {
+            // Notify manager to update its state with removed subscriptions.
+            if let Some((_, handler)) = self.clones.read().iter().next() {
+                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                manager.update(&handler, Some(&removed));
+            }
+        };
+    }
+}
+
+impl<T, D> SubscriptionSetRef<T, D>
+where
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
+{
+    /// Create subscription set reference from PubNub entities list.
+    ///
+    /// # Arguments
+    ///
+    /// * `entities` - A vector of [`PubNubEntity`] representing the entities to
+    ///   subscribe to.
+    /// * `options` - An optional [`SubscriptionOptions`] specifying the
+    ///   subscription options.
+    ///
+    /// # Returns
+    ///
+    /// A new [`SubscriptionSetRef`] containing the subscriptions initialized
+    /// from the given `entities` and `options`.
+    pub(crate) fn new(
+        entities: Vec<PubNubEntity<T, D>>,
+        options: Option<Vec<SubscriptionOptions>>,
+    ) -> Arc<Self> {
+        let subscriptions = entities
+            .into_iter()
+            .map(|entity| entity.subscription(options.clone()))
+            .collect::<Vec<Subscription<T, D>>>();
+
+        Self::new_with_subscriptions(subscriptions, options)
+    }
+
+    /// Create subscription set reference from given subscriptions list.
+    ///
+    /// # Arguments
+    ///
+    /// * `subscriptions` - A vector of [`Subscription`] which should be grouped
+    ///   in set.
+    /// * `options` - An optional vector of [`SubscriptionOptions`] representing
+    ///   the options for the subscriptions.
+    ///
+    /// # Returns
+    ///
+    /// A new [`SubscriptionSet`] containing given subscriptions and `options`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `subscriptions` vector is empty.
+    pub(crate) fn new_with_subscriptions(
+        subscriptions: Vec<Subscription<T, D>>,
         options: Option<Vec<SubscriptionOptions>>,
     ) -> Arc<Self> {
         let subscription = subscriptions
             .first()
             .expect("At least one subscription expected.");
-        let subscription_set_ref =
-            SubscriptionSetRef::new(subscription.client(), subscriptions, options);
-        let subscription_set_id = Uuid::new_v4().to_string();
+        let subscription_state =
+            SubscriptionSetState::new(subscription.client(), subscriptions, options);
         let subscription_set = Arc::new(Self {
-            instance_id: subscription_set_id.clone(),
-            inner: Arc::new(subscription_set_ref),
+            instance_id: Uuid::new_v4().to_string(),
+            state: Arc::new(subscription_state),
             event_dispatcher: Default::default(),
         });
-        subscription_set.store_clone(subscription_set_id, Arc::downgrade(&subscription_set));
+        subscription_set.store_clone(
+            subscription_set.instance_id.clone(),
+            Arc::downgrade(&subscription_set),
+        );
         subscription_set
-    }
-
-    /// Creates a clone of the [`SubscriptionSet`] and returns it as an `Arc`.
-    ///
-    /// # Returns
-    ///
-    /// A new `Arc` reference to a cloned [`SubscriptionSet` ] instance.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if [`SubscriptionSet`] clone could not be found
-    /// in the reference counter storage or if there are no strong
-    /// references to the [`SubscriptionSet`] instance.
-    pub fn clone_arc(&self) -> Arc<Self> {
-        self.get_clone_by_id(&self.instance_id)
-            .expect("SubscriptionSet clone should be stored with SubscriptionSetRef")
-            .upgrade()
-            .expect("At least one strong reference should exist for SubscriptionSet")
-            .clone()
     }
 
     /// Creates a clone of the subscription set with an empty event dispatcher.
@@ -266,177 +613,11 @@ where
         let instance_id = Uuid::new_v4().to_string();
         let instance = Arc::new(Self {
             instance_id: instance_id.clone(),
-            inner: Arc::clone(&self.inner),
+            state: Arc::clone(&self.state),
             event_dispatcher: Default::default(),
         });
         self.store_clone(instance_id, Arc::downgrade(&instance));
         instance
-    }
-
-    /// Adds the [`Subscription`] from another [`SubscriptionSet`] to the
-    /// current [`SubscriptionSet`].
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - Another instance of [`SubscriptionSet`], whose subscriptions
-    ///   will be added.
-    pub fn add_assign(&self, rhs: Arc<Self>) {
-        self.add_subscriptions(rhs.subscriptions.read().clone());
-    }
-
-    /// Subtracts the [`Subscription`] of the given [`SubscriptionSet`] from the
-    /// current [`SubscriptionSet`].
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - Another instance of [`SubscriptionSet`], whose subscriptions
-    ///   should be subtracted.
-    pub fn sub_assign(&self, rhs: Arc<Self>) {
-        self.sub_subscriptions(rhs.subscriptions.read().clone());
-    }
-
-    /// Add more managed subscriptions.
-    ///
-    /// After the [`Subscription`] list is added, [`SubscriptionSet`] listeners
-    /// will start notifying them about real-time events from newly added
-    /// subscriptions.
-    ///
-    /// # Arguments
-    ///
-    /// * `subscriptions` - A vector of [`Subscription`] items to be added.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use pubnub::{
-    ///     subscribe::{Subscriber, Subscription},
-    ///     Keyset, PubNubClient, PubNubClientBuilder,
-    /// };
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
-    /// #     PubNubClientBuilder::with_reqwest_transport()
-    /// #         .with_keyset(Keyset {
-    /// #              subscribe_key: "demo",
-    /// #              publish_key: Some("demo"),
-    /// #              secret_key: Some("demo")
-    /// #          })
-    /// #         .with_user_id("uuid")
-    /// #         .build()?;
-    /// let channels = client.create_channels(&["my_channel_3", "my_channel_4"]);
-    /// let mut subscription = client.subscription(Some(&["my_channel_1", "my_channel_2"]), None, None);
-    /// subscription.add_subscriptions(vec![channels[0].subscription(None), channels[1].subscription(None)]);
-    /// #     Ok(())
-    /// # }
-    /// ```
-    pub fn add_subscriptions(&self, subscriptions: Vec<Arc<Subscription<T, D>>>) {
-        let unique_subscriptions =
-            SubscriptionSet::unique_subscriptions_from_list(Some(self), subscriptions);
-        {
-            let mut subscription_input = self.subscription_input.write();
-            *subscription_input += Self::subscription_input_from_list(&unique_subscriptions, true);
-            self.subscriptions
-                .write()
-                .extend(unique_subscriptions.clone());
-        }
-
-        // Check whether subscription change required or not.
-        if !self.is_subscribed() || unique_subscriptions.is_empty() {
-            return;
-        }
-
-        let Some(client) = self.client().upgrade().clone() else {
-            return;
-        };
-
-        // let manager = client.subscription_manager();
-        if let Some(manager) = client.subscription_manager().write().as_mut() {
-            // Mark entities as "in-use" by subscription.
-            unique_subscriptions.iter().for_each(|subscription| {
-                subscription.entity.increase_subscriptions_count();
-            });
-
-            // Notify manager to update its state with new subscriptions.
-            if let Some((_, handler)) = self.clones.read().iter().next() {
-                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                manager.update(&handler, None);
-            }
-        };
-    }
-
-    /// Remove managed subscriptions.
-    ///
-    /// After the [`Subscription`] list is removed, [`SubscriptionSet`]
-    /// listeners will stop receiving real-time updates from removed
-    /// subscriptions.
-    ///
-    /// # Arguments
-    ///
-    /// * `subscriptions` - A vector of [`Subscription`] items to be removed.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use pubnub::{
-    ///     subscribe::{Subscriber, Subscription},
-    ///     Keyset, PubNubClient, PubNubClientBuilder,
-    /// };
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
-    /// #     PubNubClientBuilder::with_reqwest_transport()
-    /// #         .with_keyset(Keyset {
-    /// #              subscribe_key: "demo",
-    /// #              publish_key: Some("demo"),
-    /// #              secret_key: Some("demo")
-    /// #          })
-    /// #         .with_user_id("uuid")
-    /// #         .build()?;
-    /// let channels = client.create_channels(&["my_channel_2", "my_channel_3"]);
-    /// let mut subscription = client.subscription(Some(&["my_channel_1", "my_channel_2", "my_channel_3", "my_channel_4"]), None, None);
-    /// subscription.sub_subscriptions(vec![channels[0].subscription(None), channels[1].subscription(None)]);
-    /// #     Ok(())
-    /// # }
-    /// ```
-    pub fn sub_subscriptions(&self, subscriptions: Vec<Arc<Subscription<T, D>>>) {
-        let removed: Vec<Arc<Subscription<T, D>>> = {
-            let subscriptions_slot = self.subscriptions.read();
-            Self::unique_subscriptions_from_list(None, subscriptions)
-                .into_iter()
-                .filter(|subscription| subscriptions_slot.contains(subscription))
-                .collect()
-        };
-
-        {
-            let mut subscription_input = self.subscription_input.write();
-            *subscription_input -= Self::subscription_input_from_list(&removed, true);
-            let mut subscription_slot = self.subscriptions.write();
-            subscription_slot.retain(|subscription| !removed.contains(subscription));
-        }
-
-        // Check whether subscription change required or not.
-        if !self.is_subscribed() || removed.is_empty() {
-            return;
-        }
-
-        let Some(client) = self.client().upgrade().clone() else {
-            return;
-        };
-
-        if let Some(manager) = client.subscription_manager().write().as_mut() {
-            // Mark entities as "not in-use" by subscription.
-            removed.iter().for_each(|subscription| {
-                subscription.entity.decrease_subscriptions_count();
-            });
-
-            // Notify manager to update its state with removed subscriptions.
-            if let Some((_, handler)) = self.clones.read().iter().next() {
-                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                manager.update(&handler, Some(&removed));
-            }
-        };
     }
 
     /// Retrieves the current timetoken value.
@@ -489,117 +670,32 @@ where
             .cloned()
             .collect::<Vec<Update>>()
     }
-
-    /// Aggregate subscriptions' input.
-    ///
-    /// # Arguments
-    ///
-    /// * `subscriptions` - A slice of `Subscription<T, D>` representing a list
-    ///   of subscriptions.
-    /// * `include_inactive` - Whether _unused_ entities should be included into
-    ///   the subscription input or not.
-    ///
-    /// # Returns
-    ///
-    /// `SubscriptionInput` which contains input from all `subscriptions`.
-    fn subscription_input_from_list(
-        subscriptions: &[Arc<Subscription<T, D>>],
-        include_inactive: bool,
-    ) -> SubscriptionInput {
-        let input = subscriptions
-            .iter()
-            .map(|subscription| {
-                if !include_inactive && subscription.entity.subscriptions_count().eq(&0) {
-                    return Default::default();
-                }
-
-                subscription.subscription_input.clone()
-            })
-            .sum();
-
-        input
-    }
-
-    /// Filter unique subscriptions.
-    ///
-    /// Filter out duplicates and subscriptions which is already part of the
-    /// `set`.
-    ///
-    /// # Arguments
-    ///
-    /// * `set` - An optional reference to a subscription set.
-    /// * `subscriptions` - Vector of [`Subscription`] which should be filtered.
-    ///
-    /// # Returns
-    ///
-    /// Vector with unique subscriptions which is not part of the `set`.
-    fn unique_subscriptions_from_list(
-        set: Option<&Self>,
-        subscriptions: Vec<Arc<Subscription<T, D>>>,
-    ) -> Vec<Arc<Subscription<T, D>>> {
-        let subscriptions_slot = if let Some(set) = set {
-            set.subscriptions.read().clone()
-        } else {
-            vec![]
-        };
-
-        let mut unique_subscriptions = Vec::with_capacity(subscriptions.len());
-        subscriptions.into_iter().for_each(|subscription| {
-            if !unique_subscriptions.contains(&subscription)
-                && !subscriptions_slot.contains(&subscription)
-            {
-                unique_subscriptions.push(subscription);
-            }
-        });
-
-        unique_subscriptions
-    }
 }
 
-impl<T, D> Deref for SubscriptionSet<T, D>
+impl<T, D> Deref for SubscriptionSetRef<T, D>
 where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 {
-    type Target = SubscriptionSetRef<T, D>;
+    type Target = SubscriptionSetState<T, D>;
 
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.state
     }
 }
 
-impl<T, D> DerefMut for SubscriptionSet<T, D>
+impl<T, D> DerefMut for SubscriptionSetRef<T, D>
 where
     T: Transport + Send + Sync,
     D: Deserializer + Send + Sync,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        Arc::get_mut(&mut self.inner)
-            .expect("Multiple mutable references to the SubscriptionSet are not allowed")
+        Arc::get_mut(&mut self.state)
+            .expect("Multiple mutable references to the SubscriptionSetRef are not allowed")
     }
 }
 
-impl<T, D> Debug for SubscriptionSet<T, D>
-where
-    T: Transport + Send + Sync + 'static,
-    D: Deserializer + Send + Sync + 'static,
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f,
-            "SubscriptionSet {{ id: {}, subscription_input: {:?}, is_subscribed: {}, cursor: {:?}, \
-            options: {:?}, subscriptions: {:?}}}",
-            self.id,
-            self.subscription_input,
-            self.is_subscribed(),
-            self.cursor.read().clone(),
-            self.options,
-            self.subscriptions
-        )
-    }
-}
-
-impl<T, D> EventSubscriber for SubscriptionSet<T, D>
+impl<T, D> EventSubscriber for SubscriptionSetRef<T, D>
 where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
@@ -627,18 +723,20 @@ where
             return;
         };
 
-        let manager = client.subscription_manager();
-        if let Some(manager) = manager.write().as_mut() {
-            // Mark entities as "in-use" by subscription.
-            self.subscriptions.read().iter().for_each(|subscription| {
-                subscription.entity.increase_subscriptions_count();
-            });
+        {
+            let manager = client.subscription_manager(true);
+            if let Some(manager) = manager.write().as_mut() {
+                // Mark entities as "in-use" by subscription.
+                self.subscriptions.read().iter().for_each(|subscription| {
+                    subscription.entity.increase_subscriptions_count();
+                });
 
-            if let Some((_, handler)) = self.clones.read().iter().next() {
-                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                manager.register(&handler, cursor);
-            }
-        };
+                if let Some((_, handler)) = self.clones.read().iter().next() {
+                    let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                    manager.register(&handler, cursor);
+                }
+            };
+        }
     }
 
     fn unsubscribe(&self) {
@@ -654,21 +752,23 @@ where
             return;
         };
 
-        if let Some(manager) = client.subscription_manager().write().as_mut() {
-            // Mark entities as "not in-use" by subscription.
-            self.subscriptions.read().iter().for_each(|subscription| {
-                subscription.entity.increase_subscriptions_count();
-            });
+        {
+            if let Some(manager) = client.subscription_manager(false).write().as_mut() {
+                // Mark entities as "not in-use" by subscription.
+                self.subscriptions.read().iter().for_each(|subscription| {
+                    subscription.entity.increase_subscriptions_count();
+                });
 
-            if let Some((_, handler)) = self.clones.read().iter().next() {
-                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                manager.unregister(&handler);
-            }
-        };
+                if let Some((_, handler)) = self.clones.read().iter().next() {
+                    let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                    manager.unregister(&handler);
+                }
+            };
+        }
     }
 }
 
-impl<T, D> EventHandler<T, D> for SubscriptionSet<T, D>
+impl<T, D> EventHandler<T, D> for SubscriptionSetRef<T, D>
 where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
@@ -702,7 +802,7 @@ where
     }
 
     fn subscription_input(&self, include_inactive: bool) -> SubscriptionInput {
-        Self::subscription_input_from_list(&self.subscriptions.read(), include_inactive)
+        SubscriptionSet::subscription_input_from_list(&self.subscriptions.read(), include_inactive)
     }
 
     fn invalidate(&self) {
@@ -717,7 +817,7 @@ where
         self.subscriptions
             .read()
             .iter()
-            .for_each(|subscription| subscription.entity.decrease_subscriptions_count());
+            .for_each(|subscription| subscription.invalidate());
 
         self.event_dispatcher.invalidate();
     }
@@ -731,7 +831,7 @@ where
     }
 }
 
-impl<T, D> EventEmitter for SubscriptionSet<T, D>
+impl<T, D> EventEmitter for SubscriptionSetRef<T, D>
 where
     T: Transport + Send + Sync,
     D: Deserializer + Send + Sync,
@@ -765,16 +865,16 @@ where
     }
 }
 
-impl<T, D> SubscriptionSetRef<T, D>
+impl<T, D> SubscriptionSetState<T, D>
 where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 {
     fn new(
         client: Weak<PubNubClientInstance<T, D>>,
-        subscriptions: Vec<Arc<Subscription<T, D>>>,
+        subscriptions: Vec<Subscription<T, D>>,
         options: Option<Vec<SubscriptionOptions>>,
-    ) -> SubscriptionSetRef<T, D> {
+    ) -> SubscriptionSetState<T, D> {
         Self {
             id: Uuid::new_v4().to_string(),
             client,
@@ -793,7 +893,7 @@ where
         }
     }
 
-    /// Store a clone of a [`SubscriptionSet`] instance with a given instance
+    /// Store a clone of a [`SubscriptionSetRef`] instance with a given instance
     /// ID.
     ///
     /// # Arguments
@@ -801,25 +901,9 @@ where
     /// * `instance_id` - The instance ID to associate with the clone.
     /// * `instance` - The weak reference to the subscription set instance to
     ///   store as a clone.
-    fn store_clone(&self, instance_id: String, instance: Weak<SubscriptionSet<T, D>>) {
+    fn store_clone(&self, instance_id: String, instance: Weak<SubscriptionSetRef<T, D>>) {
         let mut clones = self.clones.write();
         (!clones.contains_key(&instance_id)).then(|| clones.insert(instance_id, instance));
-    }
-
-    /// Retrieves a cloned instance of a [`SubscriptionSet`] by its
-    /// `instance_id`.
-    ///
-    /// # Arguments
-    ///
-    /// * `instance_id` - A reference to the unique identifier of the instance.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing a weak reference to the cloned
-    /// [`SubscriptionSet`] instance if found, or `None` if no instance with
-    /// the specified `instance_id` exists.
-    fn get_clone_by_id(&self, instance_id: &String) -> Option<Weak<SubscriptionSet<T, D>>> {
-        self.clones.read().get(instance_id).cloned()
     }
 }
 
@@ -909,31 +993,28 @@ mod it_should {
         let client = Arc::new(client());
         let channels_1_subscriptions = vec!["channel_1", "channel_2"]
             .into_iter()
-            .map(|name| client.create_channel(name).subscription(None))
-            .collect::<Vec<Arc<Subscription<_, _>>>>();
+            .map(|name| client.channel(name).subscription(None))
+            .collect::<Vec<Subscription<_, _>>>();
         let channels_2_subscriptions = vec!["channel_3", "channel_4"]
             .into_iter()
-            .map(|name| client.create_channel(name).subscription(None))
-            .collect::<Vec<Arc<Subscription<_, _>>>>();
+            .map(|name| client.channel(name).subscription(None))
+            .collect::<Vec<Subscription<_, _>>>();
         let channels_3_subscriptions = vec![
             channels_1_subscriptions[0].clone(),
             channels_2_subscriptions[1].clone(),
         ];
-        let subscription_set_1 = channels_1_subscriptions[0]
-            .clone()
-            .add(channels_1_subscriptions[1].clone());
-        let subscription_set_2 = channels_2_subscriptions[0]
-            .clone()
-            .add(channels_2_subscriptions[1].clone());
-        let subscription_set_3 = channels_3_subscriptions[0]
-            .clone()
-            .add(channels_3_subscriptions[1].clone());
+        let mut subscription_set_1 =
+            channels_1_subscriptions[0].clone() + channels_1_subscriptions[1].clone();
+        let subscription_set_2 =
+            channels_2_subscriptions[0].clone() + channels_2_subscriptions[1].clone();
+        let subscription_set_3 =
+            channels_3_subscriptions[0].clone() + channels_3_subscriptions[1].clone();
 
-        subscription_set_1.add_assign(subscription_set_2);
+        subscription_set_1 += subscription_set_2;
         assert!(subscription_set_1
             .subscription_input(true)
             .contains_channel("channel_3"));
-        subscription_set_1.sub_assign(subscription_set_3);
+        subscription_set_1 -= subscription_set_3;
         assert!(!subscription_set_1
             .subscription_input(true)
             .contains_channel("channel_1"));

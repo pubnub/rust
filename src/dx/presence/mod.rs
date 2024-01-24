@@ -485,7 +485,7 @@ where
         channel_groups: Option<Vec<String>>,
     ) {
         {
-            if let Some(presence) = self.presence_manager().read().as_ref() {
+            if let Some(presence) = self.presence_manager(true).read().as_ref() {
                 presence.announce_join(channels, channel_groups);
             };
         };
@@ -498,7 +498,7 @@ where
         channel_groups: Option<Vec<String>>,
     ) {
         {
-            if let Some(presence) = self.presence_manager().read().as_ref() {
+            if let Some(presence) = self.presence_manager(false).read().as_ref() {
                 presence.announce_left(channels, channel_groups);
             };
         };
@@ -507,7 +507,7 @@ where
     /// Announce `leave` for `user_id` on all active channels and groups.
     pub(crate) fn announce_left_all(&self) {
         {
-            if let Some(presence) = self.presence_manager().read().as_ref() {
+            if let Some(presence) = self.presence_manager(false).read().as_ref() {
                 presence.announce_left_all();
             }
         }
@@ -515,18 +515,29 @@ where
 
     /// Presence manager which maintains Presence EE.
     ///
+    /// # Arguments
+    ///
+    /// `create` - Whether manager should be created if not initialized.
+    ///
     /// # Returns
     ///
     /// Returns an [`PresenceManager`] which represents the manager.
     #[cfg(all(feature = "presence", feature = "std"))]
-    pub(crate) fn presence_manager(&self) -> Arc<RwLock<Option<PresenceManager>>> {
+    pub(crate) fn presence_manager(&self, create: bool) -> Arc<RwLock<Option<PresenceManager>>> {
         if self.config.presence.heartbeat_interval.unwrap_or(0).eq(&0) {
             return self.presence.clone();
         }
 
         {
+            let manager = self.presence.read();
+            if manager.is_some() || !create {
+                return self.presence.clone();
+            }
+        }
+
+        {
             let mut slot = self.presence.write();
-            if slot.is_none() {
+            if slot.is_none() && create {
                 *slot = Some(PresenceManager::new(
                     self.presence_event_engine(),
                     self.config.presence.heartbeat_interval.unwrap_or_default(),

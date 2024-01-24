@@ -100,7 +100,10 @@ where
     }
 
     /// Retrieve current engine state.
-    pub fn current_state(&self) -> S {
+    ///
+    /// > Note: Code actually used in tests.
+    #[allow(dead_code)]
+    pub(crate) fn current_state(&self) -> S {
         (*self.current_state.read()).clone()
     }
 

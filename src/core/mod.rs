@@ -101,7 +101,7 @@ pub use channel_metadata::ChannelMetadata;
 pub mod channel_metadata;
 
 #[doc(inline)]
-pub use uuid_metadata::UuidMetadata;
-pub mod uuid_metadata;
+pub use user_metadata::UserMetadata;
+pub mod user_metadata;
 
 pub mod types;

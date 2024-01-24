@@ -81,12 +81,6 @@ impl Transport for TransportReqwest {
             "Sending data to pubnub: {} {:?} {}",
             request.method, request.headers, request_url
         );
-        log::debug!(
-            "Sending data to pubnub: {} {:?} {}",
-            request.method,
-            request.headers,
-            request_url
-        );
 
         let headers = prepare_headers(&request.headers)?;
         #[cfg(feature = "std")]

@@ -49,6 +49,7 @@ pub struct ChannelRef<T, D> {
     /// * subscription
     ///
     /// [`PubNubClientInstance`]: PubNubClientInstance
+    #[allow(dead_code)] // Field used conditionally only for `subscription` feature.
     client: Arc<PubNubClientInstance<T, D>>,
 
     /// Unique channel name.
@@ -210,7 +211,7 @@ where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 {
-    fn subscription(&self, options: Option<Vec<SubscriptionOptions>>) -> Arc<Subscription<T, D>> {
+    fn subscription(&self, options: Option<Vec<SubscriptionOptions>>) -> Subscription<T, D> {
         Subscription::new(self.client(), self.clone().into(), options)
     }
 }

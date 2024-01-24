@@ -84,7 +84,11 @@ pub use traits::{EventEmitter, EventSubscriber, Subscribable, SubscribableType, 
 pub(crate) mod traits;
 
 #[cfg(feature = "std")]
-impl<T, D> PubNubClientInstance<T, D> {
+impl<T, D> PubNubClientInstance<T, D>
+where
+    T: Transport + Send + 'static,
+    D: Deserializer + Send + 'static,
+{
     /// Stream used to notify connection state change events.
     pub fn status_stream(&self) -> DataStream<ConnectionStatus> {
         self.event_dispatcher.status_stream()
@@ -96,7 +100,20 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///
     /// * `status` - Current connection status.
     pub(crate) fn handle_status(&self, status: ConnectionStatus) {
-        self.event_dispatcher.handle_status(status)
+        self.event_dispatcher.handle_status(status.clone());
+        let mut should_terminate = false;
+
+        {
+            if let Some(manager) = self.subscription_manager(false).read().as_ref() {
+                should_terminate = !manager.has_handlers();
+            }
+        }
+
+        // Terminate event engine because there is no event listeners (registered
+        // Subscription and SubscriptionSet instances).
+        if matches!(status, ConnectionStatus::Disconnected) && should_terminate {
+            self.terminate()
+        }
     }
 
     /// Handles the given events.
@@ -168,7 +185,7 @@ impl<T, D> PubNubClientInstance<T, D> {
 impl<T, D> PubNubClientInstance<T, D>
 where
     T: Transport + Send + 'static,
-    D: Deserializer + 'static,
+    D: Deserializer + Send + 'static,
 {
     /// Creates multiplexed subscriptions.
     ///
@@ -214,7 +231,7 @@ where
         channels: Option<&[N]>,
         channel_groups: Option<&[N]>,
         options: Option<Vec<SubscriptionOptions>>,
-    ) -> Arc<SubscriptionSet<T, D>>
+    ) -> SubscriptionSet<T, D>
     where
         N: Into<String> + Clone,
     {
@@ -224,7 +241,7 @@ where
                 channel_names
                     .iter()
                     .cloned()
-                    .map(|name| self.create_channel(name).into())
+                    .map(|name| self.channel(name).into())
                     .collect::<Vec<PubNubEntity<T, D>>>(),
             );
         }
@@ -233,7 +250,7 @@ where
                 channel_group_names
                     .iter()
                     .cloned()
-                    .map(|name| self.create_channel_group(name).into())
+                    .map(|name| self.channel_group(name).into())
                     .collect::<Vec<PubNubEntity<T, D>>>(),
             );
         }
@@ -275,7 +292,7 @@ where
         #[cfg(feature = "presence")]
         let mut input: Option<SubscriptionInput> = None;
 
-        if let Some(manager) = self.subscription_manager().read().as_ref() {
+        if let Some(manager) = self.subscription_manager(false).read().as_ref() {
             #[cfg(feature = "presence")]
             {
                 let current_input = manager.current_input();
@@ -303,7 +320,7 @@ where
                 self.runtime.spawn(async {
                     let _ = request.execute().await;
                 })
-            } else if let Some(presence) = self.presence_manager().read().as_ref() {
+            } else if let Some(presence) = self.presence_manager(false).read().as_ref() {
                 presence.disconnect();
             }
         }
@@ -345,7 +362,7 @@ where
         #[cfg(feature = "presence")]
         let mut input: Option<SubscriptionInput> = None;
 
-        if let Some(manager) = self.subscription_manager().read().as_ref() {
+        if let Some(manager) = self.subscription_manager(false).read().as_ref() {
             #[cfg(feature = "presence")]
             {
                 let current_input = manager.current_input();
@@ -372,7 +389,7 @@ where
                 self.runtime.spawn(async {
                     let _ = request.execute().await;
                 })
-            } else if let Some(presence) = self.presence_manager().read().as_ref() {
+            } else if let Some(presence) = self.presence_manager(false).read().as_ref() {
                 presence.reconnect();
             }
         }
@@ -384,7 +401,7 @@ where
     /// created [`Subscription`] and [`SubscriptionSet`].
     pub fn unsubscribe_all(&self) {
         {
-            if let Some(manager) = self.subscription_manager().write().as_mut() {
+            if let Some(manager) = self.subscription_manager(false).write().as_mut() {
                 manager.unregister_all()
             }
         }
@@ -395,15 +412,29 @@ where
 
     /// Subscription manager which maintains Subscription EE.
     ///
+    /// # Arguments
+    ///
+    /// `create` - Whether manager should be created if not initialized.
+    ///
     /// # Returns
     ///
     /// Returns an [`SubscriptionManager`] which represents the manager.
     #[cfg(feature = "subscribe")]
-    pub(crate) fn subscription_manager(&self) -> Arc<RwLock<Option<SubscriptionManager<T, D>>>> {
+    pub(crate) fn subscription_manager(
+        &self,
+        create: bool,
+    ) -> Arc<RwLock<Option<SubscriptionManager<T, D>>>> {
+        {
+            let manager = self.subscription.read();
+            if manager.is_some() || !create {
+                return self.subscription.clone();
+            }
+        }
+
         {
             // Initialize subscription module when it will be first required.
             let mut slot = self.subscription.write();
-            if slot.is_none() {
+            if slot.is_none() && create {
                 #[cfg(feature = "presence")]
                 let heartbeat_self = self.clone();
                 #[cfg(feature = "presence")]
@@ -549,7 +580,7 @@ where
     }
 
     fn emit_status(client: Self, status: &ConnectionStatus) {
-        if let Some(manager) = client.subscription_manager().read().as_ref() {
+        if let Some(manager) = client.subscription_manager(false).read().as_ref() {
             manager.notify_new_status(status)
         }
     }
@@ -564,7 +595,7 @@ where
             messages
         };
 
-        if let Some(manager) = client.subscription_manager().read().as_ref() {
+        if let Some(manager) = client.subscription_manager(false).read().as_ref() {
             manager.notify_new_messages(cursor, messages.clone())
         }
     }

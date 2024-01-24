@@ -6,7 +6,6 @@ use crate::{
     lib::alloc::{string::String, sync::Arc, vec, vec::Vec},
 };
 use async_channel::Receiver;
-use log::Log;
 use spin::rwlock::RwLock;
 
 /// State machine effects dispatcher.

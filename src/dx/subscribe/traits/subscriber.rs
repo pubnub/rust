@@ -4,7 +4,7 @@
 //! which is used by types to provide ability to subscribe for real-time events.
 
 use crate::{
-    lib::alloc::{sync::Arc, vec::Vec},
+    lib::alloc::vec::Vec,
     subscribe::{Subscription, SubscriptionOptions},
 };
 
@@ -21,5 +21,5 @@ pub trait Subscriber<T: Send + Sync, D: Send + Sync> {
     ///
     /// A [`Subscription`] object representing the newly created subscription to
     /// receiver's data stream events.
-    fn subscription(&self, options: Option<Vec<SubscriptionOptions>>) -> Arc<Subscription<T, D>>;
+    fn subscription(&self, options: Option<Vec<SubscriptionOptions>>) -> Subscription<T, D>;
 }

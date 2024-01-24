@@ -7,38 +7,25 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 
 use crate::{
-    lib::{
-        alloc::string::String,
-        core::{
-            cmp::PartialEq,
-            fmt::{Debug, Formatter, Result},
-        },
+    lib::core::{
+        cmp::PartialEq,
+        fmt::{Debug, Formatter, Result},
     },
-    Channel, ChannelGroup, ChannelMetadata, UuidMetadata,
+    Channel, ChannelGroup, ChannelMetadata, UserMetadata,
 };
 
 #[cfg(all(feature = "subscribe", feature = "std"))]
 use crate::{
     core::{Deserializer, Transport},
-    lib::alloc::{sync::Arc, vec::Vec},
+    lib::alloc::{string::String, vec::Vec},
     subscribe::{Subscribable, SubscribableType, Subscriber, Subscription, SubscriptionOptions},
 };
-
-pub(crate) trait PubNubEntity2 {
-    /// Unique entity identifier.
-    ///
-    /// Identifier is important for the [`PubNub API`] and used as target
-    /// identifier for used API.
-    ///
-    /// [`PubNub API`]: https://www.pubnub.com/docs
-    fn id(&self) -> String;
-}
 
 pub(crate) enum PubNubEntity<T, D> {
     Channel(Channel<T, D>),
     ChannelGroup(ChannelGroup<T, D>),
     ChannelMetadata(ChannelMetadata<T, D>),
-    UuidMetadata(UuidMetadata<T, D>),
+    UserMetadata(UserMetadata<T, D>),
 }
 
 #[cfg(all(feature = "subscribe", feature = "std"))]
@@ -48,7 +35,7 @@ impl<T, D> PubNubEntity<T, D> {
             Self::Channel(channel) => channel.names(presence),
             Self::ChannelGroup(channel_group) => channel_group.names(presence),
             Self::ChannelMetadata(channel_metadata) => channel_metadata.names(presence),
-            Self::UuidMetadata(uuid_metadata) => uuid_metadata.names(presence),
+            Self::UserMetadata(uuid_metadata) => uuid_metadata.names(presence),
         }
     }
 
@@ -57,7 +44,7 @@ impl<T, D> PubNubEntity<T, D> {
             Self::Channel(channel) => channel.r#type(),
             Self::ChannelGroup(channel_group) => channel_group.r#type(),
             Self::ChannelMetadata(channel_metadata) => channel_metadata.r#type(),
-            Self::UuidMetadata(uuid_metadata) => uuid_metadata.r#type(),
+            Self::UserMetadata(uuid_metadata) => uuid_metadata.r#type(),
         }
     }
 
@@ -75,7 +62,7 @@ impl<T, D> PubNubEntity<T, D> {
             Self::ChannelMetadata(channel_metadata) => {
                 channel_metadata.increase_subscriptions_count()
             }
-            Self::UuidMetadata(uuid_metadata) => uuid_metadata.increase_subscriptions_count(),
+            Self::UserMetadata(uuid_metadata) => uuid_metadata.increase_subscriptions_count(),
         }
     }
 
@@ -97,7 +84,7 @@ impl<T, D> PubNubEntity<T, D> {
             Self::ChannelMetadata(channel_metadata) => {
                 channel_metadata.decrease_subscriptions_count()
             }
-            Self::UuidMetadata(uuid_metadata) => uuid_metadata.decrease_subscriptions_count(),
+            Self::UserMetadata(uuid_metadata) => uuid_metadata.decrease_subscriptions_count(),
         }
     }
 
@@ -115,7 +102,7 @@ impl<T, D> PubNubEntity<T, D> {
             Self::Channel(channel) => channel.subscriptions_count(),
             Self::ChannelGroup(channel_group) => channel_group.subscriptions_count(),
             Self::ChannelMetadata(channel_metadata) => channel_metadata.subscriptions_count(),
-            Self::UuidMetadata(uuid_metadata) => uuid_metadata.subscriptions_count(),
+            Self::UserMetadata(uuid_metadata) => uuid_metadata.subscriptions_count(),
         }
     }
 }
@@ -128,7 +115,7 @@ impl<T, D> Clone for PubNubEntity<T, D> {
             Self::ChannelMetadata(channel_metadata) => {
                 Self::ChannelMetadata(channel_metadata.clone())
             }
-            Self::UuidMetadata(uuid_metadata) => Self::UuidMetadata(uuid_metadata.clone()),
+            Self::UserMetadata(uuid_metadata) => Self::UserMetadata(uuid_metadata.clone()),
         }
     }
 }
@@ -154,8 +141,8 @@ impl<T, D> PartialEq for PubNubEntity<T, D> {
                 };
                 channel_metadata_a.eq(channel_metadata_b)
             }
-            Self::UuidMetadata(uuid_metadata_a) => {
-                let Self::UuidMetadata(uuid_metadata_b) = other else {
+            Self::UserMetadata(uuid_metadata_a) => {
+                let Self::UserMetadata(uuid_metadata_b) = other else {
                     return false;
                 };
                 uuid_metadata_a.eq(uuid_metadata_b)
@@ -172,7 +159,7 @@ impl<T, D> Debug for PubNubEntity<T, D> {
             Self::ChannelMetadata(channel_metadata) => {
                 write!(f, "ChannelMetadata({channel_metadata:?})")
             }
-            Self::UuidMetadata(uuid_metadata) => write!(f, "UuidMetadata({uuid_metadata:?})"),
+            Self::UserMetadata(user_metadata) => write!(f, "UserMetadata({user_metadata:?})"),
         }
     }
 }
@@ -183,14 +170,14 @@ where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 {
-    fn subscription(&self, options: Option<Vec<SubscriptionOptions>>) -> Arc<Subscription<T, D>> {
+    fn subscription(&self, options: Option<Vec<SubscriptionOptions>>) -> Subscription<T, D> {
         match self {
             PubNubEntity::Channel(channel) => channel.subscription(options),
             PubNubEntity::ChannelGroup(channel_group) => channel_group.subscription(options),
             PubNubEntity::ChannelMetadata(channel_metadata) => {
                 channel_metadata.subscription(options)
             }
-            PubNubEntity::UuidMetadata(uuid_metadata) => uuid_metadata.subscription(options),
+            PubNubEntity::UserMetadata(uuid_metadata) => uuid_metadata.subscription(options),
         }
     }
 }

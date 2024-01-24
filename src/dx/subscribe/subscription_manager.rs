@@ -5,6 +5,7 @@
 
 use spin::RwLock;
 
+use crate::core::{Deserializer, Transport};
 use crate::subscribe::traits::EventHandler;
 use crate::{
     dx::subscribe::{
@@ -120,8 +121,8 @@ pub(crate) struct SubscriptionManagerRef<T, D> {
 
 impl<T, D> SubscriptionManagerRef<T, D>
 where
-    T: Send + Sync,
-    D: Send + Sync,
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
 {
     pub fn notify_new_status(&self, status: &ConnectionStatus) {
         if let Some(client) = self.client() {
@@ -174,7 +175,7 @@ where
     pub fn update(
         &self,
         event_handler: &Weak<dyn EventHandler<T, D> + Send + Sync>,
-        removed: Option<&[Arc<Subscription<T, D>>]>,
+        removed: Option<&[Subscription<T, D>]>,
     ) {
         let Some(upgraded_event_handler) = event_handler.upgrade().clone() else {
             return;
@@ -220,11 +221,19 @@ where
         self.change_subscription(Some(&upgraded_event_handler.subscription_input(false)));
     }
 
-    // TODO: why call it on drop fails tests?
     pub fn unregister_all(&mut self) {
         let inputs = self.current_input();
+
+        // Invalidate current event handler state (subscribed and entity usage).
         {
-            self.event_handlers.write().clear();
+            let mut handlers = self.event_handlers.write();
+
+            handlers.iter().for_each(|(_, handler)| {
+                if let Some(handler) = handler.upgrade() {
+                    handler.invalidate();
+                }
+            });
+            handlers.clear();
         }
 
         self.change_subscription(Some(&inputs));
@@ -254,6 +263,16 @@ where
             .filter_map(|weak_handler| weak_handler.upgrade().clone())
             .map(|handler| handler.subscription_input(false).clone())
             .sum()
+    }
+
+    /// Checks if there are any event handlers registered.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if there are registered event handlers, `false`
+    /// otherwise.
+    pub fn has_handlers(&self) -> bool {
+        !self.event_handlers.read().is_empty()
     }
 
     /// Terminate subscription manager.
@@ -412,9 +431,9 @@ mod should {
             #[cfg(feature = "presence")]
             Arc::new(|_, _| {}),
         );
-        let channel = client.create_channel("test");
+        let channel = client.channel("test");
         let subscription = channel.subscription(None);
-        let weak_subscription = &Arc::downgrade(&subscription);
+        let weak_subscription = &Arc::downgrade(&subscription.inner);
         let weak_handler: Weak<dyn EventHandler<_, _> + Send + Sync> = weak_subscription.clone();
 
         manager.register(&weak_handler, None);
@@ -435,9 +454,9 @@ mod should {
                 assert_eq!(channels.unwrap().len(), 1);
             }),
         );
-        let channel = client.create_channel("test");
+        let channel = client.channel("test");
         let subscription = channel.subscription(None);
-        let weak_subscription = &Arc::downgrade(&subscription);
+        let weak_subscription = &Arc::downgrade(&subscription.inner);
         let weak_handler: Weak<dyn EventHandler<_, _> + Send + Sync> = weak_subscription.clone();
 
         manager.register(&weak_handler, None);
@@ -457,9 +476,9 @@ mod should {
             Arc::new(|_, _| {}),
         );
         let cursor: SubscriptionCursor = "15800701771129796".to_string().into();
-        let channel = client.create_channel("test");
+        let channel = client.channel("test");
         let subscription = channel.subscription(None);
-        let weak_subscription = Arc::downgrade(&subscription);
+        let weak_subscription = Arc::downgrade(&subscription.inner);
         let weak_handler: Weak<dyn EventHandler<_, _> + Send + Sync> = weak_subscription.clone();
 
         // Simulate `.subscribe()` call.

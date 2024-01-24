@@ -255,7 +255,7 @@ pub use dx::PubNubClient;
 pub use core::RequestRetryConfiguration;
 
 #[doc(inline)]
-pub use core::{Channel, ChannelGroup, ChannelMetadata, UuidMetadata};
+pub use core::{Channel, ChannelGroup, ChannelMetadata, UserMetadata};
 pub mod core;
 pub mod dx;
 pub mod providers;

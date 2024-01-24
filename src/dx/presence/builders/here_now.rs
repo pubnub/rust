@@ -65,7 +65,7 @@ pub struct HereNowRequest<T, D> {
     )]
     pub(in crate::dx::presence) channel_groups: Vec<String>,
 
-    /// Whether to include UUIDs of users subscribed to the channel(s).
+    /// Whether to include identifiers of users subscribed to the channel(s).
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
         setter(strip_option),

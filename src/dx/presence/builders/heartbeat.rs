@@ -5,10 +5,7 @@
 
 use derive_builder::Builder;
 #[cfg(feature = "std")]
-use futures::{
-    future::BoxFuture,
-    {select_biased, FutureExt},
-};
+use futures::{future::BoxFuture, select_biased, FutureExt};
 
 use crate::{
     core::{
@@ -342,45 +339,4 @@ mod it_should {
 
         assert!(matches!(result, Err(PubNubError::EffectCanceled)));
     }
-
-    // TODO: Make request cancelable
-    // #[cfg(feature = "std")]
-    // #[tokio::test]
-    // async fn be_able_to_cancel_request() {
-    //     struct MockTransport;
-    //
-    //     #[async_trait::async_trait]
-    //     impl Transport for MockTransport {
-    //         async fn send(&self, _req: TransportRequest) ->
-    // Result<TransportResponse, PubNubError> {
-    // tokio::time::sleep(tokio::time::Duration::from_secs(5)).await; //
-    // Simulate long request.
-    //
-    //             Ok(TransportResponse::default())
-    //         }
-    //     }
-    //
-    //     let client = PubNubClientBuilder::with_transport(MockTransport)
-    //         .with_keyset(crate::Keyset {
-    //             subscribe_key: "test",
-    //             publish_key: Some("test"),
-    //             secret_key: None,
-    //         })
-    //         .with_user_id("test")
-    //         .build()
-    //         .unwrap();
-    //     let _ = &client
-    //         .detached_guard
-    //         .notify_channel_tx
-    //         .send_blocking(1)
-    //         .unwrap();
-    //
-    //     let result = client
-    //         .heartbeat()
-    //         .channels(vec!["test".into()])
-    //         .execute()
-    //         .await;
-    //
-    //     assert!(matches!(result, Err(PubNubError::RequestCancel { .. })));
-    // }
 }

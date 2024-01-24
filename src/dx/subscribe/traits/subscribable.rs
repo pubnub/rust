@@ -14,7 +14,7 @@ use crate::{
 ///
 /// Subscribable can be separated by their place in subscribe REST API:
 /// * `URI path` - channel-like objects which represent single entity
-///   ([`Channel`], [`ChannelMetadata`], [`UuidMetadata`])
+///   ([`Channel`], [`ChannelMetadata`], [`UserMetadata`])
 /// * `query parameter` - entities which represent group of entities
 ///   ([`ChannelGroup`])
 pub enum SubscribableType {

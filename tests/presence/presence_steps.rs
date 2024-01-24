@@ -130,7 +130,7 @@ async fn join(
             .fold(HashMap::new(), |mut acc, channel| {
                 acc.insert(
                     channel.clone(),
-                    client.create_channel(channel).subscription(options.clone()),
+                    client.channel(channel).subscription(options.clone()),
                 );
                 acc
             });
@@ -155,7 +155,7 @@ async fn leave(
     channel_b: String,
     with_presence: String,
 ) {
-    let subscription = world.subscription.clone().unwrap();
+    let mut subscription = world.subscription.clone().unwrap();
     let subscriptions = world.subscriptions.clone().unwrap().iter().fold(
         vec![],
         |mut acc, (channel, subscription)| {
@@ -166,7 +166,7 @@ async fn leave(
         },
     );
 
-    subscription.sub_subscriptions(subscriptions);
+    subscription -= SubscriptionSet::new_with_subscriptions(subscriptions, None);
 }
 
 #[then("I wait for getting Presence joined events")]

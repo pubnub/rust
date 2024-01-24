@@ -1,6 +1,6 @@
-//! # UuidMetadata entity module
+//! # UserMetadata entity module
 //!
-//! This module contains the [`UuidMetadata`] type, which can be used as a
+//! This module contains the [`UserMetadata`] type, which can be used as a
 //! first-class citizen to access the [`PubNub API`].
 //!
 //! [`PubNub API`]: https://www.pubnub.com/docs
@@ -28,33 +28,34 @@ use crate::{
     subscribe::{Subscribable, SubscribableType, Subscriber, Subscription, SubscriptionOptions},
 };
 
-/// UUID metadata entity.
+/// User metadata entity.
 ///
 /// Entity as a first-class citizen provides access to the entity-specific API.
-pub struct UuidMetadata<T, D> {
-    inner: Arc<UuidMetadataRef<T, D>>,
+pub struct UserMetadata<T, D> {
+    inner: Arc<UserMetadataRef<T, D>>,
 }
 
-/// UUID metadata entity reference.
+/// User metadata entity reference.
 ///
-/// This struct contains the actual UUID metadata state. It is wrapped in an
-/// Arc by [`UuidMetadata`] and uses internal mutability for its internal
+/// This struct contains the actual User metadata state. It is wrapped in an
+/// Arc by [`UserMetadata`] and uses internal mutability for its internal
 /// state.
 ///
-/// Not intended to be used directly. Use [`UuidMetadata`] instead.
+/// Not intended to be used directly. Use [`UserMetadata`] instead.
 #[derive(Debug)]
-pub struct UuidMetadataRef<T, D> {
+pub struct UserMetadataRef<T, D> {
     /// Reference on backing [`PubNubClientInstance`] client.
     ///
     /// Client is used to support entity-specific actions like:
     /// * subscription
     ///
     /// [`PubNubClientInstance`]: PubNubClientInstance
+    #[allow(dead_code)] // Field used conditionally only for `subscription` feature.
     client: Arc<PubNubClientInstance<T, D>>,
 
-    /// Unique uuid metadata object identifier.
+    /// Unique user metadata object identifier.
     ///
-    /// Uuid metadata object identifier used by the [`PubNub API`] as unique
+    /// User metadata object identifier used by the [`PubNub API`] as unique
     /// resources on which a certain operation should be performed.
     ///
     /// [`PubNub API`]: https://pubnub.com/docs
@@ -68,21 +69,21 @@ pub struct UuidMetadataRef<T, D> {
     subscriptions_count: RwLock<usize>,
 }
 
-impl<T, D> UuidMetadata<T, D> {
-    /// Creates a new instance of an uuid metadata object.
+impl<T, D> UserMetadata<T, D> {
+    /// Creates a new instance of an user metadata object.
     ///
     /// # Arguments
     ///
     /// * `client` - The client instance used to access [`PubNub API`].
-    /// * `id` - The identifier of the uuid metadata object.
+    /// * `id` - The identifier of the user metadata object.
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub(crate) fn new<S>(client: &PubNubClientInstance<T, D>, id: S) -> UuidMetadata<T, D>
+    pub(crate) fn new<S>(client: &PubNubClientInstance<T, D>, id: S) -> UserMetadata<T, D>
     where
         S: Into<String>,
     {
         Self {
-            inner: Arc::new(UuidMetadataRef {
+            inner: Arc::new(UserMetadataRef {
                 client: Arc::new(client.clone()),
                 id: id.into(),
                 #[cfg(all(feature = "subscribe", feature = "std"))]
@@ -135,22 +136,22 @@ impl<T, D> UuidMetadata<T, D> {
     }
 }
 
-impl<T, D> Deref for UuidMetadata<T, D> {
-    type Target = UuidMetadataRef<T, D>;
+impl<T, D> Deref for UserMetadata<T, D> {
+    type Target = UserMetadataRef<T, D>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl<T, D> DerefMut for UuidMetadata<T, D> {
+impl<T, D> DerefMut for UserMetadata<T, D> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         Arc::get_mut(&mut self.inner)
-            .expect("Multiple mutable references to the UuidMetadata are not allowed")
+            .expect("Multiple mutable references to the UserMetadata are not allowed")
     }
 }
 
-impl<T, D> Clone for UuidMetadata<T, D> {
+impl<T, D> Clone for UserMetadata<T, D> {
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
@@ -158,24 +159,24 @@ impl<T, D> Clone for UuidMetadata<T, D> {
     }
 }
 
-impl<T, D> PartialEq for UuidMetadata<T, D> {
+impl<T, D> PartialEq for UserMetadata<T, D> {
     fn eq(&self, other: &Self) -> bool {
         self.id.eq(&other.id)
     }
 }
 
-impl<T, D> From<UuidMetadata<T, D>> for PubNubEntity<T, D> {
-    fn from(value: UuidMetadata<T, D>) -> Self {
-        PubNubEntity::UuidMetadata(value)
+impl<T, D> From<UserMetadata<T, D>> for PubNubEntity<T, D> {
+    fn from(value: UserMetadata<T, D>) -> Self {
+        PubNubEntity::UserMetadata(value)
     }
 }
 
-impl<T, D> Debug for UuidMetadata<T, D> {
+impl<T, D> Debug for UserMetadata<T, D> {
     #[cfg(all(feature = "subscribe", feature = "std"))]
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "UuidMetadata {{ id: {}, subscriptions_count: {} }}",
+            "UserMetadata {{ id: {}, subscriptions_count: {} }}",
             self.id,
             self.subscriptions_count()
         )
@@ -183,12 +184,12 @@ impl<T, D> Debug for UuidMetadata<T, D> {
 
     #[cfg(not(all(feature = "subscribe", feature = "std")))]
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "UuidMetadata {{ id: {} }}", self.id)
+        write!(f, "UserMetadata {{ id: {} }}", self.id)
     }
 }
 
 #[cfg(all(feature = "subscribe", feature = "std"))]
-impl<T, D> Subscribable<T, D> for UuidMetadata<T, D> {
+impl<T, D> Subscribable<T, D> for UserMetadata<T, D> {
     fn names(&self, _presence: bool) -> Vec<String> {
         vec![self.id.clone()]
     }
@@ -203,12 +204,12 @@ impl<T, D> Subscribable<T, D> for UuidMetadata<T, D> {
 }
 
 #[cfg(all(feature = "subscribe", feature = "std"))]
-impl<T, D> Subscriber<T, D> for UuidMetadata<T, D>
+impl<T, D> Subscriber<T, D> for UserMetadata<T, D>
 where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 {
-    fn subscription(&self, options: Option<Vec<SubscriptionOptions>>) -> Arc<Subscription<T, D>> {
+    fn subscription(&self, options: Option<Vec<SubscriptionOptions>>) -> Subscription<T, D> {
         Subscription::new(self.client(), self.clone().into(), options)
     }
 }

@@ -1,8 +1,6 @@
 use cucumber::{writer, World, WriterExt};
 use std::fs::{create_dir_all, read_to_string, File, OpenOptions};
-use std::io::Write;
 use std::process;
-use uuid::Uuid;
 
 mod access;
 mod common;

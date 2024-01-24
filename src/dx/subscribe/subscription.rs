@@ -22,7 +22,7 @@ use crate::{
         core::{
             cmp::PartialEq,
             fmt::{Debug, Formatter, Result},
-            ops::{Deref, DerefMut},
+            ops::{Add, Deref, DerefMut},
         },
     },
     subscribe::{
@@ -53,7 +53,9 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let channel = client.create_channel("my_channel");
+/// let channel = client.channel("my_channel");
+/// // Creating Subscription instance for the Channel entity to subscribe and listen
+/// // for real-time events.
 /// let subscription = channel.subscription(None);
 /// // Subscription with presence announcements
 /// let subscription_with_presence = channel.subscription(Some(vec![SubscriptionOptions::ReceivePresenceEvents]));
@@ -79,23 +81,17 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let channels = client.create_channels(&["my_channel_1", "my_channel_2"]);
-/// let subscription = channels[0].subscription(None).add(channels[1].subscription(None));
+/// let channels = client.channels(&["my_channel_1", "my_channel_2"]);
+/// // Two `Subscription` instances can be added to create `SubscriptionSet` which can be used
+/// // to attach listeners and subscribe in one place for both subscriptions used in addition
+/// // operation.
+/// let subscription = channels[0].subscription(None) + channels[1].subscription(None);
 /// #     Ok(())
 /// # }
 /// ```
 pub struct Subscription<T: Send + Sync, D: Send + Sync> {
-    /// Unique event handler instance identifier.
-    ///
-    /// [`Subscription`] can be cloned, but the internal state is always bound
-    /// to the same reference of [`SubscriptionRef`] with the same `id`.
-    instance_id: String,
-
     /// Subscription reference.
-    inner: Arc<SubscriptionRef<T, D>>,
-
-    /// Real-time event dispatcher.
-    event_dispatcher: EventDispatcher,
+    pub(super) inner: Arc<SubscriptionRef<T, D>>,
 }
 
 /// Subscription reference
@@ -105,8 +101,29 @@ pub struct Subscription<T: Send + Sync, D: Send + Sync> {
 /// its internal state.
 ///
 /// Not intended to be used directly. Use [`Subscription`] instead.
-#[derive(Debug)]
 pub struct SubscriptionRef<T: Send + Sync, D: Send + Sync> {
+    /// Unique event handler instance identifier.
+    ///
+    /// [`Subscription`] can be cloned, but the internal state is always bound
+    /// to the same reference of [`SubscriptionState`] with the same `id`.
+    instance_id: String,
+
+    /// Subscription state.
+    state: Arc<SubscriptionState<T, D>>,
+
+    /// Real-time event dispatcher.
+    event_dispatcher: Arc<EventDispatcher>,
+}
+
+/// Shared subscription state
+///
+/// This struct contains state shared across all [`Subscription`] clones.
+/// It's wrapped in `Arc` by [`SubscriptionRef`] and uses interior mutability
+/// for its internal state.
+///
+/// Not intended to be used directly. Use [`Subscription`] instead.
+#[derive(Debug)]
+pub struct SubscriptionState<T: Send + Sync, D: Send + Sync> {
     /// Unique event handler identifier.
     pub(super) id: String,
 
@@ -135,9 +152,9 @@ pub struct SubscriptionRef<T: Send + Sync, D: Send + Sync> {
     /// processing.
     options: Option<Vec<SubscriptionOptions>>,
 
-    /// The list of weak references to all [`Subscription`] clones created for
-    /// this reference.
-    clones: RwLock<HashMap<String, Weak<Subscription<T, D>>>>,
+    /// The list of weak references to all [`SubscriptionRef`] clones created
+    /// for this reference.
+    clones: RwLock<HashMap<String, Weak<SubscriptionRef<T, D>>>>,
 }
 
 impl<T, D> Subscription<T, D>
@@ -157,63 +174,15 @@ where
     ///
     /// # Returns
     ///
-    /// A new `Subscription2` for the given `entity` and `options`.
+    /// A new `Subscription` for the given `entity` and `options`.
     pub(crate) fn new(
         client: Weak<PubNubClientInstance<T, D>>,
         entity: PubNubEntity<T, D>,
         options: Option<Vec<SubscriptionOptions>>,
-    ) -> Arc<Self> {
-        let subscription_ref = SubscriptionRef::new(client, entity, options);
-        let subscription_id = Uuid::new_v4().to_string();
-        let subscription = Arc::new(Self {
-            instance_id: subscription_id.clone(),
-            inner: Arc::new(subscription_ref),
-            event_dispatcher: Default::default(),
-        });
-        subscription.store_clone(subscription_id, Arc::downgrade(&subscription));
-        subscription
-    }
-
-    /// Retrieves the current timetoken value.
-    ///
-    /// # Returns
-    ///
-    /// The current timetoken value as an `usize`, or 0 if the timetoken cannot
-    /// be parsed.
-    pub(super) fn current_timetoken(&self) -> usize {
-        self.cursor
-            .read()
-            .as_ref()
-            .and_then(|cursor| cursor.timetoken.parse::<usize>().ok())
-            .unwrap_or(0)
-    }
-
-    /// Checks if the [`Subscription`] is active or not.
-    ///
-    /// # Returns
-    ///
-    /// Returns `true` if the active, otherwise `false`.
-    pub(super) fn is_subscribed(&self) -> bool {
-        *self.is_subscribed.read()
-    }
-
-    /// Clones the [`Subscription`] and returns a new `Arc` reference to it.
-    ///
-    /// # Returns
-    ///
-    /// A new `Arc` reference to a cloned [`Subscription` ] instance.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if [`Subscription`] clone could not be found in
-    /// the reference counter storage or if there are no strong references
-    /// to the [`Subscription`] instance.
-    pub fn clone_arc(&self) -> Arc<Self> {
-        self.get_clone_by_id(&self.instance_id)
-            .expect("Subscription clone should be stored with SubscriptionRef")
-            .upgrade()
-            .expect("At least one strong reference should exist for Subscription")
-            .clone()
+    ) -> Self {
+        Self {
+            inner: SubscriptionRef::new(client, entity, options),
+        }
     }
 
     /// Creates a clone of the subscription set with an empty event dispatcher.
@@ -239,7 +208,9 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel = client.create_channel("my_channel");
+    /// let channel = client.channel("my_channel");
+    /// // Creating Subscription instance for the Channel entity to subscribe and listen
+    /// // for real-time events.
     /// let subscription = channel.subscription(None);
     /// // ...
     /// // We need to pass subscription into other component which would like to
@@ -254,72 +225,10 @@ where
     ///
     /// A new instance of the subscription object with an empty event
     /// dispatcher.
-    pub fn clone_empty(&self) -> Arc<Self> {
-        let instance_id = Uuid::new_v4().to_string();
-        let instance = Arc::new(Self {
-            instance_id: instance_id.clone(),
-            inner: Arc::clone(&self.inner),
-            event_dispatcher: Default::default(),
-        });
-        self.store_clone(instance_id, Arc::downgrade(&instance));
-        instance
-    }
-
-    /// Adds two [`Subscription`] and produce [`SubscriptionSet`].
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - The subscription to be added.
-    ///
-    /// # Returns
-    ///
-    /// [`SubscriptionSet`] with added subscriptions in the set.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the current subscription set does not have
-    /// at least one clone of [`Subscription`] with strong reference to the
-    /// original.
-    pub fn add(&self, rhs: Arc<Self>) -> Arc<SubscriptionSet<T, D>> {
-        let options = self.options.clone();
-        let lhs_clones = self.clones.read();
-        let (_, lhs) = lhs_clones
-            .iter()
-            .next()
-            .expect("At least one clone of Subscription should exist.");
-        let lhs = lhs
-            .upgrade()
-            .clone()
-            .expect("At least one strong reference should exist for Subscription");
-        SubscriptionSet::new_with_subscriptions(vec![lhs, rhs], options)
-    }
-
-    /// Filters the given list of `Update` events based on the subscription
-    /// input and the current timetoken.
-    ///
-    /// # Arguments
-    ///
-    /// * `events` - A slice of `Update` events to filter.
-    ///
-    /// # Returns
-    ///
-    /// A new `Vec<Update>` containing only the events that satisfy the
-    /// following conditions:
-    /// 1. The event's subscription is present in the subscription input.
-    /// 2. The event's timestamp is greater than or equal to the current
-    ///    timetoken.
-    fn filtered_events(&self, events: &[Update]) -> Vec<Update> {
-        let subscription_input = self.subscription_input(true);
-        let current_timetoken = self.current_timetoken();
-
-        events
-            .iter()
-            .filter(|event| {
-                subscription_input.contains(&event.subscription())
-                    && event.event_timestamp().ge(&current_timetoken)
-            })
-            .cloned()
-            .collect::<Vec<Update>>()
+    pub fn clone_empty(&self) -> Self {
+        Self {
+            inner: self.inner.clone_empty(),
+        }
     }
 }
 
@@ -343,6 +252,33 @@ where
     fn deref_mut(&mut self) -> &mut Self::Target {
         Arc::get_mut(&mut self.inner)
             .expect("Multiple mutable references to the Subscription are not allowed")
+    }
+}
+
+impl<T, D> Clone for Subscription<T, D>
+where
+    T: Send + Sync,
+    D: Send + Sync,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<T, D> Add for Subscription<T, D>
+where
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
+{
+    type Output = SubscriptionSet<T, D>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        SubscriptionSet::new_with_subscriptions(
+            vec![self.clone(), rhs.clone()],
+            self.options.clone(),
+        )
     }
 }
 
@@ -377,7 +313,133 @@ where
     }
 }
 
-impl<T, D> EventSubscriber for Subscription<T, D>
+impl<T, D> SubscriptionRef<T, D>
+where
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
+{
+    /// Creates a new subscription reference for specified entity.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - Weak reference on [`PubNubClientInstance`] to access shared
+    ///   resources.
+    /// * `entities` - A `PubNubEntity` representing the entity to subscribe to.
+    /// * `options` - An optional list of `SubscriptionOptions` specifying the
+    ///   subscription behaviour.
+    ///
+    /// # Returns
+    ///
+    /// A new [`SubscriptionRef`] for the given `entity` and `options`.
+    pub(crate) fn new(
+        client: Weak<PubNubClientInstance<T, D>>,
+        entity: PubNubEntity<T, D>,
+        options: Option<Vec<SubscriptionOptions>>,
+    ) -> Arc<Self> {
+        let subscription_ref = SubscriptionState::new(client, entity, options);
+        let subscription_id = Uuid::new_v4().to_string();
+        let subscription = Arc::new(Self {
+            instance_id: subscription_id.clone(),
+            state: Arc::new(subscription_ref),
+            event_dispatcher: Default::default(),
+        });
+        subscription.store_clone(subscription_id, Arc::downgrade(&subscription));
+        subscription
+    }
+
+    /// Creates a clone of the subscription set with an empty event dispatcher.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of the subscription object with an empty event
+    /// dispatcher.
+    pub fn clone_empty(&self) -> Arc<Self> {
+        let instance_id = Uuid::new_v4().to_string();
+        let instance = Arc::new(Self {
+            instance_id: instance_id.clone(),
+            state: Arc::clone(&self.state),
+            event_dispatcher: Default::default(),
+        });
+        self.store_clone(instance_id, Arc::downgrade(&instance));
+        instance
+    }
+
+    /// Retrieves the current timetoken value.
+    ///
+    /// # Returns
+    ///
+    /// The current timetoken value as an `usize`, or 0 if the timetoken cannot
+    /// be parsed.
+    pub(super) fn current_timetoken(&self) -> usize {
+        self.cursor
+            .read()
+            .as_ref()
+            .and_then(|cursor| cursor.timetoken.parse::<usize>().ok())
+            .unwrap_or(0)
+    }
+
+    /// Checks if the [`Subscription`] is active or not.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the active, otherwise `false`.
+    pub(super) fn is_subscribed(&self) -> bool {
+        *self.is_subscribed.read()
+    }
+
+    /// Filters the given list of `Update` events based on the subscription
+    /// input and the current timetoken.
+    ///
+    /// # Arguments
+    ///
+    /// * `events` - A slice of `Update` events to filter.
+    ///
+    /// # Returns
+    ///
+    /// A new `Vec<Update>` containing only the events that satisfy the
+    /// following conditions:
+    /// 1. The event's subscription is present in the subscription input.
+    /// 2. The event's timestamp is greater than or equal to the current
+    ///    timetoken.
+    fn filtered_events(&self, events: &[Update]) -> Vec<Update> {
+        let subscription_input = self.subscription_input(true);
+        let current_timetoken = self.current_timetoken();
+
+        events
+            .iter()
+            .filter(|event| {
+                subscription_input.contains(&event.subscription())
+                    && event.event_timestamp().ge(&current_timetoken)
+            })
+            .cloned()
+            .collect::<Vec<Update>>()
+    }
+}
+
+impl<T, D> Deref for SubscriptionRef<T, D>
+where
+    T: Send + Sync,
+    D: Send + Sync,
+{
+    type Target = SubscriptionState<T, D>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
+}
+
+impl<T, D> DerefMut for SubscriptionRef<T, D>
+where
+    T: Send + Sync,
+    D: Send + Sync,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.state)
+            .expect("Multiple mutable references to the SubscriptionRef are not allowed")
+    }
+}
+
+impl<T, D> EventSubscriber for SubscriptionRef<T, D>
 where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
@@ -402,7 +464,7 @@ where
         }
 
         if let Some(client) = self.client().upgrade().clone() {
-            if let Some(manager) = client.subscription_manager().write().as_mut() {
+            if let Some(manager) = client.subscription_manager(true).write().as_mut() {
                 // Mark entities as "in use" by subscription.
                 self.entity.increase_subscriptions_count();
 
@@ -424,7 +486,7 @@ where
         }
 
         if let Some(client) = self.client().upgrade().clone() {
-            if let Some(manager) = client.subscription_manager().write().as_mut() {
+            if let Some(manager) = client.subscription_manager(false).write().as_mut() {
                 // Mark entities as "not in-use" by subscription.
                 self.entity.decrease_subscriptions_count();
 
@@ -437,7 +499,7 @@ where
     }
 }
 
-impl<T, D> EventHandler<T, D> for Subscription<T, D>
+impl<T, D> EventHandler<T, D> for SubscriptionRef<T, D>
 where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
@@ -507,7 +569,7 @@ where
     }
 }
 
-impl<T, D> EventEmitter for Subscription<T, D>
+impl<T, D> EventEmitter for SubscriptionRef<T, D>
 where
     T: Send + Sync,
     D: Send + Sync,
@@ -541,7 +603,7 @@ where
     }
 }
 
-impl<T, D> SubscriptionRef<T, D>
+impl<T, D> SubscriptionState<T, D>
 where
     T: Send + Sync,
     D: Send + Sync,
@@ -550,7 +612,7 @@ where
         client: Weak<PubNubClientInstance<T, D>>,
         entity: PubNubEntity<T, D>,
         options: Option<Vec<SubscriptionOptions>>,
-    ) -> SubscriptionRef<T, D> {
+    ) -> SubscriptionState<T, D> {
         let is_channel_type = matches!(entity.r#type(), SubscribableType::Channel);
         let with_presence = if let Some(options) = &options {
             options
@@ -578,31 +640,17 @@ where
         }
     }
 
-    /// Store a clone of a [`Subscription`] instance with a given instance ID.
+    /// Store a clone of a [`SubscriptionRef`] instance with a given instance
+    /// ID.
     ///
     /// # Arguments
     ///
     /// * `instance_id` - The instance ID to associate with the clone.
-    /// * `instance` - The weak reference to the subscription instance to store
+    /// * `instance` - The weak reference to the subscription reference to store
     ///   as a clone.
-    fn store_clone(&self, instance_id: String, instance: Weak<Subscription<T, D>>) {
+    fn store_clone(&self, instance_id: String, instance: Weak<SubscriptionRef<T, D>>) {
         let mut clones = self.clones.write();
         (!clones.contains_key(&instance_id)).then(|| clones.insert(instance_id, instance));
-    }
-
-    /// Retrieves a cloned instance of a [`Subscription`] by its `instance_id`.
-    ///
-    /// # Arguments
-    ///
-    /// * `instance_id` - A reference to the unique identifier of the instance.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing a weak reference to the cloned [`Subscription`]
-    /// instance if found, or `None` if no instance with the specified
-    /// `instance_id` exists.
-    fn get_clone_by_id(&self, instance_id: &String) -> Option<Weak<Subscription<T, D>>> {
-        self.clones.read().get(instance_id).cloned()
     }
 }
 
@@ -627,11 +675,19 @@ mod it_should {
     fn create_subscription_from_channel_entity() {
         let client = Arc::new(client());
         let channel = Channel::new(&client, "channel");
+        let channel2 = Channel::new(&client, "channel2");
         let subscription = Subscription::new(
             Arc::downgrade(&client),
             PubNubEntity::Channel(channel),
             None,
         );
+        let subscription2 = Subscription::new(
+            Arc::downgrade(&client),
+            PubNubEntity::Channel(channel2),
+            None,
+        );
+
+        let _ = subscription.clone() + subscription2;
 
         assert!(!subscription.is_subscribed());
         assert!(subscription.subscription_input.contains_channel("channel"));

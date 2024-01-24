@@ -532,6 +532,7 @@ impl TryFrom<SubscribeResponseBody> for SubscribeResult {
     }
 }
 
+#[cfg(feature = "serde")]
 impl Envelope {
     /// Default message type.
     fn default_message_type() -> SubscribeMessageType {

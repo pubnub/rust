@@ -15,7 +15,6 @@ use pubnub::{
     Keyset, PubNubClient, PubNubClientBuilder,
 };
 use std::fmt::Debug;
-use std::sync::Arc;
 
 /// Type of resource for which permissions currently configured.
 #[derive(Default, Debug)]
@@ -144,9 +143,9 @@ pub struct PubNubWorld {
     pub keyset: pubnub::Keyset<String>,
     pub publish_result: Result<PublishResult, PubNubError>,
     pub subscription:
-        Option<Arc<SubscriptionSet<PubNubMiddleware<TransportReqwest>, DeserializerSerde>>>,
+        Option<SubscriptionSet<PubNubMiddleware<TransportReqwest>, DeserializerSerde>>,
     pub subscriptions: Option<
-        HashMap<String, Arc<Subscription<PubNubMiddleware<TransportReqwest>, DeserializerSerde>>>,
+        HashMap<String, Subscription<PubNubMiddleware<TransportReqwest>, DeserializerSerde>>,
     >,
     pub retry_policy: Option<RequestRetryConfiguration>,
     pub heartbeat_value: Option<u64>,

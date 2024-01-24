@@ -1,9 +1,6 @@
 //! Subscribe Event Engine module
 
-use crate::{
-    core::event_engine::EventEngine,
-    lib::alloc::{string::String, vec::Vec},
-};
+use crate::core::event_engine::EventEngine;
 
 #[doc(inline)]
 pub(crate) use effects::SubscribeEffect;
@@ -31,25 +28,3 @@ pub(in crate::dx::subscribe) mod types;
 
 pub(crate) type SubscribeEventEngine =
     EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>;
-
-impl
-    EventEngine<SubscribeState, SubscribeEffectHandler, SubscribeEffect, SubscribeEffectInvocation>
-{
-    pub(in crate::dx::subscribe) fn current_subscription(
-        &self,
-    ) -> (Option<Vec<String>>, Option<Vec<String>>) {
-        match self.current_state() {
-            SubscribeState::Handshaking { input, .. }
-            | SubscribeState::HandshakeReconnecting { input, .. }
-            | SubscribeState::HandshakeStopped { input, .. }
-            | SubscribeState::HandshakeFailed { input, .. }
-            | SubscribeState::Receiving { input, .. }
-            | SubscribeState::ReceiveReconnecting { input, .. }
-            | SubscribeState::ReceiveStopped { input, .. }
-            | SubscribeState::ReceiveFailed { input, .. } => {
-                (input.channels(), input.channel_groups())
-            }
-            _ => (None, None),
-        }
-    }
-}

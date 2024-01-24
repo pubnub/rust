@@ -10,7 +10,6 @@
 use derive_builder::Builder;
 use log::info;
 use spin::{Mutex, RwLock};
-use std::cmp::max;
 use uuid::Uuid;
 
 #[cfg(all(
@@ -21,7 +20,7 @@ use uuid::Uuid;
 use crate::providers::futures_tokio::RuntimeTokio;
 #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
 use crate::{
-    core::{runtime::RuntimeSupport, Deserializer},
+    core::runtime::RuntimeSupport,
     subscribe::{EventDispatcher, SubscriptionCursor, SubscriptionManager},
 };
 
@@ -42,7 +41,7 @@ use crate::transport::TransportReqwest;
 use crate::core::RequestRetryConfiguration;
 
 use crate::{
-    core::{CryptoProvider, PubNubEntity, PubNubError, Transport},
+    core::{CryptoProvider, PubNubEntity, PubNubError},
     lib::{
         alloc::{
             borrow::ToOwned,
@@ -51,10 +50,13 @@ use crate::{
             sync::Arc,
         },
         collections::HashMap,
-        core::ops::{Deref, DerefMut},
+        core::{
+            cmp::max,
+            ops::{Deref, DerefMut},
+        },
     },
     transport::middleware::{PubNubMiddleware, SignatureKeySet},
-    Channel, ChannelGroup, ChannelMetadata, UuidMetadata,
+    Channel, ChannelGroup, ChannelMetadata, UserMetadata,
 };
 
 /// PubNub client
@@ -427,13 +429,13 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel = client.create_channel("my_channel");
+    /// let channel = client.channel("my_channel");
     /// #     Ok(())
     /// # }
     /// ```
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn create_channel<S>(&self, name: S) -> Channel<T, D>
+    pub fn channel<S>(&self, name: S) -> Channel<T, D>
     where
         S: Into<String>,
     {
@@ -474,13 +476,13 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel = client.create_channels(&["my_channel_1", "my_channel_2"]);
+    /// let channel = client.channels(&["my_channel_1", "my_channel_2"]);
     /// #     Ok(())
     /// # }
     /// ```
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn create_channels<S>(&self, names: &[S]) -> Vec<Channel<T, D>>
+    pub fn channels<S>(&self, names: &[S]) -> Vec<Channel<T, D>>
     where
         S: Into<String> + Clone,
     {
@@ -527,13 +529,13 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel_group = client.create_channel_group("my_group");
+    /// let channel_group = client.channel_group("my_group");
     /// #     Ok(())
     /// # }
     /// ```
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn create_channel_group<S>(&self, name: S) -> ChannelGroup<T, D>
+    pub fn channel_group<S>(&self, name: S) -> ChannelGroup<T, D>
     where
         S: Into<String>,
     {
@@ -575,13 +577,13 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel_groups = client.create_channel_groups(&["my_group_1", "my_group_2"]);
+    /// let channel_groups = client.channel_groups(&["my_group_1", "my_group_2"]);
     /// #     Ok(())
     /// # }
     /// ```
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn create_channel_groups<S>(&self, names: &[S]) -> Vec<ChannelGroup<T, D>>
+    pub fn channel_groups<S>(&self, names: &[S]) -> Vec<ChannelGroup<T, D>>
     where
         S: Into<String> + Clone,
     {
@@ -630,13 +632,13 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel_metadata = client.create_channel_metadata("channel_meta");
+    /// let channel_metadata = client.channel_metadata("channel_meta");
     /// #     Ok(())
     /// # }
     /// ```
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn create_channel_metadata<S>(&self, id: S) -> ChannelMetadata<T, D>
+    pub fn channel_metadata<S>(&self, id: S) -> ChannelMetadata<T, D>
     where
         S: Into<String>,
     {
@@ -680,7 +682,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channels_metadata = client.create_channels_metadata(
+    /// let channels_metadata = client.channels_metadata(
     ///     &["channel_meta_1", "channel_meta_2"]
     /// );
     /// #     Ok(())
@@ -688,7 +690,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// ```
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn create_channels_metadata<S>(&self, ids: &[S]) -> Vec<ChannelMetadata<T, D>>
+    pub fn channels_metadata<S>(&self, ids: &[S]) -> Vec<ChannelMetadata<T, D>>
     where
         S: Into<String> + Clone,
     {
@@ -712,15 +714,15 @@ impl<T, D> PubNubClientInstance<T, D> {
         channels_metadata
     }
 
-    /// Creates a new uuid metadata object with the specified identifier.
+    /// Creates a new user metadata object with the specified identifier.
     ///
     /// # Arguments
     ///
-    /// * `id` - The identifier of the uuid metadata object as a string.
+    /// * `id` - The identifier of the user metadata object as a string.
     ///
     /// # Returns
     ///
-    /// Returns a `UuidMetadata` which can be used with the [`PubNub API`].
+    /// Returns a `UserMetadata` which can be used with the [`PubNub API`].
     ///
     /// # Example
     ///
@@ -737,13 +739,13 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let uuid_metadata = client.create_uuid_metadata("uuid_meta");
+    /// let user_metadata = client.user_metadata("user_meta");
     /// #     Ok(())
     /// # }
     /// ```
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn create_uuid_metadata<S>(&self, id: S) -> UuidMetadata<T, D>
+    pub fn user_metadata<S>(&self, id: S) -> UserMetadata<T, D>
     where
         S: Into<String>,
     {
@@ -751,25 +753,25 @@ impl<T, D> PubNubClientInstance<T, D> {
         let id = id.into();
         let entity = entities_slot
             .entry(format!("{}_uidm", &id))
-            .or_insert(UuidMetadata::new(self, id).into());
+            .or_insert(UserMetadata::new(self, id).into());
 
         match entity {
-            PubNubEntity::UuidMetadata(uuid_metadata) => uuid_metadata.clone(),
-            _ => panic!("Unexpected entry type for UuidMetadata"),
+            PubNubEntity::UserMetadata(user_metadata) => user_metadata.clone(),
+            _ => panic!("Unexpected entry type for UserMetadata"),
         }
     }
 
-    /// Creates a list of uuid metadata objects with the specified identifier.
+    /// Creates a list of user metadata objects with the specified identifier.
     ///
     /// # Arguments
     ///
-    /// * `id` - A list of identifiers for the uuid metadata objects as a
+    /// * `id` - A list of identifiers for the user metadata objects as a
     ///   string.
     ///
     /// # Returns
     ///
-    /// Returns a list of `UuidMetadata` which can be used with the [`PubNub
-    /// API`].
+    /// Returns a list of `UserMetadata` which can be used with the
+    /// [`PubNub API`].
     ///
     /// # Example
     ///
@@ -786,34 +788,34 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let uuids_metadata = client.create_uuids_metadata(&["uuid_meta_1", "uuid_meta_2"]);
+    /// let users_metadata = client.users_metadata(&["user_meta_1", "user_meta_2"]);
     /// #     Ok(())
     /// # }
     /// ```
     ///
     /// [`PubNub API`]: https://www.pubnub.com/docs
-    pub fn create_uuids_metadata<S>(&self, ids: &[S]) -> Vec<UuidMetadata<T, D>>
+    pub fn users_metadata<S>(&self, ids: &[S]) -> Vec<UserMetadata<T, D>>
     where
         S: Into<String> + Clone,
     {
-        let mut uuids_metadata = Vec::with_capacity(ids.len());
+        let mut users_metadata = Vec::with_capacity(ids.len());
         let mut entities_slot = self.entities.write();
 
         for id in ids.iter() {
             let id = id.clone().into();
             let entity = entities_slot
                 .entry(format!("{}_uidm", id))
-                .or_insert(UuidMetadata::new(self, id).into());
+                .or_insert(UserMetadata::new(self, id).into());
 
             match entity {
-                PubNubEntity::UuidMetadata(uuid_metadata) => {
-                    uuids_metadata.push(uuid_metadata.clone())
+                PubNubEntity::UserMetadata(user_metadata) => {
+                    users_metadata.push(user_metadata.clone())
                 }
-                _ => panic!("Unexpected entry type for UuidMetadata"),
+                _ => panic!("Unexpected entry type for UserMetadata"),
             }
         }
 
-        uuids_metadata
+        users_metadata
     }
 
     /// Update currently used authentication token.
@@ -879,18 +881,31 @@ impl<T, D> PubNubClientInstance<T, D> {
 
 impl<T, D> PubNubClientInstance<T, D>
 where
-    T: Transport + Send + Sync + 'static,
-    D: Deserializer + Send + Sync + 'static,
+    T: crate::core::Transport + Send + Sync + 'static,
+    D: crate::core::Deserializer + Send + Sync + 'static,
 {
+    /// Terminates the subscription and presence managers if the corresponding
+    /// features are enabled.
     #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
     pub fn terminate(&self) {
         #[cfg(feature = "subscribe")]
-        if let Some(manager) = self.subscription_manager().read().as_ref() {
-            manager.terminate();
+        {
+            let manager = self.subscription_manager(false);
+            let mut manager_slot = manager.write();
+            if let Some(manager) = manager_slot.as_ref() {
+                manager.terminate();
+            }
+            // Free up resources used by subscription event engine.
+            *manager_slot = None;
         }
         #[cfg(feature = "presence")]
-        if let Some(manager) = self.presence_manager().read().as_ref() {
-            manager.terminate();
+        {
+            let manager = self.presence_manager(false);
+            let mut manager_slot = manager.write();
+            if let Some(manager) = manager_slot.as_ref() {
+                manager.terminate();
+            }
+            *manager_slot = None;
         }
     }
 }
@@ -1874,7 +1889,8 @@ impl<T, S, D> PubNubClientUserIdBuilder<T, S, D>
 where
     S: Into<String>,
 {
-    /// Set UUID for the client
+    /// Set user id for the client.
+    ///
     /// It returns [`PubNubClientConfigBuilder`] that you can use
     /// to set the configuration for the client. This is a part
     /// the PubNubClientConfigBuilder.
