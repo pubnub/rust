@@ -4,7 +4,7 @@ use futures::StreamExt;
 use serde::Deserialize;
 use std::env;
 
-use pubnub::subscribe::SubscriptionOptions;
+use pubnub::subscribe::{SubscriptionOptions, SubscriptionParams};
 use pubnub::{
     dx::subscribe::Update,
     subscribe::{EventEmitter, EventSubscriber},
@@ -55,11 +55,11 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
 
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-    let subscription = client.subscription(
-        Some(&["my_channel", "other_channel"]),
-        None,
-        Some(vec![SubscriptionOptions::ReceivePresenceEvents]),
-    );
+    let subscription = client.subscription(SubscriptionParams {
+        channels: Some(&["my_channel", "other_channel"]),
+        channel_groups: None,
+        options: Some(vec![SubscriptionOptions::ReceivePresenceEvents]),
+    });
     subscription.subscribe(None);
     let subscription_clone = subscription.clone_empty();
 

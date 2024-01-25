@@ -94,6 +94,21 @@ pub enum SubscriptionOptions {
     ReceivePresenceEvents,
 }
 
+/// [`PubNubClientInstance`] multiplex subscription parameters.
+///
+/// Multiplexed subscription configuration parameters.
+pub struct SubscriptionParams<'subscription, N: Into<String>> {
+    /// List of channel names for multiplexed subscription.
+    pub channels: Option<&'subscription [N]>,
+
+    /// List of channel group names for multiplexed subscription.
+    pub channel_groups: Option<&'subscription [N]>,
+
+    /// An optional list of `SubscriptionOptions` specifying the subscription
+    /// behaviour.
+    pub options: Option<Vec<SubscriptionOptions>>,
+}
+
 /// Time cursor.
 ///
 /// Cursor used by subscription loop to identify point in time after

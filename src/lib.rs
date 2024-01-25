@@ -60,7 +60,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     use pubnub::subscribe::EventEmitter;
+//!     use pubnub::subscribe::{EventEmitter, SubscriptionParams};
 //! let publish_key = "my_publish_key";
 //!     let subscribe_key = "my_subscribe_key";
 //!     let client = PubNubClientBuilder::with_reqwest_transport()
@@ -73,7 +73,11 @@
 //!         .build()?;
 //!     println!("PubNub instance created");
 //!    
-//!     let subscription = client.subscription(Some(&["my_channel"]), None, None);
+//!     let subscription = client.subscription(SubscriptionParams {
+//!         channels: Some(&["my_channel"]),
+//!         channel_groups: None,
+//!         options: None
+//!     });
 //!
 //!     println!("Subscribed to channel");
 //!

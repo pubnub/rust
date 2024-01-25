@@ -43,6 +43,7 @@ use crate::{
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
+/// use pubnub::subscribe::SubscriptionParams;
 /// let client = // PubNubClient
 /// #     PubNubClientBuilder::with_reqwest_transport()
 /// #         .with_keyset(Keyset {
@@ -52,7 +53,11 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let subscription = client.subscription(Some(&["my_channel_1", "my_channel_2"]), Some(&["my_group"]), None);
+/// let subscription = client.subscription(SubscriptionParams {
+///     channels: Some(&["my_channel_1", "my_channel_2"]),
+///     channel_groups:Some(&["my_group"]),
+///     options:None
+/// });
 /// #     Ok(())
 /// # }
 /// ```
@@ -230,6 +235,7 @@ where
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// use pubnub::subscribe::SubscriptionParams;
     /// let client = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
@@ -239,7 +245,11 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let subscription = client.subscription(Some(&["my_channel_1", "my_channel_2"]), Some(&["my_group"]), None);
+    /// let subscription = client.subscription(SubscriptionParams {
+    ///     channels: Some(&["my_channel_1", "my_channel_2"]),
+    ///     channel_groups: Some(&["my_group"]),
+    ///     options: None
+    /// });
     /// // ...
     /// // We need to pass subscription into other component which would like to
     /// // have own listeners to handle real-time events.
@@ -622,6 +632,7 @@ where
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// use pubnub::subscribe::SubscriptionParams;
     /// let client = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
@@ -631,7 +642,11 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let subscription = client.subscription(Some(&["my_channel_1", "my_channel_2"]), Some(&["my_group"]), None);
+    /// let subscription = client.subscription(SubscriptionParams {
+    ///     channels: Some(&["my_channel_1", "my_channel_2"]),
+    ///     channel_groups: Some(&["my_group"]),
+    ///     options: None
+    /// });
     /// // ...
     /// // We need to pass subscription into other component which would like to
     /// // have own listeners to handle real-time events.

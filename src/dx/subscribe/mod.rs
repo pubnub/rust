@@ -35,9 +35,7 @@ use crate::{
 #[cfg(all(feature = "presence", feature = "std"))]
 use event_engine::SubscriptionInput;
 #[cfg(feature = "std")]
-use event_engine::{
-    types::SubscriptionParams, SubscribeEffectHandler, SubscribeEventEngine, SubscribeState,
-};
+use event_engine::{SubscribeEffectHandler, SubscribeEventEngine, SubscribeState};
 
 #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
 pub(crate) mod event_engine;
@@ -191,8 +189,7 @@ where
     ///
     /// # Arguments
     ///
-    /// * `entities` - A `Vec` of known subscribable entities.
-    /// * `options` - Optional subscription options.
+    /// * `parameters` - [`SubscriptionParams`] configuration object.
     ///
     /// # Returns
     ///
@@ -206,7 +203,7 @@ where
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// use pubnub::subscribe::EventSubscriber;
+    /// use pubnub::subscribe::{EventSubscriber, SubscriptionParams};
     /// let client = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
@@ -216,27 +213,22 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let subscription = client.subscription(
-    ///     Some(&["my_channel_1", "my_channel_2", "my_channel_3"]),
-    ///     None,
-    ///     None,
-    /// );
+    /// let subscription = client.subscription(SubscriptionParams {
+    ///     channels: Some(&["my_channel_1", "my_channel_2", "my_channel_3"]),
+    ///     channel_groups: None,
+    ///     options: None
+    /// });
     /// // Message stream for handling real-time `Message` events.
     /// let stream = subscription.messages_stream();
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn subscription<N>(
-        &self,
-        channels: Option<&[N]>,
-        channel_groups: Option<&[N]>,
-        options: Option<Vec<SubscriptionOptions>>,
-    ) -> SubscriptionSet<T, D>
+    pub fn subscription<N>(&self, parameters: SubscriptionParams<N>) -> SubscriptionSet<T, D>
     where
         N: Into<String> + Clone,
     {
         let mut entities: Vec<PubNubEntity<T, D>> = vec![];
-        if let Some(channel_names) = channels {
+        if let Some(channel_names) = parameters.channels {
             entities.extend(
                 channel_names
                     .iter()
@@ -245,7 +237,7 @@ where
                     .collect::<Vec<PubNubEntity<T, D>>>(),
             );
         }
-        if let Some(channel_group_names) = channel_groups {
+        if let Some(channel_group_names) = parameters.channel_groups {
             entities.extend(
                 channel_group_names
                     .iter()
@@ -255,7 +247,7 @@ where
             );
         }
 
-        SubscriptionSet::new(entities, options)
+        SubscriptionSet::new(entities, parameters.options)
     }
 
     /// Stop receiving real-time updates.
@@ -270,6 +262,7 @@ where
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// #     use pubnub::{Keyset, PubNubClientBuilder};
+    /// use pubnub::subscribe::SubscriptionParams;
     /// #
     /// #     let client = PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
@@ -279,7 +272,11 @@ where
     /// #         })
     /// #         .with_user_id("user_id")
     /// #         .build()?;
-    /// # let subscription = client.subscription(Some(&["channel"]), None, None);
+    /// # let subscription = client.subscription(SubscriptionParams {
+    /// #     channels: Some(&["channel"]),
+    /// #     channel_groups: None,
+    /// #     options: None
+    /// # });
     /// # let stream = // DataStream<Message>
     /// #     subscription.messages_stream();
     /// client.disconnect();
@@ -338,6 +335,7 @@ where
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// #     use pubnub::{Keyset, PubNubClientBuilder};
+    /// use pubnub::subscribe::SubscriptionParams;
     /// #
     /// #     let client = PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
@@ -347,7 +345,11 @@ where
     /// #         })
     /// #         .with_user_id("user_id")
     /// #         .build()?;
-    /// # let subscription = client.subscription(Some(&["channel"]), None, None);
+    /// # let subscription = client.subscription(SubscriptionParams {
+    /// #     channels: Some(&["channel"]),
+    /// #     channel_groups: None,
+    /// #     options: None
+    /// # });
     /// # let stream = // DataStream<Message>
     /// #     subscription.messages_stream();
     /// # // .....
@@ -505,7 +507,7 @@ where
 
     fn subscribe_call<F>(
         client: Self,
-        params: SubscriptionParams,
+        params: event_engine::types::SubscriptionParams,
         delay: Arc<F>,
         cancel_rx: async_channel::Receiver<String>,
     ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
@@ -883,17 +885,21 @@ mod should {
 
     #[tokio::test]
     async fn create_subscription_set() {
-        let _ = client().subscription(Some(&["channel_a"]), Some(&["group_a"]), None);
+        let _ = client().subscription(SubscriptionParams {
+            channels: Some(&["channel_a"]),
+            channel_groups: Some(&["group_a"]),
+            options: None,
+        });
     }
 
     #[tokio::test]
     async fn subscribe() {
         let client = client();
-        let subscription = client.subscription(
-            Some(&["my-channel"]),
-            Some(&["group_a"]),
-            Some(vec![SubscriptionOptions::ReceivePresenceEvents]),
-        );
+        let subscription = client.subscription(SubscriptionParams {
+            channels: Some(&["my-channel"]),
+            channel_groups: Some(&["group_a"]),
+            options: Some(vec![SubscriptionOptions::ReceivePresenceEvents]),
+        });
         subscription.subscribe(None);
 
         let status = client.status_stream().next().await.unwrap();
