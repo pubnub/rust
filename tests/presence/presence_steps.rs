@@ -1,7 +1,6 @@
 use cucumber::gherkin::Table;
 use cucumber::{codegen::Regex, gherkin::Step, then, when};
 use futures::{select_biased, FutureExt, StreamExt};
-use log::Log;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 
@@ -153,7 +152,7 @@ async fn leave(
     world: &mut PubNubWorld,
     channel_a: String,
     channel_b: String,
-    with_presence: String,
+    _with_presence: String,
 ) {
     let mut subscription = world.subscription.clone().unwrap();
     let subscriptions = world.subscriptions.clone().unwrap().iter().fold(
@@ -209,7 +208,7 @@ async fn receive_an_error_heartbeat_retry(world: &mut PubNubWorld) {
 }
 
 #[then("I don't observe any Events and Invocations of the Presence EE")]
-async fn event_engine_history_empty(_world: &mut PubNubWorld, step: &Step) {
+async fn event_engine_history_empty(_world: &mut PubNubWorld, _step: &Step) {
     assert_eq!(events_and_invocations_history().len(), 0);
 }
 
