@@ -13,6 +13,7 @@ use pubnub::subscribe::{
 
 /// Extract list of events and invocations from log.
 fn events_and_invocations_history() -> Vec<Vec<String>> {
+    log::logger().flush();
     let mut lines: Vec<Vec<String>> = Vec::new();
     let written_log =
         read_to_string("tests/logs/log.txt").expect("Unable to read history from log");
@@ -188,7 +189,7 @@ async fn wait_presence_join(world: &mut PubNubWorld) {
 
 #[then("I receive an error in my heartbeat response")]
 async fn receive_an_error_heartbeat_retry(world: &mut PubNubWorld) {
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
 
     let history = events_and_invocations_history();
     let expected_retry_count: usize = usize::from(match &world.retry_policy.clone().unwrap() {
@@ -208,7 +209,7 @@ async fn receive_an_error_heartbeat_retry(world: &mut PubNubWorld) {
 }
 
 #[then("I don't observe any Events and Invocations of the Presence EE")]
-async fn event_engine_history_empty(_world: &mut PubNubWorld, _step: &Step) {
+async fn event_engine_history_empty(_world: &mut PubNubWorld) {
     assert_eq!(events_and_invocations_history().len(), 0);
 }
 
