@@ -90,6 +90,9 @@ pub struct SubscriptionSet<
 > {
     /// Subscriptions set reference.
     pub(super) inner: Arc<SubscriptionSetRef<T, D>>,
+
+    /// Whether subscription set is `Clone::clone()` method call result or not.
+    is_clone: bool,
 }
 
 /// Entities subscriptions set reference.
@@ -183,6 +186,7 @@ where
     ) -> Self {
         Self {
             inner: SubscriptionSetRef::new(entities, options),
+            is_clone: false,
         }
     }
 
@@ -208,6 +212,7 @@ where
     ) -> Self {
         Self {
             inner: SubscriptionSetRef::new_with_subscriptions(subscriptions, options),
+            is_clone: false,
         }
     }
 
@@ -251,6 +256,7 @@ where
     pub fn clone_empty(&self) -> Self {
         Self {
             inner: self.inner.clone_empty(),
+            is_clone: false,
         }
     }
 
@@ -351,6 +357,7 @@ where
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
+            is_clone: true,
         }
     }
 }
@@ -361,13 +368,22 @@ where
     D: Deserializer + Send + Sync,
 {
     fn drop(&mut self) {
+        // Nothing should be done for regular subscription clone.
+        if self.is_clone {
+            return;
+        }
+
         // Unregistering self to clean up subscriptions list if required.
         let Some(client) = self.client().upgrade().clone() else {
             return;
         };
 
         if let Some(manager) = client.subscription_manager(false).write().as_mut() {
-            if let Some((_, handler)) = self.clones.read().iter().next() {
+            let mut clones = self.clones.write();
+
+            if clones.len().gt(&1) {
+                clones.retain(|instance_id, _| instance_id.ne(&self.instance_id));
+            } else if let Some((_, handler)) = clones.iter().next() {
                 let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
                 manager.unregister(&handler);
             }
