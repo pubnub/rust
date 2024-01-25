@@ -20,6 +20,9 @@ use crate::{
     },
 };
 
+#[cfg(feature = "std")]
+use crate::core::{runtime::RuntimeSupport, RequestRetryConfiguration, Runtime};
+
 type DeserializerClosure<B> = Box<dyn FnOnce(&[u8]) -> Result<B, PubNubError>>;
 
 /// The method to use for a request.
@@ -95,8 +98,8 @@ impl TransportRequest {
         &self,
         transport: &T,
         deserializer: Arc<D>,
-
-        #[cfg(feature = "std")] guard: &DetachedClientsGuard,
+        #[cfg(feature = "std")] retry_configuration: RequestRetryConfiguration,
+        #[cfg(feature = "std")] runtime: RuntimeSupport,
     ) -> Result<R, PubNubError>
     where
         B: for<'de> super::Deserialize<'de>,
@@ -106,23 +109,43 @@ impl TransportRequest {
     {
         #[cfg(feature = "std")]
         {
-            let channel = guard.notify_channel_rx.clone();
-            guard.increase_detached_count_by(1);
+            let mut last_result;
+            let mut retry_attempt = 0_u8;
 
-            // Request configured endpoint.
-            select_biased! {
-                _ = channel.recv().fuse() => {
-                    guard.decrease_detached_count_by(1);
-                    Err(PubNubError::RequestCancel { details: "PubNub client instance dropped".into() })
+            loop {
+                let deserializer_clone = deserializer.clone();
+
+                // Request configured endpoint.
+                let response = transport.send(self.clone()).await;
+                last_result = Self::deserialize(
+                    response?.clone(),
+                    Box::new(move |bytes| deserializer_clone.deserialize(bytes)),
+                );
+
+                let Err(error) = last_result.as_ref() else {
+                    break;
+                };
+
+                // Subscribe and heartbeat handled by Event Engine.
+                if self.path.starts_with("/v2/subscribe")
+                    || (self.path.starts_with("/v2/presence") && self.path.contains("/heartbeat"))
+                {
+                    break;
                 }
-                response = transport.send(self.clone()).fuse() => {
-                    guard.decrease_detached_count_by(1);
-                    return Self::deserialize(
-                        response?.clone(),
-                        Box::new(move |bytes| deserializer.deserialize(bytes)),
-                    )
+
+                if let Some(delay) = retry_configuration.retry_delay(
+                    Some(self.path.clone()),
+                    &retry_attempt,
+                    Some(error),
+                ) {
+                    retry_attempt += 1;
+                    runtime.clone().sleep_microseconds(delay).await;
+                } else {
+                    break;
                 }
             }
+
+            last_result
         }
 
         #[cfg(not(feature = "std"))]
@@ -144,19 +167,65 @@ impl TransportRequest {
         &self,
         transport: &T,
         deserializer: Arc<D>,
+        #[cfg(feature = "std")] retry_configuration: &RequestRetryConfiguration,
+        #[cfg(feature = "std")] runtime: &RuntimeSupport,
     ) -> Result<R, PubNubError>
     where
         B: for<'de> serde::Deserialize<'de>,
         R: TryFrom<B, Error = PubNubError>,
-        T: super::Transport,
+        T: super::Transport + 'static,
         D: super::Deserializer + 'static,
     {
-        // Request configured endpoint.
-        let response = transport.send(self.clone()).await;
-        Self::deserialize(
-            response?.clone(),
-            Box::new(move |bytes| deserializer.deserialize(bytes)),
-        )
+        #[cfg(feature = "std")]
+        {
+            let mut last_result;
+            let mut retry_attempt = 0_u8;
+
+            loop {
+                let deserializer_clone = deserializer.clone();
+
+                // Request configured endpoint.
+                let response = transport.send(self.clone()).await;
+                last_result = Self::deserialize(
+                    response?.clone(),
+                    Box::new(move |bytes| deserializer_clone.deserialize(bytes)),
+                );
+
+                let Err(error) = last_result.as_ref() else {
+                    break;
+                };
+
+                // Subscribe and heartbeat handled by Event Engine.
+                if self.path.starts_with("/v2/subscribe")
+                    || (self.path.starts_with("/v2/presence") && self.path.contains("/heartbeat"))
+                {
+                    break;
+                }
+
+                if let Some(delay) = retry_configuration.retry_delay(
+                    Some(self.path.clone()),
+                    &retry_attempt,
+                    Some(error),
+                ) {
+                    retry_attempt += 1;
+                    runtime.clone().sleep_microseconds(delay).await;
+                } else {
+                    break;
+                }
+            }
+
+            last_result
+        }
+
+        #[cfg(not(feature = "std"))]
+        {
+            // Request configured endpoint.
+            let response = transport.send(self.clone()).await;
+            Self::deserialize(
+                response?.clone(),
+                Box::new(move |bytes| deserializer.deserialize(bytes)),
+            )
+        }
     }
 
     /// Send async request and process [`PubNub API`] response.

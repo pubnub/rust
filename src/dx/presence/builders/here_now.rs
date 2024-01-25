@@ -135,7 +135,7 @@ impl<T, D> HereNowRequest<T, D> {
             ),
             query_parameters: query,
             method: TransportMethod::Get,
-            headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
+            headers: [(CONTENT_TYPE.to_string(), APPLICATION_JSON.to_string())].into(),
             body: None,
             #[cfg(feature = "std")]
             timeout: config.transport.request_timeout,
@@ -145,7 +145,7 @@ impl<T, D> HereNowRequest<T, D> {
 
 impl<T, D> HereNowRequestBuilder<T, D>
 where
-    T: Transport,
+    T: Transport + 'static,
     D: Deserializer + 'static,
 {
     /// Build and call asynchronous request.
@@ -161,7 +161,14 @@ where
         let deserializer = client.deserializer.clone();
 
         transport_request
-            .send::<HereNowResponseBody, _, _, _>(&client.transport, deserializer)
+            .send::<HereNowResponseBody, _, _, _>(
+                &client.transport,
+                deserializer,
+                #[cfg(feature = "std")]
+                &client.config.transport.retry_configuration,
+                #[cfg(feature = "std")]
+                &client.runtime,
+            )
             .await
             .map(|mut result: HereNowResult| {
                 name_replacement.is_some().then(|| {

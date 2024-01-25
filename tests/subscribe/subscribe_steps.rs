@@ -168,6 +168,7 @@ async fn receive_an_error_subscribe_retry(world: &mut PubNubWorld) {
         | RequestRetryConfiguration::Exponential { max_retry, .. } => *max_retry,
         _ => 0,
     });
+    tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
 
     let handshake_test = scenario_name(world).to_lowercase().contains("handshake");
     let history = events_and_invocations_history();

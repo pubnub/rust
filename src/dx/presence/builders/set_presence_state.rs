@@ -187,7 +187,7 @@ impl<T, D> SetStateRequest<T, D> {
 
 impl<T, D> SetStateRequestBuilder<T, D>
 where
-    T: Transport,
+    T: Transport + 'static,
     D: Deserializer + 'static,
 {
     /// Build and call asynchronous request.
@@ -204,7 +204,14 @@ where
         let deserializer = client.deserializer.clone();
 
         transport_request
-            .send::<SetStateResponseBody, _, _, _>(&client.transport, deserializer)
+            .send::<SetStateResponseBody, _, _, _>(
+                &client.transport,
+                deserializer,
+                #[cfg(feature = "std")]
+                &client.config.transport.retry_configuration,
+                #[cfg(feature = "std")]
+                &client.runtime,
+            )
             .await
     }
 }

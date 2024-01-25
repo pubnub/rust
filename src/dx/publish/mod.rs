@@ -132,7 +132,7 @@ where
 
 impl<T, M, D> PublishMessageViaChannelBuilder<T, M, D>
 where
-    T: Transport,
+    T: Transport + 'static,
     M: Serialize,
     D: Deserializer + 'static,
 {
@@ -173,7 +173,14 @@ where
                 let deserializer = some.client.deserializer.clone();
 
                 some.data
-                    .send::<PublishResponseBody, _, _, _>(&some.client.transport, deserializer)
+                    .send::<PublishResponseBody, _, _, _>(
+                        &some.client.transport,
+                        deserializer,
+                        #[cfg(feature = "std")]
+                        &some.client.config.transport.retry_configuration,
+                        #[cfg(feature = "std")]
+                        &some.client.runtime,
+                    )
                     .await
             })
             .await

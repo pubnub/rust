@@ -17,7 +17,7 @@ pub trait EventEmitter {
     fn messages_stream(&self) -> DataStream<Message>;
 
     /// Stream used to notify signals.
-    fn signal_stream(&self) -> DataStream<Message>;
+    fn signals_stream(&self) -> DataStream<Message>;
 
     /// Stream used to notify message action updates.
     fn message_actions_stream(&self) -> DataStream<MessageAction>;

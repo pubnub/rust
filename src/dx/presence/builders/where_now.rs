@@ -94,7 +94,7 @@ impl<T, D> WhereNowRequest<T, D> {
             ),
             query_parameters: HashMap::new(),
             method: TransportMethod::Get,
-            headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
+            headers: [(CONTENT_TYPE.to_string(), APPLICATION_JSON.to_string())].into(),
             body: None,
             #[cfg(feature = "std")]
             timeout: config.transport.request_timeout,
@@ -104,7 +104,7 @@ impl<T, D> WhereNowRequest<T, D> {
 
 impl<T, D> WhereNowRequestBuilder<T, D>
 where
-    T: Transport,
+    T: Transport + 'static,
     D: Deserializer + 'static,
 {
     /// Build and call asynchronous request.
@@ -115,7 +115,14 @@ where
         let deserializer = client.deserializer.clone();
 
         transport_request
-            .send::<WhereNowResponseBody, _, _, _>(&client.transport, deserializer)
+            .send::<WhereNowResponseBody, _, _, _>(
+                &client.transport,
+                deserializer,
+                #[cfg(feature = "std")]
+                &client.config.transport.retry_configuration,
+                #[cfg(feature = "std")]
+                &client.runtime,
+            )
             .await
     }
 }

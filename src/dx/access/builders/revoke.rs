@@ -56,7 +56,7 @@ impl<T, D> RevokeTokenRequest<T, D> {
                 url_encode(self.token.as_bytes())
             ),
             method: TransportMethod::Delete,
-            headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
+            headers: [(CONTENT_TYPE.to_string(), APPLICATION_JSON.to_string())].into(),
             #[cfg(feature = "std")]
             timeout: config.transport.request_timeout,
             ..Default::default()
@@ -76,7 +76,7 @@ impl<T, D> RevokeTokenRequestBuilder<T, D> {
 
 impl<T, D> RevokeTokenRequestBuilder<T, D>
 where
-    T: Transport,
+    T: Transport + 'static,
     D: Deserializer + 'static,
 {
     /// Build and call asynchronous request.
@@ -91,7 +91,14 @@ where
         let deserializer = client.deserializer.clone();
 
         transport_request
-            .send::<RevokeTokenResponseBody, _, _, _>(&client.transport, deserializer)
+            .send::<RevokeTokenResponseBody, _, _, _>(
+                &client.transport,
+                deserializer,
+                #[cfg(feature = "std")]
+                &client.config.transport.retry_configuration,
+                #[cfg(feature = "std")]
+                &client.runtime,
+            )
             .await
     }
 }

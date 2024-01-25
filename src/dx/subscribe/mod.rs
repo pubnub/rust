@@ -710,8 +710,8 @@ impl<T, D> EventEmitter for PubNubClientInstance<T, D> {
         self.event_dispatcher.messages_stream()
     }
 
-    fn signal_stream(&self) -> DataStream<Message> {
-        self.event_dispatcher.signal_stream()
+    fn signals_stream(&self) -> DataStream<Message> {
+        self.event_dispatcher.signals_stream()
     }
 
     fn message_actions_stream(&self) -> DataStream<MessageAction> {

@@ -357,7 +357,7 @@ impl EventEmitter for EventDispatcher {
         self.create_stream_in_list(self.message_streams.write(), messages)
     }
 
-    fn signal_stream(&self) -> DataStream<Message> {
+    fn signals_stream(&self) -> DataStream<Message> {
         let signals = self.dequeue_matching_events(|event| match event {
             SubscribeStreamEvent::Update(Update::Signal(signal)) => Some(signal.clone()),
             _ => None,
@@ -503,7 +503,7 @@ mod it_should {
         assert_eq!(events_count, 2);
 
         let mut events_count = 0;
-        let mut stream = dispatcher.signal_stream().take(10);
+        let mut stream = dispatcher.signals_stream().take(10);
         loop {
             match timeout(Duration::from_millis(500), stream.next()).await {
                 Ok(Some(_)) => events_count += 1,

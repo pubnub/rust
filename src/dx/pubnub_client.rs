@@ -19,10 +19,7 @@ use uuid::Uuid;
 ))]
 use crate::providers::futures_tokio::RuntimeTokio;
 #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
-use crate::{
-    core::runtime::RuntimeSupport,
-    subscribe::{EventDispatcher, SubscriptionCursor, SubscriptionManager},
-};
+use crate::subscribe::{EventDispatcher, SubscriptionCursor, SubscriptionManager};
 
 #[cfg(feature = "presence")]
 use crate::lib::alloc::vec::Vec;
@@ -38,7 +35,7 @@ use crate::transport::TransportReqwest;
 
 // TODO: Retry policy would be implemented for `no_std` event engine
 #[cfg(feature = "std")]
-use crate::core::RequestRetryConfiguration;
+use crate::core::{runtime::RuntimeSupport, RequestRetryConfiguration};
 
 use crate::{
     core::{CryptoProvider, PubNubEntity, PubNubError},
@@ -372,7 +369,7 @@ pub struct PubNubClientRef<T, D> {
     pub(crate) state: Arc<RwLock<HashMap<String, Vec<u8>>>>,
 
     /// Runtime environment
-    #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
+    #[cfg(feature = "std")]
     #[builder(setter(custom), field(vis = "pub(crate)"))]
     pub(crate) runtime: RuntimeSupport,
 
@@ -1085,7 +1082,7 @@ impl<T, D> PubNubClientConfigBuilder<T, D> {
                     #[cfg(feature = "presence")]
                     state: Arc::new(RwLock::new(HashMap::new())),
 
-                    #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
+                    #[cfg(feature = "std")]
                     runtime: pre_build.runtime,
 
                     #[cfg(all(feature = "subscribe", feature = "std"))]

@@ -243,7 +243,7 @@ impl<T, D> SubscribeRequest<T, D> {
 
 impl<T, D> SubscribeRequestBuilder<T, D>
 where
-    T: Transport,
+    T: Transport + 'static,
     D: Deserializer + 'static,
 {
     /// Build and call asynchronous request.
@@ -254,7 +254,14 @@ where
         let deserializer = client.deserializer.clone();
 
         transport_request
-            .send::<SubscribeResponseBody, _, _, _>(&client.transport, deserializer)
+            .send::<SubscribeResponseBody, _, _, _>(
+                &client.transport,
+                deserializer,
+                #[cfg(feature = "std")]
+                &client.config.transport.retry_configuration,
+                #[cfg(feature = "std")]
+                &client.runtime,
+            )
             .await
     }
 
