@@ -36,11 +36,11 @@ Add `pubnub` to your Rust project in the `Cargo.toml` file:
 ```toml
 # default features
 [dependencies]
-pubnub = "0.4.1"
+pubnub = "0.5.0"
 
 # all features
 [dependencies]
-pubnub = { version = "0.4.1", features = ["full"] }
+pubnub = { version = "0.5.0", features = ["full"] }
 ```
 
 ### Example
@@ -57,53 +57,53 @@ use serde_json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let publish_key = "my_publish_key";
+    use pubnub::subscribe::{EventEmitter, SubscriptionParams};
+let publish_key = "my_publish_key";
     let subscribe_key = "my_subscribe_key";
     let client = PubNubClientBuilder::with_reqwest_transport()
-      .with_keyset(Keyset {
-           subscribe_key,
-           publish_key: Some(publish_key),
-           secret_key: None,
-       })
-       .with_user_id("user_id")
-       .build()?;
-   println!("PubNub instance created");
+        .with_keyset(Keyset {
+            subscribe_key,
+            publish_key: Some(publish_key),
+            secret_key: None,
+        })
+        .with_user_id("user_id")
+        .build()?;
+    println!("PubNub instance created");
 
-   let subscription = client
-      .subscribe()
-       .channels(["my_channel".into()].to_vec())
-       .execute()?;
+    let subscription = client.subscription(SubscriptionParams {
+        channels: Some(&["my_channel"]),
+        channel_groups: None,
+        options: None
+    });
 
-   println!("Subscribed to channel");
+    println!("Subscribed to channel");
 
-  // Launch a new task to print out each received message
-  tokio::spawn(subscription.stream().for_each(|event| async move {
-       match event {
-           SubscribeStreamEvent::Update(update) => {
-               match update {
-                   Update::Message(message) | Update::Signal(message) => {
-                       // Silently log if UTF-8 conversion fails
-                       if let Ok(utf8_message) = String::from_utf8(message.data.clone()) {
-                           if let Ok(cleaned) = serde_json::from_str::<String>(&utf8_message) {
-                               println!("message: {}", cleaned);
-                           }
-                      }
-                   }
-                    Update::Presence(presence) => {
-                        println!("presence: {:?}", presence)
-                    }
-                    Update::Object(object) => {
-                        println!("object: {:?}", object)
-                    }
-                    Update::MessageAction(action) => {
-                        println!("message action: {:?}", action)
-                    }
-                    Update::File(file) => {
-                        println!("file: {:?}", file)
+    // Launch a new task to print out each received message
+    tokio::spawn(client.status_stream().for_each(|status| async move {
+        println!("\nStatus: {:?}", status)
+    }));
+    tokio::spawn(subscription.stream().for_each(|event| async move {
+        match event {
+            Update::Message(message) | Update::Signal(message) => {
+                // Silently log if UTF-8 conversion fails
+                if let Ok(utf8_message) = String::from_utf8(message.data.clone()) {
+                    if let Ok(cleaned) = serde_json::from_str::<String>(&utf8_message) {
+                        println!("message: {}", cleaned);
                     }
                 }
             }
-            SubscribeStreamEvent::Status(status) => println!("\nstatus: {:?}", status),
+            Update::Presence(presence) => {
+                println!("presence: {:?}", presence)
+            }
+            Update::AppContext(object) => {
+                println!("object: {:?}", object)
+            }
+            Update::MessageAction(action) => {
+                println!("message action: {:?}", action)
+            }
+            Update::File(file) => {
+                println!("file: {:?}", file)
+            }
         }
     }));
 
@@ -132,11 +132,11 @@ disable them in the `Cargo.toml` file, like so:
 ```toml
 # only blocking and access + default features
 [dependencies]
-pubnub = { version = "0.4.1", features = ["blocking", "access"] }
+pubnub = { version = "0.5.0", features = ["blocking", "access"] }
 
 # only parse_token + default features
 [dependencies]
-pubnub = { version = "0.4.1", features = ["parse_token"] }
+pubnub = { version = "0.5.0", features = ["parse_token"] }
 ```
 
 ### Available features
@@ -175,7 +175,7 @@ you need, for example:
 
 ```toml
 [dependencies]
-pubnub = { version = "0.4.1", default-features = false, features = ["serde", "publish",
+pubnub = { version = "0.5.0", default-features = false, features = ["serde", "publish",
 "blocking"] }
 ```
 
