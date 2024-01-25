@@ -355,6 +355,26 @@ where
     }
 }
 
+impl<T, D> Drop for SubscriptionSet<T, D>
+where
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
+{
+    fn drop(&mut self) {
+        // Unregistering self to clean up subscriptions list if required.
+        let Some(client) = self.client().upgrade().clone() else {
+            return;
+        };
+
+        if let Some(manager) = client.subscription_manager(false).write().as_mut() {
+            if let Some((_, handler)) = self.clones.read().iter().next() {
+                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                manager.unregister(&handler);
+            }
+        }
+    }
+}
+
 impl<T, D> Debug for SubscriptionSet<T, D>
 where
     T: Transport + Send + Sync + 'static,

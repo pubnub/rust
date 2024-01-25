@@ -75,23 +75,23 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
             Update::Message(message) | Update::Signal(message) => {
                 // Deserialize the message payload as you wish
                 match serde_json::from_slice::<Message>(&message.data) {
-                    Ok(message) => println!("defined message: {:?}", message),
+                    Ok(message) => println!("(a) defined message: {:?}", message),
                     Err(_) => {
-                        println!("other message: {:?}", String::from_utf8(message.data))
+                        println!("(a) other message: {:?}", String::from_utf8(message.data))
                     }
                 }
             }
             Update::Presence(presence) => {
-                println!("presence: {:?}", presence)
+                println!("(a) presence: {:?}", presence)
             }
             Update::AppContext(object) => {
-                println!("object: {:?}", object)
+                println!("(a) object: {:?}", object)
             }
             Update::MessageAction(action) => {
-                println!("message action: {:?}", action)
+                println!("(a) message action: {:?}", action)
             }
             Update::File(file) => {
-                println!("file: {:?}", file)
+                println!("(a) file: {:?}", file)
             }
         }
     }));
@@ -101,23 +101,23 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
             Update::Message(message) | Update::Signal(message) => {
                 // Deserialize the message payload as you wish
                 match serde_json::from_slice::<Message>(&message.data) {
-                    Ok(message) => println!("~~~~~> defined message: {:?}", message),
+                    Ok(message) => println!("(b) defined message: {:?}", message),
                     Err(_) => {
-                        println!("other message: {:?}", String::from_utf8(message.data))
+                        println!("(b) other message: {:?}", String::from_utf8(message.data))
                     }
                 }
             }
             Update::Presence(presence) => {
-                println!("~~~~~> presence: {:?}", presence)
+                println!("(b) presence: {:?}", presence)
             }
             Update::AppContext(object) => {
-                println!("~~~~~> object: {:?}", object)
+                println!("(b) object: {:?}", object)
             }
             Update::MessageAction(action) => {
-                println!("~~~~~> message action: {:?}", action)
+                println!("(b) message action: {:?}", action)
             }
             Update::File(file) => {
-                println!("~~~~~> file: {:?}", file)
+                println!("(b) file: {:?}", file)
             }
         }
     }));
@@ -131,15 +131,23 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // You can also cancel the subscription at any time.
     // subscription.unsubscribe();
 
+    println!("\nDisconnect from the real-time data stream");
     client.disconnect();
 
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
+    println!("\nReconnect to the real-time data stream");
     client.reconnect(None);
 
     // Let event engine process unsubscribe request
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
+    // If Subscription or Subscription will go out of scope they will unsubscribe.
+    // drop(subscription);
+    // drop(subscription_clone);
+
+    println!(
+        "\nUnsubscribe from all data streams. To restore requires `subscription.subscribe(None)` call." );
     // Clean up before complete work with PubNub client instance.
     client.unsubscribe_all();
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;

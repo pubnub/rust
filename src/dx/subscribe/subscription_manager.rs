@@ -31,7 +31,7 @@ use crate::{
 
 #[cfg(feature = "presence")]
 pub(in crate::dx::subscribe) type PresenceCall =
-    dyn Fn(Option<Vec<String>>, Option<Vec<String>>) + Send + Sync;
+    dyn Fn(Option<Vec<String>>, Option<Vec<String>>, bool) + Send + Sync;
 
 /// Active subscriptions' manager.
 ///
@@ -296,12 +296,17 @@ where
 
         #[cfg(feature = "presence")]
         {
-            (!inputs.is_empty && removed.is_none())
-                .then(|| self.heartbeat_call.as_ref()(channels.clone(), channel_groups.clone()));
+            (!inputs.is_empty && removed.is_none()).then(|| {
+                self.heartbeat_call.as_ref()(channels.clone(), channel_groups.clone(), false)
+            });
 
             if let Some(removed) = removed {
                 if !removed.is_empty {
-                    self.leave_call.as_ref()(removed.channels(), removed.channel_groups());
+                    self.leave_call.as_ref()(
+                        removed.channels(),
+                        removed.channel_groups(),
+                        inputs.is_empty,
+                    );
                 }
             }
         }
@@ -318,7 +323,7 @@ where
 
         #[cfg(feature = "presence")]
         if !inputs.is_empty {
-            self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups());
+            self.heartbeat_call.as_ref()(inputs.channels(), inputs.channel_groups(), false);
         }
 
         self.event_engine
@@ -424,12 +429,12 @@ mod should {
         let mut manager = SubscriptionManager::new(
             event_engine(),
             #[cfg(feature = "presence")]
-            Arc::new(|channels, _| {
+            Arc::new(|channels, _, _| {
                 assert!(channels.is_some());
                 assert_eq!(channels.unwrap().len(), 1);
             }),
             #[cfg(feature = "presence")]
-            Arc::new(|_, _| {}),
+            Arc::new(|_, _, _| {}),
         );
         let channel = client.channel("test");
         let subscription = channel.subscription(None);
@@ -447,9 +452,9 @@ mod should {
         let mut manager = SubscriptionManager::new(
             event_engine(),
             #[cfg(feature = "presence")]
-            Arc::new(|_, _| {}),
+            Arc::new(|_, _, _| {}),
             #[cfg(feature = "presence")]
-            Arc::new(|channels, _| {
+            Arc::new(|channels, _, _| {
                 assert!(channels.is_some());
                 assert_eq!(channels.unwrap().len(), 1);
             }),
@@ -471,9 +476,9 @@ mod should {
         let mut manager = SubscriptionManager::new(
             event_engine(),
             #[cfg(feature = "presence")]
-            Arc::new(|_, _| {}),
+            Arc::new(|_, _, _| {}),
             #[cfg(feature = "presence")]
-            Arc::new(|_, _| {}),
+            Arc::new(|_, _, _| {}),
         );
         let cursor: SubscriptionCursor = "15800701771129796".to_string().into();
         let channel = client.channel("test");

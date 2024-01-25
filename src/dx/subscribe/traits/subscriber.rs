@@ -4,12 +4,13 @@
 //! which is used by types to provide ability to subscribe for real-time events.
 
 use crate::{
+    core::{Deserializer, Transport},
     lib::alloc::vec::Vec,
     subscribe::{Subscription, SubscriptionOptions},
 };
 
 /// Trait representing a subscriber.
-pub trait Subscriber<T: Send + Sync, D: Send + Sync> {
+pub trait Subscriber<T: Transport + Send + Sync, D: Deserializer + Send + Sync> {
     /// Creates a new subscription with the specified options.
     ///
     /// # Arguments

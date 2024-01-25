@@ -22,7 +22,7 @@ use crate::{
         core::{
             cmp::PartialEq,
             fmt::{Debug, Formatter, Result},
-            ops::{Add, Deref, DerefMut},
+            ops::{Add, Deref, DerefMut, Drop},
         },
     },
     subscribe::{
@@ -89,7 +89,10 @@ use crate::{
 /// #     Ok(())
 /// # }
 /// ```
-pub struct Subscription<T: Send + Sync, D: Send + Sync> {
+pub struct Subscription<
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
+> {
     /// Subscription reference.
     pub(super) inner: Arc<SubscriptionRef<T, D>>,
 }
@@ -234,8 +237,8 @@ where
 
 impl<T, D> Deref for Subscription<T, D>
 where
-    T: Send + Sync,
-    D: Send + Sync,
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
 {
     type Target = SubscriptionRef<T, D>;
 
@@ -246,8 +249,8 @@ where
 
 impl<T, D> DerefMut for Subscription<T, D>
 where
-    T: Send + Sync,
-    D: Send + Sync,
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         Arc::get_mut(&mut self.inner)
@@ -257,12 +260,32 @@ where
 
 impl<T, D> Clone for Subscription<T, D>
 where
-    T: Send + Sync,
-    D: Send + Sync,
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
 {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<T, D> Drop for Subscription<T, D>
+where
+    T: Transport + Send + Sync + 'static,
+    D: Deserializer + Send + Sync + 'static,
+{
+    fn drop(&mut self) {
+        // Unregistering self to clean up subscriptions list if required.
+        let Some(client) = self.client().upgrade().clone() else {
+            return;
+        };
+
+        if let Some(manager) = client.subscription_manager(false).write().as_mut() {
+            if let Some((_, handler)) = self.clones.read().iter().next() {
+                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                manager.unregister(&handler);
+            }
         }
     }
 }
@@ -284,8 +307,8 @@ where
 
 impl<T, D> PartialEq for Subscription<T, D>
 where
-    T: Send + Sync,
-    D: Send + Sync,
+    T: Transport + Send + Sync,
+    D: Deserializer + Send + Sync,
 {
     fn eq(&self, other: &Self) -> bool {
         self.id.eq(&other.id)

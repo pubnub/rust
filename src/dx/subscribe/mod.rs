@@ -405,9 +405,6 @@ where
                 manager.unregister_all()
             }
         }
-
-        #[cfg(feature = "presence")]
-        self.announce_left_all();
     }
 
     /// Subscription manager which maintains Subscription EE.
@@ -443,12 +440,12 @@ where
                 *slot = Some(SubscriptionManager::new(
                     self.subscribe_event_engine(),
                     #[cfg(feature = "presence")]
-                    Arc::new(move |channels, groups| {
+                    Arc::new(move |channels, groups, _all| {
                         Self::subscribe_heartbeat_call(heartbeat_self.clone(), channels, groups);
                     }),
                     #[cfg(feature = "presence")]
-                    Arc::new(move |channels, groups| {
-                        Self::subscribe_leave_call(leave_self.clone(), channels, groups);
+                    Arc::new(move |channels, groups, all| {
+                        Self::subscribe_leave_call(leave_self.clone(), channels, groups, all);
                     }),
                 ));
             }
@@ -572,11 +569,16 @@ where
         client: Self,
         channels: Option<Vec<String>>,
         channel_groups: Option<Vec<String>>,
+        all: bool,
     ) {
-        client.announce_left(
-            Self::presence_filtered_entries(channels),
-            Self::presence_filtered_entries(channel_groups),
-        );
+        if !all {
+            client.announce_left(
+                Self::presence_filtered_entries(channels),
+                Self::presence_filtered_entries(channel_groups),
+            );
+        } else {
+            client.announce_left_all()
+        }
     }
 
     fn emit_status(client: Self, status: &ConnectionStatus) {
