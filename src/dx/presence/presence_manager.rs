@@ -3,8 +3,9 @@
 //! This module contains [`PresenceManager`] which allow user to configure
 //! presence / heartbeat module components.
 
+use crate::presence::event_engine::PresenceEffectInvocation;
 use crate::{
-    dx::presence::event_engine::PresenceEventEngine,
+    dx::presence::event_engine::{PresenceEvent, PresenceEventEngine},
     lib::{
         alloc::{string::String, sync::Arc, vec::Vec},
         core::{
@@ -24,13 +25,27 @@ pub(crate) struct PresenceManager {
 }
 
 impl PresenceManager {
-    pub fn new(event_engine: Arc<PresenceEventEngine>, state: Option<Vec<u8>>) -> Self {
+    pub fn new(
+        event_engine: Arc<PresenceEventEngine>,
+        heartbeat_interval: u64,
+        suppress_leave_events: bool,
+    ) -> Self {
         Self {
             inner: Arc::new(PresenceManagerRef {
                 event_engine,
-                state,
+                heartbeat_interval,
+                suppress_leave_events,
             }),
         }
+    }
+
+    /// Terminate subscription manager.
+    ///
+    /// Gracefully terminate all ongoing tasks including detached event engine
+    /// loop.
+    pub fn terminate(&self) {
+        self.event_engine
+            .stop(PresenceEffectInvocation::TerminateEventEngine);
     }
 }
 
@@ -64,65 +79,59 @@ pub(crate) struct PresenceManagerRef {
     /// Presence event engine.
     pub event_engine: Arc<PresenceEventEngine>,
 
-    /// A state that should be associated with the `user_id`.
+    /// `user_id` presence announcement interval.
+    heartbeat_interval: u64,
+
+    /// Whether `user_id` leave should be announced or not.
     ///
-    /// `state` object should be a `HashMap` with channel names as keys and
-    /// nested `HashMap` with values. State with heartbeat can be set **only**
-    /// for channels.
-    ///
-    /// # Example:
-    /// ```rust,no_run
-    /// # use std::collections::HashMap;
-    /// # fn main() {
-    /// let state = HashMap::<String, HashMap<String, bool>>::from([(
-    ///     "announce".into(),
-    ///     HashMap::from([
-    ///         ("is_owner".into(), false),
-    ///         ("is_admin".into(), true)
-    ///     ])
-    /// )]);
-    /// # }
-    /// ```
-    pub state: Option<Vec<u8>>,
+    /// When set to `true` and `user_id` will unsubscribe, the client wouldn't
+    /// announce `leave`, and as a result, there will be no `leave` presence
+    /// event generated.
+    suppress_leave_events: bool,
 }
 
 impl PresenceManagerRef {
     /// Announce `join` for `user_id` on provided channels and groups.
     pub(crate) fn announce_join(
         &self,
-        _channels: Option<Vec<String>>,
-        _channel_groups: Option<Vec<String>>,
+        channels: Option<Vec<String>>,
+        channel_groups: Option<Vec<String>>,
     ) {
-        // TODO: Uncomment after contract test server fix.
-        // self.event_engine.process(&PresenceEvent::Joined {
-        //     channels,
-        //     channel_groups,
-        // })
+        self.event_engine.process(&PresenceEvent::Joined {
+            heartbeat_interval: self.heartbeat_interval,
+            channels,
+            channel_groups,
+        });
     }
 
     /// Announce `leave` for `user_id` on provided channels and groups.
     pub(crate) fn announce_left(
         &self,
-        _channels: Option<Vec<String>>,
-        _channel_groups: Option<Vec<String>>,
+        channels: Option<Vec<String>>,
+        channel_groups: Option<Vec<String>>,
     ) {
-        // TODO: Uncomment after contract test server fix.
-        // self.event_engine.process(&PresenceEvent::Left {
-        //     channels,
-        //     channel_groups,
-        // })
+        self.event_engine.process(&PresenceEvent::Left {
+            suppress_leave_events: self.suppress_leave_events,
+            channels,
+            channel_groups,
+        })
+    }
+
+    /// Announce `leave` for `user_id` on all active channels and groups.
+    pub(crate) fn announce_left_all(&self) {
+        self.event_engine.process(&PresenceEvent::LeftAll {
+            suppress_leave_events: self.suppress_leave_events,
+        })
     }
 
     /// Announce `leave` while client disconnected.
     pub(crate) fn disconnect(&self) {
-        // TODO: Uncomment after contract test server fix.
-        // self.event_engine.process(&PresenceEvent::Disconnect);
+        self.event_engine.process(&PresenceEvent::Disconnect);
     }
 
     /// Announce `join` upon client connection.
     pub(crate) fn reconnect(&self) {
-        // TODO: Uncomment after contract test server fix.
-        // self.event_engine.process(&PresenceEvent::Reconnect);
+        self.event_engine.process(&PresenceEvent::Reconnect);
     }
 }
 
@@ -130,7 +139,7 @@ impl Debug for PresenceManagerRef {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "PresenceConfiguration {{\n\tevent_engine: {:?}\n}}",
+            "PresenceConfiguration {{ event_engine: {:?} }}",
             self.event_engine
         )
     }

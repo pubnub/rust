@@ -17,7 +17,7 @@ use crate::{
 /// Object contains information about channels and groups which should be used
 /// with presence event engine states.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct PresenceInput {
+pub struct PresenceInput {
     /// Optional list of channels.
     ///
     /// List of channels for which `user_id` presence should be managed.
@@ -133,7 +133,7 @@ impl Sub for PresenceInput {
 ///
 /// Data objects are used by the presence event engine to communicate between
 /// components.
-pub(crate) struct PresenceParameters<'execution> {
+pub struct PresenceParameters<'execution> {
     /// List of channel for which `user_id` presence should be announced.
     pub channels: &'execution Option<Vec<String>>,
 

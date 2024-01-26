@@ -1,9 +1,20 @@
 name: rust
-version: 0.4.1
+version: 0.5.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2024-01-25
+    version: 0.5.0
+    changes:
+      - type: feature
+        text: "Change the real-time event handling interface."
+      - type: feature
+        text: "`user_id` state for specified channels will be maintained by the SDK. State with subscribe calls has been improved."
+      - type: feature
+        text: "Adding `Channel`, `ChannelGroup`, `ChannelMetadata` and `UuidMetadata` entities to be first-class citizens to access APIs related to them. Currently, access is provided only for subscription APIs."
+      - type: feature
+        text: "Added ability to configure request retry policies to exclude specific endpoints from retry."
   - date: 2023-11-03
     version: 0.4.1
     changes:

@@ -73,7 +73,6 @@ pub enum Token {
 /// permissions.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[allow(dead_code)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct TokenV2 {
     /// Access token version (version 2).
@@ -107,7 +106,6 @@ pub struct TokenV2 {
 /// Typed resource permissions map.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[allow(dead_code)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct TokenResources {
     /// `Channel`-based endpoints permission map between channel name / regexp
@@ -148,7 +146,6 @@ impl From<u8> for ResourcePermissions {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-#[allow(dead_code)]
 #[cfg_attr(feature = "serde", serde(from = "u8"))]
 pub struct ResourcePermissions {
     /// Whether or not the resource has **read** permission.

@@ -13,12 +13,6 @@ use futures::{
 #[cfg(feature = "std")]
 use spin::RwLock;
 
-use crate::{
-    core::{Deserializer, Serialize, Transport},
-    dx::pubnub_client::PubNubClientInstance,
-    lib::alloc::string::ToString,
-};
-
 #[doc(inline)]
 pub use builders::*;
 pub mod builders;
@@ -32,20 +26,34 @@ pub mod result;
 pub(crate) use presence_manager::PresenceManager;
 #[cfg(feature = "std")]
 pub(crate) mod presence_manager;
+
 #[cfg(feature = "std")]
 #[doc(inline)]
 pub(crate) use event_engine::{
-    types::PresenceParameters, PresenceEffectHandler, PresenceEventEngine, PresenceState,
+    PresenceEffectHandler, PresenceEventEngine, PresenceParameters, PresenceState,
 };
 #[cfg(feature = "std")]
 pub(crate) mod event_engine;
+
 #[cfg(feature = "std")]
 use crate::{
     core::{
         event_engine::{cancel::CancellationTask, EventEngine},
-        PubNubError, Runtime,
+        Deserializer, PubNubError, Runtime, Transport,
     },
     lib::alloc::sync::Arc,
+};
+
+use crate::{
+    core::Serialize,
+    dx::pubnub_client::PubNubClientInstance,
+    lib::{
+        alloc::{
+            string::{String, ToString},
+            vec::Vec,
+        },
+        collections::HashMap,
+    },
 };
 
 impl<T, D> PubNubClientInstance<T, D> {
@@ -59,28 +67,28 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// # Example
     /// ```rust
     /// use pubnub::presence::*;
-    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// # use pubnub::{core::Serialize, Keyset, PubNubClientBuilder};
     /// # use std::collections::HashMap;
     ///
     /// #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut pubnub = // PubNubClient
-    /// #         PubNubClientBuilder::with_reqwest_transport()
-    /// #             .with_keyset(Keyset {
-    /// #                 subscribe_key: "demo",
-    /// #                 publish_key: None,
-    /// #                 secret_key: None
-    /// #             })
-    /// #             .with_user_id("uuid")
-    /// #             .build()?;
+    /// #     PubNubClientBuilder::with_reqwest_transport()
+    /// #         .with_keyset(Keyset {
+    /// #             subscribe_key: "demo",
+    /// #             publish_key: None,
+    /// #             secret_key: None
+    /// #         })
+    /// #         .with_user_id("uuid")
+    /// #         .build()?;
     /// pubnub
     ///     .heartbeat()
     ///     .channels(["lobby".into(), "announce".into()])
     ///     .channel_groups(["area-51".into()])
-    ///     .state(HashMap::<String, HashMap<String, bool>>::from(
+    ///     .state(HashMap::<String, Vec<u8>>::from(
     ///         [(
-    ///             "lobby".into(),
-    ///             HashMap::from([("is_admin".into(), false)])
+    ///             String::from("lobby"),
+    ///             HashMap::from([("is_admin".to_string(), false)]).serialize()?
     ///         )]
     ///     ))
     ///     .execute()
@@ -91,7 +99,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     pub fn heartbeat(&self) -> HeartbeatRequestBuilder<T, D> {
         HeartbeatRequestBuilder {
             pubnub_client: Some(self.clone()),
-            heartbeat: Some(self.config.heartbeat_value),
+            heartbeat: Some(self.config.presence.heartbeat_value),
             user_id: Some(self.config.user_id.clone().to_string()),
             ..Default::default()
         }
@@ -104,6 +112,32 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// `user_id` on channels.
     ///
     /// Instance of [`LeaveRequestBuilder`] returned.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pubnub::presence::*;
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    ///
+    /// #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut pubnub = // PubNubClient
+    /// #         PubNubClientBuilder::with_reqwest_transport()
+    /// #             .with_keyset(Keyset {
+    /// #                 subscribe_key: "demo",
+    /// #                 publish_key: None,
+    /// #                 secret_key: None
+    /// #             })
+    /// #             .with_user_id("uuid")
+    /// #             .build()?;
+    /// pubnub
+    ///     .leave()
+    ///     .channels(["lobby".into(), "announce".into()])
+    ///     .channel_groups(["area-51".into()])
+    ///     .execute()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn leave(&self) -> LeaveRequestBuilder<T, D> {
         LeaveRequestBuilder {
             pubnub_client: Some(self.clone()),
@@ -115,7 +149,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// Create a set state request builder.
     ///
     /// This method is used to update state associated with `user_id` on
-    /// channels and and channels registered with channel groups.
+    /// channels and channels registered with channel groups.
     ///
     /// Instance of [`SetStateRequestBuilder`] returned.
     ///
@@ -127,7 +161,6 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///
     /// #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use std::sync::Arc;
     /// let mut pubnub = // PubNubClient
     /// #         PubNubClientBuilder::with_reqwest_transport()
     /// #             .with_keyset(Keyset {
@@ -139,7 +172,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #             .build()?;
     /// pubnub
     ///     .set_presence_state(HashMap::<String, bool>::from(
-    ///          [("is_admin".into(), false)]
+    ///          [(String::from("is_admin"), false)]
     ///      ))
     ///     .channels(["lobby".into(), "announce".into()])
     ///     .channel_groups(["area-51".into()])
@@ -148,35 +181,43 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "serde")]
     pub fn set_presence_state<S>(&self, state: S) -> SetStateRequestBuilder<T, D>
     where
-        S: Serialize + Send + Sync + 'static,
+        T: 'static,
+        D: 'static,
+        S: serde::Serialize,
     {
+        #[cfg(feature = "std")]
+        let client = self.clone();
+
         SetStateRequestBuilder {
             pubnub_client: Some(self.clone()),
-            state: Some(state.serialize().ok()),
+            state: Some(serde_json::to_vec(&state).ok()),
             user_id: Some(self.config.user_id.clone().to_string()),
+
+            #[cfg(feature = "std")]
+            on_execute: Some(Arc::new(move |channels, state| {
+                let Some(state) = state else {
+                    return;
+                };
+
+                client.update_presence_state(channels.into_iter().fold(
+                    HashMap::new(),
+                    |mut acc, channel| {
+                        acc.insert(channel, state.clone());
+                        acc
+                    },
+                ))
+            })),
             ..Default::default()
         }
     }
 
-    /// Create a heartbeat request builder.
+    /// Create a set state request builder.
     ///
     /// This method is used to update state associated with `user_id` on
-    /// channels using `heartbeat` operation endpoint.
-    ///
-    /// Instance of [`HeartbeatRequestsBuilder`] returned.
-    pub fn set_state_with_heartbeat<U>(&self, state: U) -> HeartbeatRequestBuilder<T, D>
-    where
-        U: Serialize + Send + Sync + 'static,
-    {
-        self.heartbeat().state(state)
-    }
-
-    /// Create a get state request builder.
-    ///
-    /// This method is used to get state associated with `user_id` on
-    /// channels and and channels registered with channel groups.
+    /// channels and channels registered with channel groups.
     ///
     /// Instance of [`SetStateRequestBuilder`] returned.
     ///
@@ -188,7 +229,130 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///
     /// #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use std::sync::Arc;
+    /// let mut pubnub = // PubNubClient
+    /// #         PubNubClientBuilder::with_reqwest_transport()
+    /// #             .with_keyset(Keyset {
+    /// #                 subscribe_key: "demo",
+    /// #                 publish_key: None,
+    /// #                 secret_key: None
+    /// #             })
+    /// #             .with_user_id("uuid")
+    /// #             .build()?;
+    /// pubnub
+    ///     .set_presence_state(HashMap::<String, bool>::from(
+    ///          [(String::from("is_admin"), false)]
+    ///      ))
+    ///     .channels(["lobby".into(), "announce".into()])
+    ///     .channel_groups(["area-51".into()])
+    ///     .execute()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(not(feature = "serde"))]
+    pub fn set_presence_state<S>(&self, state: S) -> SetStateRequestBuilder<T, D>
+    where
+        T: 'static,
+        D: 'static,
+        S: Serialize,
+    {
+        #[cfg(feature = "std")]
+        let client = self.clone();
+
+        SetStateRequestBuilder {
+            pubnub_client: Some(self.clone()),
+            state: Some(state.serialize().ok()),
+            user_id: Some(self.config.user_id.clone().to_string()),
+
+            #[cfg(feature = "std")]
+            on_execute: Some(Arc::new(move |channels, state| {
+                let Some(state) = state else {
+                    return;
+                };
+
+                client.update_presence_state(channels.into_iter().fold(
+                    HashMap::new(),
+                    |mut acc, channel| {
+                        acc.insert(channel, state.clone());
+                        acc
+                    },
+                ))
+            })),
+            ..Default::default()
+        }
+    }
+
+    /// Create a heartbeat request builder.
+    ///
+    /// This method is used to update state associated with `user_id` on
+    /// channels using `heartbeat` operation endpoint. State with heartbeat can
+    /// be set **only** for channels.
+    ///
+    /// Instance of [`HeartbeatRequestsBuilder`] returned.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pubnub::presence::*;
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    /// # use std::collections::HashMap;
+    ///
+    /// #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut pubnub = // PubNubClient
+    /// #         PubNubClientBuilder::with_reqwest_transport()
+    /// #             .with_keyset(Keyset {
+    /// #                 subscribe_key: "demo",
+    /// #                 publish_key: None,
+    /// #                 secret_key: None
+    /// #             })
+    /// #             .with_user_id("uuid")
+    /// #             .build()?;
+    /// pubnub
+    ///     .set_presence_state_with_heartbeat(HashMap::from([
+    ///          ("lobby".to_string(), HashMap::from([("key".to_string(), "value".to_string())])),
+    ///          ("announce".to_string(), HashMap::from([("key".to_string(), "value".to_string())])),
+    ///     ]))
+    ///     .channels(["lobby".into(), "announce".into()])
+    ///     .channel_groups(["area-51".into()])
+    ///     .execute()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_presence_state_with_heartbeat<S>(
+        &self,
+        state: HashMap<String, S>,
+    ) -> HeartbeatRequestBuilder<T, D>
+    where
+        S: Serialize,
+    {
+        let mapped = state
+            .iter()
+            .fold(HashMap::new(), |mut acc, (channel, state)| {
+                if let Ok(serialized_state) = state.serialize() {
+                    acc.insert(channel.clone(), serialized_state);
+                }
+                acc
+            });
+
+        self.update_presence_state(mapped.clone());
+        self.heartbeat().state(mapped)
+    }
+
+    /// Create a get state request builder.
+    ///
+    /// This method is used to get state associated with `user_id` on
+    /// channels and channels registered with channel groups.
+    ///
+    /// Instance of [`GetStateRequestBuilder`] returned.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pubnub::presence::*;
+    /// # use pubnub::{Keyset, PubNubClientBuilder};
+    ///
+    /// #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut pubnub = // PubNubClient
     /// #         PubNubClientBuilder::with_reqwest_transport()
     /// #             .with_keyset(Keyset {
@@ -226,7 +390,6 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// ```rust
     /// use pubnub::presence::*;
     /// # use pubnub::{Keyset, PubNubClientBuilder};
-    /// # use std::collections::HashMap;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -270,11 +433,9 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// ```rust
     /// use pubnub::presence::*;
     /// # use pubnub::{Keyset, PubNubClientBuilder};
-    /// # use std::collections::HashMap;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use std::sync::Arc;
     /// let mut pubnub = // PubNubClient
     /// #         PubNubClientBuilder::with_reqwest_transport()
     /// #             .with_keyset(Keyset {
@@ -285,7 +446,6 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #             .with_user_id("uuid")
     /// #             .build()?;
     /// let response = pubnub.where_now().user_id("user_id").execute().await?;
-
     ///
     /// println!("User channels: {:?}", response);
     ///
@@ -298,59 +458,92 @@ impl<T, D> PubNubClientInstance<T, D> {
             ..Default::default()
         }
     }
+
+    /// Update presence state associated with `user_id`.
+    pub(crate) fn update_presence_state(&self, accumulated_state: HashMap<String, Vec<u8>>) {
+        if accumulated_state.is_empty() {
+            return;
+        }
+
+        let mut current_state = self.state.write();
+        accumulated_state.into_iter().for_each(|(channel, state)| {
+            current_state.insert(channel, state.clone());
+        });
+    }
 }
 
+#[cfg(feature = "std")]
 impl<T, D> PubNubClientInstance<T, D>
 where
     T: Transport + Send + 'static,
     D: Deserializer + 'static,
 {
     /// Announce `join` for `user_id` on provided channels and groups.
-    #[cfg(feature = "std")]
-    #[allow(dead_code)]
     pub(crate) fn announce_join(
         &self,
         channels: Option<Vec<String>>,
         channel_groups: Option<Vec<String>>,
     ) {
-        self.configure_presence();
-
         {
-            let slot = self.presence.read();
-            if let Some(presence) = slot.as_ref() {
+            if let Some(presence) = self.presence_manager(true).read().as_ref() {
                 presence.announce_join(channels, channel_groups);
-            }
+            };
         };
     }
 
     /// Announce `leave` for `user_id` on provided channels and groups.
-    #[cfg(feature = "std")]
-    #[allow(dead_code)]
     pub(crate) fn announce_left(
         &self,
         channels: Option<Vec<String>>,
         channel_groups: Option<Vec<String>>,
     ) {
-        self.configure_presence();
-
         {
-            let slot = self.presence.read();
-            if let Some(presence) = slot.as_ref() {
+            if let Some(presence) = self.presence_manager(false).read().as_ref() {
                 presence.announce_left(channels, channel_groups);
-            }
+            };
         };
     }
 
-    /// Complete presence configuration.
+    /// Announce `leave` for `user_id` on all active channels and groups.
+    pub(crate) fn announce_left_all(&self) {
+        {
+            if let Some(presence) = self.presence_manager(false).read().as_ref() {
+                presence.announce_left_all();
+            }
+        }
+    }
+
+    /// Presence manager which maintains Presence EE.
     ///
-    /// Presence configuration used only with presence event engine.
-    #[cfg(feature = "std")]
-    pub(crate) fn configure_presence(&self) -> Arc<RwLock<Option<PresenceManager>>> {
+    /// # Arguments
+    ///
+    /// `create` - Whether manager should be created if not initialized.
+    ///
+    /// # Returns
+    ///
+    /// Returns an [`PresenceManager`] which represents the manager.
+    #[cfg(all(feature = "presence", feature = "std"))]
+    pub(crate) fn presence_manager(&self, create: bool) -> Arc<RwLock<Option<PresenceManager>>> {
+        if self.config.presence.heartbeat_interval.unwrap_or(0).eq(&0) {
+            return self.presence.clone();
+        }
+
+        {
+            let manager = self.presence.read();
+            if manager.is_some() || !create {
+                return self.presence.clone();
+            }
+        }
+
         {
             let mut slot = self.presence.write();
-            if slot.is_none() {
-                *slot = Some(PresenceManager::new(self.presence_event_engine(), None));
-            }
+            if slot.is_none() && create {
+                *slot = Some(PresenceManager::new(
+                    self.presence_event_engine(),
+                    self.config.presence.heartbeat_interval.unwrap_or_default(),
+                    self.config.presence.suppress_leave_events,
+                ));
+            };
         }
 
         self.presence.clone()
@@ -360,7 +553,6 @@ where
     ///
     /// Prepare presence event engine instance which will be used for `user_id`
     /// presence announcement and management.
-    #[cfg(feature = "std")]
     fn presence_event_engine(&self) -> Arc<PresenceEventEngine> {
         let channel_bound = 3;
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
@@ -371,8 +563,8 @@ where
         let heartbeat_call_client = self.clone();
         let leave_call_client = self.clone();
         let wait_call_client = self.clone();
-        let request_retry_delay_policy = self.config.retry_policy.clone();
-        let request_retry_policy = self.config.retry_policy.clone();
+        let request_retry = self.config.transport.retry_configuration.clone();
+        let request_delayed_retry = request_retry.clone();
         let delayed_heartbeat_runtime_sleep = runtime.clone();
         let wait_runtime_sleep = runtime.clone();
 
@@ -382,16 +574,22 @@ where
                     Self::heartbeat_call(heartbeat_call_client.clone(), parameters.clone())
                 }),
                 Arc::new(move |parameters| {
-                    let delay_in_secs = request_retry_delay_policy
-                        .retry_delay(&parameters.attempt, parameters.reason.as_ref());
+                    let delay_in_microseconds = request_delayed_retry.retry_delay(
+                        Some("/v2/presence".to_string()),
+                        &parameters.attempt,
+                        parameters.reason.as_ref(),
+                    );
                     let inner_runtime_sleep = delayed_heartbeat_runtime_sleep.clone();
 
                     Self::delayed_heartbeat_call(
                         delayed_heartbeat_call_client.clone(),
                         parameters.clone(),
                         Arc::new(move || {
-                            if let Some(delay) = delay_in_secs {
-                                inner_runtime_sleep.clone().sleep(delay).boxed()
+                            if let Some(delay) = delay_in_microseconds {
+                                inner_runtime_sleep
+                                    .clone()
+                                    .sleep_microseconds(delay)
+                                    .boxed()
                             } else {
                                 ready(()).boxed()
                             }
@@ -403,7 +601,7 @@ where
                     Self::leave_call(leave_call_client.clone(), parameters.clone())
                 }),
                 Arc::new(move |effect_id| {
-                    let delay_in_secs = wait_call_client.config.heartbeat_interval;
+                    let delay_in_secs = wait_call_client.config.presence.heartbeat_interval;
                     let inner_runtime_sleep = wait_runtime_sleep.clone();
 
                     Self::wait_call(
@@ -418,7 +616,7 @@ where
                         wait_cancel_rx.clone(),
                     )
                 }),
-                request_retry_policy,
+                request_retry,
                 cancel_tx,
             ),
             PresenceState::Inactive,
@@ -427,16 +625,20 @@ where
     }
 
     /// Call to announce `user_id` presence.
-    #[cfg(feature = "std")]
     pub(crate) fn heartbeat_call(
         client: Self,
         params: PresenceParameters,
     ) -> BoxFuture<'static, Result<HeartbeatResult, PubNubError>> {
-        client.heartbeat_request(params).execute().boxed()
+        let mut request = client.heartbeat_request(params);
+        let state = client.state.read();
+        if !state.is_empty() {
+            request = request.state(state.clone());
+        }
+
+        request.execute().boxed()
     }
 
     /// Call delayed announce of `user_id` presence.
-    #[cfg(feature = "std")]
     pub(crate) fn delayed_heartbeat_call<F>(
         client: Self,
         params: PresenceParameters,
@@ -456,11 +658,14 @@ where
     }
 
     /// Call announce `leave` for `user_id`.
-    #[cfg(feature = "std")]
     pub(crate) fn leave_call(
         client: Self,
         params: PresenceParameters,
     ) -> BoxFuture<'static, Result<LeaveResult, PubNubError>> {
+        if client.config.presence.suppress_leave_events {
+            return ready(Ok(LeaveResult)).boxed();
+        }
+
         let mut request = client.leave();
 
         if let Some(channels) = params.channels.clone() {
@@ -475,7 +680,6 @@ where
     }
 
     /// Heartbeat idle.
-    #[cfg(feature = "std")]
     pub(crate) fn wait_call<F>(
         effect_id: &str,
         delay: Arc<F>,
@@ -497,25 +701,6 @@ where
         .boxed()
     }
 
-    #[cfg(feature = "std")]
-    /// Call to update `state` associated with `user_id`.
-    #[allow(dead_code)]
-    pub(crate) fn set_heartbeat_call<U>(client: Self, _params: PresenceParameters, state: U)
-    where
-        U: Serialize + Send + Sync + 'static,
-    {
-        // TODO: This is still under development and will be part of EE.
-        {
-            client.configure_presence();
-
-            let state = state.serialize().ok();
-            if let Some(presence) = client.presence.clone().write().as_mut() {
-                presence.state = state;
-            }
-        }
-    }
-
-    #[cfg(feature = "std")]
     pub(crate) fn heartbeat_request(
         &self,
         params: PresenceParameters,
@@ -529,10 +714,10 @@ where
         if let Some(channel_groups) = params.channel_groups.clone() {
             request = request.channel_groups(channel_groups);
         }
-
-        if let Some(presence) = self.presence.clone().read().as_ref() {
-            request = request.state_serialized(presence.state.clone())
-        }
+        //
+        // if let Some(presence) = self.presence.clone().read().as_ref() {
+        //     request = request.state_serialized(presence.state.clone())
+        // }
 
         request
     }
@@ -544,7 +729,10 @@ mod it_should {
     use crate::core::{PubNubError, Transport, TransportRequest, TransportResponse};
     use crate::providers::deserialization_serde::DeserializerSerde;
     use crate::transport::middleware::PubNubMiddleware;
-    use crate::{lib::collections::HashMap, Keyset, PubNubClientBuilder};
+    use crate::{
+        lib::{alloc::vec::Vec, collections::HashMap},
+        Keyset, PubNubClientBuilder,
+    };
 
     /// Requests handler function type.
     type RequestHandler = Box<dyn Fn(&TransportRequest) + Send + Sync>;
@@ -628,9 +816,12 @@ mod it_should {
 
         let result = client
             .heartbeat()
-            .state(HashMap::<String, HashMap<String, bool>>::from([(
-                "hello".into(),
-                HashMap::from([("is_admin".into(), false)]),
+            .state(HashMap::<String, Vec<u8>>::from([(
+                String::from("hello"),
+                HashMap::<String, bool>::from([(String::from("is_admin"), false)])
+                    .serialize()
+                    .ok()
+                    .unwrap(),
             )]))
             .channels(["hello".into()])
             .user_id("my_user")
@@ -659,14 +850,26 @@ mod it_should {
 
         let _ = client(true, Some(transport))
             .heartbeat()
-            .state(HashMap::<String, HashMap<String, String>>::from([
+            .state(HashMap::<String, Vec<u8>>::from([
                 (
-                    "channel_a".into(),
-                    HashMap::<String, String>::from([("value_a".into(), "secret_a".into())]),
+                    String::from("channel_a"),
+                    HashMap::<String, String>::from([(
+                        String::from("value_a"),
+                        String::from("secret_a"),
+                    )])
+                    .serialize()
+                    .ok()
+                    .unwrap(),
                 ),
                 (
-                    "channel_c".into(),
-                    HashMap::<String, String>::from([("value_c".into(), "secret_c".into())]),
+                    String::from("channel_c"),
+                    HashMap::<String, String>::from([(
+                        String::from("value_c"),
+                        String::from("secret_c"),
+                    )])
+                    .serialize()
+                    .ok()
+                    .unwrap(),
                 ),
             ]))
             .channels(["channel_a".into(), "channel_b".into(), "channel_c".into()])

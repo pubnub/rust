@@ -1,6 +1,7 @@
 use async_channel::Sender;
+use uuid::Uuid;
 
-use crate::core::RequestRetryPolicy;
+use crate::core::RequestRetryConfiguration;
 use crate::{
     core::event_engine::EffectHandler,
     dx::subscribe::event_engine::{
@@ -17,7 +18,6 @@ use crate::{
 ///
 /// Handler responsible for effects implementation and creation in response on
 /// effect invocation.
-#[allow(dead_code)]
 pub(crate) struct SubscribeEffectHandler {
     /// Subscribe call function pointer.
     subscribe_call: Arc<SubscribeEffectExecutor>,
@@ -29,7 +29,7 @@ pub(crate) struct SubscribeEffectHandler {
     emit_messages: Arc<EmitMessagesEffectExecutor>,
 
     /// Retry policy.
-    retry_policy: RequestRetryPolicy,
+    retry_policy: RequestRetryConfiguration,
 
     /// Cancellation channel.
     cancellation_channel: Sender<String>,
@@ -41,7 +41,7 @@ impl SubscribeEffectHandler {
         subscribe_call: Arc<SubscribeEffectExecutor>,
         emit_status: Arc<EmitStatusEffectExecutor>,
         emit_messages: Arc<EmitMessagesEffectExecutor>,
-        retry_policy: RequestRetryPolicy,
+        retry_policy: RequestRetryConfiguration,
         cancellation_channel: Sender<String>,
     ) -> Self {
         Self {
@@ -59,6 +59,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
         match invocation {
             SubscribeEffectInvocation::Handshake { input, cursor } => {
                 Some(SubscribeEffect::Handshake {
+                    id: Uuid::new_v4().to_string(),
                     input: input.clone(),
                     cursor: cursor.clone(),
                     executor: self.subscribe_call.clone(),
@@ -71,6 +72,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 attempts,
                 reason,
             } => Some(SubscribeEffect::HandshakeReconnect {
+                id: Uuid::new_v4().to_string(),
                 input: input.clone(),
                 cursor: cursor.clone(),
                 attempts: *attempts,
@@ -81,6 +83,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             }),
             SubscribeEffectInvocation::Receive { input, cursor } => {
                 Some(SubscribeEffect::Receive {
+                    id: Uuid::new_v4().to_string(),
                     input: input.clone(),
                     cursor: cursor.clone(),
                     executor: self.subscribe_call.clone(),
@@ -93,6 +96,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 attempts,
                 reason,
             } => Some(SubscribeEffect::ReceiveReconnect {
+                id: Uuid::new_v4().to_string(),
                 input: input.clone(),
                 cursor: cursor.clone(),
                 attempts: *attempts,
@@ -102,11 +106,14 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 cancellation_channel: self.cancellation_channel.clone(),
             }),
             SubscribeEffectInvocation::EmitStatus(status) => Some(SubscribeEffect::EmitStatus {
+                id: Uuid::new_v4().to_string(),
                 status: status.clone(),
                 executor: self.emit_status.clone(),
             }),
-            SubscribeEffectInvocation::EmitMessages(messages) => {
+            SubscribeEffectInvocation::EmitMessages(messages, cursor) => {
                 Some(SubscribeEffect::EmitMessages {
+                    id: Uuid::new_v4().to_string(),
+                    next_cursor: cursor.clone(),
                     updates: messages.clone(),
                     executor: self.emit_messages.clone(),
                 })

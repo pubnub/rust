@@ -4,17 +4,17 @@ use async_channel::Sender;
 use futures::future::BoxFuture;
 
 use crate::{
-    core::{event_engine::Effect, PubNubError, RequestRetryPolicy},
+    core::{event_engine::Effect, PubNubError, RequestRetryConfiguration},
     dx::subscribe::{
         event_engine::{
-            types::{SubscribeInput, SubscriptionParams},
+            types::{SubscriptionInput, SubscriptionParams},
             SubscribeEffectInvocation, SubscribeEvent,
         },
         result::{SubscribeResult, Update},
-        SubscribeCursor, SubscribeStatus,
+        ConnectionStatus, SubscriptionCursor,
     },
     lib::{
-        alloc::{boxed::Box, string::String, sync::Arc, vec::Vec},
+        alloc::{string::String, sync::Arc, vec::Vec},
         core::fmt::{Debug, Formatter},
     },
 };
@@ -26,30 +26,56 @@ mod handshake_reconnection;
 mod receive;
 mod receive_reconnection;
 
+/// `SubscribeEffectExecutor` is a trait alias representing a type that executes
+/// subscribe effects.
+///
+/// It takes a `SubscriptionParams` as input and returns a `BoxFuture` that
+/// resolves to a `Result` of `SubscribeResult` or `PubNubError`.
+///
+/// This trait alias is `Send` and `Sync`, allowing it to be used across
+/// multiple threads safely.
 pub(in crate::dx::subscribe) type SubscribeEffectExecutor = dyn Fn(SubscriptionParams) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
     + Send
     + Sync;
 
-pub(in crate::dx::subscribe) type EmitStatusEffectExecutor = dyn Fn(SubscribeStatus) + Send + Sync;
-pub(in crate::dx::subscribe) type EmitMessagesEffectExecutor = dyn Fn(Vec<Update>) + Send + Sync;
+/// `EmitStatusEffectExecutor` is a trait alias representing a type that
+/// executes emit status effects.
+///
+/// It takes a `SubscribeStatus` as input and does not return any value.
+///
+/// This trait alias is `Send` and `Sync`, allowing it to be used across
+/// multiple threads safely.
+pub(in crate::dx::subscribe) type EmitStatusEffectExecutor = dyn Fn(ConnectionStatus) + Send + Sync;
+
+/// `EmitMessagesEffectExecutor` is a trait alias representing a type that
+/// executes the effect of emitting messages.
+///
+/// It takes a vector of `Update` objects as input and does not return any
+/// value.
+///
+/// This trait alias is `Send` and `Sync`, allowing it to be used across
+/// multiple threads safely.
+pub(in crate::dx::subscribe) type EmitMessagesEffectExecutor =
+    dyn Fn(Vec<Update>, SubscriptionCursor) + Send + Sync;
 
 // TODO: maybe move executor and cancellation_channel to super struct?
-/// Subscription state machine effects.
-#[allow(dead_code)]
 pub(crate) enum SubscribeEffect {
     /// Initial subscribe effect invocation.
     Handshake {
+        /// Unique effect identifier.
+        id: String,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and channel groups which will be
         /// source of real-time updates after initial subscription completion.
-        input: SubscribeInput,
+        input: SubscriptionInput,
 
         /// Time cursor.
         ///
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
-        cursor: Option<SubscribeCursor>,
+        cursor: Option<SubscriptionCursor>,
 
         /// Executor function.
         ///
@@ -64,17 +90,20 @@ pub(crate) enum SubscribeEffect {
 
     /// Retry initial subscribe effect invocation.
     HandshakeReconnect {
+        /// Unique effect identifier.
+        id: String,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and channel groups which has been
         /// used during recently failed initial subscription.
-        input: SubscribeInput,
+        input: SubscriptionInput,
 
         /// Time cursor.
         ///
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
-        cursor: Option<SubscribeCursor>,
+        cursor: Option<SubscriptionCursor>,
 
         /// Current initial subscribe retry attempt.
         ///
@@ -85,7 +114,7 @@ pub(crate) enum SubscribeEffect {
         reason: PubNubError,
 
         /// Retry policy.
-        retry_policy: RequestRetryPolicy,
+        retry_policy: RequestRetryConfiguration,
 
         /// Executor function.
         ///
@@ -100,17 +129,20 @@ pub(crate) enum SubscribeEffect {
 
     /// Receive updates effect invocation.
     Receive {
+        /// Unique effect identifier.
+        id: String,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and channel groups for which
         /// real-time updates will be delivered.
-        input: SubscribeInput,
+        input: SubscriptionInput,
 
         /// Time cursor.
         ///
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
-        cursor: SubscribeCursor,
+        cursor: SubscriptionCursor,
 
         /// Executor function.
         ///
@@ -125,17 +157,20 @@ pub(crate) enum SubscribeEffect {
 
     /// Retry receive updates effect invocation.
     ReceiveReconnect {
+        /// Unique effect identifier.
+        id: String,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and channel groups which has been
         /// used during recently failed receive updates.
-        input: SubscribeInput,
+        input: SubscriptionInput,
 
         /// Time cursor.
         ///
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
-        cursor: SubscribeCursor,
+        cursor: SubscriptionCursor,
 
         /// Current receive retry attempt.
         ///
@@ -146,7 +181,7 @@ pub(crate) enum SubscribeEffect {
         reason: PubNubError,
 
         /// Retry policy.
-        retry_policy: RequestRetryPolicy,
+        retry_policy: RequestRetryConfiguration,
 
         /// Executor function.
         ///
@@ -161,8 +196,11 @@ pub(crate) enum SubscribeEffect {
 
     /// Status change notification effect invocation.
     EmitStatus {
+        /// Unique effect identifier.
+        id: String,
+
         /// Status which should be emitted.
-        status: SubscribeStatus,
+        status: ConnectionStatus,
 
         /// Executor function.
         ///
@@ -172,6 +210,14 @@ pub(crate) enum SubscribeEffect {
 
     /// Received updates notification effect invocation.
     EmitMessages {
+        /// Unique effect identifier.
+        id: String,
+
+        /// Next time cursor.
+        ///
+        /// Cursor which should be used for next subscription loop.
+        next_cursor: SubscriptionCursor,
+
         /// Updates which should be emitted.
         updates: Vec<Update>,
 
@@ -239,14 +285,26 @@ impl Debug for SubscribeEffect {
 impl Effect for SubscribeEffect {
     type Invocation = SubscribeEffectInvocation;
 
+    fn name(&self) -> String {
+        match self {
+            Self::Handshake { .. } => "HANDSHAKE",
+            Self::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT",
+            Self::Receive { .. } => "RECEIVE_MESSAGES",
+            Self::ReceiveReconnect { .. } => "RECEIVE_RECONNECT",
+            Self::EmitStatus { .. } => "EMIT_STATUS",
+            Self::EmitMessages { .. } => "EMIT_MESSAGES",
+        }
+        .into()
+    }
+
     fn id(&self) -> String {
         match self {
-            Self::Handshake { .. } => "HANDSHAKE_EFFECT",
-            Self::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT_EFFECT",
-            Self::Receive { .. } => "RECEIVE_EFFECT",
-            Self::ReceiveReconnect { .. } => "RECEIVE_RECONNECT_EFFECT",
-            Self::EmitStatus { .. } => "EMIT_STATUS_EFFECT",
-            Self::EmitMessages { .. } => "EMIT_MESSAGES_EFFECT",
+            Self::Handshake { id, .. }
+            | Self::HandshakeReconnect { id, .. }
+            | Self::Receive { id, .. }
+            | Self::ReceiveReconnect { id, .. }
+            | Self::EmitStatus { id, .. }
+            | Self::EmitMessages { id, .. } => id,
         }
         .into()
     }
@@ -254,10 +312,16 @@ impl Effect for SubscribeEffect {
     async fn run(&self) -> Vec<SubscribeEvent> {
         match self {
             Self::Handshake {
-                input, executor, ..
-            } => handshake::execute(input, &self.id(), executor).await,
-            Self::HandshakeReconnect {
+                id,
                 input,
+                cursor,
+                executor,
+                ..
+            } => handshake::execute(input, cursor, id, executor).await,
+            Self::HandshakeReconnect {
+                id,
+                input,
+                cursor,
                 attempts,
                 reason,
                 retry_policy,
@@ -266,22 +330,25 @@ impl Effect for SubscribeEffect {
             } => {
                 handshake_reconnection::execute(
                     input,
+                    cursor,
                     *attempts,
                     reason.clone(), /* TODO: Does run function need to borrow self? Or we can
                                      * consume it? */
-                    &self.id(),
+                    id,
                     retry_policy,
                     executor,
                 )
                 .await
             }
             Self::Receive {
+                id,
                 input,
                 cursor,
                 executor,
                 ..
-            } => receive::execute(input, cursor, &self.id(), executor).await,
+            } => receive::execute(input, cursor, id, executor).await,
             Self::ReceiveReconnect {
+                id,
                 input,
                 cursor,
                 attempts,
@@ -296,41 +363,48 @@ impl Effect for SubscribeEffect {
                     *attempts,
                     reason.clone(), /* TODO: Does run function need to borrow self? Or we can
                                      * consume it? */
-                    &self.id(),
+                    id,
                     retry_policy,
                     executor,
                 )
                 .await
             }
-            Self::EmitStatus { status, executor } => {
-                emit_status::execute(status.clone(), executor).await
-            }
-            Self::EmitMessages { updates, executor } => {
-                emit_messages::execute(updates.clone(), executor).await
-            }
+            Self::EmitStatus {
+                status, executor, ..
+            } => emit_status::execute(status.clone(), executor).await,
+            Self::EmitMessages {
+                updates,
+                executor,
+                next_cursor,
+                ..
+            } => emit_messages::execute(next_cursor.clone(), updates.clone(), executor).await,
         }
     }
 
     fn cancel(&self) {
         match self {
             Self::Handshake {
+                id,
                 cancellation_channel,
                 ..
             }
             | Self::HandshakeReconnect {
+                id,
                 cancellation_channel,
                 ..
             }
             | Self::Receive {
+                id,
                 cancellation_channel,
                 ..
             }
             | Self::ReceiveReconnect {
+                id,
                 cancellation_channel,
                 ..
             } => {
                 cancellation_channel
-                    .send_blocking(self.id())
+                    .send_blocking(id.clone())
                     .expect("cancellation pipe is broken!");
             }
             _ => { /* cannot cancel other effects */ }
@@ -341,27 +415,31 @@ impl Effect for SubscribeEffect {
 #[cfg(test)]
 mod should {
     use super::*;
+    use futures::FutureExt;
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn send_cancellation_notification() {
-        let (tx, rx) = async_channel::bounded(1);
+        let (tx, rx) = async_channel::bounded::<String>(1);
 
         let effect = SubscribeEffect::Handshake {
-            input: SubscribeInput::new(&None, &None),
+            id: Uuid::new_v4().to_string(),
+            input: SubscriptionInput::new(&None, &None),
             cursor: None,
             executor: Arc::new(|_| {
-                Box::pin(async move {
+                async move {
                     Ok(SubscribeResult {
-                        cursor: SubscribeCursor::default(),
+                        cursor: SubscriptionCursor::default(),
                         messages: vec![],
                     })
-                })
+                }
+                .boxed()
             }),
             cancellation_channel: tx,
         };
 
         effect.cancel();
 
-        assert_eq!(rx.recv().await.unwrap(), effect.id())
+        assert_eq!(rx.recv().await.unwrap(), effect.id());
     }
 }

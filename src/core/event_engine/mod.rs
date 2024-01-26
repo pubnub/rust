@@ -43,7 +43,6 @@ pub(crate) mod cancel;
 /// [`EventEngine`] is the core of state machines used in PubNub client and
 /// manages current system state and handles external events.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) struct EventEngine<S, EH, EF, EI>
 where
     EI: EffectInvocation<Effect = EF> + Send + Sync,
@@ -63,6 +62,14 @@ where
 
     /// Current event engine state.
     current_state: RwLock<S>,
+
+    /// Whether Event Engine still active.
+    ///
+    /// Event Engine can be used as long as it is active.  
+    ///
+    /// > Note: Activity can be changed in case of whole stack termination. Can
+    /// > be in case of call to unsubscribe all.
+    active: RwLock<bool>,
 }
 
 impl<S, EH, EF, EI> EventEngine<S, EH, EF, EI>
@@ -73,19 +80,18 @@ where
     EI: EffectInvocation<Effect = EF> + Send + Sync + 'static,
 {
     /// Create [`EventEngine`] with initial state for state machine.
-    #[allow(dead_code)]
     pub fn new<R>(handler: EH, state: S, runtime: R) -> Arc<Self>
     where
         R: Runtime + 'static,
     {
         let (channel_tx, channel_rx) = async_channel::bounded::<EI>(100);
-
         let effect_dispatcher = Arc::new(EffectDispatcher::new(handler, channel_rx));
 
         let engine = Arc::new(EventEngine {
             effect_dispatcher,
             effect_dispatcher_channel: channel_tx,
             current_state: RwLock::new(state),
+            active: RwLock::new(true),
         });
 
         engine.start(runtime);
@@ -94,8 +100,10 @@ where
     }
 
     /// Retrieve current engine state.
+    ///
+    /// > Note: Code actually used in tests.
     #[allow(dead_code)]
-    pub fn current_state(&self) -> S {
+    pub(crate) fn current_state(&self) -> S {
         (*self.current_state.read()).clone()
     }
 
@@ -103,8 +111,12 @@ where
     ///
     /// Process event passed to the system and perform required transitions to
     /// new state if required.
-    #[allow(dead_code)]
     pub fn process(&self, event: &EI::Event) {
+        if !*self.active.read() {
+            log::debug!("Can't process events because the event engine is not active.");
+            return;
+        };
+
         log::debug!("Processing event: {}", event.id());
 
         let transition = {
@@ -123,9 +135,14 @@ where
     /// * update current state
     /// * call effects dispatcher to process effect invocation
     fn process_transition(&self, transition: Transition<S::State, S::Invocation>) {
-        {
+        if !*self.active.read() {
+            log::debug!("Can't process transition because the event engine is not active.");
+            return;
+        };
+
+        if let Some(state) = transition.state {
             let mut writable_state = self.current_state.write();
-            *writable_state = transition.state;
+            *writable_state = state;
         }
 
         transition.invocations.into_iter().for_each(|invocation| {
@@ -152,6 +169,20 @@ where
             },
             runtime,
         );
+    }
+
+    /// Stop state machine using specific invocation.
+    ///
+    /// > Note: Should be provided effect information which respond with `true`
+    /// for `is_terminating` method call.
+    pub fn stop(&self, invocation: EI) {
+        {
+            *self.active.write() = false;
+        }
+
+        if let Err(error) = self.effect_dispatcher_channel.send_blocking(invocation) {
+            error!("Unable dispatch invocation: {error:?}")
+        }
     }
 }
 
@@ -191,34 +222,41 @@ mod should {
             match event {
                 TestEvent::One => {
                     if matches!(self, Self::NotStarted) {
-                        Some(self.transition_to(Self::Started, None))
+                        Some(self.transition_to(Some(Self::Started), None))
                     } else if matches!(self, Self::Completed) {
-                        Some(
-                            self.transition_to(Self::NotStarted, Some(vec![TestInvocation::Three])),
-                        )
+                        Some(self.transition_to(
+                            Some(Self::NotStarted),
+                            Some(vec![TestInvocation::Three]),
+                        ))
                     } else {
                         None
                     }
                 }
                 TestEvent::Two => matches!(self, Self::Started)
-                    .then(|| self.transition_to(Self::InProgress, None)),
-                TestEvent::Three => matches!(self, Self::InProgress)
-                    .then(|| self.transition_to(Self::Completed, Some(vec![TestInvocation::One]))),
+                    .then(|| self.transition_to(Some(Self::InProgress), None)),
+                TestEvent::Three => matches!(self, Self::InProgress).then(|| {
+                    self.transition_to(Some(Self::Completed), Some(vec![TestInvocation::One]))
+                }),
             }
         }
 
         fn transition_to(
             &self,
-            state: Self::State,
+            state: Option<Self::State>,
             invocations: Option<Vec<Self::Invocation>>,
         ) -> Transition<Self::State, Self::Invocation> {
+            let on_enter_invocations = match state.clone() {
+                Some(state) => state.enter().unwrap_or_default(),
+                None => vec![],
+            };
+
             Transition {
                 invocations: self
                     .exit()
                     .unwrap_or_default()
                     .into_iter()
                     .chain(invocations.unwrap_or_default())
-                    .chain(state.enter().unwrap_or_default())
+                    .chain(on_enter_invocations)
                     .collect(),
                 state,
             }
@@ -251,6 +289,14 @@ mod should {
     #[async_trait::async_trait]
     impl Effect for TestEffect {
         type Invocation = TestInvocation;
+
+        fn name(&self) -> String {
+            match self {
+                Self::One => "EFFECT_ONE".into(),
+                Self::Two => "EFFECT_TWO".into(),
+                Self::Three => "EFFECT_THREE".into(),
+            }
+        }
 
         fn id(&self) -> String {
             match self {
@@ -288,15 +334,19 @@ mod should {
             }
         }
 
-        fn managed(&self) -> bool {
+        fn is_managed(&self) -> bool {
             matches!(self, Self::Two | Self::Three)
         }
 
-        fn cancelling(&self) -> bool {
+        fn is_cancelling(&self) -> bool {
             false
         }
 
         fn cancelling_effect(&self, _effect: &Self::Effect) -> bool {
+            false
+        }
+
+        fn is_terminating(&self) -> bool {
             false
         }
     }
@@ -327,6 +377,10 @@ mod should {
 
         async fn sleep(self, delay: u64) {
             tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
+        }
+
+        async fn sleep_microseconds(self, _delay: u64) {
+            // Do nothing.
         }
     }
 

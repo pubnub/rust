@@ -5,9 +5,8 @@
 //! # Examples
 //! ```
 //! use pubnub::core::Serialize as _;
-//! use serde::{Serialize, Deserialize};
 //!
-//! #[derive(Serialize, Deserialize, Debug, PartialEq)]
+//! #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 //! struct Foo {
 //!    bar: String,
 //! }
@@ -46,8 +45,8 @@ impl<S> crate::core::Serialize for S
 where
     S: serde::Serialize,
 {
-    fn serialize(self) -> Result<Vec<u8>, crate::core::PubNubError> {
-        serde_json::to_vec(&self).map_err(|e| PubNubError::Serialization {
+    fn serialize(&self) -> Result<Vec<u8>, crate::core::PubNubError> {
+        serde_json::to_vec(self).map_err(|e| PubNubError::Serialization {
             details: e.to_string(),
         })
     }

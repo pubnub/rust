@@ -1,19 +1,22 @@
+use log::info;
+
 use crate::{
     dx::subscribe::{
         event_engine::{effects::EmitMessagesEffectExecutor, SubscribeEvent},
         result::Update,
+        SubscriptionCursor,
     },
     lib::alloc::{sync::Arc, vec, vec::Vec},
 };
-use log::info;
 
 pub(super) async fn execute(
+    cursor: SubscriptionCursor,
     updates: Vec<Update>,
     executor: &Arc<EmitMessagesEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
     info!("Emit updates: {updates:?}");
 
-    executor(updates);
+    executor(updates, cursor);
 
     vec![]
 }
@@ -36,7 +39,7 @@ mod should {
             decryption_error: None,
         };
 
-        let emit_message_function: Arc<EmitMessagesEffectExecutor> = Arc::new(|updates| {
+        let emit_message_function: Arc<EmitMessagesEffectExecutor> = Arc::new(|updates, _| {
             let emitted_update = updates.first().expect("update should be passed");
             assert!(matches!(emitted_update, Update::Message(_)));
 
@@ -46,6 +49,7 @@ mod should {
         });
 
         execute(
+            Default::default(),
             vec![Update::Message(message.clone())],
             &emit_message_function,
         )

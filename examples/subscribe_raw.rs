@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
                 Update::Presence(presence) => {
                     println!("presence: {:?}", presence)
                 }
-                Update::Object(object) => {
+                Update::AppContext(object) => {
                     println!("object: {:?}", object)
                 }
                 Update::MessageAction(action) => {

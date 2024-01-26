@@ -24,4 +24,8 @@ impl Runtime for RuntimeTokio {
     async fn sleep(self, delay: u64) {
         tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
     }
+
+    async fn sleep_microseconds(self, delay: u64) {
+        tokio::time::sleep(tokio::time::Duration::from_micros(delay)).await
+    }
 }

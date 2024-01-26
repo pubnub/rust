@@ -1,7 +1,7 @@
 use crate::dx::subscribe::result::Update;
 use crate::{
     core::{event_engine::Event, PubNubError},
-    dx::subscribe::SubscribeCursor,
+    dx::subscribe::SubscriptionCursor,
     lib::alloc::{string::String, vec::Vec},
 };
 
@@ -9,7 +9,6 @@ use crate::{
 ///
 /// Subscribe state machine behaviour depends from external events which it
 /// receives.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) enum SubscribeEvent {
     /// Current list of channels / groups has been changed.
@@ -28,7 +27,7 @@ pub(crate) enum SubscribeEvent {
     SubscriptionRestored {
         channels: Option<Vec<String>>,
         channel_groups: Option<Vec<String>>,
-        cursor: SubscribeCursor,
+        cursor: SubscriptionCursor,
     },
 
     /// Handshake completed successfully.
@@ -37,7 +36,7 @@ pub(crate) enum SubscribeEvent {
     /// be used for subscription loop.
     ///
     /// [`PubNub`]: https://www.pubnub.com/
-    HandshakeSuccess { cursor: SubscribeCursor },
+    HandshakeSuccess { cursor: SubscriptionCursor },
 
     /// Handshake completed with error.
     ///
@@ -54,7 +53,7 @@ pub(crate) enum SubscribeEvent {
     /// loop.
     ///
     /// [`PubNub`]: https://www.pubnub.com/
-    HandshakeReconnectSuccess { cursor: SubscribeCursor },
+    HandshakeReconnectSuccess { cursor: SubscriptionCursor },
 
     /// Handshake reconnect completed with error.
     ///
@@ -78,7 +77,7 @@ pub(crate) enum SubscribeEvent {
     ///
     /// [`PubNub`]: https://www.pubnub.com/
     ReceiveSuccess {
-        cursor: SubscribeCursor,
+        cursor: SubscriptionCursor,
         messages: Vec<Update>,
     },
 
@@ -98,7 +97,7 @@ pub(crate) enum SubscribeEvent {
     ///
     /// [`PubNub`]: https://www.pubnub.com/
     ReceiveReconnectSuccess {
-        cursor: SubscribeCursor,
+        cursor: SubscriptionCursor,
         messages: Vec<Update>,
     },
 
@@ -130,7 +129,7 @@ pub(crate) enum SubscribeEvent {
     /// Emitted when explicitly requested to restore real-time updates receive.
     ///
     /// [`PubNub`]: https://www.pubnub.com/
-    Reconnect,
+    Reconnect { cursor: Option<SubscriptionCursor> },
 
     /// Unsubscribe from all channels and groups.
     ///
@@ -155,7 +154,7 @@ impl Event for SubscribeEvent {
             Self::ReceiveReconnectFailure { .. } => "RECEIVE_RECONNECT_FAILURE",
             Self::ReceiveReconnectGiveUp { .. } => "RECEIVE_RECONNECT_GIVEUP",
             Self::Disconnect => "DISCONNECT",
-            Self::Reconnect => "RECONNECT",
+            Self::Reconnect { .. } => "RECONNECT",
             Self::UnsubscribeAll => "UNSUBSCRIBE_ALL",
         }
     }

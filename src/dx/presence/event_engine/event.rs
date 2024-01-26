@@ -10,8 +10,10 @@ pub(crate) enum PresenceEvent {
     /// Announce join to channels and groups.
     ///
     /// Announce `user_id` presence on new channels and groups.
-    #[allow(dead_code)]
     Joined {
+        /// `user_id` presence announcement interval.
+        heartbeat_interval: u64,
+
         /// Optional list of channels.
         ///
         /// List of channels for which `user_id` presence should be announced.
@@ -27,8 +29,14 @@ pub(crate) enum PresenceEvent {
     /// Announce leave on channels and groups.
     ///
     /// Announce `user_id` leave from channels and groups.
-    #[allow(dead_code)]
     Left {
+        /// Whether `user_id` leave should be announced or not.
+        ///
+        /// When set to `true` and `user_id` will unsubscribe, the client
+        /// wouldn't announce `leave`, and as a result, there will be no
+        /// `leave` presence event generated.
+        suppress_leave_events: bool,
+
         /// Optional list of channels.
         ///
         /// List of channels for which `user_id` should leave.
@@ -43,13 +51,18 @@ pub(crate) enum PresenceEvent {
     /// Announce leave on all channels and groups.
     ///
     /// Announce `user_id` leave from all channels and groups.
-    #[allow(dead_code)]
-    LeftAll,
+    LeftAll {
+        /// Whether `user_id` leave should be announced or not.
+        ///
+        /// When set to `true` and `user_id` will unsubscribe, the client
+        /// wouldn't announce `leave`, and as a result, there will be no
+        /// `leave` presence event generated.
+        suppress_leave_events: bool,
+    },
 
     /// Heartbeat completed successfully.
     ///
     /// Emitted when [`PubNub`] network returned `OK` response.
-    #[allow(dead_code)]
     HeartbeatSuccess,
 
     /// Heartbeat completed with an error.
@@ -58,7 +71,6 @@ pub(crate) enum PresenceEvent {
     /// response from [`PubNub`] network (network or permission issues).
     ///
     /// [`PubNub`]: https://www.pubnub.com/
-    #[allow(dead_code)]
     HeartbeatFailure { reason: PubNubError },
 
     /// All heartbeat attempts was unsuccessful.
@@ -66,27 +78,23 @@ pub(crate) enum PresenceEvent {
     /// Emitted when heartbeat attempts reached maximum allowed count (according
     /// to retry / reconnection policy) and all following attempts should be
     /// stopped.
-    #[allow(dead_code)]
     HeartbeatGiveUp { reason: PubNubError },
 
     /// Restore heartbeating.
     ///
     /// Re-launch heartbeat event engine.
-    #[allow(dead_code)]
     Reconnect,
 
     /// Temporarily stop event engine.
     ///
     /// Suspend any delayed and waiting heartbeat endpoint calls till
     /// `Reconnect` event will be triggered again.
-    #[allow(dead_code)]
     Disconnect,
 
     /// Delay times up event.
     ///
     /// Emitted when `delay` reaches the end and should transit to the next
     /// state.
-    #[allow(dead_code)]
     TimesUp,
 }
 
@@ -95,9 +103,9 @@ impl Event for PresenceEvent {
         match self {
             Self::Joined { .. } => "JOINED",
             Self::Left { .. } => "LEFT",
-            Self::LeftAll => "LEFT_ALL",
+            Self::LeftAll { .. } => "LEFT_ALL",
             Self::HeartbeatSuccess => "HEARTBEAT_SUCCESS",
-            Self::HeartbeatFailure { .. } => "HEARTBEAT_FAILED",
+            Self::HeartbeatFailure { .. } => "HEARTBEAT_FAILURE",
             Self::HeartbeatGiveUp { .. } => "HEARTBEAT_GIVEUP",
             Self::Reconnect => "RECONNECT",
             Self::Disconnect => "DISCONNECT",
