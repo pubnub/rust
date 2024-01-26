@@ -108,16 +108,18 @@ where
 {
     /// Create transport request from the request builder.
     pub(in crate::dx::access) fn transport_request(&self) -> TransportRequest {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let config = &self.pubnub_client.config;
         let payload = GrantTokenPayload::new(self);
         let body = self.serializer.serialize(&payload).unwrap_or(vec![]);
 
         TransportRequest {
-            path: format!("/v3/pam/{}/grant", sub_key),
+            path: format!("/v3/pam/{}/grant", &config.subscribe_key),
             query_parameters: Default::default(),
             method: TransportMethod::Post,
-            headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
+            headers: [(CONTENT_TYPE.to_string(), APPLICATION_JSON.to_string())].into(),
             body: if !body.is_empty() { Some(body) } else { None },
+            #[cfg(feature = "std")]
+            timeout: config.transport.request_timeout,
         }
     }
 }
@@ -137,7 +139,7 @@ where
 
 impl<'pa, T, S, D> GrantTokenRequestBuilder<'pa, T, S, D>
 where
-    T: Transport,
+    T: Transport + 'static,
     S: for<'se, 'rq> Serializer<'se, GrantTokenPayload<'rq>>,
     D: Deserializer + 'static,
 {
@@ -150,8 +152,16 @@ where
         let transport_request = request.transport_request();
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
-            .send::<GrantTokenResponseBody, _, _, _>(&client.transport, deserializer)
+            .send::<GrantTokenResponseBody, _, _, _>(
+                &client.transport,
+                deserializer,
+                #[cfg(feature = "std")]
+                &client.config.transport.retry_configuration,
+                #[cfg(feature = "std")]
+                &client.runtime,
+            )
             .await
     }
 }
@@ -188,9 +198,9 @@ where
     ///     .grant_token(10)
     ///     .resources(&[permissions::channel("test-channel").read().write()])
     ///     .meta(HashMap::from([
-    ///          ("role".into(), "administrator".into()),
-    ///          ("access-duration".into(), 2800.into()),
-    ///          ("ping-interval".into(), 1754.88.into()),
+    ///          ("role".to_string(), "administrator".into()),
+    ///          ("access-duration".to_string(), 2800.into()),
+    ///          ("ping-interval".to_string(), 1754.88.into()),
     ///      ]))
     ///     .execute_blocking()?;
     /// #     Ok(())

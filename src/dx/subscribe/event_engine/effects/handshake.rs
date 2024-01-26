@@ -1,15 +1,17 @@
 use futures::TryFutureExt;
 use log::info;
 
+use crate::subscribe::SubscriptionCursor;
 use crate::{
     dx::subscribe::event_engine::{
-        effects::SubscribeEffectExecutor, SubscribeEvent, SubscribeInput, SubscriptionParams,
+        effects::SubscribeEffectExecutor, SubscribeEvent, SubscriptionInput, SubscriptionParams,
     },
     lib::alloc::{sync::Arc, vec, vec::Vec},
 };
 
 pub(super) async fn execute(
-    input: &SubscribeInput,
+    input: &SubscriptionInput,
+    cursor: &Option<SubscriptionCursor>,
     effect_id: &str,
     executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
@@ -37,9 +39,16 @@ pub(super) async fn execute(
             vec![SubscribeEvent::HandshakeFailure { reason: error }]
         },
         |subscribe_result| {
-            vec![SubscribeEvent::HandshakeSuccess {
-                cursor: subscribe_result.cursor,
-            }]
+            let cursor = {
+                if cursor.is_none() {
+                    subscribe_result.cursor
+                } else {
+                    let mut cursor = cursor.clone().unwrap_or_default();
+                    cursor.region = subscribe_result.cursor.region;
+                    cursor
+                }
+            };
+            vec![SubscribeEvent::HandshakeSuccess { cursor }]
         },
     )
     .await
@@ -71,10 +80,11 @@ mod should {
         });
 
         let result = execute(
-            &SubscribeInput::new(
+            &SubscriptionInput::new(
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),
+            &None,
             "id",
             &mock_handshake_function,
         )
@@ -100,10 +110,11 @@ mod should {
         });
 
         let result = execute(
-            &SubscribeInput::new(
+            &SubscriptionInput::new(
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),
+            &None,
             "id",
             &mock_handshake_function,
         )

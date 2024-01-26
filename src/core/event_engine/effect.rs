@@ -7,6 +7,9 @@ use crate::{
 pub(crate) trait Effect: Send + Sync {
     type Invocation: EffectInvocation;
 
+    /// Effect name.
+    fn name(&self) -> String;
+
     /// Unique effect identifier.
     fn id(&self) -> String;
 

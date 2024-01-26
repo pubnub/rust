@@ -43,6 +43,13 @@ pub enum PubNubError {
         response: Option<Box<TransportResponse>>,
     },
 
+    /// this error is returned when request has been cancelled.
+    #[snafu(display("Request cancelled: {details}"))]
+    RequestCancel {
+        /// Information with reason why request has been cancelled.
+        details: String,
+    },
+
     /// this error is returned when the publication of the request fails
     #[snafu(display("Publish error: {details}"))]
     PublishError {

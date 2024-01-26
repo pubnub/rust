@@ -9,13 +9,6 @@
 pub(crate) use subscribe::SubscribeRequestBuilder;
 pub(crate) mod subscribe;
 
-#[cfg(feature = "std")]
-#[doc(inline)]
-pub use subscription::{SubscriptionBuilder, SubscriptionBuilderError};
-
-#[cfg(feature = "std")]
-pub mod subscription;
-
 pub mod raw;
 
 use crate::{dx::pubnub_client::PubNubClientInstance, lib::alloc::string::String};

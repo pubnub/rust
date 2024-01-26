@@ -1,6 +1,6 @@
 [package]
 name = "pubnub"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 license-file = "LICENSE"
 authors = ["PubNub <support@pubnub.com>"]
@@ -63,7 +63,7 @@ std = ["derive_builder/std", "log/std", "uuid/std", "base64/std", "spin/std", "s
 extra_platforms = ["spin/portable_atomic", "dep:portable-atomic"]
 
 # [Internal features] (not intended for use outside of the library)
-contract_test = ["parse_token", "publish", "access", "crypto"]
+contract_test = ["parse_token", "publish", "access", "crypto", "std", "subscribe", "presence", "tokio"]
 full_no_std = ["serde", "reqwest", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
 full_no_std_platform_independent = ["serde", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
 pubnub_only = ["crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
@@ -106,7 +106,7 @@ getrandom = { version = "0.2", optional = true }
 # parse_token
 ciborium = { version = "0.2.1", default-features = false, optional = true }
 
-# subscribe
+# subscribe, presence
 futures = { version = "0.3.28", default-features = false, optional = true }
 tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "time"] }
 async-channel = { version = "1.8", optional = true }
@@ -122,7 +122,7 @@ async-trait = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 wiremock = "0.5"
 env_logger = "0.10"
-cucumber = { version = "0.20.0", features = ["output-junit"] }
+cucumber = { version = "0.20.2", features = ["output-junit"] }
 reqwest = { version = "0.11", features = ["json"] }
 test-case = "3.0"
 hashbrown = { version = "0.14.0", features = ["serde"] }
@@ -165,7 +165,7 @@ required-features = ["default"]
 
 [[example]]
 name = "subscribe"
-required-features = ["default", "subscribe"]
+required-features = ["default", "subscribe", "presence"]
 
 [[example]]
 name = "subscribe_raw"

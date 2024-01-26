@@ -6,17 +6,14 @@ use futures::future::BoxFuture;
 use crate::{
     core::{
         event_engine::{Effect, EffectInvocation},
-        PubNubError, RequestRetryPolicy,
+        PubNubError, RequestRetryConfiguration,
     },
     lib::{
         alloc::{string::String, sync::Arc, vec::Vec},
         core::fmt::{Debug, Formatter},
     },
     presence::{
-        event_engine::{
-            types::{PresenceInput, PresenceParameters},
-            PresenceEffectInvocation,
-        },
+        event_engine::{PresenceEffectInvocation, PresenceInput, PresenceParameters},
         HeartbeatResult, LeaveResult,
     },
 };
@@ -53,10 +50,12 @@ pub(in crate::dx::presence) type LeaveEffectExecutor = dyn Fn(PresenceParameters
     + Sync;
 
 /// Presence state machine effects.
-#[allow(dead_code)]
 pub(crate) enum PresenceEffect {
     /// Heartbeat effect invocation.
     Heartbeat {
+        /// Unique effect identifier.
+        id: String,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and groups for which `user_id`
@@ -71,6 +70,9 @@ pub(crate) enum PresenceEffect {
 
     /// Delayed heartbeat effect invocation.
     DelayedHeartbeat {
+        /// Unique effect identifier.
+        id: String,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and groups for which `user_id`
@@ -86,7 +88,7 @@ pub(crate) enum PresenceEffect {
         reason: PubNubError,
 
         /// Retry policy.
-        retry_policy: RequestRetryPolicy,
+        retry_policy: RequestRetryConfiguration,
 
         /// Executor function.
         ///
@@ -101,6 +103,9 @@ pub(crate) enum PresenceEffect {
 
     /// Leave effect invocation.
     Leave {
+        /// Unique effect identifier.
+        id: String,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and groups for which `user_id`
@@ -115,6 +120,9 @@ pub(crate) enum PresenceEffect {
 
     /// Delay effect invocation.
     Wait {
+        /// Unique effect identifier.
+        id: String,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and groups for which `user_id`
@@ -138,29 +146,25 @@ impl Debug for PresenceEffect {
         match self {
             Self::Heartbeat { input, .. } => write!(
                 f,
-                "PresenceEffect::Heartbeat {{ channels: {:?}, channel groups: \
-                {:?}}}",
+                "PresenceEffect::Heartbeat {{ channels: {:?}, channel groups: {:?}}}",
                 input.channels(),
                 input.channel_groups()
             ),
             Self::DelayedHeartbeat { input, .. } => write!(
                 f,
-                "PresenceEffect::DelayedHeartbeat {{ channels: {:?}, channel groups: \
-                {:?}}}",
+                "PresenceEffect::DelayedHeartbeat {{ channels: {:?}, channel groups: {:?}}}",
                 input.channels(),
                 input.channel_groups()
             ),
             Self::Leave { input, .. } => write!(
                 f,
-                "PresenceEffect::Leave {{ channels: {:?}, channel groups: \
-                {:?}}}",
+                "PresenceEffect::Leave {{ channels: {:?}, channel groups: {:?}}}",
                 input.channels(),
                 input.channel_groups()
             ),
             Self::Wait { input, .. } => write!(
                 f,
-                "PresenceEffect::Wait {{ channels: {:?}, channel groups: \
-                {:?}}}",
+                "PresenceEffect::Wait {{ channels: {:?}, channel groups: {:?}}}",
                 input.channels(),
                 input.channel_groups()
             ),
@@ -174,6 +178,16 @@ impl Effect for PresenceEffect {
 
     fn id(&self) -> String {
         match self {
+            Self::Heartbeat { id, .. }
+            | Self::DelayedHeartbeat { id, .. }
+            | Self::Leave { id, .. }
+            | Self::Wait { id, .. } => id,
+        }
+        .into()
+    }
+
+    fn name(&self) -> String {
+        match self {
             Self::Heartbeat { .. } => "HEARTBEAT",
             Self::DelayedHeartbeat { .. } => "DELAYED_HEARTBEAT",
             Self::Leave { .. } => "LEAVE",
@@ -184,10 +198,23 @@ impl Effect for PresenceEffect {
 
     async fn run(&self) -> Vec<<Self::Invocation as EffectInvocation>::Event> {
         match self {
-            Self::Heartbeat { input, executor } => {
-                heartbeat::execute(input, 0, None, &self.id(), &None, executor).await
+            Self::Heartbeat {
+                id,
+                input,
+                executor,
+            } => {
+                heartbeat::execute(
+                    input,
+                    0,
+                    None,
+                    id,
+                    &RequestRetryConfiguration::None,
+                    executor,
+                )
+                .await
             }
             Self::DelayedHeartbeat {
+                id,
                 input,
                 attempts,
                 reason,
@@ -199,29 +226,35 @@ impl Effect for PresenceEffect {
                     input,
                     *attempts,
                     Some(reason.clone()),
-                    &self.id(),
-                    &Some(retry_policy.clone()),
+                    id,
+                    &retry_policy.clone(),
                     executor,
                 )
                 .await
             }
-            Self::Leave { input, executor } => leave::execute(input, &self.id(), executor).await,
-            Self::Wait { executor, .. } => wait::execute(&self.id(), executor).await,
+            Self::Leave {
+                id,
+                input,
+                executor,
+            } => leave::execute(input, id, executor).await,
+            Self::Wait { id, executor, .. } => wait::execute(id, executor).await,
         }
     }
 
     fn cancel(&self) {
         match self {
             PresenceEffect::DelayedHeartbeat {
+                id,
                 cancellation_channel,
                 ..
             }
             | PresenceEffect::Wait {
+                id,
                 cancellation_channel,
                 ..
             } => {
                 cancellation_channel
-                    .send_blocking(self.id())
+                    .send_blocking(id.clone())
                     .expect("Cancellation pipe is broken!");
             }
             _ => { /* cannot cancel other effects */ }
@@ -230,16 +263,36 @@ impl Effect for PresenceEffect {
 }
 
 #[cfg(test)]
-mod should {
+mod it_should {
     use super::*;
+    use uuid::Uuid;
 
     #[tokio::test]
-    async fn send_cancellation_notification() {
+    async fn send_wait_cancellation_wait_notification() {
         let (tx, rx) = async_channel::bounded(1);
 
         let effect = PresenceEffect::Wait {
+            id: Uuid::new_v4().to_string(),
             input: PresenceInput::new(&None, &None),
             executor: Arc::new(|_| Box::pin(async move { Ok(()) })),
+            cancellation_channel: tx,
+        };
+
+        effect.cancel();
+        assert_eq!(rx.recv().await.unwrap(), effect.id())
+    }
+
+    #[tokio::test]
+    async fn send_delayed_heartbeat_cancellation_notification() {
+        let (tx, rx) = async_channel::bounded(1);
+
+        let effect = PresenceEffect::DelayedHeartbeat {
+            id: Uuid::new_v4().to_string(),
+            input: PresenceInput::new(&None, &None),
+            attempts: 0,
+            reason: PubNubError::EffectCanceled,
+            retry_policy: Default::default(),
+            executor: Arc::new(|_| Box::pin(async move { Err(PubNubError::EffectCanceled) })),
             cancellation_channel: tx,
         };
 

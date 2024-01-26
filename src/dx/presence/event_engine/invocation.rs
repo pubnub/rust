@@ -10,7 +10,6 @@ use crate::{
 };
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) enum PresenceEffectInvocation {
     /// Heartbeat effect invocation.
     Heartbeat {
@@ -61,6 +60,9 @@ pub(crate) enum PresenceEffectInvocation {
 
     /// Cancel delay effect invocation.
     CancelWait,
+
+    /// Terminate Presence Event Engine processing loop.
+    TerminateEventEngine,
 }
 
 impl EffectInvocation for PresenceEffectInvocation {
@@ -75,14 +77,15 @@ impl EffectInvocation for PresenceEffectInvocation {
             Self::Leave { .. } => "LEAVE",
             Self::Wait { .. } => "WAIT",
             Self::CancelWait => "CANCEL_WAIT",
+            Self::TerminateEventEngine => "TERMINATE_EVENT_ENGINE",
         }
     }
 
-    fn managed(&self) -> bool {
+    fn is_managed(&self) -> bool {
         matches!(self, Self::Wait { .. } | Self::DelayedHeartbeat { .. })
     }
 
-    fn cancelling(&self) -> bool {
+    fn is_cancelling(&self) -> bool {
         matches!(self, Self::CancelDelayedHeartbeat | Self::CancelWait)
     }
 
@@ -91,6 +94,10 @@ impl EffectInvocation for PresenceEffectInvocation {
             && matches!(self, Self::CancelDelayedHeartbeat { .. }))
             || (matches!(effect, PresenceEffect::Wait { .. })
                 && matches!(self, Self::CancelWait { .. }))
+    }
+
+    fn is_terminating(&self) -> bool {
+        matches!(self, Self::TerminateEventEngine)
     }
 }
 
@@ -103,6 +110,7 @@ impl Display for PresenceEffectInvocation {
             Self::Leave { .. } => write!(f, "LEAVE"),
             Self::Wait { .. } => write!(f, "WAIT"),
             Self::CancelWait => write!(f, "CANCEL_WAIT"),
+            Self::TerminateEventEngine => write!(f, "TERMINATE_EVENT_ENGINE"),
         }
     }
 }

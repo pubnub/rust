@@ -1,15 +1,11 @@
 //! # PubNub heartbeat module.
 //!
-//! The [`HeartbeatRequestBuilder`] lets you to make and execute requests that
-//! will announce specified `user_id` presence in the provided channels and
-//! groups.
+//! The [`HeartbeatRequestBuilder`] lets you make and execute requests that will
+//! announce specified `user_id` presence in the provided channels and groups.
 
 use derive_builder::Builder;
 #[cfg(feature = "std")]
-use futures::{
-    future::BoxFuture,
-    {select_biased, FutureExt},
-};
+use futures::{future::BoxFuture, select_biased, FutureExt};
 
 use crate::{
     core::{
@@ -18,7 +14,7 @@ use crate::{
             encoding::{url_encoded_channel_groups, url_encoded_channels},
             headers::{APPLICATION_JSON, CONTENT_TYPE},
         },
-        Deserializer, PubNubError, Serialize, Transport, TransportMethod, TransportRequest,
+        Deserializer, PubNubError, Transport, TransportMethod, TransportRequest,
     },
     dx::{
         presence::{builders, HeartbeatResponseBody, HeartbeatResult},
@@ -81,20 +77,22 @@ pub struct HeartbeatRequest<T, D> {
     /// A state that should be associated with the `user_id`.
     ///
     /// `state` object should be a `HashMap` with channel names as keys and
-    /// nested `HashMap` with values. State with heartbeat can be set **only**
+    /// serialized `state` as values. State with heartbeat can be set **only**
     /// for channels.
     ///
     /// # Example:
     /// ```rust,no_run
     /// # use std::collections::HashMap;
-    /// # fn main() {
-    /// let state = HashMap::<String, HashMap<String, bool>>::from([(
-    ///     "announce".into(),
-    ///     HashMap::from([
-    ///         ("is_owner".into(), false),
-    ///         ("is_admin".into(), true)
-    ///     ])
+    /// # use pubnub::core::Serialize;
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let state = HashMap::<String, Vec<u8>>::from([(
+    ///     "announce".to_string(),
+    ///     HashMap::<String, bool>::from([
+    ///         ("is_owner".to_string(), false),
+    ///         ("is_admin".to_string(), true)
+    ///     ]).serialize()?
     /// )]);
+    /// # Ok(())
     /// # }
     /// ```
     #[builder(
@@ -108,11 +106,11 @@ pub struct HeartbeatRequest<T, D> {
     ///
     /// A heartbeat is a period of time during which `user_id` is visible
     /// `online`.
-    /// If, within the heartbeat period, another heartbeat request or a
-    /// subscribe (for an implicit heartbeat) request `timeout` will be
-    /// announced for `user_id`.
+    /// If, within the heartbeat period, another heartbeat request or subscribe
+    /// (for an implicit heartbeat) request `timeout` will be announced for
+    /// `user_id`.
     ///
-    /// By default it is set to **300** seconds.
+    /// By default, it is set to **300** seconds.
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
         setter(strip_option),
@@ -158,7 +156,7 @@ impl<T, D> HeartbeatRequest<T, D> {
     pub(in crate::dx::presence) fn transport_request(
         &self,
     ) -> Result<TransportRequest, PubNubError> {
-        let sub_key = &self.pubnub_client.config.subscribe_key;
+        let config = &self.pubnub_client.config;
         let mut query: HashMap<String, String> = HashMap::new();
         query.insert("heartbeat".into(), self.heartbeat.to_string());
         query.insert("uuid".into(), self.user_id.to_string());
@@ -167,23 +165,26 @@ impl<T, D> HeartbeatRequest<T, D> {
         url_encoded_channel_groups(&self.channel_groups)
             .and_then(|groups| query.insert("channel-group".into(), groups));
 
-        if let Some(state) = &self.state {
-            let serialized_state =
+        if let Some(state) = self.state.as_ref() {
+            let state_json =
                 String::from_utf8(state.clone()).map_err(|err| PubNubError::Serialization {
                     details: err.to_string(),
                 })?;
-            query.insert("state".into(), serialized_state);
+            query.insert("state".into(), state_json);
         }
 
         Ok(TransportRequest {
             path: format!(
-                "/v2/presence/sub_key/{sub_key}/channel/{}/heartbeat",
+                "/v2/presence/sub_key/{}/channel/{}/heartbeat",
+                &config.subscribe_key,
                 url_encoded_channels(&self.channels)
             ),
             query_parameters: query,
             method: TransportMethod::Get,
-            headers: [(CONTENT_TYPE.into(), APPLICATION_JSON.into())].into(),
+            headers: [(CONTENT_TYPE.to_string(), APPLICATION_JSON.to_string())].into(),
             body: None,
+            #[cfg(feature = "std")]
+            timeout: config.transport.request_timeout,
         })
     }
 }
@@ -198,39 +199,38 @@ impl<T, D> HeartbeatRequestBuilder<T, D> {
     /// # Example:
     /// ```rust,no_run
     /// # use std::collections::HashMap;
-    /// # fn main() {
-    /// let state = HashMap::<String, HashMap<String, bool>>::from([(
-    ///     "announce".into(),
-    ///     HashMap::from([
-    ///         ("is_owner".into(), false),
-    ///         ("is_admin".into(), true)
+    /// # use pubnub::core::Serialize;
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let state: HashMap<String, HashMap<String, bool>> = HashMap::from([(
+    ///     "announce".to_string(),
+    ///     HashMap::<String, bool>::from([
+    ///         ("is_owner".to_string(), false),
+    ///         ("is_admin".to_string(), true)
     ///     ])
     /// )]);
+    /// # Ok(())
     /// # }
     /// ```
-    pub fn state<U>(mut self, state: U) -> Self
-    where
-        U: Serialize + Send + Sync + 'static,
-    {
-        self.state = Some(state.serialize().ok());
-        self
-    }
+    pub fn state(mut self, state: HashMap<String, Vec<u8>>) -> Self {
+        let mut serialized_state = vec![b'{'];
+        for (key, mut value) in state {
+            serialized_state.append(&mut format!("\"{}\":", key).as_bytes().to_vec());
+            serialized_state.append(&mut value);
+            serialized_state.push(b',');
+        }
+        if serialized_state.last() == Some(&b',') {
+            serialized_state.pop();
+        }
+        serialized_state.push(b'}');
 
-    /// A state that should be associated with the `user_id`.
-    ///
-    /// The presence event engine has already pre-processed `state` object,
-    /// which can be passed to the builder as is.
-    #[cfg(all(feature = "presence", feature = "std"))]
-    pub(crate) fn state_serialized(mut self, state: Option<Vec<u8>>) -> Self {
-        self.state = Some(state);
+        self.state = Some(Some(serialized_state));
         self
     }
 }
 
-#[allow(dead_code)]
 impl<T, D> HeartbeatRequestBuilder<T, D>
 where
-    T: Transport,
+    T: Transport + 'static,
     D: Deserializer + 'static,
 {
     /// Build and call asynchronous request.
@@ -239,8 +239,16 @@ where
         let transport_request = request.transport_request()?;
         let client = request.pubnub_client.clone();
         let deserializer = client.deserializer.clone();
+
         transport_request
-            .send::<HeartbeatResponseBody, _, _, _>(&client.transport, deserializer)
+            .send::<HeartbeatResponseBody, _, _, _>(
+                &client.transport,
+                deserializer,
+                #[cfg(feature = "std")]
+                &client.config.transport.retry_configuration,
+                #[cfg(feature = "std")]
+                &client.runtime,
+            )
             .await
     }
 
@@ -279,7 +287,6 @@ where
     }
 }
 
-#[allow(dead_code)]
 #[cfg(feature = "blocking")]
 impl<T, D> HeartbeatRequestBuilder<T, D>
 where

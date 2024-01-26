@@ -5,9 +5,8 @@
 //! # Examples
 //! ```
 //! use pubnub::core::Serialize as _;
-//! use serde::{Serialize, Deserialize};
 //!
-//! #[derive(Serialize, Deserialize, Debug, PartialEq)]
+//! #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 //! struct Foo {
 //!    bar: String,
 //! }

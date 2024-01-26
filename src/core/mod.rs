@@ -38,9 +38,9 @@ pub mod transport_response;
 
 // TODO: Retry policy can be implemented for `no_std` subscribe
 //      when `no_std` event engine is implemented.
-#[doc(inline)]
 #[cfg(feature = "std")]
-pub use retry_policy::RequestRetryPolicy;
+#[doc(inline)]
+pub use retry_policy::RequestRetryConfiguration;
 #[cfg(feature = "std")]
 pub mod retry_policy;
 
@@ -70,12 +70,38 @@ pub mod cryptor;
 pub(crate) mod event_engine;
 
 #[cfg(all(feature = "std", feature = "subscribe"))]
+#[doc(inline)]
 pub use runtime::Runtime;
 #[cfg(all(feature = "std", feature = "subscribe"))]
 pub mod runtime;
+
+#[doc(inline)]
+pub use data_stream::DataStream;
+pub mod data_stream;
 
 pub(crate) mod utils;
 
 #[doc(inline)]
 pub use types::ScalarValue;
+
+#[doc(inline)]
+pub(crate) use entity::PubNubEntity;
+pub(crate) mod entity;
+
+#[doc(inline)]
+pub use channel::Channel;
+pub mod channel;
+
+#[doc(inline)]
+pub use channel_group::ChannelGroup;
+pub mod channel_group;
+
+#[doc(inline)]
+pub use channel_metadata::ChannelMetadata;
+pub mod channel_metadata;
+
+#[doc(inline)]
+pub use user_metadata::UserMetadata;
+pub mod user_metadata;
+
 pub mod types;

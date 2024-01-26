@@ -38,7 +38,8 @@ getrandom::register_custom_getrandom!(custom_random);
 fn custom_random(buf: &mut [u8]) -> Result<(), getrandom::Error> {
     // We're using `42` as a random number, because it's the answer
     // to the Ultimate Question of Life, the Universe, and Everything.
-    // In your program, you should use proper random number generator that is supported by your target.
+    // In your program, you should use proper random number generator that is
+    // supported by your target.
     for i in buf.iter_mut() {
         *i = 42;
     }
@@ -48,7 +49,8 @@ fn custom_random(buf: &mut [u8]) -> Result<(), getrandom::Error> {
 
 // Many targets have very specific requirements for networking, so it's hard to
 // provide a generic implementation.
-// Depending on the target, you will probably need to implement `Transport` trait.
+// Depending on the target, you will probably need to implement `Transport`
+// trait.
 struct MyTransport;
 
 impl Transport for MyTransport {
@@ -64,8 +66,8 @@ impl Transport for MyTransport {
 // As our target does not have `std` library, we need to provide custom
 // implementation of `GlobalAlloc` trait.
 //
-// In your program, you should use proper allocator that is supported by your target.
-// Here you have dummy implementation that does nothing.
+// In your program, you should use proper allocator that is supported by your
+// target. Here you have dummy implementation that does nothing.
 #[derive(Default)]
 pub struct Allocator;
 
@@ -82,23 +84,23 @@ static GLOBAL_ALLOCATOR: Allocator = Allocator;
 // As our target does not have `std` library, we need to provide custom
 // implementation of `panic_handler`.
 //
-// In your program, you should use proper panic handler that is supported by your target.
-// Here you have dummy implementation that does nothing.
+// In your program, you should use proper panic handler that is supported by
+// your target. Here you have dummy implementation that does nothing.
 #[panic_handler]
 fn panicking(_: &PanicInfo) -> ! {
     loop {}
 }
 
-// As we're using `no_main` attribute, we need to define `main` function manually.
-// For this example we're using `extern "C"` ABI to make it work.
+// As we're using `no_main` attribute, we need to define `main` function
+// manually. For this example we're using `extern "C"` ABI to make it work.
 #[no_mangle]
 pub extern "C" fn main(_argc: isize, _argv: *const *const u8) -> usize {
     publish_example().map(|_| 0).unwrap()
 }
 
-// In standard subscribe examples we use `println` macro to print the result of the operation
-// and it shows the idea of the example. `no_std` does not support `println` macro,
-// so we're using `do_a_thing` function instead.
+// In standard subscribe examples we use `println` macro to print the result of
+// the operation and it shows the idea of the example. `no_std` does not support
+// `println` macro, so we're using `do_a_thing` function instead.
 fn do_a_thing<T>(_: T) {}
 
 // As `no_std` does not support `Error` trait, we use `PubNubError` instead.
@@ -133,7 +135,7 @@ fn publish_example() -> Result<(), PubNubError> {
             match update? {
                 Update::Message(message) | Update::Signal(message) => do_a_thing(message),
                 Update::Presence(presence) => do_a_thing(presence),
-                Update::Object(object) => do_a_thing(object),
+                Update::AppContext(object) => do_a_thing(object),
                 Update::MessageAction(action) => do_a_thing(action),
                 Update::File(file) => do_a_thing(file),
             };

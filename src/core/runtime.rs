@@ -36,6 +36,10 @@ use futures::future::{BoxFuture, FutureExt};
 ///    async fn sleep(self, _delay: u64) {
 ///       // e.g. tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await
 ///    }
+///    
+///    async fn sleep_microseconds(self, _delay: u64) {
+///       // e.g. tokio::time::sleep(tokio::time::Duration::from_micros(delay)).await
+///    }
 /// }
 /// ```
 #[async_trait::async_trait]
@@ -51,12 +55,18 @@ pub trait Runtime: Clone + Send {
     ///
     /// Sleep current task for specified amount of time (in seconds).
     async fn sleep(self, delay: u64);
+
+    /// Put current task to "sleep".
+    ///
+    /// Sleep current task for specified amount of time (in microseconds).
+    async fn sleep_microseconds(self, delay: u64);
 }
 
 #[derive(Clone)]
 pub(crate) struct RuntimeSupport {
     spawner: Arc<dyn Fn(BoxFuture<'static, ()>) + Send + Sync>,
     sleeper: Arc<dyn Fn(u64) -> BoxFuture<'static, ()> + Send + Sync>,
+    sleeper_microseconds: Arc<dyn Fn(u64) -> BoxFuture<'static, ()> + Send + Sync>,
 }
 
 impl RuntimeSupport {
@@ -66,9 +76,13 @@ impl RuntimeSupport {
     {
         let spawn_runtime = runtime.clone();
         let sleep_runtime = runtime.clone();
+        let sleep_microseconds_runtime = runtime.clone();
 
         Self {
             sleeper: Arc::new(move |delay| sleep_runtime.sleep(delay).boxed()),
+            sleeper_microseconds: Arc::new(move |delay| {
+                sleep_microseconds_runtime.sleep_microseconds(delay).boxed()
+            }),
             spawner: Arc::new(Box::new(move |future| {
                 spawn_runtime.spawn(future);
             })),
@@ -92,6 +106,10 @@ impl Runtime for RuntimeSupport {
 
     async fn sleep(self, delay: u64) {
         (self.sleeper)(delay).await
+    }
+
+    async fn sleep_microseconds(self, delay: u64) {
+        (self.sleeper_microseconds)(delay).await
     }
 }
 

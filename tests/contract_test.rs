@@ -5,6 +5,7 @@ use std::process;
 mod access;
 mod common;
 mod crypto;
+mod presence;
 mod publish;
 mod subscribe;
 use common::PubNubWorld;
@@ -24,7 +25,13 @@ fn get_feature_set(tags: &[String]) -> String {
 }
 
 fn feature_allows_beta(feature: &str) -> bool {
-    let features: Vec<&str> = vec!["access", "publish", "eventEngine", "cryptoModule"];
+    let features: Vec<&str> = vec![
+        "access",
+        "publish",
+        "eventEngine",
+        "presenceEventEngine",
+        "cryptoModule",
+    ];
     features.contains(&feature)
 }
 
@@ -39,7 +46,13 @@ fn feature_allows_contract_less(feature: &str) -> bool {
 }
 
 fn is_ignored_feature_set_tag(feature: &str, tags: &[String]) -> bool {
-    let supported_features = ["access", "publish", "eventEngine", "cryptoModule"];
+    let supported_features = [
+        "access",
+        "publish",
+        "eventEngine",
+        "presenceEventEngine",
+        "cryptoModule",
+    ];
     let mut ignored_tags = vec!["na=rust"];
 
     if !feature_allows_beta(feature) {
@@ -64,9 +77,13 @@ fn is_ignored_scenario_tag(feature: &str, tags: &[String]) -> bool {
         || !feature_allows_beta(feature) && tags.iter().any(|tag| tag.starts_with("beta"))
         || !feature_allows_skipped(feature) && tags.iter().any(|tag| tag.starts_with("skip"))
         || (!feature_allows_contract_less(feature) || !tested_contract.is_empty())
-            && !tags
-                .iter()
-                .any(|tag| tag.starts_with(format!("contract={tested_contract}").as_str()))
+            && !tags.iter().any(|tag| {
+                if !tested_contract.is_empty() {
+                    tag == format!("contract={tested_contract}").as_str()
+                } else {
+                    tag.starts_with("contract=")
+                }
+            })
 }
 
 pub fn scenario_name(world: &mut PubNubWorld) -> String {
@@ -75,12 +92,25 @@ pub fn scenario_name(world: &mut PubNubWorld) -> String {
 
 pub fn clear_log_file() {
     create_dir_all("tests/logs").expect("Unable to create required directories for logs");
-    if let Ok(file) = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open("tests/logs/log.txt")
-    {
-        file.set_len(0).expect("Can't clean up the file");
+    if let Ok(_) = std::fs::metadata("tests/logs/log.txt") {
+        // let file_content: String = read_to_string("tests/logs/log.txt")
+        //     .expect("Can't open log file for read.")
+        //     .chars()
+        //     .filter(|&c| c != '\0')
+        //     .collect();
+        // File::create(format!("tests/logs/log-{}.txt", Uuid::new_v4().to_string()))
+        //     .expect("Can't open file to write content")
+        //     .write_all(file_content.as_bytes())
+        //     .expect("Can't write log file");
+
+        OpenOptions::new()
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .open("tests/logs/log.txt")
+            .expect("Unable to open log file.")
+            .set_len(0)
+            .expect("Can't truncate log file");
     }
 }
 
@@ -108,6 +138,7 @@ async fn main() {
         .max_concurrent_scenarios(1) // sequential execution because tomato waits for a specific request at a time for which a
         // script is initialised.
         .before(|_feature, _rule, scenario, world| {
+            // world.reset();
             world.scenario = Some(scenario.clone());
 
             futures::FutureExt::boxed(async move {
@@ -124,6 +155,9 @@ async fn main() {
                     }
                 }
             })
+        })
+        .after(|_feature, _, _rule, _scenario, world| {
+            futures::FutureExt::boxed(async move { world.unwrap().reset().await })
         })
         .with_writer(
             writer::Basic::stdout()

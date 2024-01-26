@@ -8,9 +8,7 @@ use log::info;
 use crate::{
     lib::alloc::{sync::Arc, vec, vec::Vec},
     presence::event_engine::{
-        effects::LeaveEffectExecutor,
-        types::{PresenceInput, PresenceParameters},
-        PresenceEvent,
+        effects::LeaveEffectExecutor, PresenceEvent, PresenceInput, PresenceParameters,
     },
 };
 
