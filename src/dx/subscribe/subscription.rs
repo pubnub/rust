@@ -44,7 +44,7 @@ use crate::{
 /// };
 ///
 /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-/// let client = // PubNubClient
+/// let pubnub = // PubNubClient
 /// #     PubNubClientBuilder::with_reqwest_transport()
 /// #         .with_keyset(Keyset {
 /// #              subscribe_key: "demo",
@@ -53,7 +53,7 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let channel = client.channel("my_channel");
+/// let channel = pubnub.channel("my_channel");
 /// // Creating Subscription instance for the Channel entity to subscribe and listen
 /// // for real-time events.
 /// let subscription = channel.subscription(None);
@@ -72,7 +72,7 @@ use crate::{
 /// };
 ///
 /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-/// let client = // PubNubClient
+/// let pubnub = // PubNubClient
 /// #     PubNubClientBuilder::with_reqwest_transport()
 /// #         .with_keyset(Keyset {
 /// #              subscribe_key: "demo",
@@ -81,7 +81,7 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let channels = client.channels(&["my_channel_1", "my_channel_2"]);
+/// let channels = pubnub.channels(&["my_channel_1", "my_channel_2"]);
 /// // Two `Subscription` instances can be added to create `SubscriptionSet` which can be used
 /// // to attach listeners and subscribe in one place for both subscriptions used in addition
 /// // operation.
@@ -206,7 +206,7 @@ where
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -215,7 +215,7 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel = client.channel("my_channel");
+    /// let channel = pubnub.channel("my_channel");
     /// // Creating Subscription instance for the Channel entity to subscribe and listen
     /// // for real-time events.
     /// let subscription = channel.subscription(None);

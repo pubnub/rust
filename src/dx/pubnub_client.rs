@@ -76,7 +76,7 @@ use crate::{
 /// // note that `with_reqwest_transport` requires `reqwest` feature
 /// // to be enabled (default)
 /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-/// let client = PubNubClientBuilder::with_reqwest_transport()
+/// let pubnub = PubNubClientBuilder::with_reqwest_transport()
 ///    .with_keyset(Keyset {
 ///         publish_key: Some("pub-c-abc123"),
 ///         subscribe_key: "sub-c-abc123",
@@ -112,7 +112,7 @@ use crate::{
 /// // note that MyTransport must implement the `Transport` trait
 /// let transport = MyTransport::new();
 ///
-/// let client = PubNubClientBuilder::with_transport(MyTransport)
+/// let pubnub = PubNubClientBuilder::with_transport(MyTransport)
 ///    .with_keyset(Keyset {
 ///         publish_key: Some("pub-c-abc123"),
 ///         subscribe_key: "sub-c-abc123",
@@ -161,7 +161,7 @@ pub type PubNubGenericClient<T, D> = PubNubClientInstance<PubNubMiddleware<T>, D
 /// // note that `with_reqwest_transport` requires `reqwest` feature
 /// // to be enabled (default)
 /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-/// let client = PubNubClientBuilder::with_reqwest_transport()
+/// let pubnub = PubNubClientBuilder::with_reqwest_transport()
 ///    .with_keyset(Keyset {
 ///         publish_key: Some("pub-c-abc123"),
 ///         subscribe_key: "sub-c-abc123",
@@ -197,7 +197,7 @@ pub type PubNubGenericClient<T, D> = PubNubClientInstance<PubNubMiddleware<T>, D
 /// // note that MyTransport must implement the `Transport` trait
 /// let transport = MyTransport::new();
 ///
-/// let client = PubNubClientBuilder::with_transport(MyTransport)
+/// let pubnub = PubNubClientBuilder::with_transport(MyTransport)
 ///    .with_keyset(Keyset {
 ///         publish_key: Some("pub-c-abc123"),
 ///         subscribe_key: "sub-c-abc123",
@@ -417,7 +417,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -426,7 +426,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel = client.channel("my_channel");
+    /// let channel = pubnub.channel("my_channel");
     /// #     Ok(())
     /// # }
     /// ```
@@ -464,7 +464,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -473,7 +473,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel = client.channels(&["my_channel_1", "my_channel_2"]);
+    /// let channels = pubnub.channels(&["my_channel_1", "my_channel_2"]);
     /// #     Ok(())
     /// # }
     /// ```
@@ -517,7 +517,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -526,7 +526,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel_group = client.channel_group("my_group");
+    /// let channel_group = pubnub.channel_group("my_group");
     /// #     Ok(())
     /// # }
     /// ```
@@ -565,7 +565,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -574,7 +574,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel_groups = client.channel_groups(&["my_group_1", "my_group_2"]);
+    /// let channel_groups = pubnub.channel_groups(&["my_group_1", "my_group_2"]);
     /// #     Ok(())
     /// # }
     /// ```
@@ -620,7 +620,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -629,7 +629,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel_metadata = client.channel_metadata("channel_meta");
+    /// let channel_metadata = pubnub.channel_metadata("channel_meta");
     /// #     Ok(())
     /// # }
     /// ```
@@ -670,7 +670,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -679,7 +679,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channels_metadata = client.channels_metadata(
+    /// let channels_metadata = pubnub.channels_metadata(
     ///     &["channel_meta_1", "channel_meta_2"]
     /// );
     /// #     Ok(())
@@ -727,7 +727,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -736,7 +736,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let user_metadata = client.user_metadata("user_meta");
+    /// let user_metadata = pubnub.user_metadata("user_meta");
     /// #     Ok(())
     /// # }
     /// ```
@@ -776,7 +776,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -785,7 +785,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let users_metadata = client.users_metadata(&["user_meta_1", "user_meta_2"]);
+    /// let users_metadata = pubnub.users_metadata(&["user_meta_1", "user_meta_2"]);
     /// #     Ok(())
     /// # }
     /// ```
@@ -823,7 +823,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
     /// let token = "<auth token from grant_token>";
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -832,7 +832,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// client.set_token(token);
+    /// pubnub.set_token(token);
     /// // Now client has access to all endpoints for which `token` has
     /// // permissions.
     /// #     Ok(())
@@ -854,7 +854,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///
     /// # fn main() -> Result<(), pubnub::core::PubNubError> {
     /// #     let token = "<auth token from grant_token>";
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -863,8 +863,8 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// #     client.set_token(token);
-    /// println!("Current authentication token: {:?}", client.get_token());
+    /// #     pubnub.set_token(token);
+    /// println!("Current authentication token: {:?}", pubnub.get_token());
     /// // Now client has access to all endpoints for which `token` has
     /// // permissions.
     /// #     Ok(())
@@ -1293,7 +1293,7 @@ impl PubNubClientBuilder {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClientBuilder::with_transport(transport)
+    /// let pubnub = PubNubClientBuilder::with_transport(transport)
     ///     .with_keyset(Keyset {
     ///         publish_key: Some("pub-c-abc123"),
     ///         subscribe_key: "sub-c-abc123",
@@ -1343,7 +1343,7 @@ impl PubNubClientBuilder {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClientBuilder::with_transport(transport)
+    /// let pubnub = PubNubClientBuilder::with_transport(transport)
     ///     .with_keyset(Keyset {
     ///         publish_key: Some("pub-c-abc123"),
     ///         subscribe_key: "sub-c-abc123",
@@ -1392,7 +1392,7 @@ impl PubNubClientBuilder {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClientBuilder::with_blocking_transport(transport)
+    /// let pubnub = PubNubClientBuilder::with_blocking_transport(transport)
     ///     .with_keyset(Keyset {
     ///         publish_key: Some("pub-c-abc123"),
     ///         subscribe_key: "sub-c-abc123",
@@ -1445,7 +1445,7 @@ impl PubNubClientBuilder {
     /// // note that MyTransport must implement the `Transport` trait
     /// let transport = MyTransport::new();
     ///
-    /// let client = PubNubClientBuilder::with_blocking_transport(transport)
+    /// let pubnub = PubNubClientBuilder::with_blocking_transport(transport)
     ///     .with_keyset(Keyset {
     ///         publish_key: Some("pub-c-abc123"),
     ///         subscribe_key: "sub-c-abc123",
@@ -1591,7 +1591,7 @@ impl<T> PubNubClientRuntimeBuilder<T> {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // note that with_reqwest_transport is only available when
     /// // the `reqwest` feature is enabled (default)
-    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    /// let pubnub = PubNubClientBuilder::with_reqwest_transport()
     ///     .with_runtime(MyRuntime)
     ///     .with_keyset(Keyset {
     ///         subscribe_key: "sub-c-abc123",
@@ -1653,7 +1653,7 @@ impl<T> PubNubClientRuntimeBuilder<T> {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// // note that with_reqwest_transport is only available when
     /// // the `reqwest` feature is enabled (default)
-    /// let client = PubNubClientBuilder::with_reqwest_transport()
+    /// let pubnub = PubNubClientBuilder::with_reqwest_transport()
     ///     .with_runtime(MyRuntime)
     ///     .with_keyset(Keyset {
     ///         subscribe_key: "sub-c-abc123",

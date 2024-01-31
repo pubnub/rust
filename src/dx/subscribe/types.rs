@@ -90,7 +90,7 @@ pub enum SubscriptionOptions {
     /// Whether presence events should be received.
     ///
     /// Whether presence updates for `userId` should be delivered through
-    /// [`Subscription2`] listener streams or not.
+    /// [`Subscription`] and [`SubscriptionSet`] listener streams or not.
     ReceivePresenceEvents,
 }
 

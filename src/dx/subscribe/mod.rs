@@ -148,7 +148,7 @@ where
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -160,8 +160,8 @@ where
     /// // ...
     /// // We need to pass client into other component which would like to
     /// // have own listeners to handle real-time events.
-    /// let empty_client = client.clone_empty();
-    /// // self.other_component(empty_client);    
+    /// let empty_pubnub_client = pubnub.clone_empty();
+    /// // self.other_component(empty_pubnub_client);    
     /// #     Ok(())
     /// # }
     /// ```
@@ -199,12 +199,16 @@ where
     ///
     /// ```rust,no_run
     /// use futures::StreamExt;
-    /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset, subscribe::EventEmitter};
+    /// use pubnub::{
+    ///     subscribe::{
+    ///         EventEmitter, {EventSubscriber, SubscriptionParams},
+    ///     },
+    ///     Keyset, PubNubClient, PubNubClientBuilder,
+    /// };
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// use pubnub::subscribe::{EventSubscriber, SubscriptionParams};
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -213,7 +217,7 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let subscription = client.subscription(SubscriptionParams {
+    /// let subscription = pubnub.subscription(SubscriptionParams {
     ///     channels: Some(&["my_channel_1", "my_channel_2", "my_channel_3"]),
     ///     channel_groups: None,
     ///     options: None
@@ -257,14 +261,16 @@ where
     ///
     /// ```no_run
     /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{EventEmitter, SubscribeStreamEvent, Update};
+    /// use pubnub::{
+    ///     subscribe::{
+    ///         EventEmitter, {EventSubscriber, SubscriptionParams, Update},
+    ///     },
+    ///     Keyset, PubNubClient, PubNubClientBuilder,
+    /// };
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// #     use pubnub::{Keyset, PubNubClientBuilder};
-    /// use pubnub::subscribe::SubscriptionParams;
-    /// #
-    /// #     let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #     let pubnub = PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #             subscribe_key: "demo",
     /// #             publish_key: Some("demo"),
@@ -272,14 +278,14 @@ where
     /// #         })
     /// #         .with_user_id("user_id")
     /// #         .build()?;
-    /// # let subscription = client.subscription(SubscriptionParams {
+    /// # let subscription = pubnub.subscription(SubscriptionParams {
     /// #     channels: Some(&["channel"]),
     /// #     channel_groups: None,
     /// #     options: None
     /// # });
     /// # let stream = // DataStream<Message>
     /// #     subscription.messages_stream();
-    /// client.disconnect();
+    /// pubnub.disconnect();
     /// # Ok(())
     /// # }
     /// ```
@@ -330,14 +336,16 @@ where
     ///
     /// ```no_run
     /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{EventEmitter, SubscribeStreamEvent, Update};
+    /// use pubnub::{
+    ///     subscribe::{
+    ///         EventEmitter, {EventSubscriber, SubscriptionParams, Update},
+    ///     },
+    ///     Keyset, PubNubClient, PubNubClientBuilder,
+    /// };
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// #     use pubnub::{Keyset, PubNubClientBuilder};
-    /// use pubnub::subscribe::SubscriptionParams;
-    /// #
-    /// #     let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #     let pubnub = PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #             subscribe_key: "demo",
     /// #             publish_key: Some("demo"),
@@ -345,7 +353,7 @@ where
     /// #         })
     /// #         .with_user_id("user_id")
     /// #         .build()?;
-    /// # let subscription = client.subscription(SubscriptionParams {
+    /// # let subscription = pubnub.subscription(SubscriptionParams {
     /// #     channels: Some(&["channel"]),
     /// #     channel_groups: None,
     /// #     options: None
@@ -353,8 +361,8 @@ where
     /// # let stream = // DataStream<Message>
     /// #     subscription.messages_stream();
     /// # // .....
-    /// # client.disconnect();
-    /// client.reconnect(None);
+    /// # pubnub.disconnect();
+    /// pubnub.reconnect(None);
     /// # Ok(())
     /// # }
     /// ```
@@ -624,13 +632,16 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///
     /// ```no_run // Starts listening for real-time updates
     /// use futures::StreamExt;
-    /// use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+    /// use pubnub::{
+    ///     subscribe::{
+    ///         EventEmitter, {EventSubscriber, SubscriptionParams, Update},
+    ///     },
+    ///     Keyset, PubNubClient, PubNubClientBuilder,
+    /// };
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use pubnub::{Keyset, PubNubClientBuilder};
-    /// #
-    /// #   let client = PubNubClientBuilder::with_reqwest_transport()
+    /// #   let pubnub = PubNubClientBuilder::with_reqwest_transport()
     /// #      .with_keyset(Keyset {
     /// #          subscribe_key: "demo",
     /// #          publish_key: Some("demo"),
@@ -638,7 +649,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// #      })
     /// #      .with_user_id("user_id")
     /// #      .build()?;
-    /// client
+    /// pubnub
     ///     .subscribe_raw()
     ///     .channels(["hello".into(), "world".into()].to_vec())
     ///     .execute()?

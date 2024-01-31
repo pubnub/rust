@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use futures::StreamExt;
 use serde::Deserialize;
 use std::env;
@@ -38,6 +40,21 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
 
     println!("running!");
 
+    // Setting up state which will be associated with the user id as long as he is
+    // subscribed and not timeout.
+    pubnub
+        .set_presence_state(HashMap::<String, String>::from([
+            (
+                "is_doing".to_string(),
+                "Nothing... Just hanging around...".to_string(),
+            ),
+            ("flag".to_string(), "false".to_string()),
+        ]))
+        .channels(["my_channel".into(), "other_channel".into()].to_vec())
+        .user_id("user_id")
+        .execute()
+        .await?;
+
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
     let subscription = pubnub.subscription(SubscriptionParams {
@@ -55,8 +72,6 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
             .for_each(|status| async move { println!("\nstatus: {:?}", status) }),
     );
 
-    // Example of the "global" listener for multiplexed subscription object from
-    // PubNub client.
     tokio::spawn(subscription.stream().for_each(|event| async move {
         match event {
             Update::Message(message) | Update::Signal(message) => {

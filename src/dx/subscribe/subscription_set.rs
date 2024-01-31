@@ -39,12 +39,11 @@ use crate::{
 /// ### Multiplexed subscription
 ///
 /// ```rust
-/// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
+/// use pubnub::{subscribe::SubscriptionParams, Keyset, PubNubClient, PubNubClientBuilder};
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-/// use pubnub::subscribe::SubscriptionParams;
-/// let client = // PubNubClient
+/// let pubnub = // PubNubClient
 /// #     PubNubClientBuilder::with_reqwest_transport()
 /// #         .with_keyset(Keyset {
 /// #              subscribe_key: "demo",
@@ -53,7 +52,7 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let subscription = client.subscription(SubscriptionParams {
+/// let subscription = pubnub.subscription(SubscriptionParams {
 ///     channels: Some(&["my_channel_1", "my_channel_2"]),
 ///     channel_groups:Some(&["my_group"]),
 ///     options:None
@@ -72,7 +71,7 @@ use crate::{
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-/// let client = // PubNubClient
+/// let pubnub = // PubNubClient
 /// #     PubNubClientBuilder::with_reqwest_transport()
 /// #         .with_keyset(Keyset {
 /// #              subscribe_key: "demo",
@@ -81,7 +80,7 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let channels = client.channels(&["my_channel_1", "my_channel_2"]);
+/// let channels = pubnub.channels(&["my_channel_1", "my_channel_2"]);
 /// // Two `Subscription` instances can be added to create `SubscriptionSet` which can be used
 /// // to attach listeners and subscribe in one place for both subscriptions used in addition
 /// // operation.
@@ -231,12 +230,11 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use pubnub::{PubNubClient, PubNubClientBuilder, Keyset};
+    /// use pubnub::{subscribe::SubscriptionParams, Keyset, PubNubClient, PubNubClientBuilder};
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// use pubnub::subscribe::SubscriptionParams;
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -245,7 +243,7 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let subscription = client.subscription(SubscriptionParams {
+    /// let subscription = pubnub.subscription(SubscriptionParams {
     ///     channels: Some(&["my_channel_1", "my_channel_2"]),
     ///     channel_groups: Some(&["my_group"]),
     ///     options: None
@@ -633,7 +631,7 @@ where
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
     /// use pubnub::subscribe::SubscriptionParams;
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -642,7 +640,7 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let subscription = client.subscription(SubscriptionParams {
+    /// let subscription = pubnub.subscription(SubscriptionParams {
     ///     channels: Some(&["my_channel_1", "my_channel_2"]),
     ///     channel_groups: Some(&["my_group"]),
     ///     options: None
