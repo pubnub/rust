@@ -371,6 +371,7 @@ where
     pub fn reconnect(&self, cursor: Option<SubscriptionCursor>) {
         #[cfg(feature = "presence")]
         let mut input: Option<SubscriptionInput> = None;
+        let cursor = cursor.or_else(|| self.cursor.read().clone());
 
         if let Some(manager) = self.subscription_manager(false).read().as_ref() {
             #[cfg(feature = "presence")]
@@ -411,6 +412,9 @@ where
     /// created [`Subscription`] and [`SubscriptionSet`].
     pub fn unsubscribe_all(&self) {
         {
+            let mut cursor = self.cursor.write();
+            *cursor = None;
+
             if let Some(manager) = self.subscription_manager(false).write().as_mut() {
                 manager.unregister_all()
             }

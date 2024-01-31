@@ -795,6 +795,9 @@ where
                 return;
             }
             *is_subscribed_slot = false;
+
+            let mut cursor = self.cursor.write();
+            *cursor = None;
         }
 
         let Some(client) = self.client().upgrade().clone() else {
