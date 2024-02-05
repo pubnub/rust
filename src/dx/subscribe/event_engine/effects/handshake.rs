@@ -1,6 +1,7 @@
 use futures::TryFutureExt;
 use log::info;
 
+use crate::core::PubNubError;
 use crate::subscribe::SubscriptionCursor;
 use crate::{
     dx::subscribe::event_engine::{
@@ -36,7 +37,11 @@ pub(super) async fn execute(
     .map_ok_or_else(
         |error| {
             log::error!("Handshake error: {:?}", error);
-            vec![SubscribeEvent::HandshakeFailure { reason: error }]
+
+            // Cancel is possible and no retries should be done.
+            (!matches!(error, PubNubError::EffectCanceled))
+                .then(|| vec![SubscribeEvent::HandshakeFailure { reason: error }])
+                .unwrap_or(vec![])
         },
         |subscribe_result| {
             let cursor = {
@@ -125,5 +130,24 @@ mod should {
             result.first().unwrap(),
             SubscribeEvent::HandshakeFailure { .. }
         ));
+    }
+
+    #[tokio::test]
+    async fn return_empty_event_on_effect_cancel_err() {
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> =
+            Arc::new(move |_| async move { Err(PubNubError::EffectCanceled) }.boxed());
+
+        let result = execute(
+            &SubscriptionInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
+            &None,
+            "id",
+            &mock_handshake_function,
+        )
+        .await;
+
+        assert!(result.is_empty());
     }
 }

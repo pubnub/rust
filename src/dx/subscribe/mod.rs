@@ -915,7 +915,7 @@ mod should {
             channel_groups: Some(&["group_a"]),
             options: Some(vec![SubscriptionOptions::ReceivePresenceEvents]),
         });
-        subscription.subscribe(None);
+        subscription.subscribe();
 
         let status = client.status_stream().next().await.unwrap();
         let _ = subscription.messages_stream().next().await.unwrap();

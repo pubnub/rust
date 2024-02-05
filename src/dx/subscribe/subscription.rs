@@ -425,6 +425,29 @@ where
         *self.is_subscribed.read()
     }
 
+    /// Register `Subscription` within `SubscriptionManager`.
+    ///
+    /// # Arguments
+    ///
+    /// - `cursor` - Subscription real-time events catch up cursor.
+    fn register_with_cursor(&self, cursor: Option<SubscriptionCursor>) {
+        let Some(client) = self.client.upgrade().clone() else {
+            return;
+        };
+
+        {
+            if let Some(manager) = client.subscription_manager(true).write().as_mut() {
+                // Mark entities as "in use" by subscription.
+                self.entity.increase_subscriptions_count();
+
+                if let Some((_, handler)) = self.clones.read().iter().next() {
+                    let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                    manager.register(&handler, cursor);
+                }
+            }
+        }
+    }
+
     /// Filters the given list of `Update` events based on the subscription
     /// input and the current timetoken.
     ///
@@ -482,36 +505,44 @@ where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 {
-    fn subscribe(&self, cursor: Option<SubscriptionCursor>) {
+    fn subscribe(&self) {
         let mut is_subscribed = self.is_subscribed.write();
         if *is_subscribed {
             return;
         }
         *is_subscribed = true;
 
-        if cursor.is_some() {
-            let mut cursor_slot = self.cursor.write();
-            if let Some(current_cursor) = cursor_slot.as_ref() {
-                let catchup_cursor = cursor.clone().unwrap_or_default();
-                catchup_cursor
-                    .gt(current_cursor)
-                    .then(|| *cursor_slot = Some(catchup_cursor));
-            } else {
-                *cursor_slot = cursor.clone();
-            }
+        self.register_with_cursor(self.cursor.read().clone());
+    }
+
+    fn subscribe_with_timetoken<SC>(&self, cursor: SC)
+    where
+        SC: Into<SubscriptionCursor>,
+    {
+        let mut is_subscribed = self.is_subscribed.write();
+        if *is_subscribed {
+            return;
         }
+        *is_subscribed = true;
 
-        if let Some(client) = self.client().upgrade().clone() {
-            if let Some(manager) = client.subscription_manager(true).write().as_mut() {
-                // Mark entities as "in use" by subscription.
-                self.entity.increase_subscriptions_count();
+        let user_cursor = cursor.into();
+        let cursor = user_cursor.is_valid().then_some(user_cursor);
 
-                if let Some((_, handler)) = self.clones.read().iter().next() {
-                    let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                    manager.register(&handler, cursor);
+        {
+            if cursor.is_some() {
+                let mut cursor_slot = self.cursor.write();
+                if let Some(current_cursor) = cursor_slot.as_ref() {
+                    let catchup_cursor = cursor.clone().unwrap_or_default();
+                    catchup_cursor
+                        .gt(current_cursor)
+                        .then(|| *cursor_slot = Some(catchup_cursor));
+                } else {
+                    *cursor_slot = cursor.clone();
                 }
             }
         }
+
+        self.register_with_cursor(cursor);
     }
 
     fn unsubscribe(&self) {

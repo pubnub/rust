@@ -138,7 +138,7 @@ async fn join(
         subscriptions.values().cloned().collect(),
         options.clone(),
     );
-    subscription.subscribe(None);
+    subscription.subscribe();
     world.subscription = Some(subscription);
     world.subscriptions = Some(subscriptions);
 }

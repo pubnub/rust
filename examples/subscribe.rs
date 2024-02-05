@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         channel_groups: None,
         options: Some(vec![SubscriptionOptions::ReceivePresenceEvents]),
     });
-    subscription.subscribe(None);
+    subscription.subscribe();
     let subscription_clone = subscription.clone_empty();
 
     // Attach connection status to the PubNub client instance.
@@ -130,7 +130,9 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // drop(subscription_clone);
 
     println!(
-        "\nUnsubscribe from all data streams. To restore requires `subscription.subscribe(None)` call." );
+        "\nUnsubscribe from all data streams. To restore call `subscription.subscribe()` or \
+        `subscription.subscribe_with_timetoken(Some(<timetoken>)) call."
+    );
     // Clean up before complete work with PubNub client instance.
     pubnub.unsubscribe_all();
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
