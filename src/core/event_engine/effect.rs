@@ -18,4 +18,14 @@ pub(crate) trait Effect: Send + Sync {
 
     /// Cancel any ongoing effect's work.
     fn cancel(&self);
+
+    /// Check whether effect has been cancelled.
+    ///
+    /// Event engine dispatch effects asynchronously and there is a chance that
+    /// effect already has been cancelled.
+    ///
+    /// # Returns
+    ///
+    /// `true` if effect has been cancelled.   
+    fn is_cancelled(&self) -> bool;
 }

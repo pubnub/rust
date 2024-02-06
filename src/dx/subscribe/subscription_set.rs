@@ -268,6 +268,171 @@ where
         }
     }
 
+    /// Adds a list of subscriptions to the subscription set.
+    ///
+    /// # Arguments
+    ///
+    /// * `subscriptions` - A vector of `Subscription` objects to be added to
+    ///   the subscription set.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pubnub::{
+    ///     subscribe::{Subscriber, SubscriptionParams},
+    ///     Keyset, PubNubClient, PubNubClientBuilder,
+    /// };
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let pubnub = // PubNubClient
+    /// #     PubNubClientBuilder::with_reqwest_transport()
+    /// #         .with_keyset(Keyset {
+    /// #              subscribe_key: "demo",
+    /// #              publish_key: Some("demo"),
+    /// #              secret_key: Some("demo")
+    /// #          })
+    /// #         .with_user_id("uuid")
+    /// #         .build()?;
+    /// // Create subscription set for list of channels and groups.
+    /// let mut subscription = pubnub.subscription(SubscriptionParams {
+    ///     channels: Some(&["my_channel_1", "my_channel_2"]),
+    ///     channel_groups: Some(&["my_group"]),
+    ///     options: None
+    /// });
+    /// let channel = pubnub.channel("my_channel_3");
+    /// // Creating Subscription instance for the Channel entity to subscribe and listen
+    /// // for real-time events.
+    /// let channel_subscription = channel.subscription(None);
+    /// // It is possible to separately add listeners to the `channel_subscription`
+    /// // and call `subscribe()` or `subscribe_with_timetoken(..)`.
+    ///
+    /// // Add channel subscription to the set.
+    /// subscription.add_subscriptions(vec![channel_subscription]);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn add_subscriptions(&mut self, subscriptions: Vec<Subscription<T, D>>) {
+        let unique_subscriptions =
+            { Self::unique_subscriptions_from_list(Some(self), subscriptions) };
+
+        {
+            let mut subscription_input = self.subscription_input.write();
+            *subscription_input += Self::subscription_input_from_list(&unique_subscriptions, true);
+            self.subscriptions
+                .write()
+                .extend(unique_subscriptions.clone());
+        }
+
+        // Check whether subscription change required or not.
+        if !self.is_subscribed() || unique_subscriptions.is_empty() {
+            return;
+        }
+
+        let Some(client) = self.client().upgrade().clone() else {
+            return;
+        };
+
+        if let Some(manager) = client.subscription_manager(true).write().as_mut() {
+            // Mark entities as "in-use" by subscription.
+            unique_subscriptions.iter().for_each(|subscription| {
+                subscription.entity.increase_subscriptions_count();
+            });
+
+            // Notify manager to update its state with new subscriptions.
+            if let Some((_, handler)) = self.clones.read().iter().next() {
+                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                manager.update(&handler, None);
+            }
+        };
+    }
+
+    /// Subtracts the given subscriptions from the subscription set.
+    ///
+    /// # Arguments
+    ///
+    /// * `subscriptions` - A vector of `Subscription` objects to be removed
+    ///   from the subscription set.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pubnub::{
+    ///     subscribe::{Subscriber, SubscriptionParams},
+    ///     Keyset, PubNubClient, PubNubClientBuilder,
+    /// };
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let pubnub = // PubNubClient
+    /// #     PubNubClientBuilder::with_reqwest_transport()
+    /// #         .with_keyset(Keyset {
+    /// #              subscribe_key: "demo",
+    /// #              publish_key: Some("demo"),
+    /// #              secret_key: Some("demo")
+    /// #          })
+    /// #         .with_user_id("uuid")
+    /// #         .build()?;
+    /// // Create subscription set for list of channels and groups.
+    /// let mut subscription = pubnub.subscription(SubscriptionParams {
+    ///     channels: Some(&["my_channel_1", "my_channel_2"]),
+    ///     channel_groups: Some(&["my_group"]),
+    ///     options: None
+    /// });
+    /// let channel = pubnub.channel("my_channel_3");
+    /// // Creating Subscription instance for the Channel entity to subscribe and listen
+    /// // for real-time events.
+    /// let channel_subscription = channel.subscription(None);
+    /// // It is possible to separately add listeners to the `channel_subscription`
+    /// // and call `subscribe()` or `subscribe_with_timetoken(..)`.
+    ///
+    /// // Add channel subscription to the set.
+    /// subscription.add_subscriptions(vec![channel_subscription.clone()]);
+    ///
+    /// // After some time it needed to remove subscriptions from the set.
+    /// subscription.sub_subscriptions(vec![channel_subscription]);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn sub_subscriptions(&mut self, subscriptions: Vec<Subscription<T, D>>) {
+        let removed: Vec<Subscription<T, D>> = {
+            let subscriptions_slot = self.subscriptions.read();
+            Self::unique_subscriptions_from_list(None, subscriptions)
+                .into_iter()
+                .filter(|subscription| subscriptions_slot.contains(subscription))
+                .collect()
+        };
+
+        {
+            let mut subscription_input = self.subscription_input.write();
+            *subscription_input -= Self::subscription_input_from_list(&removed, true);
+            let mut subscription_slot = self.subscriptions.write();
+            subscription_slot.retain(|subscription| !removed.contains(subscription));
+        }
+
+        // Check whether subscription change required or not.
+        if !self.is_subscribed() || removed.is_empty() {
+            return;
+        }
+
+        let Some(client) = self.client().upgrade().clone() else {
+            return;
+        };
+
+        // Mark entities as "not in-use" by subscription.
+        removed.iter().for_each(|subscription| {
+            subscription.entity.decrease_subscriptions_count();
+        });
+
+        if let Some(manager) = client.subscription_manager(true).write().as_mut() {
+            // Notify manager to update its state with removed subscriptions.
+            if let Some((_, handler)) = self.clones.read().iter().next() {
+                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                manager.update(&handler, Some(&removed));
+            }
+        };
+    }
+
     /// Aggregate subscriptions' input.
     ///
     /// # Arguments
@@ -445,40 +610,7 @@ where
     D: Deserializer + Send + Sync,
 {
     fn add_assign(&mut self, rhs: Self) {
-        let unique_subscriptions = {
-            let other_subscriptions = rhs.subscriptions.read();
-            SubscriptionSet::unique_subscriptions_from_list(Some(self), other_subscriptions.clone())
-        };
-
-        {
-            let mut subscription_input = self.subscription_input.write();
-            *subscription_input += Self::subscription_input_from_list(&unique_subscriptions, true);
-            self.subscriptions
-                .write()
-                .extend(unique_subscriptions.clone());
-        }
-
-        // Check whether subscription change required or not.
-        if !self.is_subscribed() || unique_subscriptions.is_empty() {
-            return;
-        }
-
-        let Some(client) = self.client().upgrade().clone() else {
-            return;
-        };
-
-        if let Some(manager) = client.subscription_manager(true).write().as_mut() {
-            // Mark entities as "in-use" by subscription.
-            unique_subscriptions.iter().for_each(|subscription| {
-                subscription.entity.increase_subscriptions_count();
-            });
-
-            // Notify manager to update its state with new subscriptions.
-            if let Some((_, handler)) = self.clones.read().iter().next() {
-                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                manager.update(&handler, None);
-            }
-        };
+        self.add_subscriptions(rhs.subscriptions.read().clone());
     }
 }
 impl<T, D> Sub for SubscriptionSet<T, D>
@@ -509,43 +641,7 @@ where
     D: Deserializer + Send + Sync,
 {
     fn sub_assign(&mut self, rhs: Self) {
-        let removed: Vec<Subscription<T, D>> = {
-            let other_subscriptions = rhs.subscriptions.read();
-            let subscriptions_slot = self.subscriptions.read();
-            Self::unique_subscriptions_from_list(None, other_subscriptions.clone())
-                .into_iter()
-                .filter(|subscription| subscriptions_slot.contains(subscription))
-                .collect()
-        };
-
-        {
-            let mut subscription_input = self.subscription_input.write();
-            *subscription_input -= Self::subscription_input_from_list(&removed, true);
-            let mut subscription_slot = self.subscriptions.write();
-            subscription_slot.retain(|subscription| !removed.contains(subscription));
-        }
-
-        // Check whether subscription change required or not.
-        if !self.is_subscribed() || removed.is_empty() {
-            return;
-        }
-
-        let Some(client) = self.client().upgrade().clone() else {
-            return;
-        };
-
-        // Mark entities as "not in-use" by subscription.
-        removed.iter().for_each(|subscription| {
-            subscription.entity.decrease_subscriptions_count();
-        });
-
-        if let Some(manager) = client.subscription_manager(true).write().as_mut() {
-            // Notify manager to update its state with removed subscriptions.
-            if let Some((_, handler)) = self.clones.read().iter().next() {
-                let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                manager.update(&handler, Some(&removed));
-            }
-        };
+        self.sub_subscriptions(rhs.subscriptions.read().clone());
     }
 }
 

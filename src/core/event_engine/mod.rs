@@ -314,6 +314,10 @@ mod should {
         fn cancel(&self) {
             // Do nothing.
         }
+
+        fn is_cancelled(&self) -> bool {
+            false
+        }
     }
 
     enum TestInvocation {

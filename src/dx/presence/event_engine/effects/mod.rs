@@ -2,6 +2,7 @@
 
 use async_channel::Sender;
 use futures::future::BoxFuture;
+use spin::RwLock;
 
 use crate::{
     core::{
@@ -73,6 +74,9 @@ pub(crate) enum PresenceEffect {
         /// Unique effect identifier.
         id: String,
 
+        /// Whether delayed heartbeat effect has been cancelled or not.
+        cancelled: RwLock<bool>,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and groups for which `user_id`
@@ -122,6 +126,9 @@ pub(crate) enum PresenceEffect {
     Wait {
         /// Unique effect identifier.
         id: String,
+
+        /// Whether wait effect has been cancelled or not.
+        cancelled: RwLock<bool>,
 
         /// User input with channels and groups.
         ///
@@ -176,22 +183,22 @@ impl Debug for PresenceEffect {
 impl Effect for PresenceEffect {
     type Invocation = PresenceEffectInvocation;
 
-    fn id(&self) -> String {
-        match self {
-            Self::Heartbeat { id, .. }
-            | Self::DelayedHeartbeat { id, .. }
-            | Self::Leave { id, .. }
-            | Self::Wait { id, .. } => id,
-        }
-        .into()
-    }
-
     fn name(&self) -> String {
         match self {
             Self::Heartbeat { .. } => "HEARTBEAT",
             Self::DelayedHeartbeat { .. } => "DELAYED_HEARTBEAT",
             Self::Leave { .. } => "LEAVE",
             Self::Wait { .. } => "WAIT",
+        }
+        .into()
+    }
+
+    fn id(&self) -> String {
+        match self {
+            Self::Heartbeat { id, .. }
+            | Self::DelayedHeartbeat { id, .. }
+            | Self::Leave { id, .. }
+            | Self::Wait { id, .. } => id,
         }
         .into()
     }
@@ -245,19 +252,34 @@ impl Effect for PresenceEffect {
         match self {
             PresenceEffect::DelayedHeartbeat {
                 id,
+                cancelled,
                 cancellation_channel,
                 ..
             }
             | PresenceEffect::Wait {
                 id,
+                cancelled,
                 cancellation_channel,
                 ..
             } => {
+                {
+                    let mut cancelled_slot = cancelled.write();
+                    *cancelled_slot = true;
+                }
                 cancellation_channel
                     .send_blocking(id.clone())
                     .expect("Cancellation pipe is broken!");
             }
             _ => { /* cannot cancel other effects */ }
+        }
+    }
+
+    fn is_cancelled(&self) -> bool {
+        match self {
+            Self::DelayedHeartbeat { cancelled, .. } | Self::Wait { cancelled, .. } => {
+                *cancelled.read()
+            }
+            _ => false,
         }
     }
 }
@@ -273,6 +295,7 @@ mod it_should {
 
         let effect = PresenceEffect::Wait {
             id: Uuid::new_v4().to_string(),
+            cancelled: RwLock::new(false),
             input: PresenceInput::new(&None, &None),
             executor: Arc::new(|_| Box::pin(async move { Ok(()) })),
             cancellation_channel: tx,
@@ -288,6 +311,7 @@ mod it_should {
 
         let effect = PresenceEffect::DelayedHeartbeat {
             id: Uuid::new_v4().to_string(),
+            cancelled: RwLock::new(false),
             input: PresenceInput::new(&None, &None),
             attempts: 0,
             reason: PubNubError::EffectCanceled,

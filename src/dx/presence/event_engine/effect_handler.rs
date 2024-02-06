@@ -4,6 +4,7 @@
 //! event engine for
 
 use async_channel::Sender;
+use spin::RwLock;
 use uuid::Uuid;
 
 use crate::{
@@ -77,6 +78,7 @@ impl EffectHandler<PresenceEffectInvocation, PresenceEffect> for PresenceEffectH
                 reason,
             } => Some(PresenceEffect::DelayedHeartbeat {
                 id: Uuid::new_v4().to_string(),
+                cancelled: RwLock::new(false),
                 input: input.clone(),
                 attempts: *attempts,
                 reason: reason.clone(),
@@ -91,6 +93,7 @@ impl EffectHandler<PresenceEffectInvocation, PresenceEffect> for PresenceEffectH
             }),
             PresenceEffectInvocation::Wait { input } => Some(PresenceEffect::Wait {
                 id: Uuid::new_v4().to_string(),
+                cancelled: RwLock::new(false),
                 input: input.clone(),
                 executor: self.wait_call.clone(),
                 cancellation_channel: self.cancellation_channel.clone(),

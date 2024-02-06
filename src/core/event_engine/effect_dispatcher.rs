@@ -85,6 +85,11 @@ where
                             let cloned_self = cloned_self.clone();
 
                             runtime_clone.spawn(async move {
+                                // There is no need to spawn effect which already has been
+                                // cancelled.
+                                if effect.is_cancelled() {
+                                    return;
+                                }
                                 let events = effect.run().await;
 
                                 if invocation.is_managed() {
@@ -196,6 +201,10 @@ mod should {
 
         fn cancel(&self) {
             // Do nothing.
+        }
+
+        fn is_cancelled(&self) -> bool {
+            false
         }
     }
 

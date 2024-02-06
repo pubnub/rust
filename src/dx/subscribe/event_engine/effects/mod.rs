@@ -2,6 +2,7 @@
 
 use async_channel::Sender;
 use futures::future::BoxFuture;
+use spin::RwLock;
 
 use crate::{
     core::{event_engine::Effect, PubNubError, RequestRetryConfiguration},
@@ -65,6 +66,9 @@ pub(crate) enum SubscribeEffect {
         /// Unique effect identifier.
         id: String,
 
+        /// Whether handshake effect has been cancelled or not.
+        cancelled: RwLock<bool>,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and channel groups which will be
@@ -92,6 +96,9 @@ pub(crate) enum SubscribeEffect {
     HandshakeReconnect {
         /// Unique effect identifier.
         id: String,
+
+        /// Whether handshake reconnect effect has been cancelled or not.
+        cancelled: RwLock<bool>,
 
         /// User input with channels and groups.
         ///
@@ -132,6 +139,9 @@ pub(crate) enum SubscribeEffect {
         /// Unique effect identifier.
         id: String,
 
+        /// Whether receive effect has been cancelled or not.
+        cancelled: RwLock<bool>,
+
         /// User input with channels and groups.
         ///
         /// Object contains list of channels and channel groups for which
@@ -159,6 +169,9 @@ pub(crate) enum SubscribeEffect {
     ReceiveReconnect {
         /// Unique effect identifier.
         id: String,
+
+        /// Whether receive reconnect effect has been cancelled or not.
+        cancelled: RwLock<bool>,
 
         /// User input with channels and groups.
         ///
@@ -385,29 +398,47 @@ impl Effect for SubscribeEffect {
         match self {
             Self::Handshake {
                 id,
+                cancelled,
                 cancellation_channel,
                 ..
             }
             | Self::HandshakeReconnect {
                 id,
+                cancelled,
                 cancellation_channel,
                 ..
             }
             | Self::Receive {
                 id,
+                cancelled,
                 cancellation_channel,
                 ..
             }
             | Self::ReceiveReconnect {
                 id,
+                cancelled,
                 cancellation_channel,
                 ..
             } => {
+                {
+                    let mut cancelled_slot = cancelled.write();
+                    *cancelled_slot = true;
+                }
                 cancellation_channel
                     .send_blocking(id.clone())
                     .expect("cancellation pipe is broken!");
             }
             _ => { /* cannot cancel other effects */ }
+        }
+    }
+
+    fn is_cancelled(&self) -> bool {
+        match self {
+            Self::Handshake { cancelled, .. }
+            | Self::HandshakeReconnect { cancelled, .. }
+            | Self::Receive { cancelled, .. }
+            | Self::ReceiveReconnect { cancelled, .. } => *cancelled.read(),
+            _ => false,
         }
     }
 }
@@ -424,6 +455,7 @@ mod should {
 
         let effect = SubscribeEffect::Handshake {
             id: Uuid::new_v4().to_string(),
+            cancelled: RwLock::new(false),
             input: SubscriptionInput::new(&None, &None),
             cursor: None,
             executor: Arc::new(|_| {
