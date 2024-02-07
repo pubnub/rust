@@ -20,7 +20,9 @@ changelog:
       - type: improvement
         text: "Add subscription token validation."
       - type: improvement
-        text: "Added a method to validate the provided subscription token to conform to PubNub time token requirements with precision.           Separate `subscribe` example into two to show separately `subscribe` feature and `presence state` maintenance with subscribe."
+        text: "Added a method to validate the provided subscription token to conform to PubNub time token requirements with precision."
+      - type: improvement
+        text: "Separate `subscribe` example into two to show separately `subscribe` feature and `presence state` maintenance with subscribe."
   - date: 2024-01-25
     version: 0.5.0
     changes:
