@@ -231,7 +231,10 @@ impl SubscribeState {
                         input: SubscriptionInput::new(channels, channel_groups),
                         cursor: cursor.clone(),
                     }),
-                    None,
+                    Some(vec![EmitStatus(ConnectionStatus::SubscriptionChanged {
+                        channels: channels.clone(),
+                        channel_groups: channel_groups.clone(),
+                    })]),
                 ))
             }
             Self::ReceiveFailed { cursor, .. } => Some(self.transition_to(
@@ -290,7 +293,10 @@ impl SubscribeState {
                     input: SubscriptionInput::new(channels, channel_groups),
                     cursor: restore_cursor.clone(),
                 }),
-                None,
+                Some(vec![EmitStatus(ConnectionStatus::SubscriptionChanged {
+                    channels: channels.clone(),
+                    channel_groups: channel_groups.clone(),
+                })]),
             )),
             Self::ReceiveFailed { .. } => Some(self.transition_to(
                 Some(Self::Handshaking {

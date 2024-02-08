@@ -4,7 +4,7 @@ use cucumber::gherkin::Table;
 use cucumber::{codegen::Regex, gherkin::Step, then, when};
 use futures::{select_biased, FutureExt, StreamExt};
 use pubnub::core::RequestRetryConfiguration;
-use pubnub::subscribe::{EventEmitter, EventSubscriber, SubscriptionParams};
+use pubnub::subscribe::{EventEmitter, EventSubscriber, SubscriptionCursor, SubscriptionParams};
 use std::fs::read_to_string;
 
 /// Extract list of events and invocations from log.
@@ -122,7 +122,7 @@ async fn subscribe(world: &mut PubNubWorld) {
             channel_groups: None,
             options: None,
         });
-        subscription.subscribe(None);
+        subscription.subscribe();
         world.subscription = Some(subscription);
     });
 }
@@ -139,7 +139,11 @@ async fn subscribe_with_timetoken(world: &mut PubNubWorld, timetoken: u64) {
             channel_groups: None,
             options: None,
         });
-        subscription.subscribe(Some(timetoken.to_string().into()));
+
+        subscription.subscribe_with_timetoken(SubscriptionCursor {
+            timetoken: timetoken.to_string(),
+            ..Default::default()
+        });
         world.subscription = Some(subscription);
     });
 }

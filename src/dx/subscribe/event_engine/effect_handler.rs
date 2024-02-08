@@ -1,4 +1,5 @@
 use async_channel::Sender;
+use spin::rwlock::RwLock;
 use uuid::Uuid;
 
 use crate::core::RequestRetryConfiguration;
@@ -60,6 +61,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             SubscribeEffectInvocation::Handshake { input, cursor } => {
                 Some(SubscribeEffect::Handshake {
                     id: Uuid::new_v4().to_string(),
+                    cancelled: RwLock::new(false),
                     input: input.clone(),
                     cursor: cursor.clone(),
                     executor: self.subscribe_call.clone(),
@@ -73,6 +75,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 reason,
             } => Some(SubscribeEffect::HandshakeReconnect {
                 id: Uuid::new_v4().to_string(),
+                cancelled: RwLock::new(false),
                 input: input.clone(),
                 cursor: cursor.clone(),
                 attempts: *attempts,
@@ -84,6 +87,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
             SubscribeEffectInvocation::Receive { input, cursor } => {
                 Some(SubscribeEffect::Receive {
                     id: Uuid::new_v4().to_string(),
+                    cancelled: RwLock::new(false),
                     input: input.clone(),
                     cursor: cursor.clone(),
                     executor: self.subscribe_call.clone(),
@@ -97,6 +101,7 @@ impl EffectHandler<SubscribeEffectInvocation, SubscribeEffect> for SubscribeEffe
                 reason,
             } => Some(SubscribeEffect::ReceiveReconnect {
                 id: Uuid::new_v4().to_string(),
+                cancelled: RwLock::new(false),
                 input: input.clone(),
                 cursor: cursor.clone(),
                 attempts: *attempts,

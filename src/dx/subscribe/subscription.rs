@@ -44,7 +44,7 @@ use crate::{
 /// };
 ///
 /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-/// let client = // PubNubClient
+/// let pubnub = // PubNubClient
 /// #     PubNubClientBuilder::with_reqwest_transport()
 /// #         .with_keyset(Keyset {
 /// #              subscribe_key: "demo",
@@ -53,7 +53,7 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let channel = client.channel("my_channel");
+/// let channel = pubnub.channel("my_channel");
 /// // Creating Subscription instance for the Channel entity to subscribe and listen
 /// // for real-time events.
 /// let subscription = channel.subscription(None);
@@ -72,7 +72,7 @@ use crate::{
 /// };
 ///
 /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-/// let client = // PubNubClient
+/// let pubnub = // PubNubClient
 /// #     PubNubClientBuilder::with_reqwest_transport()
 /// #         .with_keyset(Keyset {
 /// #              subscribe_key: "demo",
@@ -81,7 +81,7 @@ use crate::{
 /// #          })
 /// #         .with_user_id("uuid")
 /// #         .build()?;
-/// let channels = client.channels(&["my_channel_1", "my_channel_2"]);
+/// let channels = pubnub.channels(&["my_channel_1", "my_channel_2"]);
 /// // Two `Subscription` instances can be added to create `SubscriptionSet` which can be used
 /// // to attach listeners and subscribe in one place for both subscriptions used in addition
 /// // operation.
@@ -206,7 +206,7 @@ where
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let client = // PubNubClient
+    /// let pubnub = // PubNubClient
     /// #     PubNubClientBuilder::with_reqwest_transport()
     /// #         .with_keyset(Keyset {
     /// #              subscribe_key: "demo",
@@ -215,7 +215,7 @@ where
     /// #          })
     /// #         .with_user_id("uuid")
     /// #         .build()?;
-    /// let channel = client.channel("my_channel");
+    /// let channel = pubnub.channel("my_channel");
     /// // Creating Subscription instance for the Channel entity to subscribe and listen
     /// // for real-time events.
     /// let subscription = channel.subscription(None);
@@ -425,6 +425,29 @@ where
         *self.is_subscribed.read()
     }
 
+    /// Register `Subscription` within `SubscriptionManager`.
+    ///
+    /// # Arguments
+    ///
+    /// - `cursor` - Subscription real-time events catch up cursor.
+    fn register_with_cursor(&self, cursor: Option<SubscriptionCursor>) {
+        let Some(client) = self.client.upgrade().clone() else {
+            return;
+        };
+
+        {
+            if let Some(manager) = client.subscription_manager(true).write().as_mut() {
+                // Mark entities as "in use" by subscription.
+                self.entity.increase_subscriptions_count();
+
+                if let Some((_, handler)) = self.clones.read().iter().next() {
+                    let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
+                    manager.register(&handler, cursor);
+                }
+            }
+        }
+    }
+
     /// Filters the given list of `Update` events based on the subscription
     /// input and the current timetoken.
     ///
@@ -482,36 +505,44 @@ where
     T: Transport + Send + Sync + 'static,
     D: Deserializer + Send + Sync + 'static,
 {
-    fn subscribe(&self, cursor: Option<SubscriptionCursor>) {
+    fn subscribe(&self) {
         let mut is_subscribed = self.is_subscribed.write();
         if *is_subscribed {
             return;
         }
         *is_subscribed = true;
 
-        if cursor.is_some() {
-            let mut cursor_slot = self.cursor.write();
-            if let Some(current_cursor) = cursor_slot.as_ref() {
-                let catchup_cursor = cursor.clone().unwrap_or_default();
-                catchup_cursor
-                    .gt(current_cursor)
-                    .then(|| *cursor_slot = Some(catchup_cursor));
-            } else {
-                *cursor_slot = cursor.clone();
-            }
+        self.register_with_cursor(self.cursor.read().clone());
+    }
+
+    fn subscribe_with_timetoken<SC>(&self, cursor: SC)
+    where
+        SC: Into<SubscriptionCursor>,
+    {
+        let mut is_subscribed = self.is_subscribed.write();
+        if *is_subscribed {
+            return;
         }
+        *is_subscribed = true;
 
-        if let Some(client) = self.client().upgrade().clone() {
-            if let Some(manager) = client.subscription_manager(true).write().as_mut() {
-                // Mark entities as "in use" by subscription.
-                self.entity.increase_subscriptions_count();
+        let user_cursor = cursor.into();
+        let cursor = user_cursor.is_valid().then_some(user_cursor);
 
-                if let Some((_, handler)) = self.clones.read().iter().next() {
-                    let handler: Weak<dyn EventHandler<T, D> + Send + Sync> = handler.clone();
-                    manager.register(&handler, cursor);
+        {
+            if cursor.is_some() {
+                let mut cursor_slot = self.cursor.write();
+                if let Some(current_cursor) = cursor_slot.as_ref() {
+                    let catchup_cursor = cursor.clone().unwrap_or_default();
+                    catchup_cursor
+                        .gt(current_cursor)
+                        .then(|| *cursor_slot = Some(catchup_cursor));
+                } else {
+                    *cursor_slot = cursor.clone();
                 }
             }
         }
+
+        self.register_with_cursor(cursor);
     }
 
     fn unsubscribe(&self) {
@@ -521,6 +552,9 @@ where
                 return;
             }
             *is_subscribed_slot = false;
+
+            let mut cursor = self.cursor.write();
+            *cursor = None;
         }
 
         if let Some(client) = self.client().upgrade().clone() {

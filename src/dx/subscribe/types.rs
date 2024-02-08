@@ -90,7 +90,7 @@ pub enum SubscriptionOptions {
     /// Whether presence events should be received.
     ///
     /// Whether presence updates for `userId` should be delivered through
-    /// [`Subscription2`] listener streams or not.
+    /// [`Subscription`] and [`SubscriptionSet`] listener streams or not.
     ReceivePresenceEvents,
 }
 
@@ -128,52 +128,6 @@ pub struct SubscriptionCursor {
     pub region: u32,
 }
 
-impl PartialOrd for SubscriptionCursor {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-
-    fn lt(&self, other: &Self) -> bool {
-        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
-        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
-        lhs < rhs
-    }
-
-    fn le(&self, other: &Self) -> bool {
-        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
-        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
-        lhs <= rhs
-    }
-
-    fn gt(&self, other: &Self) -> bool {
-        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
-        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
-        lhs > rhs
-    }
-
-    fn ge(&self, other: &Self) -> bool {
-        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
-        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
-        lhs >= rhs
-    }
-}
-
-impl Ord for SubscriptionCursor {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
-    }
-}
-
-impl Debug for SubscriptionCursor {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "SubscriptionCursor {{ timetoken: {}, region: {} }}",
-            self.timetoken, self.region
-        )
-    }
-}
-
 /// Subscription statuses.
 #[derive(Clone, PartialEq)]
 pub enum ConnectionStatus {
@@ -192,6 +146,20 @@ pub enum ConnectionStatus {
 
     /// Unexpected disconnection.
     DisconnectedUnexpectedly(PubNubError),
+
+    /// List of channels and groups changed in subscription.
+    SubscriptionChanged {
+        /// List of channels used in subscription.
+        ///
+        /// Channels can be:
+        /// - regular channels
+        /// - channel metadata `id`s
+        /// - user metadata `id`s
+        channels: Option<Vec<String>>,
+
+        /// List of channel groups used in subscription.
+        channel_groups: Option<Vec<String>>,
+    },
 }
 
 /// Presence update information.
@@ -602,6 +570,21 @@ pub enum MessageActionEvent {
     Delete,
 }
 
+impl SubscriptionCursor {
+    /// Checks if the `timetoken` is valid.
+    ///
+    /// A valid `timetoken` should have a length of 17 and contain only numeric
+    /// characters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the `timetoken` is valid, otherwise `false`.
+    #[cfg(feature = "std")]
+    pub(crate) fn is_valid(&self) -> bool {
+        self.timetoken.len() == 17 && self.timetoken.chars().all(char::is_numeric)
+    }
+}
+
 impl Default for SubscriptionCursor {
     fn default() -> Self {
         Self {
@@ -611,10 +594,103 @@ impl Default for SubscriptionCursor {
     }
 }
 
+impl PartialOrd for SubscriptionCursor {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+
+    fn lt(&self, other: &Self) -> bool {
+        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
+        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
+        lhs < rhs
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
+        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
+        lhs <= rhs
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
+        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
+        lhs > rhs
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        let lhs = self.timetoken.parse::<u64>().expect("Invalid timetoken");
+        let rhs = other.timetoken.parse::<u64>().expect("Invalid timetoken");
+        lhs >= rhs
+    }
+}
+
+impl Ord for SubscriptionCursor {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+    }
+}
+
+impl Debug for SubscriptionCursor {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "SubscriptionCursor {{ timetoken: {}, region: {} }}",
+            self.timetoken, self.region
+        )
+    }
+}
+
 impl From<String> for SubscriptionCursor {
     fn from(value: String) -> Self {
-        Self {
-            timetoken: value,
+        let mut timetoken = value;
+        if timetoken.len() != 17 || !timetoken.chars().all(char::is_numeric) {
+            timetoken = "-1".into();
+        }
+
+        SubscriptionCursor {
+            timetoken,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<&str> for SubscriptionCursor {
+    fn from(value: &str) -> Self {
+        let mut timetoken = value;
+        if timetoken.len() != 17 || !timetoken.chars().all(char::is_numeric) {
+            timetoken = "-1";
+        }
+
+        SubscriptionCursor {
+            timetoken: timetoken.to_string(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<usize> for SubscriptionCursor {
+    fn from(value: usize) -> Self {
+        let mut timetoken = value.to_string();
+        if timetoken.len() != 17 {
+            timetoken = "-1".into();
+        }
+
+        SubscriptionCursor {
+            timetoken,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<u64> for SubscriptionCursor {
+    fn from(value: u64) -> Self {
+        let mut timetoken = value.to_string();
+        if timetoken.len() != 17 {
+            timetoken = "-1".into();
+        }
+
+        SubscriptionCursor {
+            timetoken,
             ..Default::default()
         }
     }
@@ -670,6 +746,16 @@ impl Debug for ConnectionStatus {
             Self::ConnectionError(err) => write!(f, "ConnectionError({err:?})"),
             ConnectionStatus::DisconnectedUnexpectedly(err) => {
                 write!(f, "DisconnectedUnexpectedly({err:?})")
+            }
+            Self::SubscriptionChanged {
+                channels,
+                channel_groups,
+            } => {
+                write!(
+                    f,
+                    "SubscriptionChanged {{ channels: {channels:?}, \
+                    channel_groups: {channel_groups:?}  }}"
+                )
             }
         }
     }
@@ -1110,5 +1196,89 @@ mod should {
     )]
     fn resolve_subscription_field_value(subscription: Option<String>, channel: &str) -> String {
         resolve_subscription_value(subscription, channel)
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_valid_subscription_cursor_as_struct() {
+        let cursor = SubscriptionCursor {
+            timetoken: "12345678901234567".into(),
+            region: 0,
+        };
+        assert!(cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_valid_subscription_cursor_from_string() {
+        let cursor: SubscriptionCursor = "12345678901234567".to_string().into();
+        assert!(cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_valid_subscription_cursor_from_string_slice() {
+        let cursor: SubscriptionCursor = "12345678901234567".into();
+        assert!(cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_valid_subscription_cursor_from_usize() {
+        let timetoken: usize = 12345678901234567;
+        let cursor: SubscriptionCursor = timetoken.into();
+        assert!(cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_valid_subscription_cursor_from_u64() {
+        let timetoken: u64 = 12345678901234567;
+        let cursor: SubscriptionCursor = timetoken.into();
+        assert!(cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_invalid_subscription_cursor_from_short_string() {
+        let cursor: SubscriptionCursor = "1234567890123467".to_string().into();
+        assert!(!cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_invalid_subscription_cursor_from_non_numeric_string() {
+        let cursor: SubscriptionCursor = "123456789a123467".to_string().into();
+        assert!(!cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_invalid_subscription_cursor_from_short_string_slice() {
+        let cursor: SubscriptionCursor = "1234567890123567".into();
+        assert!(!cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_invalid_subscription_cursor_from_non_numeric_string_slice() {
+        let cursor: SubscriptionCursor = "1234567890123a567".into();
+        assert!(!cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_invalid_subscription_cursor_from_too_small_usize() {
+        let timetoken: usize = 123456789012567;
+        let cursor: SubscriptionCursor = timetoken.into();
+        assert!(!cursor.is_valid())
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn create_invalid_subscription_cursor_from_too_small_u64() {
+        let timetoken: u64 = 123901234567;
+        let cursor: SubscriptionCursor = timetoken.into();
+        assert!(!cursor.is_valid())
     }
 }

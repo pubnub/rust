@@ -1,7 +1,7 @@
 //! # Event dispatcher module
 //!
 //! This module contains the [`EventDispatcher`] type, which is used by
-//! [`PubNubClientInstance`], [`Subscription2`] and [`SubscriptionSet`] to let
+//! [`PubNubClientInstance`], [`Subscription`] and [`SubscriptionSet`] to let
 //! users attach listeners to the specific event types.
 
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};

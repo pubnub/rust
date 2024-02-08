@@ -21,7 +21,9 @@ pub(super) async fn execute(
     retry_policy: &RequestRetryConfiguration,
     executor: &Arc<SubscribeEffectExecutor>,
 ) -> Vec<SubscribeEvent> {
-    if !retry_policy.retriable(Some("/v2/subscribe"), &attempt, Some(&reason)) {
+    if !matches!(reason, PubNubError::EffectCanceled)
+        && !retry_policy.retriable(Some("/v2/subscribe"), &attempt, Some(&reason))
+    {
         return vec![SubscribeEvent::HandshakeReconnectGiveUp { reason }];
     }
 
@@ -174,6 +176,38 @@ mod should {
             result.first().unwrap(),
             SubscribeEvent::HandshakeReconnectGiveUp { .. }
         ));
+    }
+
+    #[tokio::test]
+    async fn return_empty_event_on_effect_cancel_err() {
+        let mock_handshake_function: Arc<SubscribeEffectExecutor> =
+            Arc::new(move |_| async move { Err(PubNubError::EffectCanceled) }.boxed());
+
+        let result = execute(
+            &SubscriptionInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
+            &None,
+            1,
+            PubNubError::Transport {
+                details: "test".into(),
+                response: Some(Box::new(TransportResponse {
+                    status: 500,
+                    ..Default::default()
+                })),
+            },
+            "id",
+            &RequestRetryConfiguration::Linear {
+                delay: 0,
+                max_retry: 1,
+                excluded_endpoints: None,
+            },
+            &mock_handshake_function,
+        )
+        .await;
+
+        assert!(result.is_empty());
     }
 
     #[tokio::test]

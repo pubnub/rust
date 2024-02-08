@@ -128,4 +128,23 @@ mod should {
             SubscribeEvent::ReceiveFailure { .. }
         ));
     }
+
+    #[tokio::test]
+    async fn return_empty_event_on_effect_cancel_err() {
+        let mock_receive_function: Arc<SubscribeEffectExecutor> =
+            Arc::new(move |_| async move { Err(PubNubError::EffectCanceled) }.boxed());
+
+        let result = execute(
+            &SubscriptionInput::new(
+                &Some(vec!["ch1".to_string()]),
+                &Some(vec!["cg1".to_string()]),
+            ),
+            &Default::default(),
+            "id",
+            &mock_receive_function,
+        )
+        .await;
+
+        assert!(result.is_empty());
+    }
 }

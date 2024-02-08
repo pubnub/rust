@@ -36,11 +36,11 @@ Add `pubnub` to your Rust project in the `Cargo.toml` file:
 ```toml
 # default features
 [dependencies]
-pubnub = "0.5.0"
+pubnub = "0.6.0"
 
 # all features
 [dependencies]
-pubnub = { version = "0.5.0", features = ["full"] }
+pubnub = { version = "0.6.0", features = ["full"] }
 ```
 
 ### Example
@@ -48,17 +48,20 @@ pubnub = { version = "0.5.0", features = ["full"] }
 Try the following sample code to get up and running quickly!
 
 ```rust
-use pubnub::{Keyset, PubNubClientBuilder};
-use pubnub::dx::subscribe::{SubscribeStreamEvent, Update};
+use pubnub::subscribe::Subscriber;
 use futures::StreamExt;
 use tokio::time::sleep;
 use std::time::Duration;
 use serde_json;
-
+use pubnub::{
+    dx::subscribe::Update,
+    subscribe::EventSubscriber,
+    Keyset, PubNubClientBuilder,
+};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use pubnub::subscribe::{EventEmitter, SubscriptionParams};
-let publish_key = "my_publish_key";
+    let publish_key = "my_publish_key";
     let subscribe_key = "my_subscribe_key";
     let client = PubNubClientBuilder::with_reqwest_transport()
         .with_keyset(Keyset {
@@ -68,6 +71,7 @@ let publish_key = "my_publish_key";
         })
         .with_user_id("user_id")
         .build()?;
+
     println!("PubNub instance created");
 
     let subscription = client.subscription(SubscriptionParams {
@@ -76,7 +80,13 @@ let publish_key = "my_publish_key";
         options: None
     });
 
-    println!("Subscribed to channel");
+    let channel_entity = client.channel("my_channel_2");
+    let channel_entity_subscription = channel_entity.subscription(None);
+
+    subscription.subscribe();
+    channel_entity_subscription.subscribe();
+
+    println!("Subscribed to channels");
 
     // Launch a new task to print out each received message
     tokio::spawn(client.status_stream().for_each(|status| async move {
@@ -107,7 +117,21 @@ let publish_key = "my_publish_key";
         }
     }));
 
-    sleep(Duration::from_secs(1)).await;
+    // Explicitly listen only for real-time `message` updates.
+    tokio::spawn(
+        channel_entity_subscription
+            .messages_stream()
+            .for_each(|message| async move {
+                if let Ok(utf8_message) = String::from_utf8(message.data.clone()) {
+                    if let Ok(cleaned) = serde_json::from_str::<String>(&utf8_message) {
+                        println!("message: {}", cleaned);
+                    }
+                }
+            }),
+    );
+
+   sleep(Duration::from_secs(2)).await;
+
     // Send a message to the channel
     client
         .publish_message("hello world!")
@@ -116,7 +140,15 @@ let publish_key = "my_publish_key";
         .execute()
         .await?;
 
-    sleep(Duration::from_secs(10)).await;
+   // Send a message to another channel
+    client
+        .publish_message("hello world on the other channel!")
+        .channel("my_channel_2")
+        .r#type("text-message")
+        .execute()
+        .await?;
+
+    sleep(Duration::from_secs(15)).await;
 
     Ok(())
 }
@@ -132,11 +164,11 @@ disable them in the `Cargo.toml` file, like so:
 ```toml
 # only blocking and access + default features
 [dependencies]
-pubnub = { version = "0.5.0", features = ["blocking", "access"] }
+pubnub = { version = "0.6.0", features = ["blocking", "access"] }
 
 # only parse_token + default features
 [dependencies]
-pubnub = { version = "0.5.0", features = ["parse_token"] }
+pubnub = { version = "0.6.0", features = ["parse_token"] }
 ```
 
 ### Available features
@@ -175,7 +207,7 @@ you need, for example:
 
 ```toml
 [dependencies]
-pubnub = { version = "0.5.0", default-features = false, features = ["serde", "publish",
+pubnub = { version = "0.6.0", default-features = false, features = ["serde", "publish",
 "blocking"] }
 ```
 

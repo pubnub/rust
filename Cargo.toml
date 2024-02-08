@@ -1,6 +1,6 @@
 [package]
 name = "pubnub"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license-file = "LICENSE"
 authors = ["PubNub <support@pubnub.com>"]
@@ -165,6 +165,10 @@ required-features = ["default"]
 
 [[example]]
 name = "subscribe"
+required-features = ["default", "subscribe"]
+
+[[example]]
+name = "subscribe_with_presence_state"
 required-features = ["default", "subscribe", "presence"]
 
 [[example]]
