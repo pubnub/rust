@@ -1,9 +1,28 @@
 name: rust
-version: 0.5.0
+version: 0.6.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2024-02-07
+    version: 0.6.0
+    changes:
+      - type: feature
+        text: "Make it possible to create `SubscriptionCursor` from the string slice."
+      - type: feature
+        text: "Add `add_subscriptions(..)` and `sub_subscriptions(..)` to `SubscriptionSet` to make it possible in addition to sets manipulation use list of subscriptions."
+      - type: bug
+        text: "Fix issue because of which `cursor` is not reset on `Subscription` and `SubscriptionSet` on unsubscribe."
+      - type: bug
+        text: "Fix issue because of which cancelled effects still asynchronously spawned for processing."
+      - type: improvement
+        text: "Change `client` to `pubnub` in inline docs."
+      - type: improvement
+        text: "Add subscription token validation."
+      - type: improvement
+        text: "Added a method to validate the provided subscription token to conform to PubNub time token requirements with precision."
+      - type: improvement
+        text: "Separate `subscribe` example into two to show separately `subscribe` feature and `presence state` maintenance with subscribe."
   - date: 2024-01-25
     version: 0.5.0
     changes:
