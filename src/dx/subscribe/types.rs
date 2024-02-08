@@ -146,6 +146,20 @@ pub enum ConnectionStatus {
 
     /// Unexpected disconnection.
     DisconnectedUnexpectedly(PubNubError),
+
+    /// List of channels and groups changed in subscription.
+    SubscriptionChanged {
+        /// List of channels used in subscription.
+        ///
+        /// Channels can be:
+        /// - regular channels
+        /// - channel metadata `id`s
+        /// - user metadata `id`s
+        channels: Option<Vec<String>>,
+
+        /// List of channel groups used in subscription.
+        channel_groups: Option<Vec<String>>,
+    },
 }
 
 /// Presence update information.
@@ -732,6 +746,16 @@ impl Debug for ConnectionStatus {
             Self::ConnectionError(err) => write!(f, "ConnectionError({err:?})"),
             ConnectionStatus::DisconnectedUnexpectedly(err) => {
                 write!(f, "DisconnectedUnexpectedly({err:?})")
+            }
+            Self::SubscriptionChanged {
+                channels,
+                channel_groups,
+            } => {
+                write!(
+                    f,
+                    "SubscriptionChanged {{ channels: {channels:?}, \
+                    channel_groups: {channel_groups:?}  }}"
+                )
             }
         }
     }
