@@ -209,7 +209,7 @@ pub struct Envelope {
     /// PubNub defined event type.
     #[cfg_attr(
         feature = "serde",
-        serde(rename = "f"),
+        serde(rename = "e"),
         serde(default = "Envelope::default_message_type")
     )]
     pub message_type: SubscribeMessageType,
@@ -240,8 +240,6 @@ pub struct Envelope {
     pub channel: String,
 
     /// Event payload.
-    ///
-    /// Depending from
     #[cfg_attr(feature = "serde", serde(rename = "d"))]
     pub payload: EnvelopePayload,
 
