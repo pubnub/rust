@@ -17,6 +17,7 @@
     not(feature = "std")
 ))]
 use crate::dx::pubnub_client::PubNubClientDeserializerBuilder;
+use std::time::SystemTime;
 
 #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
 use crate::dx::pubnub_client::PubNubClientRuntimeBuilder;
@@ -86,6 +87,7 @@ impl Transport for TransportReqwest {
         #[cfg(feature = "std")]
         let timeout = request.timeout;
 
+        let is_publish = request.path.contains("publish");
         #[cfg(feature = "std")]
         let mut builder = match request.method {
             TransportMethod::Get => self.prepare_get_method(request, request_url),
@@ -105,6 +107,16 @@ impl Transport for TransportReqwest {
             TransportMethod::Delete => self.prepare_delete_method(request, request_url),
         }?;
 
+        if is_publish {
+            println!(
+                "p00 {:?}",
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()
+            );
+        }
+
         let result = builder
             .headers(headers)
             .send()
@@ -113,6 +125,16 @@ impl Transport for TransportReqwest {
                 details: e.to_string(),
                 response: None,
             })?;
+
+        if is_publish {
+            println!(
+                "p01 {:?}",
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()
+            );
+        }
 
         let headers = result.headers().clone();
         let status = result.status();
