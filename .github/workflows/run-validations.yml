@@ -43,8 +43,7 @@ jobs:
   linters:
     name: Launch all cargo linters to check condition of the code
     runs-on:
-      group: Default Larger Runners
-      labels: ubuntu-latest-m
+      group: Default
     steps:
       - uses: actions/checkout@v4
 
@@ -73,8 +72,7 @@ jobs:
   cargo-deny:
     name: Check Cargo crate dependencies
     runs-on:
-      group: Default Larger Runners
-      labels: ubuntu-latest-m
+      group: Default
     strategy:
       matrix:
         checks:
@@ -91,8 +89,7 @@ jobs:
   wasm-target:
     name: Check if Web Assembly target compiles as expected
     runs-on:
-      group: Default Larger Runners
-      labels: ubuntu-latest-m
+      group: Default
     steps:
       - uses: actions/checkout@v4
 
@@ -111,8 +108,7 @@ jobs:
   no_std-target:
     name: Check if `no_std` target compiles as expected
     runs-on:
-      group: Default Larger Runners
-      labels: ubuntu-latest-m
+      group: Default
     steps:
       - uses: actions/checkout@v4
 
@@ -136,10 +132,9 @@ jobs:
 
   all-validations:
     name: Validations
-    runs-on:
-      group: Default Larger Runners
-      labels: ubuntu-latest-m
     needs: [linters, cargo-deny, wasm-target, no_std-target]
+    runs-on:
+      group: Default
     steps:
       - name: Validations summary
         run: echo -e "\033[38;2;95;215;0m\033[1mAll validations passed"
