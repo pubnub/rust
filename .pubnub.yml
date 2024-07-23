@@ -166,5 +166,3 @@ supported-platforms:
       - Unix 
       - WebAssembly
       - Embedded systems
-      - More information: https://doc.rust-lang.org/nightly/rustc/platform-support.html
-      - and https://github.com/pubnub/rust#limitations
