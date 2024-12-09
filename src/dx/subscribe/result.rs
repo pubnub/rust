@@ -257,11 +257,11 @@ pub struct Envelope {
     pub subscription: Option<String>,
 
     /// User provided message type (set only when [`publish`] called with
-    /// `r#type`).
+    /// `custom_message_type`).
     ///
     /// [`publish`]: crate::dx::publish
-    #[cfg_attr(feature = "serde", serde(rename = "mt"), serde(default))]
-    pub r#type: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "cmt"), serde(default))]
+    pub custom_message_type: Option<String>,
 
     /// Identifier of space into which message has been published (set only when
     /// [`publish`] called with `space_id`).

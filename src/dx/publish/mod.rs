@@ -499,10 +499,13 @@ mod should {
                 ("norep".to_string(), "true".to_string()),
                 ("store".to_string(), "1".to_string()),
                 ("space-id".to_string(), "space_id".to_string()),
-                ("type".to_string(), "message_type".to_string()),
+                (
+                    "custom_message_type".to_string(),
+                    "message_type".to_string()
+                ),
                 ("meta".to_string(), "{\"k\":\"v\"}".to_string()),
                 ("ttl".to_string(), "50".to_string()),
-                ("seqn".to_string(), "1".to_string())
+                ("seqn".to_string(), "1".to_string()),
             ]),
             result.data.query_parameters
         );
