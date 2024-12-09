@@ -257,8 +257,11 @@ where
             query_params.insert("space-id".to_string(), space_id.clone());
         }
 
-        if let Some(r#type) = &self.r#type {
-            query_params.insert("type".to_string(), r#type.clone());
+        if let Some(custom_message_type) = &self.custom_message_type {
+            query_params.insert(
+                "custom_message_type".to_string(),
+                custom_message_type.clone(),
+            );
         }
 
         query_params.insert("seqn".to_string(), self.seqn.to_string());
@@ -351,7 +354,7 @@ where
                 replicate: value.replicate,
                 use_post: value.use_post,
                 space_id: value.space_id,
-                r#type: value.r#type,
+                custom_message_type: value.custom_message_type,
             },
         }
     }
@@ -386,7 +389,7 @@ struct PublishMessageParams<M> {
     use_post: bool,
     meta: Option<HashMap<String, String>>,
     space_id: Option<String>,
-    r#type: Option<String>,
+    custom_message_type: Option<String>,
 }
 
 fn bool_to_numeric(value: bool) -> String {
@@ -486,7 +489,7 @@ mod should {
             .ttl(50)
             .store(true)
             .space_id("space_id")
-            .r#type("message_type")
+            .custom_message_type("message_type")
             .meta(HashMap::from([("k".to_string(), "v".to_string())]))
             .prepare_context_with_request()
             .unwrap();

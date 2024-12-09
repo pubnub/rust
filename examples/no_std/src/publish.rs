@@ -140,7 +140,7 @@ fn publish_example() -> Result<(), PubNubError> {
         .use_post(true)
         .ttl(10)
         .space_id("my_space")
-        .r#type("my_type")
+        .custom_message_type("my_type")
         .execute_blocking()?;
 
     Ok(())

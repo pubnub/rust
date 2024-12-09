@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     let result = client
         .publish_message("hello world!")
         .channel("my_channel")
-        .r#type("text-message")
+        .custom_message_type("text-message")
         .execute()
         .await?;
 
@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         client
             .publish_message("hello async world!")
             .channel("my_channel")
-            .r#type("text-message")
+            .custom_message_type("text-message")
             .execute(),
     );
 
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
             description: "Check out this awesome playlist I made!".into(),
         })
         .channel("my_channel")
-        .r#type("url-with-description")
+        .custom_message_type("url-with-description")
         .execute()
         .await?;
 
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
         .use_post(true)
         .ttl(10)
         .space_id("my_space")
-        .r#type("text-message")
+        .custom_message_type("text-message")
         .execute()
         .await?;
 
