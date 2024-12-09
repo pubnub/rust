@@ -169,5 +169,5 @@ where
 
     /// Message type to publish.
     #[builder(setter(strip_option, into), default = "None")]
-    pub(super) r#type: Option<String>,
+    pub(super) custom_message_type: Option<String>,
 }

@@ -470,10 +470,10 @@ pub struct Message {
     pub data: Vec<u8>,
 
     /// User provided message type (set only when [`publish`] called with
-    /// `r#type`).
+    /// `custom_message_type`).
     ///
     /// [`publish`]: crate::dx::publish
-    pub r#type: Option<String>,
+    pub custom_message_type: Option<String>,
 
     /// Identifier of space into which message has been published (set only when
     /// [`publish`] called with `space_id`).
@@ -1097,7 +1097,7 @@ impl TryFrom<Envelope> for Message {
                 channel: value.channel,
                 subscription,
                 data: value.payload.into(),
-                r#type: value.r#type,
+                custom_message_type: value.custom_message_type,
                 space_id: value.space_id,
                 decryption_error: None,
             })

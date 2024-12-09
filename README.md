@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client
         .publish_message("hello world!")
         .channel("my_channel")
-        .r#type("text-message")
+        .custom_message_type("text-message")
         .execute()
         .await?;
 
@@ -144,7 +144,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client
         .publish_message("hello world on the other channel!")
         .channel("my_channel_2")
-        .r#type("text-message")
+        .custom_message_type("text-message")
         .execute()
         .await?;
 
