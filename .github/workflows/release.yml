@@ -2,8 +2,8 @@ name: Automated product release
 
 on:
   pull_request:
-    branches: [master]
-    types: [closed]
+    branches: [ master ]
+    types: [ closed ]
 
 jobs:
   check-release:
@@ -14,7 +14,7 @@ jobs:
       release: ${{ steps.check.outputs.ready }}
     steps:
       - name: Checkout actions
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           repository: pubnub/client-engineering-deployment-tools
           ref: v1
@@ -32,13 +32,13 @@ jobs:
     if: needs.check-release.outputs.release == 'true'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           # This should be the same as the one specified for on.pull_request.branches
           ref: master
           token: ${{ secrets.GH_TOKEN }}
       - name: Checkout actions
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           repository: pubnub/client-engineering-deployment-tools
           ref: v1
