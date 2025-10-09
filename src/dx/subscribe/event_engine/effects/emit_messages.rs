@@ -36,6 +36,7 @@ mod should {
             data: vec![],
             r#type: None,
             space_id: None,
+            user_metadata: None,
             decryption_error: None,
         };
 

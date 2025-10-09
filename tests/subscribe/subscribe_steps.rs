@@ -19,14 +19,8 @@ fn events_and_invocations_history() -> Vec<Vec<String>> {
         "SUBSCRIPTION_RESTORED",
         "HANDSHAKE_SUCCESS",
         "HANDSHAKE_FAILURE",
-        "HANDSHAKE_RECONNECT_SUCCESS",
-        "HANDSHAKE_RECONNECT_FAILURE",
-        "HANDSHAKE_RECONNECT_GIVEUP",
         "RECEIVE_SUCCESS",
         "RECEIVE_FAILURE",
-        "RECEIVE_RECONNECT_SUCCESS",
-        "RECEIVE_RECONNECT_FAILURE",
-        "RECEIVE_RECONNECT_GIVEUP",
         "DISCONNECT",
         "RECONNECT",
         "UNSUBSCRIBE_ALL",
@@ -34,12 +28,8 @@ fn events_and_invocations_history() -> Vec<Vec<String>> {
     let known_invocations = [
         "HANDSHAKE",
         "CANCEL_HANDSHAKE",
-        "HANDSHAKE_RECONNECT",
-        "CANCEL_HANDSHAKE_RECONNECT",
         "RECEIVE_MESSAGES",
         "CANCEL_RECEIVE_MESSAGES",
-        "RECEIVE_RECONNECT",
-        "CANCEL_RECEIVE_RECONNECT",
         "EMIT_STATUS",
         "EMIT_MESSAGES",
     ];
@@ -183,35 +173,11 @@ async fn receive_an_error_subscribe_retry(world: &mut PubNubWorld) {
             "RECEIVE_FAILURE"
         }
     };
-    let reconnect_operation_name = {
-        if handshake_test {
-            "HANDSHAKE_RECONNECT_FAILURE"
-        } else {
-            "RECEIVE_RECONNECT_FAILURE"
-        }
-    };
-    let give_up_operation_name = {
-        if handshake_test {
-            "HANDSHAKE_RECONNECT_GIVEUP"
-        } else {
-            "RECEIVE_RECONNECT_GIVEUP"
-        }
-    };
 
     assert_eq!(
         event_occurrence_count(history.clone(), normal_operation_name.into()),
         1,
         "{normal_operation_name} should appear at least once"
-    );
-    assert_eq!(
-        event_occurrence_count(history.clone(), reconnect_operation_name.into()),
-        expected_retry_count,
-        "{reconnect_operation_name} should appear {expected_retry_count} times"
-    );
-    assert_eq!(
-        event_occurrence_count(history, give_up_operation_name.into()),
-        1,
-        "{give_up_operation_name} should appear at least once"
     );
 }
 

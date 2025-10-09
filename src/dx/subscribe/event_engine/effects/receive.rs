@@ -34,8 +34,6 @@ pub(crate) async fn execute(
         channels: &input.channels(),
         channel_groups: &input.channel_groups(),
         cursor: Some(cursor),
-        attempt: 0,
-        reason: None,
         effect_id,
     })
     .map_ok_or_else(
@@ -67,8 +65,6 @@ mod should {
         let mock_receive_function: Arc<SubscribeEffectExecutor> = Arc::new(move |params| {
             assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
-            assert_eq!(params.attempt, 0);
-            assert_eq!(params.reason, None);
             assert_eq!(params.cursor, Some(&Default::default()));
             assert_eq!(params.effect_id, "id");
 

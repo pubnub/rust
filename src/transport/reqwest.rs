@@ -254,7 +254,13 @@ fn create_result(
 ) -> Result<TransportResponse, PubNubError> {
     Ok(TransportResponse {
         status: status.as_u16(),
-        body: (!body.is_empty()).then(|| body.to_vec()),
+        body: (!body.is_empty()).then(|| {
+            info!(
+                "Received payload: {}",
+                String::from_utf8(body.to_vec()).unwrap_or("can't decode body".to_string())
+            );
+            body.to_vec()
+        }),
         headers: extract_headers(headers),
     })
 }

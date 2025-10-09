@@ -4,7 +4,7 @@
 //! available event engine effect invocations.
 
 use crate::{
-    core::{event_engine::EffectInvocation, PubNubError},
+    core::event_engine::EffectInvocation,
     lib::core::fmt::{Display, Formatter, Result},
     presence::event_engine::{PresenceEffect, PresenceEvent, PresenceInput},
 };
@@ -19,26 +19,6 @@ pub(crate) enum PresenceEffectInvocation {
         /// presence should be announced.
         input: PresenceInput,
     },
-
-    /// Delayed heartbeat effect invocation.
-    DelayedHeartbeat {
-        /// User input with channels and groups.
-        ///
-        /// Object contains list of channels and groups for which `user_id`
-        /// presence should be announced.
-        input: PresenceInput,
-
-        /// Delayed heartbeat retry attempt.
-        ///
-        /// Used to track overall number of delayed heartbeat retry attempts.
-        attempts: u8,
-
-        /// Delayed heartbeat attempt failure reason.
-        reason: PubNubError,
-    },
-
-    /// Cancel delayed heartbeat effect invocation.
-    CancelDelayedHeartbeat,
 
     /// Leave effect invocation.
     Leave {
@@ -72,8 +52,6 @@ impl EffectInvocation for PresenceEffectInvocation {
     fn id(&self) -> &str {
         match self {
             Self::Heartbeat { .. } => "HEARTBEAT",
-            Self::DelayedHeartbeat { .. } => "DELAYED_HEARTBEAT",
-            Self::CancelDelayedHeartbeat => "CANCEL_DELAYED_HEARTBEAT",
             Self::Leave { .. } => "LEAVE",
             Self::Wait { .. } => "WAIT",
             Self::CancelWait => "CANCEL_WAIT",
@@ -82,18 +60,15 @@ impl EffectInvocation for PresenceEffectInvocation {
     }
 
     fn is_managed(&self) -> bool {
-        matches!(self, Self::Wait { .. } | Self::DelayedHeartbeat { .. })
+        matches!(self, Self::Wait { .. })
     }
 
     fn is_cancelling(&self) -> bool {
-        matches!(self, Self::CancelDelayedHeartbeat | Self::CancelWait)
+        matches!(self, Self::CancelWait)
     }
 
     fn cancelling_effect(&self, effect: &Self::Effect) -> bool {
-        (matches!(effect, PresenceEffect::DelayedHeartbeat { .. })
-            && matches!(self, Self::CancelDelayedHeartbeat { .. }))
-            || (matches!(effect, PresenceEffect::Wait { .. })
-                && matches!(self, Self::CancelWait { .. }))
+        matches!(effect, PresenceEffect::Wait { .. }) && matches!(self, Self::CancelWait { .. })
     }
 
     fn is_terminating(&self) -> bool {
@@ -105,8 +80,6 @@ impl Display for PresenceEffectInvocation {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Heartbeat { .. } => write!(f, "HEARTBEAT"),
-            Self::DelayedHeartbeat { .. } => write!(f, "DELAYED_HEARTBEAT"),
-            Self::CancelDelayedHeartbeat => write!(f, "CANCEL_DELAYED_HEARTBEAT"),
             Self::Leave { .. } => write!(f, "LEAVE"),
             Self::Wait { .. } => write!(f, "WAIT"),
             Self::CancelWait => write!(f, "CANCEL_WAIT"),

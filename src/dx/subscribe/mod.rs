@@ -1,12 +1,9 @@
 //! Subscribe module.
 //!
-//! Allows subscribe to real-time updates from channels and groups.
+//! Allows to subscribe to real-time updates from channels and groups.
 
 #[cfg(feature = "std")]
-use futures::{
-    future::{ready, BoxFuture},
-    FutureExt,
-};
+use futures::{future::BoxFuture, FutureExt};
 #[cfg(feature = "std")]
 use spin::RwLock;
 
@@ -18,13 +15,10 @@ use crate::{
 };
 
 #[cfg(feature = "std")]
-use crate::{
-    core::{
-        event_engine::{CancellationTask, EventEngine},
-        runtime::Runtime,
-        DataStream, PubNubEntity,
-    },
-    lib::alloc::string::ToString,
+use crate::core::{
+    event_engine::{CancellationTask, EventEngine},
+    runtime::Runtime,
+    DataStream, PubNubEntity,
 };
 
 use crate::{
@@ -473,35 +467,15 @@ where
         let emit_messages_client = self.clone();
         let emit_status_client = self.clone();
         let subscribe_client = self.clone();
-        let request_retry = self.config.transport.retry_configuration.clone();
-        let request_subscribe_retry = request_retry.clone();
         let runtime = self.runtime.clone();
-        let runtime_sleep = runtime.clone();
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
 
         EventEngine::new(
             SubscribeEffectHandler::new(
                 Arc::new(move |params| {
-                    let delay_in_microseconds = request_subscribe_retry.retry_delay(
-                        Some("/v2/subscribe".to_string()),
-                        &params.attempt,
-                        params.reason.as_ref(),
-                    );
-                    let inner_runtime_sleep = runtime_sleep.clone();
-
                     Self::subscribe_call(
                         subscribe_client.clone(),
                         params.clone(),
-                        Arc::new(move || {
-                            if let Some(delay) = delay_in_microseconds {
-                                inner_runtime_sleep
-                                    .clone()
-                                    .sleep_microseconds(delay)
-                                    .boxed()
-                            } else {
-                                ready(()).boxed()
-                            }
-                        }),
                         cancel_rx.clone(),
                     )
                 }),
@@ -509,7 +483,6 @@ where
                 Arc::new(Box::new(move |updates, cursor: SubscriptionCursor| {
                     Self::emit_messages(emit_messages_client.clone(), updates, cursor)
                 })),
-                request_retry,
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,
@@ -517,15 +490,11 @@ where
         )
     }
 
-    fn subscribe_call<F>(
+    fn subscribe_call(
         client: Self,
         params: event_engine::types::SubscriptionParams,
-        delay: Arc<F>,
         cancel_rx: async_channel::Receiver<String>,
-    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
+    ) -> BoxFuture<'static, Result<SubscribeResult, PubNubError>> {
         let mut request = client
             .subscribe_request()
             .cursor(params.cursor.cloned().unwrap_or_default()); // TODO: is this clone required?
@@ -548,9 +517,7 @@ where
 
         let cancel_task = CancellationTask::new(cancel_rx, params.effect_id.to_owned()); // TODO: needs to be owned?
 
-        request
-            .execute_with_cancel_and_delay(delay, cancel_task)
-            .boxed()
+        request.execute_with_cancel(cancel_task).boxed()
     }
 
     /// Subscription event engine presence `join` announcement.
@@ -909,6 +876,7 @@ mod should {
 
     #[tokio::test]
     async fn subscribe() {
+        env_logger::init();
         let client = client();
         let subscription = client.subscription(SubscriptionParams {
             channels: Some(&["my-channel"]),

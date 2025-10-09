@@ -7,7 +7,6 @@
 //! [`PubNub`]:https://www.pubnub.com/
 
 use crate::{
-    core::PubNubError,
     lib::{
         alloc::collections::HashSet,
         core::{
@@ -224,12 +223,6 @@ pub(crate) struct SubscriptionParams<'execution> {
 
     /// Time cursor.
     pub cursor: Option<&'execution SubscriptionCursor>,
-
-    /// How many consequent retry attempts has been made.
-    pub attempt: u8,
-
-    /// Reason why previous request created by subscription event engine failed.
-    pub reason: Option<PubNubError>,
 
     /// Effect identifier.
     ///

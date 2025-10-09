@@ -58,7 +58,7 @@ pub enum SubscribeMessageType {
 
     /// Small message.
     ///
-    /// Message sent with separate endpoint as chunk of really small data.
+    /// Message sent with separate endpoint as chunk of tiny data.
     Signal = 1,
 
     /// Object related event.
@@ -290,6 +290,9 @@ pub enum Presence {
         ///
         /// Time when event has been emitted.
         event_timestamp: usize,
+
+        /// Indicates whether presence should be requested manually or not.
+        here_now_refresh: bool,
     },
 
     /// Remote user `state` change update.
@@ -480,6 +483,20 @@ pub struct Message {
     ///
     /// [`publish`]: crate::dx::publish
     pub space_id: Option<String>,
+
+    /// User provided metadata (set only when [`publish`] called with
+    /// `meta`).
+    ///
+    /// [`publish`]: crate::dx::publish
+    #[cfg(feature = "serde")]
+    pub user_metadata: Option<serde_json::Value>,
+
+    /// User provided metadata (set only when [`publish`] called with
+    /// `meta`).
+    ///
+    /// [`publish`]: crate::dx::publish
+    #[cfg(not(feature = "serde"))]
+    user_metadata: Vec<u8>,
 
     /// Decryption error details.
     ///
@@ -877,78 +894,79 @@ impl TryFrom<Envelope> for Presence {
 
     fn try_from(value: Envelope) -> Result<Self, Self::Error> {
         let event_timestamp = value.published.timetoken.parse::<usize>().ok().unwrap_or(0);
-        if let EnvelopePayload::Presence {
+        let subscription = resolve_subscription_value(value.subscription, &value.channel);
+        let channel = value.channel.replace("-pnpres", "");
+
+        if let EnvelopePayload::PresenceStateChange {
+            timestamp,
+            uuid,
+            data,
+            ..
+        } = value.payload
+        {
+            Ok(Self::StateChange {
+                timestamp,
+                uuid,
+                channel,
+                subscription,
+                data,
+                event_timestamp,
+            })
+        } else if let EnvelopePayload::PresenceAnnounce {
             action,
             timestamp,
             uuid,
             occupancy,
             data,
-            join,
-            leave,
-            timeout,
         } = value.payload
         {
-            let action = action.unwrap_or("interval".to_string());
-
-            let subscription = resolve_subscription_value(value.subscription, &value.channel);
-            let channel = value.channel.replace("-pnpres", "");
-
             match action.as_str() {
                 "join" => Ok(Self::Join {
                     timestamp,
-                    // `join` event always has `uuid` and unwrap_or default
-                    // value won't be actually used.
-                    uuid: uuid.unwrap_or("".to_string()),
+                    uuid,
                     channel,
                     subscription,
-                    occupancy: occupancy.unwrap_or(0),
+                    occupancy,
                     data,
                     event_timestamp,
                 }),
                 "leave" => Ok(Self::Leave {
                     timestamp,
-                    // `leave` event always has `uuid` and unwrap_or default
-                    // value won't be actually used.
-                    uuid: uuid.unwrap_or("".to_string()),
+                    uuid,
                     channel,
                     subscription,
-                    occupancy: occupancy.unwrap_or(0),
+                    occupancy,
                     event_timestamp,
                 }),
-                "timeout" => Ok(Self::Timeout {
+                _ => Ok(Self::Timeout {
                     timestamp,
-                    // `leave` event always has `uuid` and unwrap_or default
-                    // value won't be actually used.
-                    uuid: uuid.unwrap_or("".to_string()),
+                    uuid,
                     channel,
                     subscription,
-                    occupancy: occupancy.unwrap_or(0),
-                    event_timestamp,
-                }),
-                "interval" => Ok(Self::Interval {
-                    timestamp,
-                    channel,
-                    subscription,
-                    occupancy: occupancy.unwrap_or(0),
-                    join,
-                    leave,
-                    timeout,
-                    event_timestamp,
-                }),
-                _ => Ok(Self::StateChange {
-                    timestamp,
-                    // `state-change` event always has `uuid` and unwrap_or
-                    // default value won't be actually used.
-                    uuid: uuid.unwrap_or("".to_string()),
-                    channel,
-                    subscription,
-                    #[cfg(feature = "serde")]
-                    data: data.unwrap_or(serde_json::Value::Null),
-                    #[cfg(not(feature = "serde"))]
-                    data: data.unwrap_or(vec![]),
+                    occupancy,
                     event_timestamp,
                 }),
             }
+        } else if let EnvelopePayload::PresenceInterval {
+            timestamp,
+            occupancy,
+            join,
+            leave,
+            timeout,
+            here_now_refresh,
+        } = value.payload
+        {
+            Ok(Self::Interval {
+                timestamp,
+                channel,
+                subscription,
+                occupancy,
+                join,
+                leave,
+                timeout,
+                here_now_refresh: here_now_refresh.unwrap_or(false),
+                event_timestamp,
+            })
         } else {
             Err(PubNubError::Deserialization {
                 details: "Unable deserialize: unexpected payload for presence.".to_string(),
@@ -1099,6 +1117,7 @@ impl TryFrom<Envelope> for Message {
                 data: value.payload.into(),
                 r#type: value.r#type,
                 space_id: value.space_id,
+                user_metadata: value.user_metadata,
                 decryption_error: None,
             })
         } else {

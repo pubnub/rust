@@ -77,7 +77,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// # }
     /// ```
     #[cfg(feature = "serde")]
-    pub fn grant_token(&self, ttl: usize) -> GrantTokenRequestBuilder<T, SerdeSerializer, D> {
+    pub fn grant_token(&self, ttl: usize) -> GrantTokenRequestBuilder<'_, T, SerdeSerializer, D> {
         GrantTokenRequestBuilder {
             pubnub_client: Some(self.clone()),
             serializer: Some(SerdeSerializer),

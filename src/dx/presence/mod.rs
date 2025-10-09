@@ -556,46 +556,17 @@ where
     fn presence_event_engine(&self) -> Arc<PresenceEventEngine> {
         let channel_bound = 3;
         let (cancel_tx, cancel_rx) = async_channel::bounded::<String>(channel_bound);
-        let delayed_heartbeat_cancel_rx = cancel_rx.clone();
         let wait_cancel_rx = cancel_rx.clone();
         let runtime = self.runtime.clone();
-        let delayed_heartbeat_call_client = self.clone();
         let heartbeat_call_client = self.clone();
         let leave_call_client = self.clone();
         let wait_call_client = self.clone();
-        let request_retry = self.config.transport.retry_configuration.clone();
-        let request_delayed_retry = request_retry.clone();
-        let delayed_heartbeat_runtime_sleep = runtime.clone();
         let wait_runtime_sleep = runtime.clone();
 
         EventEngine::new(
             PresenceEffectHandler::new(
                 Arc::new(move |parameters| {
                     Self::heartbeat_call(heartbeat_call_client.clone(), parameters.clone())
-                }),
-                Arc::new(move |parameters| {
-                    let delay_in_microseconds = request_delayed_retry.retry_delay(
-                        Some("/v2/presence".to_string()),
-                        &parameters.attempt,
-                        parameters.reason.as_ref(),
-                    );
-                    let inner_runtime_sleep = delayed_heartbeat_runtime_sleep.clone();
-
-                    Self::delayed_heartbeat_call(
-                        delayed_heartbeat_call_client.clone(),
-                        parameters.clone(),
-                        Arc::new(move || {
-                            if let Some(delay) = delay_in_microseconds {
-                                inner_runtime_sleep
-                                    .clone()
-                                    .sleep_microseconds(delay)
-                                    .boxed()
-                            } else {
-                                ready(()).boxed()
-                            }
-                        }),
-                        delayed_heartbeat_cancel_rx.clone(),
-                    )
                 }),
                 Arc::new(move |parameters| {
                     Self::leave_call(leave_call_client.clone(), parameters.clone())
@@ -616,7 +587,6 @@ where
                         wait_cancel_rx.clone(),
                     )
                 }),
-                request_retry,
                 cancel_tx,
             ),
             PresenceState::Inactive,
@@ -636,25 +606,6 @@ where
         }
 
         request.execute().boxed()
-    }
-
-    /// Call delayed announce of `user_id` presence.
-    pub(crate) fn delayed_heartbeat_call<F>(
-        client: Self,
-        params: PresenceParameters,
-        delay: Arc<F>,
-        cancel_rx: async_channel::Receiver<String>,
-    ) -> BoxFuture<'static, Result<HeartbeatResult, PubNubError>>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
-        let effect_id = params.effect_id.to_owned();
-        let cancel_task = CancellationTask::new(cancel_rx, effect_id);
-
-        client
-            .heartbeat_request(params)
-            .execute_with_cancel_and_delay(delay, cancel_task)
-            .boxed()
     }
 
     /// Call announce `leave` for `user_id`.

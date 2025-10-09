@@ -5,7 +5,7 @@ use futures::future::BoxFuture;
 use spin::RwLock;
 
 use crate::{
-    core::{event_engine::Effect, PubNubError, RequestRetryConfiguration},
+    core::{event_engine::Effect, PubNubError},
     dx::subscribe::{
         event_engine::{
             types::{SubscriptionInput, SubscriptionParams},
@@ -23,9 +23,7 @@ use crate::{
 mod emit_messages;
 mod emit_status;
 mod handshake;
-mod handshake_reconnection;
 mod receive;
-mod receive_reconnection;
 
 /// `SubscribeEffectExecutor` is a trait alias representing a type that executes
 /// subscribe effects.
@@ -92,48 +90,6 @@ pub(crate) enum SubscribeEffect {
         cancellation_channel: Sender<String>,
     },
 
-    /// Retry initial subscribe effect invocation.
-    HandshakeReconnect {
-        /// Unique effect identifier.
-        id: String,
-
-        /// Whether handshake reconnect effect has been cancelled or not.
-        cancelled: RwLock<bool>,
-
-        /// User input with channels and groups.
-        ///
-        /// Object contains list of channels and channel groups which has been
-        /// used during recently failed initial subscription.
-        input: SubscriptionInput,
-
-        /// Time cursor.
-        ///
-        /// Cursor used by subscription loop to identify point in time after
-        /// which updates will be delivered.
-        cursor: Option<SubscriptionCursor>,
-
-        /// Current initial subscribe retry attempt.
-        ///
-        /// Used to track overall number of initial subscription retry attempts.
-        attempts: u8,
-
-        /// Initial subscribe attempt failure reason.
-        reason: PubNubError,
-
-        /// Retry policy.
-        retry_policy: RequestRetryConfiguration,
-
-        /// Executor function.
-        ///
-        /// Function which will be used to execute initial subscription.
-        executor: Arc<SubscribeEffectExecutor>,
-
-        /// Cancellation channel.
-        ///
-        /// Channel which will be used to cancel effect execution.
-        cancellation_channel: Sender<String>,
-    },
-
     /// Receive updates effect invocation.
     Receive {
         /// Unique effect identifier.
@@ -153,48 +109,6 @@ pub(crate) enum SubscribeEffect {
         /// Cursor used by subscription loop to identify point in time after
         /// which updates will be delivered.
         cursor: SubscriptionCursor,
-
-        /// Executor function.
-        ///
-        /// Function which will be used to execute receive updates.
-        executor: Arc<SubscribeEffectExecutor>,
-
-        /// Cancellation channel.
-        ///
-        /// Channel which will be used to cancel effect execution.
-        cancellation_channel: Sender<String>,
-    },
-
-    /// Retry receive updates effect invocation.
-    ReceiveReconnect {
-        /// Unique effect identifier.
-        id: String,
-
-        /// Whether receive reconnect effect has been cancelled or not.
-        cancelled: RwLock<bool>,
-
-        /// User input with channels and groups.
-        ///
-        /// Object contains list of channels and channel groups which has been
-        /// used during recently failed receive updates.
-        input: SubscriptionInput,
-
-        /// Time cursor.
-        ///
-        /// Cursor used by subscription loop to identify point in time after
-        /// which updates will be delivered.
-        cursor: SubscriptionCursor,
-
-        /// Current receive retry attempt.
-        ///
-        /// Used to track overall number of receive updates retry attempts.
-        attempts: u8,
-
-        /// Receive updates attempt failure reason.
-        reason: PubNubError,
-
-        /// Retry policy.
-        retry_policy: RequestRetryConfiguration,
 
         /// Executor function.
         ///
@@ -250,34 +164,10 @@ impl Debug for SubscribeEffect {
                 input.channels(),
                 input.channel_groups()
             ),
-            Self::HandshakeReconnect {
-                input,
-                attempts,
-                reason,
-                ..
-            } => write!(
-                f,
-                "SubscribeEffect::HandshakeReconnect {{ channels: {:?}, channel groups: {:?}, \
-                attempts: {attempts:?}, reason: {reason:?} }}",
-                input.channels(),
-                input.channel_groups()
-            ),
             Self::Receive { input, cursor, .. } => write!(
                 f,
                 "SubscribeEffect::Receive {{ channels: {:?}, channel groups: {:?}, cursor: \
                 {cursor:?} }}",
-                input.channels(),
-                input.channel_groups()
-            ),
-            Self::ReceiveReconnect {
-                input,
-                attempts,
-                reason,
-                ..
-            } => write!(
-                f,
-                "SubscribeEffect::ReceiveReconnect {{ channels: {:?}, channel groups: {:?}, \
-                attempts: {attempts:?}, reason: {reason:?} }}",
                 input.channels(),
                 input.channel_groups()
             ),
@@ -301,9 +191,7 @@ impl Effect for SubscribeEffect {
     fn name(&self) -> String {
         match self {
             Self::Handshake { .. } => "HANDSHAKE",
-            Self::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT",
             Self::Receive { .. } => "RECEIVE_MESSAGES",
-            Self::ReceiveReconnect { .. } => "RECEIVE_RECONNECT",
             Self::EmitStatus { .. } => "EMIT_STATUS",
             Self::EmitMessages { .. } => "EMIT_MESSAGES",
         }
@@ -313,9 +201,7 @@ impl Effect for SubscribeEffect {
     fn id(&self) -> String {
         match self {
             Self::Handshake { id, .. }
-            | Self::HandshakeReconnect { id, .. }
             | Self::Receive { id, .. }
-            | Self::ReceiveReconnect { id, .. }
             | Self::EmitStatus { id, .. }
             | Self::EmitMessages { id, .. } => id,
         }
@@ -331,28 +217,6 @@ impl Effect for SubscribeEffect {
                 executor,
                 ..
             } => handshake::execute(input, cursor, id, executor).await,
-            Self::HandshakeReconnect {
-                id,
-                input,
-                cursor,
-                attempts,
-                reason,
-                retry_policy,
-                executor,
-                ..
-            } => {
-                handshake_reconnection::execute(
-                    input,
-                    cursor,
-                    *attempts,
-                    reason.clone(), /* TODO: Does run function need to borrow self? Or we can
-                                     * consume it? */
-                    id,
-                    retry_policy,
-                    executor,
-                )
-                .await
-            }
             Self::Receive {
                 id,
                 input,
@@ -360,28 +224,6 @@ impl Effect for SubscribeEffect {
                 executor,
                 ..
             } => receive::execute(input, cursor, id, executor).await,
-            Self::ReceiveReconnect {
-                id,
-                input,
-                cursor,
-                attempts,
-                reason,
-                retry_policy,
-                executor,
-                ..
-            } => {
-                receive_reconnection::execute(
-                    input,
-                    cursor,
-                    *attempts,
-                    reason.clone(), /* TODO: Does run function need to borrow self? Or we can
-                                     * consume it? */
-                    id,
-                    retry_policy,
-                    executor,
-                )
-                .await
-            }
             Self::EmitStatus {
                 status, executor, ..
             } => emit_status::execute(status.clone(), executor).await,
@@ -402,19 +244,7 @@ impl Effect for SubscribeEffect {
                 cancellation_channel,
                 ..
             }
-            | Self::HandshakeReconnect {
-                id,
-                cancelled,
-                cancellation_channel,
-                ..
-            }
             | Self::Receive {
-                id,
-                cancelled,
-                cancellation_channel,
-                ..
-            }
-            | Self::ReceiveReconnect {
                 id,
                 cancelled,
                 cancellation_channel,
@@ -434,10 +264,9 @@ impl Effect for SubscribeEffect {
 
     fn is_cancelled(&self) -> bool {
         match self {
-            Self::Handshake { cancelled, .. }
-            | Self::HandshakeReconnect { cancelled, .. }
-            | Self::Receive { cancelled, .. }
-            | Self::ReceiveReconnect { cancelled, .. } => *cancelled.read(),
+            Self::Handshake { cancelled, .. } | Self::Receive { cancelled, .. } => {
+                *cancelled.read()
+            }
             _ => false,
         }
     }

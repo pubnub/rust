@@ -4,8 +4,6 @@
 //! announce specified `user_id` presence in the provided channels and groups.
 
 use derive_builder::Builder;
-#[cfg(feature = "std")]
-use futures::{future::BoxFuture, select_biased, FutureExt};
 
 use crate::{
     core::{
@@ -30,9 +28,6 @@ use crate::{
         collections::HashMap,
     },
 };
-
-#[cfg(feature = "std")]
-use crate::{core::event_engine::cancel::CancellationTask, lib::alloc::sync::Arc};
 
 /// The [`HeartbeatRequestsBuilder`] is used to build a `user_id` presence
 /// announcement request that is sent to the [`PubNub`] network.
@@ -251,40 +246,6 @@ where
             )
             .await
     }
-
-    /// Build and call asynchronous request after delay.
-    ///
-    /// Perform delayed request call with ability to cancel it before call.
-    #[cfg(feature = "std")]
-    pub(in crate::dx::presence) async fn execute_with_cancel_and_delay<F>(
-        self,
-        delay: Arc<F>,
-        cancel_task: CancellationTask,
-    ) -> Result<HeartbeatResult, PubNubError>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
-        select_biased! {
-            _ = cancel_task.wait_for_cancel().fuse() => {
-                Err(PubNubError::EffectCanceled)
-            },
-            response = self.execute_with_delay(delay).fuse() => {
-                response
-            }
-        }
-    }
-
-    /// Build and call asynchronous request after configured delay.
-    #[cfg(feature = "std")]
-    async fn execute_with_delay<F>(self, delay: Arc<F>) -> Result<HeartbeatResult, PubNubError>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
-        // Postpone request execution.
-        delay().await;
-
-        self.execute().await
-    }
 }
 
 #[cfg(feature = "blocking")]
@@ -301,49 +262,5 @@ where
         let deserializer = client.deserializer.clone();
         transport_request
             .send_blocking::<HeartbeatResponseBody, _, _, _>(&client.transport, deserializer)
-    }
-}
-
-#[cfg(feature = "std")]
-#[cfg(test)]
-mod it_should {
-    use super::*;
-    use crate::{core::TransportResponse, PubNubClientBuilder};
-    use futures::future::ready;
-
-    #[tokio::test]
-    async fn be_able_to_cancel_delayed_heartbeat_call() {
-        struct MockTransport;
-
-        #[async_trait::async_trait]
-        impl Transport for MockTransport {
-            async fn send(&self, _req: TransportRequest) -> Result<TransportResponse, PubNubError> {
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await; // Simulate long request.
-
-                Ok(TransportResponse::default())
-            }
-        }
-
-        let (tx, rx) = async_channel::bounded(1);
-
-        let cancel_task = CancellationTask::new(rx, "test".into());
-
-        tx.send("test".into()).await.unwrap();
-
-        let result = PubNubClientBuilder::with_transport(MockTransport)
-            .with_keyset(crate::Keyset {
-                subscribe_key: "test",
-                publish_key: Some("test"),
-                secret_key: None,
-            })
-            .with_user_id("test")
-            .build()
-            .unwrap()
-            .heartbeat()
-            .channels(vec!["test".into()])
-            .execute_with_cancel_and_delay(Arc::new(|| ready(()).boxed()), cancel_task)
-            .await;
-
-        assert!(matches!(result, Err(PubNubError::EffectCanceled)));
     }
 }

@@ -4,12 +4,9 @@
 //! user-provided channels and groups for which `user_id` presence should be
 //! managed.
 
-use crate::{
-    core::PubNubError,
-    lib::{
-        alloc::{collections::HashSet, string::String, vec::Vec},
-        core::ops::{Add, Sub},
-    },
+use crate::lib::{
+    alloc::{collections::HashSet, string::String, vec::Vec},
+    core::ops::{Add, Sub},
 };
 
 /// User-provided channels and groups for presence.
@@ -139,17 +136,6 @@ pub struct PresenceParameters<'execution> {
 
     /// List of channel groups for which `user_id` presence should be announced.
     pub channel_groups: &'execution Option<Vec<String>>,
-
-    /// How many consequent retry attempts has been made.
-    pub attempt: u8,
-
-    /// Reason why previous request created by presence event engine failed.
-    pub reason: Option<PubNubError>,
-
-    /// Effect identifier.
-    ///
-    /// Identifier of effect which requested to create request.
-    pub effect_id: &'execution str,
 }
 
 #[cfg(test)]

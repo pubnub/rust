@@ -287,7 +287,7 @@ impl RequestRetryConfiguration {
     fn reached_max_retry(&self, attempt: &u8) -> bool {
         match self {
             Self::Linear { max_retry, .. } | Self::Exponential { max_retry, .. } => {
-                attempt.gt(max_retry)
+                attempt.ge(max_retry)
             }
             _ => false,
         }

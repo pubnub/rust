@@ -30,8 +30,6 @@ pub(super) async fn execute(
         channels: &input.channels(),
         channel_groups: &input.channel_groups(),
         cursor: None,
-        attempt: 0,
-        reason: None,
         effect_id,
     })
     .map_ok_or_else(
@@ -71,8 +69,6 @@ mod should {
             assert_eq!(params.channels, &Some(vec!["ch1".to_string()]));
             assert_eq!(params.channel_groups, &Some(vec!["cg1".to_string()]));
             assert_eq!(params.cursor, None);
-            assert_eq!(params.attempt, 0);
-            assert_eq!(params.reason, None);
             assert_eq!(params.effect_id, "id");
 
             async move {

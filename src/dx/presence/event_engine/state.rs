@@ -50,25 +50,6 @@ pub(crate) enum PresenceState {
         input: PresenceInput,
     },
 
-    /// Heartbeat recovering state.
-    ///
-    /// The system is recovering after heartbeating attempt failure.
-    Reconnecting {
-        /// User input with channels and groups.
-        ///
-        /// Object contains list of channels and groups for which `user_id`
-        /// presence will be announced after heartbeating restore.
-        input: PresenceInput,
-
-        /// Current heartbeating retry attempt.
-        ///
-        /// Used to track overall number of heartbeating retry attempts.
-        attempts: u8,
-
-        /// Heartbeating attempt failure reason.
-        reason: PubNubError,
-    },
-
     /// Heartbeat stopped state.
     ///
     /// Heartbeat explicitly has been stopped in response on user actions with
@@ -117,7 +98,6 @@ impl PresenceState {
             }
             Self::Heartbeating { input }
             | Self::Cooldown { input }
-            | Self::Reconnecting { input, .. }
             | Self::Failed { input, .. }
             | Self::Stopped { input }
                 if &event_input != input =>
@@ -148,7 +128,6 @@ impl PresenceState {
         match self {
             Self::Heartbeating { input }
             | Self::Cooldown { input }
-            | Self::Reconnecting { input, .. }
             | Self::Failed { input, .. }
             | Self::Stopped { input } => {
                 let channels_for_heartbeating = input.clone() - event_input.clone();
@@ -192,7 +171,6 @@ impl PresenceState {
         match self {
             Self::Heartbeating { input }
             | Self::Cooldown { input }
-            | Self::Reconnecting { input, .. }
             | Self::Failed { input, .. } => Some(self.transition_to(
                 Some(Self::Inactive),
                 (!suppress_leave_events).then(|| {
@@ -211,14 +189,12 @@ impl PresenceState {
         &self,
     ) -> Option<Transition<Self, PresenceEffectInvocation>> {
         match self {
-            Self::Heartbeating { input } | Self::Reconnecting { input, .. } => {
-                Some(self.transition_to(
-                    Some(Self::Cooldown {
-                        input: input.clone(),
-                    }),
-                    None,
-                ))
-            }
+            Self::Heartbeating { input } => Some(self.transition_to(
+                Some(Self::Cooldown {
+                    input: input.clone(),
+                }),
+                None,
+            )),
             _ => None,
         }
     }
@@ -236,34 +212,6 @@ impl PresenceState {
 
         match self {
             Self::Heartbeating { input } => Some(self.transition_to(
-                Some(Self::Reconnecting {
-                    input: input.clone(),
-                    attempts: 1,
-                    reason: reason.clone(),
-                }),
-                None,
-            )),
-            Self::Reconnecting {
-                input, attempts, ..
-            } => Some(self.transition_to(
-                Some(Self::Reconnecting {
-                    input: input.clone(),
-                    attempts: attempts + 1,
-                    reason: reason.clone(),
-                }),
-                None,
-            )),
-            _ => None,
-        }
-    }
-
-    /// Handle `heartbeat give up` event.
-    fn presence_heartbeat_give_up_transition(
-        &self,
-        reason: &PubNubError,
-    ) -> Option<Transition<Self, PresenceEffectInvocation>> {
-        match self {
-            Self::Reconnecting { input, .. } => Some(self.transition_to(
                 Some(Self::Failed {
                     input: input.clone(),
                     reason: reason.clone(),
@@ -292,7 +240,6 @@ impl PresenceState {
         match self {
             Self::Heartbeating { input }
             | Self::Cooldown { input }
-            | Self::Reconnecting { input, .. }
             | Self::Failed { input, .. } => Some(self.transition_to(
                 Some(Self::Stopped {
                     input: input.clone(),
@@ -332,15 +279,6 @@ impl State for PresenceState {
             Self::Cooldown { input } => Some(vec![Wait {
                 input: input.clone(),
             }]),
-            Self::Reconnecting {
-                input,
-                attempts,
-                reason,
-            } => Some(vec![DelayedHeartbeat {
-                input: input.clone(),
-                attempts: *attempts,
-                reason: reason.clone(),
-            }]),
             _ => None,
         }
     }
@@ -348,7 +286,6 @@ impl State for PresenceState {
     fn exit(&self) -> Option<Vec<Self::Invocation>> {
         match self {
             PresenceState::Cooldown { .. } => Some(vec![CancelWait]),
-            PresenceState::Reconnecting { .. } => Some(vec![CancelDelayedHeartbeat]),
             _ => None,
         }
     }
@@ -374,9 +311,6 @@ impl State for PresenceState {
             PresenceEvent::HeartbeatSuccess => self.presence_heartbeat_success_transition(),
             PresenceEvent::HeartbeatFailure { reason } => {
                 self.presence_heartbeat_failed_transition(reason)
-            }
-            PresenceEvent::HeartbeatGiveUp { reason } => {
-                self.presence_heartbeat_give_up_transition(reason)
             }
             PresenceEvent::Reconnect => self.presence_reconnect_transition(),
             PresenceEvent::Disconnect => self.presence_disconnect_transition(),
@@ -412,7 +346,7 @@ mod it_should {
     use crate::presence::event_engine::effects::LeaveEffectExecutor;
     use crate::presence::LeaveResult;
     use crate::{
-        core::{event_engine::EventEngine, RequestRetryConfiguration},
+        core::event_engine::EventEngine,
         lib::alloc::sync::Arc,
         presence::{
             event_engine::{
@@ -429,8 +363,6 @@ mod it_should {
     fn event_engine(start_state: PresenceState) -> Arc<PresenceEventEngine> {
         let heartbeat_call: Arc<HeartbeatEffectExecutor> =
             Arc::new(|_| async move { Ok(HeartbeatResult) }.boxed());
-        let delayed_heartbeat_call: Arc<HeartbeatEffectExecutor> =
-            Arc::new(|_| async move { Ok(HeartbeatResult) }.boxed());
         let leave_call: Arc<LeaveEffectExecutor> =
             Arc::new(|_| async move { Ok(LeaveResult) }.boxed());
         let wait_call: Arc<WaitEffectExecutor> = Arc::new(|_| async move { Ok(()) }.boxed());
@@ -438,14 +370,7 @@ mod it_should {
         let (tx, _) = async_channel::bounded(1);
 
         EventEngine::new(
-            PresenceEffectHandler::new(
-                heartbeat_call,
-                delayed_heartbeat_call,
-                leave_call,
-                wait_call,
-                RequestRetryConfiguration::None,
-                tx,
-            ),
+            PresenceEffectHandler::new(heartbeat_call, leave_call, wait_call, tx),
             start_state,
             RuntimeTokio,
         )
@@ -581,12 +506,11 @@ mod it_should {
         PresenceEvent::HeartbeatFailure {
             reason: PubNubError::Transport { details: "Test".to_string(), response: None }
         },
-        PresenceState::Reconnecting {
+        PresenceState::Failed {
             input: PresenceInput::new(
                 &Some(vec!["ch1".to_string()]), 
                 &Some(vec!["gr1".to_string()])
             ),
-            attempts: 1,
             reason: PubNubError::Transport { details: "Test".to_string(), response: None }
         };
         "to reconnect on heartbeat failure"
@@ -659,24 +583,6 @@ mod it_should {
             )
         };
         "to not change on left with unknown channels and groups"
-    )]
-    #[test_case(
-        PresenceState::Heartbeating {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            )
-        },
-        PresenceEvent::HeartbeatGiveUp {
-            reason: PubNubError::Transport { details: "Test".to_string(), response: None }
-        },
-        PresenceState::Heartbeating {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            )
-        };
-        "to not change on unexpected event"
     )]
     #[tokio::test]
     async fn transition_for_heartbeating_state(
@@ -841,7 +747,7 @@ mod it_should {
                 &Some(vec!["gr1".to_string()])
             )
         },
-        PresenceEvent::HeartbeatGiveUp {
+        PresenceEvent::HeartbeatFailure {
             reason: PubNubError::Transport { details: "Test".to_string(), response: None }
         },
         PresenceState::Cooldown {
@@ -860,245 +766,6 @@ mod it_should {
     ) {
         let engine = event_engine(init_state.clone());
         assert!(matches!(init_state, PresenceState::Cooldown { .. }));
-        assert_eq!(engine.current_state(), init_state);
-
-        // Process event.
-        engine.process(&event);
-
-        assert_eq!(engine.current_state(), target_state);
-    }
-
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::HeartbeatFailure {
-            reason: PubNubError::Transport { details: "Test reason on error".to_string(), response: None, },
-        },
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 2,
-            reason: PubNubError::Transport { details: "Test reason on error".to_string(), response: None, },
-        };
-        "to heartbeat reconnecting on heartbeat failure"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::Joined {
-            heartbeat_interval: 10,
-            channels: Some(vec!["ch2".to_string()]),
-            channel_groups: Some(vec!["gr2".to_string()]),
-        },
-        PresenceState::Heartbeating {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string(), "ch2".to_string()]), 
-                &Some(vec!["gr1".to_string(), "gr2".to_string()])
-            )
-        };
-        "to heartbeating on joined"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string(), "ch2".to_string()]), 
-                &Some(vec!["gr1".to_string(), "gr2".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::Left {
-            suppress_leave_events: false,
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: None,
-        },
-        PresenceState::Heartbeating {
-            input: PresenceInput::new(
-                &Some(vec!["ch2".to_string()]), 
-                &Some(vec!["gr1".to_string(), "gr2".to_string()])
-            )
-        };
-        "to heartbeating on left"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string(), "ch2".to_string()]), 
-                &Some(vec!["gr1".to_string(), "gr2".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::Left {
-            suppress_leave_events: false,
-            channels: Some(vec!["ch1".to_string(), "ch2".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string(), "gr2".to_string()]),
-        },
-        PresenceState::Inactive;
-        "to inactive on left for all channels and groups"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::HeartbeatSuccess,
-        PresenceState::Cooldown {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            )
-        };
-        "to cool down on heartbeat success"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::HeartbeatGiveUp {
-            reason: PubNubError::Transport { details: "Test reason on error".to_string(), response: None, },
-        },
-        PresenceState::Failed {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            reason: PubNubError::Transport { details: "Test reason on error".to_string(), response: None, },
-        };
-        "to failed on heartbeat give up"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::Disconnect,
-        PresenceState::Stopped {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            )
-        };
-        "to stopped on disconnect"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::LeftAll {
-            suppress_leave_events: false,
-        },
-        PresenceState::Inactive;
-        "to inactive on left all"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::Joined {
-            heartbeat_interval: 10,
-            channels: Some(vec!["ch1".to_string()]),
-            channel_groups: Some(vec!["gr1".to_string()]),
-        },
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        };
-        "to not change on joined with same channels and groups"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::Left {
-            suppress_leave_events: false,
-            channels: None,
-            channel_groups: Some(vec!["gr3".to_string()]),
-        },
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        };
-        "to not change on left with unknown channels and groups"
-    )]
-    #[test_case(
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        },
-        PresenceEvent::Reconnect,
-        PresenceState::Reconnecting {
-            input: PresenceInput::new(
-                &Some(vec!["ch1".to_string()]), 
-                &Some(vec!["gr1".to_string()])
-            ),
-            attempts: 1,
-            reason: PubNubError::Transport { details: "Test reason".to_string(), response: None, },
-        };
-        "to not change on unexpected event"
-    )]
-    #[tokio::test]
-    async fn transition_for_reconnecting_state(
-        init_state: PresenceState,
-        event: PresenceEvent,
-        target_state: PresenceState,
-    ) {
-        let engine = event_engine(init_state.clone());
-        assert!(matches!(init_state, PresenceState::Reconnecting { .. }));
         assert_eq!(engine.current_state(), init_state);
 
         // Process event.

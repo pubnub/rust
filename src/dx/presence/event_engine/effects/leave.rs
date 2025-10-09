@@ -15,7 +15,6 @@ use crate::{
 #[allow(clippy::too_many_arguments, dead_code)]
 pub(super) async fn execute(
     input: &PresenceInput,
-    effect_id: &str,
     executor: &Arc<LeaveEffectExecutor>,
 ) -> Vec<PresenceEvent> {
     let channel_groups = input.channel_groups();
@@ -29,9 +28,6 @@ pub(super) async fn execute(
     let _ = executor(PresenceParameters {
         channels: &channels,
         channel_groups: &channel_groups,
-        attempt: 0,
-        reason: None,
-        effect_id,
     })
     .await;
 
@@ -53,9 +49,6 @@ mod it_should {
         let mocked_leave_function: Arc<LeaveEffectExecutor> = Arc::new(move |parameters| {
             assert_eq!(parameters.channel_groups, &Some(vec!["cg2".to_string()]));
             assert_eq!(parameters.channels, &Some(vec!["ch2".to_string()]));
-            assert_eq!(parameters.attempt, 0);
-            assert_eq!(parameters.reason, None);
-            assert_eq!(parameters.effect_id, "id");
 
             async move { Ok(LeaveResult) }.boxed()
         });
@@ -65,7 +58,6 @@ mod it_should {
                 &Some(vec!["ch2".to_string()]),
                 &Some(vec!["cg2".to_string()]),
             ),
-            "id",
             &mocked_leave_function,
         )
         .await;
@@ -93,7 +85,6 @@ mod it_should {
                 &Some(vec!["ch3".to_string()]),
                 &Some(vec!["cg3".to_string()]),
             ),
-            "id",
             &mocked_leave_function,
         )
         .await;

@@ -371,7 +371,6 @@ mod should {
 
     use super::*;
     use crate::{
-        core::RequestRetryConfiguration,
         dx::subscribe::{
             event_engine::{SubscribeEffectHandler, SubscribeState},
             result::SubscribeResult,
@@ -415,7 +414,6 @@ mod should {
                 Arc::new(Box::new(|_, _| {
                     // Do nothing yet
                 })),
-                RequestRetryConfiguration::None,
                 cancel_tx,
             ),
             SubscribeState::Unsubscribed,

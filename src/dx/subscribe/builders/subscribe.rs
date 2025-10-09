@@ -5,10 +5,7 @@
 
 use derive_builder::Builder;
 #[cfg(feature = "std")]
-use futures::{
-    future::BoxFuture,
-    {select_biased, FutureExt},
-};
+use futures::{select_biased, FutureExt};
 
 use crate::{
     core::{
@@ -33,10 +30,10 @@ use crate::{
     },
 };
 
+#[cfg(feature = "std")]
+use crate::core::event_engine::cancel::CancellationTask;
 #[cfg(all(feature = "presence", feature = "std"))]
 use crate::lib::alloc::vec;
-#[cfg(feature = "std")]
-use crate::{core::event_engine::cancel::CancellationTask, lib::alloc::sync::Arc};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -265,38 +262,22 @@ where
             .await
     }
 
-    /// Build and call asynchronous request after delay.
+    /// Build and call asynchronous request with cancellation ability.
     ///
     /// Perform delayed request call with ability to cancel it before call.
     #[cfg(feature = "std")]
-    pub async fn execute_with_cancel_and_delay<F>(
+    pub async fn execute_with_cancel(
         self,
-        delay: Arc<F>,
         cancel_task: CancellationTask,
-    ) -> Result<SubscribeResult, PubNubError>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
+    ) -> Result<SubscribeResult, PubNubError> {
         select_biased! {
             _ = cancel_task.wait_for_cancel().fuse() => {
                 Err(PubNubError::EffectCanceled)
             },
-            response = self.execute_with_delay(delay).fuse() => {
+            response = self.execute().fuse() => {
                 response
             }
         }
-    }
-
-    /// Build and call asynchronous request after configured delay.
-    #[cfg(feature = "std")]
-    async fn execute_with_delay<F>(self, delay: Arc<F>) -> Result<SubscribeResult, PubNubError>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
-        // Postpone request execution.
-        delay().await;
-
-        self.execute().await
     }
 }
 
@@ -325,7 +306,6 @@ where
 mod should {
     use super::*;
     use crate::{core::TransportResponse, PubNubClientBuilder};
-    use futures::future::ready;
 
     #[tokio::test]
     async fn be_able_to_cancel_subscribe_call() {
@@ -357,7 +337,7 @@ mod should {
             .unwrap()
             .subscribe_request()
             .channels(vec!["test".into()])
-            .execute_with_cancel_and_delay(Arc::new(|| ready(()).boxed()), cancel_task)
+            .execute_with_cancel(cancel_task)
             .await;
 
         assert!(matches!(result, Err(PubNubError::EffectCanceled)));

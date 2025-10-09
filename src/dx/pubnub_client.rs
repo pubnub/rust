@@ -21,8 +21,6 @@ use crate::providers::futures_tokio::RuntimeTokio;
 #[cfg(all(any(feature = "subscribe", feature = "presence"), feature = "std"))]
 use crate::subscribe::{EventDispatcher, SubscriptionCursor, SubscriptionManager};
 
-#[cfg(feature = "presence")]
-use crate::lib::alloc::vec::Vec;
 #[cfg(all(feature = "presence", feature = "std"))]
 use crate::presence::PresenceManager;
 
@@ -38,13 +36,15 @@ use crate::transport::TransportReqwest;
 use crate::core::{runtime::RuntimeSupport, RequestRetryConfiguration};
 
 use crate::{
-    core::{CryptoProvider, PubNubEntity, PubNubError},
+    core::{retry_policy::Endpoint, CryptoProvider, PubNubEntity, PubNubError},
     lib::{
         alloc::{
             borrow::ToOwned,
             format,
             string::{String, ToString},
             sync::Arc,
+            vec,
+            vec::Vec,
         },
         collections::HashMap,
         core::{
@@ -1137,7 +1137,21 @@ impl Default for TransportConfiguration {
         Self {
             subscribe_request_timeout: 310,
             request_timeout: 10,
-            retry_configuration: RequestRetryConfiguration::None,
+            retry_configuration: RequestRetryConfiguration::Exponential {
+                min_delay: 2,
+                max_delay: 150,
+                max_retry: 6,
+                excluded_endpoints: Some(vec![
+                    Endpoint::MessageSend,
+                    Endpoint::Presence,
+                    Endpoint::Files,
+                    Endpoint::MessageStorage,
+                    Endpoint::ChannelGroups,
+                    Endpoint::DevicePushNotifications,
+                    Endpoint::AppContext,
+                    Endpoint::MessageReactions,
+                ]),
+            },
         }
     }
 }

@@ -432,6 +432,7 @@ mod it_should {
                 data: "Test message 1".to_string().into_bytes(),
                 r#type: None,
                 space_id: None,
+                user_metadata: None,
                 decryption_error: None,
             }),
             Update::Signal(Message {
@@ -442,6 +443,7 @@ mod it_should {
                 data: "Test signal 1".to_string().into_bytes(),
                 r#type: None,
                 space_id: None,
+                user_metadata: None,
                 decryption_error: None,
             }),
             Update::Presence(Presence::Join {
@@ -461,6 +463,7 @@ mod it_should {
                 data: "Test message 2".to_string().into_bytes(),
                 r#type: None,
                 space_id: None,
+                user_metadata: None,
                 decryption_error: None,
             }),
         ]
