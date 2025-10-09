@@ -557,7 +557,7 @@ mod should {
         fn return_service_delay_for_too_many_requests_error_response() {
             let policy = RequestRetryConfiguration::Linear {
                 delay: 10,
-                max_retry: 2,
+                max_retry: 3,
                 excluded_endpoints: None,
             };
 
@@ -721,7 +721,7 @@ mod should {
             let policy = RequestRetryConfiguration::Exponential {
                 min_delay: 10,
                 max_delay: 100,
-                max_retry: 2,
+                max_retry: 3,
                 excluded_endpoints: None,
             };
 
