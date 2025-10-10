@@ -7,6 +7,8 @@ struct State {
     is_doing: String,
     flag: bool,
 }
+
+#[allow(dead_code)]
 #[derive(Debug, serde::Serialize)]
 struct State2 {
     is_doing: String,

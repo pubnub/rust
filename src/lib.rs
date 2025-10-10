@@ -322,11 +322,11 @@ mod lib {
         pub(crate) use hash_map::HashMap;
 
         pub(crate) mod hash_map {
-            /// Depending of the `std` feature, this module will re-export
-            /// either `std::collections::HashMap` or `hashbrown::HashMap`.
-            /// This is needed because there is no `no_std` HashMap available.
-            /// We decided to use `hashbrown` because it is fast and has the
-            /// same API as `std` HashMap.
+            //! Depending on the `std` feature, this module will re-export
+            //! either `std::collections::HashMap` or `hashbrown::HashMap`.
+            //! This is needed because there is no `no_std` HashMap available.
+            //! We decided to use `hashbrown` because it is fast and has the
+            //! same API as `std` HashMap.
 
             #[cfg(not(feature = "std"))]
             pub(crate) use hashbrown::HashMap;

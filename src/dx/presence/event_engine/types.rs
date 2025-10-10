@@ -44,8 +44,8 @@ impl PresenceInput {
             })
         });
 
-        let channel_groups_is_empty = channel_groups.as_ref().map_or(true, |set| set.is_empty());
-        let channels_is_empty = channels.as_ref().map_or(true, |set| set.is_empty());
+        let channel_groups_is_empty = channel_groups.as_ref().is_none_or(|set| set.is_empty());
+        let channels_is_empty = channels.as_ref().is_none_or(|set| set.is_empty());
 
         Self {
             channels,
@@ -96,8 +96,8 @@ impl Add for PresenceInput {
     fn add(self, rhs: Self) -> Self::Output {
         let channel_groups = self.join_sets(&self.channel_groups, &rhs.channel_groups);
         let channels = self.join_sets(&self.channels, &rhs.channels);
-        let channel_groups_is_empty = channel_groups.as_ref().map_or(true, |set| set.is_empty());
-        let channels_is_empty = channels.as_ref().map_or(true, |set| set.is_empty());
+        let channel_groups_is_empty = channel_groups.as_ref().is_none_or(|set| set.is_empty());
+        let channels_is_empty = channels.as_ref().is_none_or(|set| set.is_empty());
 
         Self {
             channels,
@@ -113,8 +113,8 @@ impl Sub for PresenceInput {
     fn sub(self, rhs: Self) -> Self::Output {
         let channel_groups = self.sub_sets(&self.channel_groups, &rhs.channel_groups);
         let channels = self.sub_sets(&self.channels, &rhs.channels);
-        let channel_groups_is_empty = channel_groups.as_ref().map_or(true, |set| set.is_empty());
-        let channels_is_empty = channels.as_ref().map_or(true, |set| set.is_empty());
+        let channel_groups_is_empty = channel_groups.as_ref().is_none_or(|set| set.is_empty());
+        let channels_is_empty = channels.as_ref().is_none_or(|set| set.is_empty());
 
         Self {
             channels,

@@ -22,9 +22,6 @@ use crate::{
     },
 };
 
-#[cfg(not(feature = "serde"))]
-use crate::lib::alloc::vec;
-
 /// Subscription event.
 ///
 /// This enum provides two variants: [`SubscribeStreamEvent::Status`] and
@@ -484,11 +481,11 @@ pub struct Message {
     /// [`publish`]: crate::dx::publish
     pub space_id: Option<String>,
 
+    #[cfg(feature = "serde")]
     /// User provided metadata (set only when [`publish`] called with
     /// `meta`).
     ///
     /// [`publish`]: crate::dx::publish
-    #[cfg(feature = "serde")]
     pub user_metadata: Option<serde_json::Value>,
 
     /// User provided metadata (set only when [`publish`] called with
@@ -496,7 +493,7 @@ pub struct Message {
     ///
     /// [`publish`]: crate::dx::publish
     #[cfg(not(feature = "serde"))]
-    user_metadata: Vec<u8>,
+    pub user_metadata: Option<Vec<u8>>,
 
     /// Decryption error details.
     ///

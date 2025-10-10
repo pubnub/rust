@@ -601,7 +601,8 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// Listeners configure [`PubNubClient`] to receive real-time updates for
     /// specified list of channels and groups.
     ///
-    /// ```no_run // Starts listening for real-time updates
+    /// ```no_run
+    /// // Starts listening for real-time updates
     /// use futures::StreamExt;
     /// use pubnub::{
     ///     subscribe::{

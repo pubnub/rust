@@ -74,8 +74,7 @@ impl<T, D> PubNubEntity<T, D> {
     /// > features are enabled.
     ///
     /// > As long as entity used by at least one subscription it can't be
-    /// > removed from subscription
-    /// loop.
+    /// > removed from subscription loop.
     #[cfg(all(feature = "subscribe", feature = "std"))]
     pub(crate) fn decrease_subscriptions_count(&self) {
         match self {

@@ -270,12 +270,21 @@ pub struct Envelope {
     #[cfg_attr(feature = "serde", serde(rename = "si"), serde(default))]
     pub space_id: Option<String>,
 
+    #[cfg(feature = "serde")]
     /// User provided metadata (set only when [`publish`] called with
     /// `meta`).
     ///
     /// [`publish`]: crate::dx::publish
     #[cfg_attr(feature = "serde", serde(rename = "u"))]
     pub user_metadata: Option<serde_json::Value>,
+
+    #[cfg(not(feature = "serde"))]
+    /// User provided metadata (set only when [`publish`] called with
+    /// `meta`).
+    ///
+    /// [`publish`]: crate::dx::publish
+    #[cfg_attr(feature = "serde", serde(rename = "u"))]
+    pub user_metadata: Option<Vec<u8>>,
 }
 
 /// Payload of the real-time update.

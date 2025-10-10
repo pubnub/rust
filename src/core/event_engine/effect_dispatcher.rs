@@ -261,6 +261,7 @@ mod should {
         }
     }
 
+    #[allow(dead_code)]
     #[derive(Clone)]
     struct TestRuntime {}
 

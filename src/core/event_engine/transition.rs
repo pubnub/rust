@@ -7,7 +7,6 @@ use crate::{
 ///
 /// State transition with information about target state and list of effect
 /// invocations.
-
 pub(crate) struct Transition<S, I>
 where
     S: State,

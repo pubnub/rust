@@ -33,17 +33,19 @@ use crate::transport::TransportReqwest;
 
 // TODO: Retry policy would be implemented for `no_std` event engine
 #[cfg(feature = "std")]
-use crate::core::{runtime::RuntimeSupport, RequestRetryConfiguration};
+use crate::{
+    core::{retry_policy::Endpoint, runtime::RuntimeSupport, RequestRetryConfiguration},
+    lib::alloc::vec,
+};
 
 use crate::{
-    core::{retry_policy::Endpoint, CryptoProvider, PubNubEntity, PubNubError},
+    core::{CryptoProvider, PubNubEntity, PubNubError},
     lib::{
         alloc::{
             borrow::ToOwned,
             format,
             string::{String, ToString},
             sync::Arc,
-            vec,
             vec::Vec,
         },
         collections::HashMap,

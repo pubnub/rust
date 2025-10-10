@@ -19,7 +19,8 @@ env:
 jobs:
   tests:
     name: Unit tests
-    runs-on: ubuntu-latest
+    runs-on:
+      group: organization/Default
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -34,7 +35,8 @@ jobs:
   #        uses: ./.github/.release/actions/actions/utils/fast-jobs-failure
   acceptance-tests:
     name: Acceptance tests
-    runs-on: ubuntu-latest
+    runs-on:
+      group: organization/Default
     steps:
       - name: Checkout project
         uses: actions/checkout@v5
@@ -63,7 +65,8 @@ jobs:
           retention-days: 7
   all-tests:
     name: Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      group: organization/Default
     needs: [ tests, acceptance-tests ]
     steps:
       - name: Tests summary

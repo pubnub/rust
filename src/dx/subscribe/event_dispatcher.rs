@@ -251,9 +251,8 @@ impl EventDispatcher {
     /// # Arguments
     ///
     /// * `condition` - A closure that determines whether an event matches the
-    ///   condition.
-    /// It should accept a reference to a `SubscribeStreamEvent` and return a
-    /// `bool`.
+    ///   condition. It should accept a reference to a `SubscribeStreamEvent`
+    ///   and return a `bool`.
     ///
     /// # Returns
     ///

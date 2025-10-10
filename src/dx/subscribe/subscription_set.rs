@@ -1174,7 +1174,7 @@ mod it_should {
             .into_iter()
             .map(|name| client.channel(name).subscription(None))
             .collect::<Vec<Subscription<_, _>>>();
-        let channels_3_subscriptions = vec![
+        let channels_3_subscriptions = [
             channels_1_subscriptions[0].clone(),
             channels_2_subscriptions[1].clone(),
         ];

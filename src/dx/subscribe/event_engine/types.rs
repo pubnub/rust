@@ -62,8 +62,8 @@ impl SubscriptionInput {
             })
         });
 
-        let channel_groups_is_empty = channel_groups.as_ref().map_or(true, |set| set.is_empty());
-        let channels_is_empty = channels.as_ref().map_or(true, |set| set.is_empty());
+        let channel_groups_is_empty = channel_groups.as_ref().is_none_or(|set| set.is_empty());
+        let channels_is_empty = channels.as_ref().is_none_or(|set| set.is_empty());
 
         Self {
             channels,
@@ -93,7 +93,7 @@ impl SubscriptionInput {
     pub fn contains_channel(&self, channel: &str) -> bool {
         self.channels
             .as_ref()
-            .map_or(false, |channels| channels.contains(channel))
+            .is_some_and(|channels| channels.contains(channel))
     }
 
     pub fn channel_groups(&self) -> Option<Vec<String>> {
@@ -105,9 +105,7 @@ impl SubscriptionInput {
     pub fn contains_channel_group(&self, channel_group: &str) -> bool {
         self.channel_groups
             .as_ref()
-            .map_or(false, |channel_groups| {
-                channel_groups.contains(channel_group)
-            })
+            .is_some_and(|channel_groups| channel_groups.contains(channel_group))
     }
 
     fn join_sets(
@@ -142,8 +140,8 @@ impl Add for SubscriptionInput {
     fn add(self, rhs: Self) -> Self::Output {
         let channel_groups = self.join_sets(&self.channel_groups, &rhs.channel_groups);
         let channels = self.join_sets(&self.channels, &rhs.channels);
-        let channel_groups_is_empty = channel_groups.as_ref().map_or(true, |set| set.is_empty());
-        let channels_is_empty = channels.as_ref().map_or(true, |set| set.is_empty());
+        let channel_groups_is_empty = channel_groups.as_ref().is_none_or(|set| set.is_empty());
+        let channels_is_empty = channels.as_ref().is_none_or(|set| set.is_empty());
 
         Self {
             channels,
@@ -163,8 +161,8 @@ impl AddAssign for SubscriptionInput {
     fn add_assign(&mut self, rhs: Self) {
         let channel_groups = self.join_sets(&self.channel_groups, &rhs.channel_groups);
         let channels = self.join_sets(&self.channels, &rhs.channels);
-        let channel_groups_is_empty = channel_groups.as_ref().map_or(true, |set| set.is_empty());
-        let channels_is_empty = channels.as_ref().map_or(true, |set| set.is_empty());
+        let channel_groups_is_empty = channel_groups.as_ref().is_none_or(|set| set.is_empty());
+        let channels_is_empty = channels.as_ref().is_none_or(|set| set.is_empty());
 
         self.channels = channels;
         self.channel_groups = channel_groups;
@@ -178,8 +176,8 @@ impl Sub for SubscriptionInput {
     fn sub(self, rhs: Self) -> Self::Output {
         let channel_groups = self.sub_sets(&self.channel_groups, &rhs.channel_groups);
         let channels = self.sub_sets(&self.channels, &rhs.channels);
-        let channel_groups_is_empty = channel_groups.as_ref().map_or(true, |set| set.is_empty());
-        let channels_is_empty = channels.as_ref().map_or(true, |set| set.is_empty());
+        let channel_groups_is_empty = channel_groups.as_ref().is_none_or(|set| set.is_empty());
+        let channels_is_empty = channels.as_ref().is_none_or(|set| set.is_empty());
 
         Self {
             channels,
@@ -193,8 +191,8 @@ impl SubAssign for SubscriptionInput {
     fn sub_assign(&mut self, rhs: Self) {
         let channel_groups = self.sub_sets(&self.channel_groups, &rhs.channel_groups);
         let channels = self.sub_sets(&self.channels, &rhs.channels);
-        let channel_groups_is_empty = channel_groups.as_ref().map_or(true, |set| set.is_empty());
-        let channels_is_empty = channels.as_ref().map_or(true, |set| set.is_empty());
+        let channel_groups_is_empty = channel_groups.as_ref().is_none_or(|set| set.is_empty());
+        let channels_is_empty = channels.as_ref().is_none_or(|set| set.is_empty());
 
         self.channels = channels;
         self.channel_groups = channel_groups;

@@ -423,6 +423,7 @@ mod should {
     struct MockTransport;
 
     fn client() -> PubNubClientInstance<PubNubMiddleware<MockTransport>, DeserializerSerde> {
+        #[allow(non_local_definitions)]
         #[async_trait::async_trait]
         impl Transport for MockTransport {
             async fn send(
@@ -450,6 +451,7 @@ mod should {
 
     #[tokio::test]
     async fn publish_message() {
+        #[allow(dead_code)]
         #[derive(Default, Clone)]
         struct MockTransport;
 
