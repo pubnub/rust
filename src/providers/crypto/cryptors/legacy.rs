@@ -64,7 +64,7 @@ impl LegacyCryptor {
     fn initialization_vector(&self) -> [u8; 16] {
         if self.use_random_iv {
             let mut random = [0u8; AES_BLOCK_SIZE];
-            getrandom::getrandom(&mut random).ok();
+            getrandom::fill(&mut random).ok();
             random
         } else {
             *b"0123456789012345"
