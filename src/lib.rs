@@ -340,12 +340,10 @@ mod lib {
 // Mocking random for checking if `no_std` compiles.
 // Don't use that feature in production.
 #[cfg(feature = "mock_getrandom")]
-mod mock_getrandom {
-    #[no_mangle]
-    unsafe extern "Rust" fn __getrandom_v03_custom(
-        _dest: *mut u8,
-        _len: usize,
-    ) -> Result<(), getrandom::Error> {
-        Ok(())
-    }
+#[no_mangle]
+unsafe extern "Rust" fn __getrandom_v03_custom(
+    _dest: *mut u8,
+    _len: usize,
+) -> Result<(), getrandom::Error> {
+    Ok(())
 }
