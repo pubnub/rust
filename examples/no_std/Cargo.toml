@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 pubnub = { path = "../../", default-features = false, features = ["blocking", "serde", "publish", "subscribe", "presence"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
+getrandom = { version = "0.3", default_features = false }
 
 [[bin]]
 name = "publish"
