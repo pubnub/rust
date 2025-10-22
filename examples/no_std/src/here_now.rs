@@ -41,7 +41,7 @@ fn custom_random(buf: &mut [u8]) -> Result<(), getrandom::Error> {
 unsafe extern "Rust" fn __getrandom_v03_custom(
     dest: *mut u8,
     len: usize,
-) -> Result<(), Error> {
+) -> Result<(), getrandom::Error> {
     let buf = unsafe {
         // fill the buffer with zeros
         core::ptr::write_bytes(dest, 0, len);
