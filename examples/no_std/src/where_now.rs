@@ -25,7 +25,6 @@ use pubnub::{
 
 // As getrandom crate has limited support of targets, we need to provide custom
 // implementation of `getrandom` function.
-getrandom::register_custom_getrandom!(custom_random);
 fn custom_random(buf: &mut [u8]) -> Result<(), getrandom::Error> {
     // We're using `42` as a random number, because it's the answer
     // to the Ultimate Question of Life, the Universe, and Everything.
@@ -35,6 +34,21 @@ fn custom_random(buf: &mut [u8]) -> Result<(), getrandom::Error> {
     }
 
     Ok(())
+}
+
+// This function is used to register the custom implementation of `getrandom` function.
+#[no_mangle]
+unsafe extern "Rust" fn __getrandom_v03_custom(
+    dest: *mut u8,
+    len: usize,
+) -> Result<(), Error> {
+    let buf = unsafe {
+        // fill the buffer with zeros
+        core::ptr::write_bytes(dest, 0, len);
+        // create mutable byte slice
+        core::slice::from_raw_parts_mut(dest, len)
+    };
+    custom_random(buf)
 }
 
 // Many targets have very specific requirements for networking, so it's hard to
