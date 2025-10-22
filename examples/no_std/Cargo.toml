@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pubnub = { path = "../../", default-features = false, features = ["blocking", "serde", "publish", "subscribe", "presence"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-getrandom = { version = "0.2", default-features = false, features = ["custom"] }
+pubnub = { path = "../../", default_features = false, features = ["blocking", "serde", "publish", "subscribe", "presence"] }
+serde = { version = "1.0", default_features = false, features = ["derive"] }
+getrandom = { version = "0.3", default_features = false }
 
 [[bin]]
 name = "publish"

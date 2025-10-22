@@ -122,7 +122,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --lib --no-default-features --features=full_no_std_platform_independent,mock_getrandom
+          args: --lib --no-default-features --features=full_no_std_platform_independent
 
       - name: Run cargo check tool to check if the additional example code are valid
         uses: actions-rs/cargo@v1
