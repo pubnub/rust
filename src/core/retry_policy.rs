@@ -8,8 +8,6 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use getrandom::getrandom;
-
 use crate::{core::PubNubError, lib::alloc::vec::Vec};
 
 /// List of known endpoint groups (by context)
@@ -310,7 +308,7 @@ impl RequestRetryConfiguration {
         let delay = delay_in_seconds * MICROS_IN_SECOND;
         let mut random_bytes = [0u8; 8];
 
-        if getrandom(&mut random_bytes).is_err() {
+        if getrandom::fill(&mut random_bytes).is_err() {
             return Some(delay);
         }
 

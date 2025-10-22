@@ -67,7 +67,6 @@ contract_test = ["parse_token", "publish", "access", "crypto", "std", "subscribe
 full_no_std = ["serde", "reqwest", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
 full_no_std_platform_independent = ["serde", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
 pubnub_only = ["crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
-mock_getrandom = ["getrandom/custom"]
 # TODO: temporary treated as internal until we officially release it
 subscribe = ["dep:futures"]
 presence = ["dep:futures"]
@@ -91,7 +90,7 @@ sha2 = { version = "0.10", default-features = false }
 time = { version = "0.3", features = ["alloc"], default-features = false }
 
 # serde
-serde = { version = "1.0", features = ["derive"], optional = true, default-features = false }
+serde = { version = "1.0", features = ["derive", "alloc"], optional = true, default-features = false }
 serde_json = { version = "1.0", optional = true, features = ["alloc"], default-features = false }
 
 # reqwest
@@ -101,7 +100,7 @@ bytes = { version = "1.4", default-features = false, optional = true }
 # crypto
 aes = { version = "0.8.2", optional = true }
 cbc = { version = "0.1.2", optional = true }
-getrandom = { version = "0.2", optional = true }
+getrandom = { version = "0.3", optional = true }
 
 # parse_token
 ciborium = { version = "0.2.1", default-features = false, optional = true }
@@ -115,7 +114,7 @@ async-channel = { version = "1.8", optional = true }
 portable-atomic = { version = "1.3", optional = true, default-features = false, features = ["require-cas", "critical-section"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
 async-trait = "0.1"
@@ -126,7 +125,7 @@ cucumber = { version = "0.20.2", features = ["output-junit"] }
 reqwest = { version = "0.12", features = ["json"] }
 test-case = "3.0"
 hashbrown = { version = "0.14.0", features = ["serde"] }
-getrandom = { version = "0.2", features = ["custom"] }
+getrandom = { version = "0.3" }
 
 [build-dependencies]
 built = "0.6"
