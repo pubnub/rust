@@ -312,7 +312,7 @@ pub struct PubNubClientRef<T, D> {
     /// Instance ID
     #[builder(
         setter(into),
-        field(type = "String", build = "Arc::new(Some(Uuid::new_v4().to_string()))")
+        field(ty = "String", build = "Arc::new(Some(Uuid::new_v4().to_string()))")
     )]
     pub(crate) instance_id: Arc<Option<String>>,
 

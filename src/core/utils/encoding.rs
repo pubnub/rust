@@ -1,4 +1,5 @@
 use crate::lib::alloc::{
+    collections::HashSet,
     string::{String, ToString},
     vec::Vec,
 };
@@ -76,10 +77,19 @@ pub fn join_url_encoded(strings: &[&str], sep: &str) -> Option<String> {
 /// Channels list used as part of URL path and therefore required.
 #[cfg(any(feature = "subscribe", feature = "presence"))]
 pub(crate) fn url_encoded_channels(channels: &[String]) -> String {
+    let mut seen_channels = HashSet::new();
+
     join_url_encoded(
         channels
             .iter()
-            .map(|v| v.as_str())
+            .filter_map(|channel| {
+                let channel_string = channel.as_str();
+                if seen_channels.insert(channel_string) {
+                    Some(channel_string)
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<&str>>()
             .as_slice(),
         ",",
@@ -90,10 +100,19 @@ pub(crate) fn url_encoded_channels(channels: &[String]) -> String {
 /// URL-encode channel groups list.
 #[cfg(any(feature = "subscribe", feature = "presence"))]
 pub(crate) fn url_encoded_channel_groups(channel_groups: &[String]) -> Option<String> {
+    let mut seen_groups = HashSet::new();
+
     join_url_encoded(
         channel_groups
             .iter()
-            .map(|v| v.as_str())
+            .filter_map(|group| {
+                let group_string = group.as_str();
+                if seen_groups.insert(group_string) {
+                    Some(group_string)
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<&str>>()
             .as_slice(),
         ",",

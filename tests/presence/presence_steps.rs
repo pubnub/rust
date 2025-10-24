@@ -6,7 +6,6 @@ use std::fs::read_to_string;
 
 use crate::clear_log_file;
 use crate::common::PubNubWorld;
-use pubnub::core::RequestRetryConfiguration;
 use pubnub::subscribe::{
     EventEmitter, EventSubscriber, Presence, Subscriber, SubscriptionOptions, SubscriptionSet,
 };
@@ -180,7 +179,7 @@ async fn wait_presence_join(world: &mut PubNubWorld) {
 }
 
 #[then("I receive an error in my heartbeat response")]
-async fn receive_an_error_heartbeat_retry(world: &mut PubNubWorld) {
+async fn receive_an_error_heartbeat_retry(_world: &mut PubNubWorld) {
     tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
 
     let history = events_and_invocations_history();

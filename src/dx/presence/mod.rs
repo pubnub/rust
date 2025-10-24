@@ -407,6 +407,8 @@ impl<T, D> PubNubClientInstance<T, D> {
     ///         .channels(["lobby".into()])
     ///         .include_state(true)
     ///         .include_user_id(true)
+    ///         .limit(200)
+    ///         .offset(400)
     ///         .execute()
     ///         .await?;
     ///
@@ -665,10 +667,6 @@ where
         if let Some(channel_groups) = params.channel_groups.clone() {
             request = request.channel_groups(channel_groups);
         }
-        //
-        // if let Some(presence) = self.presence.clone().read().as_ref() {
-        //     request = request.state_serialized(presence.state.clone())
-        // }
 
         request
     }
@@ -753,6 +751,30 @@ mod it_should {
         assert!(request.is_err())
     }
 
+    #[test]
+    fn not_heartbeat_when_channels_and_groups_are_empty() {
+        let client = client(true, None);
+        let request = client.heartbeat().build();
+
+        assert!(request.is_err())
+    }
+
+    #[tokio::test]
+    async fn heartbeat_channels_is_comma_when_only_channel_groups_provided() {
+        let transport = MockTransport {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                assert_eq!(req.path.split('/').collect::<Vec<&str>>()[6], ",");
+            })),
+        };
+
+        let _ = client(true, Some(transport))
+            .heartbeat()
+            .channel_groups(["test-cg".into()])
+            .execute()
+            .await;
+    }
+
     #[tokio::test]
     async fn send_heartbeat() {
         let client = PubNubClientBuilder::with_reqwest_transport()
@@ -783,6 +805,24 @@ mod it_should {
             Ok(_) => {}
             Err(err) => panic!("Request should not fail: {err}"),
         }
+    }
+
+    #[tokio::test]
+    async fn send_heartbeat_with_unique_channels_and_groups() {
+        let transport = MockTransport {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                assert_eq!(req.path.split('/').collect::<Vec<&str>>()[6], "channel_a");
+                assert_eq!(req.query_parameters["channel-group"], "group_b");
+            })),
+        };
+
+        let _ = client(true, Some(transport))
+            .heartbeat()
+            .channels(["channel_a".into(), "channel_a".into(), "channel_a".into()])
+            .channel_groups(["group_b".into(), "group_b".into(), "group_b".into()])
+            .execute()
+            .await;
     }
 
     #[tokio::test]
@@ -825,5 +865,45 @@ mod it_should {
             .channels(["channel_a".into(), "channel_b".into(), "channel_c".into()])
             .execute()
             .await;
+    }
+
+    #[tokio::test]
+    async fn send_here_now_default_limit() {
+        let transport = MockTransport {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                assert_eq!(req.query_parameters["limit"], "1000");
+                assert!(!req.query_parameters.contains_key("offset"));
+            })),
+        };
+
+        let _ = client(true, Some(transport))
+            .here_now()
+            .channels(["test-ch".into()])
+            .offset(0)
+            .execute()
+            .await;
+    }
+
+    #[tokio::test]
+    async fn send_here_now_with_too_large_limit() {
+        let presence_client = PubNubClientBuilder::with_reqwest_transport()
+            .with_keyset(Keyset {
+                subscribe_key: "demo",
+                publish_key: None,
+                secret_key: None,
+            })
+            .with_user_id("user")
+            .build()
+            .unwrap();
+
+        let response = presence_client
+            .here_now()
+            .channels(["test-ch".into()])
+            .limit(10000)
+            .execute()
+            .await;
+
+        assert!(response.is_err());
     }
 }

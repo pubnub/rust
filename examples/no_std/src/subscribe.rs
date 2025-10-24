@@ -37,7 +37,8 @@ struct Message {
 fn custom_random(buf: &mut [u8]) -> Result<(), getrandom::Error> {
     // We're using `42` as a random number, because it's the answer
     // to the Ultimate Question of Life, the Universe, and Everything.
-    // In your program, you should use proper random number generator that is supported by your target.
+    // In your program, you should use proper random number generator that is
+    // supported by your target.
     for i in buf.iter_mut() {
         *i = 42;
     }
@@ -45,12 +46,14 @@ fn custom_random(buf: &mut [u8]) -> Result<(), getrandom::Error> {
     Ok(())
 }
 
-// This function is used to register the custom implementation of `getrandom` function.
+// This function is used to register the custom implementation of `getrandom`
+// function.
 #[no_mangle]
 unsafe extern "Rust" fn __getrandom_v03_custom(
     dest: *mut u8,
     len: usize,
 ) -> Result<(), getrandom::Error> {
+    #[allow(unsafe_code)]
     let buf = unsafe {
         // fill the buffer with zeros
         core::ptr::write_bytes(dest, 0, len);

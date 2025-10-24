@@ -3,7 +3,6 @@ use crate::{clear_log_file, scenario_name};
 use cucumber::gherkin::Table;
 use cucumber::{codegen::Regex, gherkin::Step, then, when};
 use futures::{select_biased, FutureExt, StreamExt};
-use pubnub::core::RequestRetryConfiguration;
 use pubnub::subscribe::{EventEmitter, EventSubscriber, SubscriptionCursor, SubscriptionParams};
 use std::fs::read_to_string;
 
@@ -157,11 +156,6 @@ async fn receive_an_error_subscribe_retry(world: &mut PubNubWorld) {
         _ = subscription.next().fuse() => panic!("Message update from server")
     }
 
-    let expected_retry_count: usize = usize::from(match &world.retry_policy.clone().unwrap() {
-        RequestRetryConfiguration::Linear { max_retry, .. }
-        | RequestRetryConfiguration::Exponential { max_retry, .. } => *max_retry,
-        _ => 0,
-    });
     tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
 
     let handshake_test = scenario_name(world).to_lowercase().contains("handshake");

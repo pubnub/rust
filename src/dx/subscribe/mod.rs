@@ -739,6 +739,46 @@ mod should {
         pub display_name: String,
     }
 
+    /// Requests handler function type.
+    type RequestHandler = Box<dyn Fn(&TransportRequest) + Send + Sync>;
+
+    #[derive(Default)]
+    struct MockTransportWithHandler {
+        ///  Response which mocked transport should return.
+        response: Option<TransportResponse>,
+
+        /// Request handler function which will be called before returning
+        /// response.
+        ///
+        /// Use function to verify request parameters.
+        request_handler: Option<RequestHandler>,
+    }
+
+    #[async_trait::async_trait]
+    impl Transport for MockTransportWithHandler {
+        async fn send(&self, req: TransportRequest) -> Result<TransportResponse, PubNubError> {
+            // Calling request handler (if provided).
+            if let Some(handler) = &self.request_handler {
+                handler(&req);
+            }
+
+            Ok(self.response.clone().unwrap_or(transport_response(200)))
+        }
+    }
+
+    /// Service response payload.
+    fn transport_response(status: u16) -> TransportResponse {
+        TransportResponse {
+            status,
+            body: Some(Vec::from(if status < 400 {
+                "{\"t\":{\"t\":\"17613449864766754\",\"r\":21},\"m\":[]}"
+            } else {
+                "\"error\":{{\"message\":\"Overall error\",\"source\":\"test\",\"details\":[{{\"message\":\"Error\",\"location\":\"signature\",\"locationType\":\"query\"}}]}}"
+            })),
+            ..Default::default()
+        }
+    }
+
     struct MockTransport {
         responses_count: RwLock<u16>,
     }
@@ -854,8 +894,11 @@ mod should {
         }
     }
 
-    fn client() -> PubNubGenericClient<MockTransport, DeserializerSerde> {
-        PubNubClientBuilder::with_transport(Default::default())
+    fn client<T>(transport: Option<T>) -> PubNubGenericClient<T, DeserializerSerde>
+    where
+        T: Transport + Default,
+    {
+        PubNubClientBuilder::with_transport(transport.unwrap_or_default())
             .with_keyset(Keyset {
                 subscribe_key: "demo",
                 publish_key: Some("demo"),
@@ -868,7 +911,7 @@ mod should {
 
     #[tokio::test]
     async fn create_subscription_set() {
-        let _ = client().subscription(SubscriptionParams {
+        let _ = client::<MockTransport>(None).subscription(SubscriptionParams {
             channels: Some(&["channel_a"]),
             channel_groups: Some(&["group_a"]),
             options: None,
@@ -877,8 +920,7 @@ mod should {
 
     #[tokio::test]
     async fn subscribe() {
-        env_logger::init();
-        let client = client();
+        let client = client::<MockTransport>(None);
         let subscription = client.subscription(SubscriptionParams {
             channels: Some(&["my-channel"]),
             channel_groups: Some(&["group_a"]),
@@ -913,8 +955,32 @@ mod should {
     }
 
     #[tokio::test]
+    async fn subscribe_with_unique_channels_and_groups() {
+        let transport = MockTransportWithHandler {
+            response: None,
+            request_handler: Some(Box::new(|req| {
+                if req.path.starts_with("/v2/subscribe") {
+                    assert_eq!(req.path.split('/').collect::<Vec<&str>>()[4], "channel_a");
+                    assert_eq!(req.query_parameters["channel-group"], "group_b");
+                }
+            })),
+        };
+        let client = client(Some(transport));
+        let subscription = client.subscription(SubscriptionParams {
+            channels: Some(&["channel_a", "channel_a", "channel_a"]),
+            channel_groups: Some(&["group_b", "group_b", "group_b"]),
+            options: None,
+        });
+        subscription.subscribe();
+
+        let status = client.status_stream().next().await.unwrap();
+
+        assert!(matches!(status, ConnectionStatus::Connected));
+    }
+
+    #[tokio::test]
     async fn subscribe_raw() {
-        let subscription = client()
+        let subscription = client::<MockTransport>(None)
             .subscribe_raw()
             .channels(["world".into()].to_vec())
             .execute()
@@ -928,7 +994,7 @@ mod should {
 
     #[test]
     fn subscribe_raw_blocking() {
-        let subscription = client()
+        let subscription = client::<MockTransport>(None)
             .subscribe_raw()
             .channels(["world".into()].to_vec())
             .execute_blocking()
