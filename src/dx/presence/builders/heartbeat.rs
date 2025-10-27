@@ -56,7 +56,7 @@ pub struct HeartbeatRequest<T, D> {
     /// Channel(s) for announcement.
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
-        setter(strip_option, into),
+        setter(custom, strip_option),
         default = "vec![]"
     )]
     pub(in crate::dx::presence) channels: Vec<String>,
@@ -64,7 +64,7 @@ pub struct HeartbeatRequest<T, D> {
     /// Channel group(s) for announcement.
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
-        setter(into, strip_option),
+        setter(custom, strip_option),
         default = "vec![]"
     )]
     pub(in crate::dx::presence) channel_groups: Vec<String>,
@@ -120,6 +120,69 @@ pub struct HeartbeatRequest<T, D> {
 }
 
 impl<T, D> HeartbeatRequestBuilder<T, D> {
+    /// Channel(s) for announcement.
+    pub fn channels<L>(mut self, channels: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channels.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channels = Some(unique);
+        self
+    }
+
+    /// Channel group(s) for announcement.
+    pub fn channel_groups<L>(mut self, channel_groups: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channel_groups.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channel_groups = Some(unique);
+        self
+    }
+
+    /// A state that should be associated with the `user_id`.
+    ///
+    /// `state` object should be a `HashMap` with channel names as keys and
+    /// nested `HashMap` with values. State with heartbeat can be set **only**
+    /// for channels.
+    ///
+    /// # Example:
+    /// ```rust,no_run
+    /// # use std::collections::HashMap;
+    /// # use pubnub::core::Serialize;
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let state: HashMap<String, HashMap<String, bool>> = HashMap::from([(
+    ///     "announce".to_string(),
+    ///     HashMap::<String, bool>::from([
+    ///         ("is_owner".to_string(), false),
+    ///         ("is_admin".to_string(), true)
+    ///     ])
+    /// )]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn state(mut self, state: HashMap<String, Vec<u8>>) -> Self {
+        let mut serialized_state = vec![b'{'];
+        for (key, mut value) in state {
+            serialized_state.append(&mut format!("\"{}\":", key).as_bytes().to_vec());
+            serialized_state.append(&mut value);
+            serialized_state.push(b',');
+        }
+        if serialized_state.last() == Some(&b',') {
+            serialized_state.pop();
+        }
+        serialized_state.push(b'}');
+
+        self.state = Some(Some(serialized_state));
+        self
+    }
+
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that provided information is enough to build valid
@@ -181,45 +244,6 @@ impl<T, D> HeartbeatRequest<T, D> {
             #[cfg(feature = "std")]
             timeout: config.transport.request_timeout,
         })
-    }
-}
-
-impl<T, D> HeartbeatRequestBuilder<T, D> {
-    /// A state that should be associated with the `user_id`.
-    ///
-    /// `state` object should be a `HashMap` with channel names as keys and
-    /// nested `HashMap` with values. State with heartbeat can be set **only**
-    /// for channels.
-    ///
-    /// # Example:
-    /// ```rust,no_run
-    /// # use std::collections::HashMap;
-    /// # use pubnub::core::Serialize;
-    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let state: HashMap<String, HashMap<String, bool>> = HashMap::from([(
-    ///     "announce".to_string(),
-    ///     HashMap::<String, bool>::from([
-    ///         ("is_owner".to_string(), false),
-    ///         ("is_admin".to_string(), true)
-    ///     ])
-    /// )]);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn state(mut self, state: HashMap<String, Vec<u8>>) -> Self {
-        let mut serialized_state = vec![b'{'];
-        for (key, mut value) in state {
-            serialized_state.append(&mut format!("\"{}\":", key).as_bytes().to_vec());
-            serialized_state.append(&mut value);
-            serialized_state.push(b',');
-        }
-        if serialized_state.last() == Some(&b',') {
-            serialized_state.pop();
-        }
-        serialized_state.push(b'}');
-
-        self.state = Some(Some(serialized_state));
-        self
     }
 }
 

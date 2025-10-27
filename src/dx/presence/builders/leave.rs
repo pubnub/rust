@@ -53,18 +53,18 @@ pub struct LeaveRequest<T, D> {
     #[builder(field(vis = "pub(in crate::dx::presence)"), setter(custom))]
     pub(in crate::dx::presence) pubnub_client: PubNubClientInstance<T, D>,
 
-    /// Channels for announcement.
+    /// Channel(s) for announcement.
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
-        setter(strip_option, into),
+        setter(custom, strip_option),
         default = "vec![]"
     )]
     pub(in crate::dx::presence) channels: Vec<String>,
 
-    /// Channel groups for announcement.
+    /// Channel group(s) for announcement.
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
-        setter(into, strip_option),
+        setter(custom, strip_option),
         default = "vec![]"
     )]
     pub(in crate::dx::presence) channel_groups: Vec<String>,
@@ -76,6 +76,32 @@ pub struct LeaveRequest<T, D> {
 }
 
 impl<T, D> LeaveRequestBuilder<T, D> {
+    /// Channel(s) for announcement.
+    pub fn channels<L>(mut self, channels: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channels.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channels = Some(unique);
+        self
+    }
+
+    /// Channel group(s) for announcement.
+    pub fn channel_groups<L>(mut self, channel_groups: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channel_groups.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channel_groups = Some(unique);
+        self
+    }
+
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid

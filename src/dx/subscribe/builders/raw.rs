@@ -48,24 +48,24 @@ pub struct RawSubscription<T, D> {
     #[builder(field(vis = "pub(in crate::dx::subscribe)"), setter(custom))]
     pub(in crate::dx::subscribe) pubnub_client: PubNubClientInstance<T, D>,
 
-    /// Channels from which real-time updates should be received.
+    /// Channel(s) from which real-time updates should be received.
     ///
     /// List of channels on which [`PubNubClient`] will subscribe and notify
     /// about received real-time updates.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
-        setter(into, strip_option),
+        setter(custom, strip_option),
         default = "Vec::new()"
     )]
     pub(in crate::dx::subscribe) channels: Vec<String>,
 
-    /// Channel groups from which real-time updates should be received.
+    /// Channel group(s) from which real-time updates should be received.
     ///
     /// List of groups of channels on which [`PubNubClient`] will subscribe and
     /// notify about received real-time updates.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
-        setter(into, strip_option),
+        setter(custom, strip_option),
         default = "Vec::new()"
     )]
     pub(in crate::dx::subscribe) channel_groups: Vec<String>,
@@ -110,6 +110,32 @@ pub struct RawSubscription<T, D> {
 }
 
 impl<T, D> RawSubscriptionBuilder<T, D> {
+    /// Channel(s) from which real-time updates should be received.
+    pub fn channels<L>(mut self, channels: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channels.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channels = Some(unique);
+        self
+    }
+
+    /// Channel group(s) from which real-time updates should be received.
+    pub fn channel_groups<L>(mut self, channel_groups: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channel_groups.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channel_groups = Some(unique);
+        self
+    }
+
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that list of provided data is enough to build valid
@@ -146,6 +172,7 @@ where
     }
 }
 
+#[cfg(feature = "blocking")]
 impl<T, D> RawSubscriptionBuilder<T, D>
 where
     T: blocking::Transport,
@@ -226,6 +253,7 @@ where
     }
 }
 
+#[cfg(feature = "blocking")]
 impl<T, D> RawSubscription<T, D>
 where
     T: blocking::Transport,
@@ -255,6 +283,7 @@ where
     }
 }
 
+#[cfg(feature = "blocking")]
 impl<T, D> Iterator for RawSubscriptionIter<T, D>
 where
     T: blocking::Transport,

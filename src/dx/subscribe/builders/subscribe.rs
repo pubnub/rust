@@ -60,7 +60,11 @@ pub(crate) struct SubscribeRequest<T, D> {
     ///
     /// List of channels on which [`PubNubClient`] will subscribe and notify
     /// about received real-time updates.
-    #[builder(field(vis = "pub(in crate::dx::subscribe)"), default = "Vec::new()")]
+    #[builder(
+        field(vis = "pub(in crate::dx::subscribe)"),
+        setter(custom, strip_option),
+        default = "Vec::new()"
+    )]
     pub(in crate::dx::subscribe) channels: Vec<String>,
 
     /// Channel groups from which real-time updates should be received.
@@ -69,7 +73,7 @@ pub(crate) struct SubscribeRequest<T, D> {
     /// notify about received real-time updates.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
-        setter(strip_option),
+        setter(custom, strip_option),
         default = "Vec::new()"
     )]
     pub(in crate::dx::subscribe) channel_groups: Vec<String>,
@@ -143,6 +147,32 @@ pub(crate) struct SubscribeRequest<T, D> {
 }
 
 impl<T, D> SubscribeRequestBuilder<T, D> {
+    /// Channel(s) from which real-time updates should be received.
+    pub fn channels<L>(mut self, channels: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channels.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channels = Some(unique);
+        self
+    }
+
+    /// Channel group(s) from which real-time updates should be received.
+    pub fn channel_groups<L>(mut self, channel_groups: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channel_groups.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channel_groups = Some(unique);
+        self
+    }
+
     /// A state that should be associated with the `user_id`.
     ///
     /// `state` object should be a `HashMap` with channel names as keys and
