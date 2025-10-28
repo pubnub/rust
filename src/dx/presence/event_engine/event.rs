@@ -73,13 +73,6 @@ pub(crate) enum PresenceEvent {
     /// [`PubNub`]: https://www.pubnub.com/
     HeartbeatFailure { reason: PubNubError },
 
-    /// All heartbeat attempts was unsuccessful.
-    ///
-    /// Emitted when heartbeat attempts reached maximum allowed count (according
-    /// to retry / reconnection policy) and all following attempts should be
-    /// stopped.
-    HeartbeatGiveUp { reason: PubNubError },
-
     /// Restore heartbeating.
     ///
     /// Re-launch heartbeat event engine.
@@ -106,7 +99,6 @@ impl Event for PresenceEvent {
             Self::LeftAll { .. } => "LEFT_ALL",
             Self::HeartbeatSuccess => "HEARTBEAT_SUCCESS",
             Self::HeartbeatFailure { .. } => "HEARTBEAT_FAILURE",
-            Self::HeartbeatGiveUp { .. } => "HEARTBEAT_GIVEUP",
             Self::Reconnect => "RECONNECT",
             Self::Disconnect => "DISCONNECT",
             Self::TimesUp => "TIMES_UP",

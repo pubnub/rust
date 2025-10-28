@@ -126,13 +126,6 @@ impl TransportRequest {
                     break;
                 };
 
-                // Subscribe and heartbeat handled by Event Engine.
-                if self.path.starts_with("/v2/subscribe")
-                    || (self.path.starts_with("/v2/presence") && self.path.contains("/heartbeat"))
-                {
-                    break;
-                }
-
                 if let Some(delay) = retry_configuration.retry_delay(
                     Some(self.path.clone()),
                     &retry_attempt,
@@ -194,13 +187,6 @@ impl TransportRequest {
                 let Err(error) = last_result.as_ref() else {
                     break;
                 };
-
-                // Subscribe and heartbeat handled by Event Engine.
-                if self.path.starts_with("/v2/subscribe")
-                    || (self.path.starts_with("/v2/presence") && self.path.contains("/heartbeat"))
-                {
-                    break;
-                }
 
                 if let Some(delay) = retry_configuration.retry_delay(
                     Some(self.path.clone()),

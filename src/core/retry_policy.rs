@@ -8,8 +8,6 @@
 //! [`PubNub API`]: https://www.pubnub.com/docs
 //! [`pubnub`]: ../index.html
 
-use getrandom::getrandom;
-
 use crate::{core::PubNubError, lib::alloc::vec::Vec};
 
 /// List of known endpoint groups (by context)
@@ -287,7 +285,7 @@ impl RequestRetryConfiguration {
     fn reached_max_retry(&self, attempt: &u8) -> bool {
         match self {
             Self::Linear { max_retry, .. } | Self::Exponential { max_retry, .. } => {
-                attempt.gt(max_retry)
+                attempt.ge(max_retry)
             }
             _ => false,
         }
@@ -304,15 +302,13 @@ impl RequestRetryConfiguration {
     /// * `Some(delay_in_microseconds)` - The delay in microseconds.
     /// * `None` - If `delay_in_seconds` is `None`.
     fn delay_in_microseconds(delay_in_seconds: Option<u64>) -> Option<u64> {
-        let Some(delay_in_seconds) = delay_in_seconds else {
-            return None;
-        };
+        let delay_in_seconds = delay_in_seconds?;
 
         const MICROS_IN_SECOND: u64 = 1_000_000;
         let delay = delay_in_seconds * MICROS_IN_SECOND;
         let mut random_bytes = [0u8; 8];
 
-        if getrandom(&mut random_bytes).is_err() {
+        if getrandom::fill(&mut random_bytes).is_err() {
             return Some(delay);
         }
 
@@ -557,7 +553,7 @@ mod should {
         fn return_service_delay_for_too_many_requests_error_response() {
             let policy = RequestRetryConfiguration::Linear {
                 delay: 10,
-                max_retry: 2,
+                max_retry: 3,
                 excluded_endpoints: None,
             };
 
@@ -721,7 +717,7 @@ mod should {
             let policy = RequestRetryConfiguration::Exponential {
                 min_delay: 10,
                 max_delay: 100,
-                max_retry: 2,
+                max_retry: 3,
                 excluded_endpoints: None,
             };
 

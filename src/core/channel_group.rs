@@ -112,8 +112,7 @@ impl<T, D> ChannelGroup<T, D> {
     /// > features are enabled.
     ///
     /// > As long as entity used by at least one subscription it can't be
-    /// > removed from subscription
-    /// loop.
+    /// > removed from subscription loop.
     #[cfg(all(feature = "subscribe", feature = "std"))]
     pub(crate) fn decrease_subscriptions_count(&self) {
         let mut subscriptions_count_slot = self.subscriptions_count.write();

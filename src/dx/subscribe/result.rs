@@ -209,7 +209,7 @@ pub struct Envelope {
     /// PubNub defined event type.
     #[cfg_attr(
         feature = "serde",
-        serde(rename = "f"),
+        serde(rename = "e"),
         serde(default = "Envelope::default_message_type")
     )]
     pub message_type: SubscribeMessageType,
@@ -260,7 +260,7 @@ pub struct Envelope {
     /// `r#type`).
     ///
     /// [`publish`]: crate::dx::publish
-    #[cfg_attr(feature = "serde", serde(rename = "mt"), serde(default))]
+    #[cfg_attr(feature = "serde", serde(rename = "cmt"), serde(default))]
     pub r#type: Option<String>,
 
     /// Identifier of space into which message has been published (set only when
@@ -269,6 +269,22 @@ pub struct Envelope {
     /// [`publish`]: crate::dx::publish
     #[cfg_attr(feature = "serde", serde(rename = "si"), serde(default))]
     pub space_id: Option<String>,
+
+    #[cfg(feature = "serde")]
+    /// User provided metadata (set only when [`publish`] called with
+    /// `meta`).
+    ///
+    /// [`publish`]: crate::dx::publish
+    #[cfg_attr(feature = "serde", serde(rename = "u"))]
+    pub user_metadata: Option<serde_json::Value>,
+
+    #[cfg(not(feature = "serde"))]
+    /// User provided metadata (set only when [`publish`] called with
+    /// `meta`).
+    ///
+    /// [`publish`]: crate::dx::publish
+    #[cfg_attr(feature = "serde", serde(rename = "u"))]
+    pub user_metadata: Option<Vec<u8>>,
 }
 
 /// Payload of the real-time update.
@@ -278,28 +294,48 @@ pub struct Envelope {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
 pub enum EnvelopePayload {
-    /// Presence change real-time update.
+    /// Presence state change real-time update.
+    PresenceStateChange {
+        /// Presence event type.
+        action: String,
+
+        /// Unix timestamp when presence event has been triggered.
+        timestamp: usize,
+
+        /// The current occupancy after the presence change is updated.
+        occupancy: usize,
+
+        /// Unique identification of the user for whom the presence event has
+        /// been triggered.
+        uuid: String,
+
+        /// The user's state associated with the channel has been updated.
+        #[cfg(feature = "serde")]
+        data: serde_json::Value,
+
+        /// The user's state associated with the channel has been updated.
+        #[cfg(not(feature = "serde"))]
+        data: Vec<u8>,
+    },
+    /// Presence change announce real-time update.
     ///
     /// Payload represents one of the presence types:
     /// * `join` – new user joined the channel
     /// * `leave` – some user left channel
     /// * `timeout` – service didn't notice user for a while
-    /// * `interval` – bulk update on `joined`, `left` and `timeout` users.
-    /// * `state-change` - some user changed state associated with him on
-    ///   channel.
-    Presence {
+    PresenceAnnounce {
         /// Presence event type.
-        action: Option<String>,
+        action: String,
 
         /// Unix timestamp when presence event has been triggered.
         timestamp: usize,
 
         /// Unique identification of the user for whom the presence event has
         /// been triggered.
-        uuid: Option<String>,
+        uuid: String,
 
         /// The current occupancy after the presence change is updated.
-        occupancy: Option<usize>,
+        occupancy: usize,
 
         /// The user's state associated with the channel has been updated.
         #[cfg(feature = "serde")]
@@ -308,6 +344,14 @@ pub enum EnvelopePayload {
         /// The user's state associated with the channel has been updated.
         #[cfg(not(feature = "serde"))]
         data: Option<Vec<u8>>,
+    },
+    /// Presence bulk update on `joined`, `left` and `timeout` users.
+    PresenceInterval {
+        /// Unix timestamp when presence event has been triggered.
+        timestamp: usize,
+
+        /// The current occupancy after the presence change is updated.
+        occupancy: usize,
 
         /// The list of unique user identifiers that `joined` the channel since
         /// the last interval presence update.
@@ -320,6 +364,14 @@ pub enum EnvelopePayload {
         /// The list of unique user identifiers that `timeout` the channel since
         /// the last interval presence update.
         timeout: Option<Vec<String>>,
+
+        /// Indicates whether presence should be requested manually or not.
+        ///
+        /// Depending on from the presence activity, the resulting interval
+        /// update can be too large to be returned as a presence event with
+        /// subscribe REST API response. The server will set this flag
+        /// to `true` in this case.
+        here_now_refresh: Option<bool>,
     },
     /// Object realtime update.
     Object {
@@ -577,7 +629,11 @@ impl TryFrom<Envelope> for Update {
 
     fn try_from(value: Envelope) -> Result<Self, Self::Error> {
         match value.payload {
-            EnvelopePayload::Presence { .. } => Ok(Update::Presence(value.try_into()?)),
+            EnvelopePayload::PresenceAnnounce { .. }
+            | EnvelopePayload::PresenceInterval { .. }
+            | EnvelopePayload::PresenceStateChange { .. } => {
+                Ok(Update::Presence(value.try_into()?))
+            }
             EnvelopePayload::Object { .. }
                 if matches!(value.message_type, SubscribeMessageType::Object) =>
             {

@@ -7,7 +7,7 @@ use crate::{
 
 /// Subscription events.
 ///
-/// Subscribe state machine behaviour depends from external events which it
+/// Subscribe state machine behaviour depends on from external events which it
 /// receives.
 #[derive(Debug)]
 pub(crate) enum SubscribeEvent {
@@ -46,30 +46,6 @@ pub(crate) enum SubscribeEvent {
     /// [`PubNub`]: https://www.pubnub.com/
     HandshakeFailure { reason: PubNubError },
 
-    /// Handshake reconnect completed successfully.
-    ///
-    /// Emitted when another handshake attempt was successful and [`PubNub`]
-    /// network returned timetoken (cursor) which will be used for subscription
-    /// loop.
-    ///
-    /// [`PubNub`]: https://www.pubnub.com/
-    HandshakeReconnectSuccess { cursor: SubscriptionCursor },
-
-    /// Handshake reconnect completed with error.
-    ///
-    /// Emitted when another handshake effect attempt was unable to receive
-    /// response from [`PubNub`] network (network or permissions issues).
-    ///
-    /// [`PubNub`]: https://www.pubnub.com/
-    HandshakeReconnectFailure { reason: PubNubError },
-
-    /// All handshake attempts was unsuccessful.
-    ///
-    /// Emitted when handshake reconnect attempts reached maximum allowed count
-    /// (according to retry / reconnection policy) and all following attempts
-    /// should be stopped.
-    HandshakeReconnectGiveUp { reason: PubNubError },
-
     /// Receive updates completed successfully.
     ///
     /// Emitted when [`PubNub`] network returned list of real-time updates along
@@ -88,34 +64,6 @@ pub(crate) enum SubscribeEvent {
     ///
     /// [`PubNub`]: https://www.pubnub.com/
     ReceiveFailure { reason: PubNubError },
-
-    /// Receive updates reconnect completed successfully.
-    ///
-    /// Emitted when another receive updates attempt was successful and
-    /// [`PubNub`] network returned list of real-time updates along
-    /// timetoken (cursor) which will be used for subscription loop.
-    ///
-    /// [`PubNub`]: https://www.pubnub.com/
-    ReceiveReconnectSuccess {
-        cursor: SubscriptionCursor,
-        messages: Vec<Update>,
-    },
-
-    /// Receive updates reconnect completed with error.
-    ///
-    /// Emitted when another receive updates effect attempt was unable to
-    /// receive response from [`PubNub`] network (network issues or
-    /// revoked permissions).
-    ///
-    /// [`PubNub`]: https://www.pubnub.com/
-    ReceiveReconnectFailure { reason: PubNubError },
-
-    /// All receive updates attempts was unsuccessful.
-    ///
-    /// Emitted when receive updates reconnect attempts reached maximum allowed
-    /// count (according to retry / reconnection policy) and all following
-    /// attempts should be stopped.
-    ReceiveReconnectGiveUp { reason: PubNubError },
 
     /// Disconnect from [`PubNub`] network.
     ///
@@ -145,14 +93,8 @@ impl Event for SubscribeEvent {
             Self::SubscriptionRestored { .. } => "SUBSCRIPTION_RESTORED",
             Self::HandshakeSuccess { .. } => "HANDSHAKE_SUCCESS",
             Self::HandshakeFailure { .. } => "HANDSHAKE_FAILURE",
-            Self::HandshakeReconnectSuccess { .. } => "HANDSHAKE_RECONNECT_SUCCESS",
-            Self::HandshakeReconnectFailure { .. } => "HANDSHAKE_RECONNECT_FAILURE",
-            Self::HandshakeReconnectGiveUp { .. } => "HANDSHAKE_RECONNECT_GIVEUP",
             Self::ReceiveSuccess { .. } => "RECEIVE_SUCCESS",
             Self::ReceiveFailure { .. } => "RECEIVE_FAILURE",
-            Self::ReceiveReconnectSuccess { .. } => "RECEIVE_RECONNECT_SUCCESS",
-            Self::ReceiveReconnectFailure { .. } => "RECEIVE_RECONNECT_FAILURE",
-            Self::ReceiveReconnectGiveUp { .. } => "RECEIVE_RECONNECT_GIVEUP",
             Self::Disconnect => "DISCONNECT",
             Self::Reconnect { .. } => "RECONNECT",
             Self::UnsubscribeAll => "UNSUBSCRIBE_ALL",

@@ -77,7 +77,7 @@ impl<T, D> PubNubClientInstance<T, D> {
     /// # }
     /// ```
     #[cfg(feature = "serde")]
-    pub fn grant_token(&self, ttl: usize) -> GrantTokenRequestBuilder<T, SerdeSerializer, D> {
+    pub fn grant_token(&self, ttl: usize) -> GrantTokenRequestBuilder<'_, T, SerdeSerializer, D> {
         GrantTokenRequestBuilder {
             pubnub_client: Some(self.clone()),
             serializer: Some(SerdeSerializer),
@@ -350,7 +350,6 @@ mod it_should {
             response: None,
             request_handler: Some(Box::new(|req| {
                 assert!(req.query_parameters.contains_key("timestamp"));
-                assert!(req.query_parameters.get("timestamp").is_some());
             })),
         };
 
@@ -368,7 +367,6 @@ mod it_should {
             response: None,
             request_handler: Some(Box::new(|req| {
                 assert!(req.query_parameters.contains_key("signature"));
-                assert!(req.query_parameters.get("signature").is_some());
                 assert!(req
                     .query_parameters
                     .get("signature")

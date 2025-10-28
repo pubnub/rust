@@ -8,7 +8,7 @@ use futures::TryFutureExt;
 use log::info;
 
 use crate::{
-    core::{PubNubError, RequestRetryConfiguration},
+    core::PubNubError,
     lib::alloc::{sync::Arc, vec, vec::Vec},
     presence::event_engine::{
         effects::HeartbeatEffectExecutor, PresenceEvent, PresenceInput, PresenceParameters,
@@ -18,18 +18,8 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn execute(
     input: &PresenceInput,
-    attempt: u8,
-    reason: Option<PubNubError>,
-    effect_id: &str,
-    retry_policy: &RequestRetryConfiguration,
     executor: &Arc<HeartbeatEffectExecutor>,
 ) -> Vec<PresenceEvent> {
-    if let Some(reason) = reason.clone() {
-        if !retry_policy.retriable(Some("/v2/presence"), &attempt, Some(&reason)) {
-            return vec![PresenceEvent::HeartbeatGiveUp { reason }];
-        }
-    }
-
     let channel_groups: Option<Vec<String>> = input.channel_groups();
     let channels: Option<Vec<String>> = input.channels();
 
@@ -41,9 +31,6 @@ pub(super) async fn execute(
     executor(PresenceParameters {
         channels: &channels,
         channel_groups: &channel_groups,
-        attempt,
-        reason,
-        effect_id,
     })
     .map_ok_or_else(
         |error| {
@@ -73,9 +60,6 @@ mod it_should {
         let mocked_heartbeat_function: Arc<HeartbeatEffectExecutor> = Arc::new(move |parameters| {
             assert_eq!(parameters.channel_groups, &Some(vec!["cg1".to_string()]));
             assert_eq!(parameters.channels, &Some(vec!["ch1".to_string()]));
-            assert_eq!(parameters.attempt, 0);
-            assert_eq!(parameters.reason, None);
-            assert_eq!(parameters.effect_id, "id");
 
             async move { Ok(HeartbeatResult) }.boxed()
         });
@@ -85,10 +69,6 @@ mod it_should {
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),
-            0,
-            None,
-            "id",
-            &RequestRetryConfiguration::None,
             &mocked_heartbeat_function,
         )
         .await;
@@ -120,20 +100,6 @@ mod it_should {
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),
-            0,
-            Some(PubNubError::Transport {
-                details: "test".into(),
-                response: Some(Box::new(TransportResponse {
-                    status: 500,
-                    ..Default::default()
-                })),
-            }),
-            "id",
-            &RequestRetryConfiguration::Linear {
-                max_retry: 5,
-                delay: 2,
-                excluded_endpoints: None,
-            },
             &mocked_heartbeat_function,
         )
         .await;
@@ -142,51 +108,6 @@ mod it_should {
         assert!(matches!(
             result.first().unwrap(),
             PresenceEvent::HeartbeatFailure { .. }
-        ));
-    }
-
-    #[tokio::test]
-    async fn return_heartbeat_give_up_event_on_error() {
-        let mocked_heartbeat_function: Arc<HeartbeatEffectExecutor> = Arc::new(move |_| {
-            async move {
-                Err(PubNubError::Transport {
-                    details: "test".into(),
-                    response: Some(Box::new(TransportResponse {
-                        status: 500,
-                        ..Default::default()
-                    })),
-                })
-            }
-            .boxed()
-        });
-
-        let result = execute(
-            &PresenceInput::new(
-                &Some(vec!["ch1".to_string()]),
-                &Some(vec!["cg1".to_string()]),
-            ),
-            5,
-            Some(PubNubError::Transport {
-                details: "test".into(),
-                response: Some(Box::new(TransportResponse {
-                    status: 500,
-                    ..Default::default()
-                })),
-            }),
-            "id",
-            &RequestRetryConfiguration::Linear {
-                delay: 0,
-                max_retry: 1,
-                excluded_endpoints: None,
-            },
-            &mocked_heartbeat_function,
-        )
-        .await;
-
-        assert!(!result.is_empty());
-        assert!(matches!(
-            result.first().unwrap(),
-            PresenceEvent::HeartbeatGiveUp { .. }
         ));
     }
 
@@ -200,69 +121,10 @@ mod it_should {
                 &Some(vec!["ch1".to_string()]),
                 &Some(vec!["cg1".to_string()]),
             ),
-            5,
-            Some(PubNubError::Transport {
-                details: "test".into(),
-                response: Some(Box::new(TransportResponse {
-                    status: 500,
-                    ..Default::default()
-                })),
-            }),
-            "id",
-            &RequestRetryConfiguration::Linear {
-                max_retry: 5,
-                delay: 2,
-                excluded_endpoints: None,
-            },
             &mocked_heartbeat_function,
         )
         .await;
 
         assert!(result.is_empty());
-    }
-
-    #[tokio::test]
-    async fn return_heartbeat_give_up_event_on_error_with_none_auto_retry_policy() {
-        let mocked_heartbeat_function: Arc<HeartbeatEffectExecutor> = Arc::new(move |_| {
-            async move {
-                Err(PubNubError::Transport {
-                    details: "test".into(),
-                    response: Some(Box::new(TransportResponse {
-                        status: 500,
-                        ..Default::default()
-                    })),
-                })
-            }
-            .boxed()
-        });
-
-        let result = execute(
-            &PresenceInput::new(
-                &Some(vec!["ch1".to_string()]),
-                &Some(vec!["cg1".to_string()]),
-            ),
-            5,
-            Some(PubNubError::Transport {
-                details: "test".into(),
-                response: Some(Box::new(TransportResponse {
-                    status: 500,
-                    ..Default::default()
-                })),
-            }),
-            "id",
-            &RequestRetryConfiguration::Linear {
-                delay: 0,
-                max_retry: 1,
-                excluded_endpoints: None,
-            },
-            &mocked_heartbeat_function,
-        )
-        .await;
-
-        assert!(!result.is_empty());
-        assert!(matches!(
-            result.first().unwrap(),
-            PresenceEvent::HeartbeatGiveUp { .. }
-        ));
     }
 }

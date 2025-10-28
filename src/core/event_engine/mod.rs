@@ -174,7 +174,7 @@ where
     /// Stop state machine using specific invocation.
     ///
     /// > Note: Should be provided effect information which respond with `true`
-    /// for `is_terminating` method call.
+    /// > for `is_terminating` method call.
     pub fn stop(&self, invocation: EI) {
         {
             *self.active.write() = false;

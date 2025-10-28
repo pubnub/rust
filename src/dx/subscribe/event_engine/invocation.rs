@@ -1,5 +1,5 @@
 use crate::{
-    core::{event_engine::EffectInvocation, PubNubError},
+    core::event_engine::EffectInvocation,
     dx::subscribe::{
         event_engine::{SubscribeEffect, SubscribeEvent, SubscriptionInput},
         result::Update,
@@ -35,32 +35,6 @@ pub(crate) enum SubscribeEffectInvocation {
     /// Cancel initial subscribe effect invocation.
     CancelHandshake,
 
-    /// Retry initial subscribe effect invocation.
-    HandshakeReconnect {
-        /// User input with channels and groups.
-        ///
-        /// Object contains list of channels and groups which has been used
-        /// during recently failed initial subscription.
-        input: SubscriptionInput,
-
-        /// Time cursor.
-        ///
-        /// Cursor used by subscription loop to identify point in time after
-        /// which updates will be delivered.
-        cursor: Option<SubscriptionCursor>,
-
-        /// Current initial subscribe retry attempt.
-        ///
-        /// Used to track overall number of initial subscription retry attempts.
-        attempts: u8,
-
-        /// Initial subscribe attempt failure reason.
-        reason: PubNubError,
-    },
-
-    /// Cancel initial subscribe retry effect invocation.
-    CancelHandshakeReconnect,
-
     /// Receive updates effect invocation.
     Receive {
         /// User input with channels and groups.
@@ -78,32 +52,6 @@ pub(crate) enum SubscribeEffectInvocation {
 
     /// Cancel receive updates effect invocation.
     CancelReceive,
-
-    /// Retry receive updates effect invocation.
-    ReceiveReconnect {
-        /// User input with channels and groups.
-        ///
-        /// Object contains list of channels and groups which has been used
-        /// during recently failed receive updates.
-        input: SubscriptionInput,
-
-        /// Time cursor.
-        ///
-        /// Cursor used by subscription loop to identify point in time after
-        /// which updates will be delivered.
-        cursor: SubscriptionCursor,
-
-        /// Current receive retry attempt.
-        ///
-        /// Used to track overall number of receive updates retry attempts.
-        attempts: u8,
-
-        /// Receive updates attempt failure reason.
-        reason: PubNubError,
-    },
-
-    /// Cancel receive updates retry effect invocation.
-    CancelReceiveReconnect,
 
     /// Status change notification effect invocation.
     EmitStatus(ConnectionStatus),
@@ -123,12 +71,8 @@ impl EffectInvocation for SubscribeEffectInvocation {
         match self {
             Self::Handshake { .. } => "HANDSHAKE",
             Self::CancelHandshake { .. } => "CANCEL_HANDSHAKE",
-            Self::HandshakeReconnect { .. } => "HANDSHAKE_RECONNECT",
-            Self::CancelHandshakeReconnect { .. } => "CANCEL_HANDSHAKE_RECONNECT",
             Self::Receive { .. } => "RECEIVE_MESSAGES",
             Self::CancelReceive { .. } => "CANCEL_RECEIVE_MESSAGES",
-            Self::ReceiveReconnect { .. } => "RECEIVE_RECONNECT",
-            Self::CancelReceiveReconnect { .. } => "CANCEL_RECEIVE_RECONNECT",
             Self::EmitStatus(_) => "EMIT_STATUS",
             Self::EmitMessages(_, _) => "EMIT_MESSAGES",
             Self::TerminateEventEngine => "TERMINATE_EVENT_ENGINE",
@@ -136,34 +80,21 @@ impl EffectInvocation for SubscribeEffectInvocation {
     }
 
     fn is_managed(&self) -> bool {
-        matches!(
-            self,
-            Self::Handshake { .. }
-                | Self::HandshakeReconnect { .. }
-                | Self::Receive { .. }
-                | Self::ReceiveReconnect { .. }
-        )
+        matches!(self, Self::Handshake { .. } | Self::Receive { .. })
     }
 
     fn is_cancelling(&self) -> bool {
         matches!(
             self,
-            Self::CancelHandshake { .. }
-                | Self::CancelHandshakeReconnect { .. }
-                | Self::CancelReceive { .. }
-                | Self::CancelReceiveReconnect
+            Self::CancelHandshake { .. } | Self::CancelReceive { .. }
         )
     }
 
     fn cancelling_effect(&self, effect: &Self::Effect) -> bool {
         (matches!(effect, SubscribeEffect::Handshake { .. })
             && matches!(self, Self::CancelHandshake { .. }))
-            || (matches!(effect, SubscribeEffect::HandshakeReconnect { .. })
-                && matches!(self, Self::CancelHandshakeReconnect { .. }))
             || (matches!(effect, SubscribeEffect::Receive { .. })
                 && matches!(self, Self::CancelReceive { .. }))
-            || (matches!(effect, SubscribeEffect::ReceiveReconnect { .. })
-                && matches!(self, Self::CancelReceiveReconnect { .. }))
     }
 
     fn is_terminating(&self) -> bool {
@@ -176,12 +107,8 @@ impl Display for SubscribeEffectInvocation {
         match self {
             Self::Handshake { .. } => write!(f, "HANDSHAKE"),
             Self::CancelHandshake => write!(f, "CANCEL_HANDSHAKE"),
-            Self::HandshakeReconnect { .. } => write!(f, "HANDSHAKE_RECONNECT"),
-            Self::CancelHandshakeReconnect => write!(f, "CANCEL_HANDSHAKE_RECONNECT"),
             Self::Receive { .. } => write!(f, "RECEIVE_MESSAGES"),
             Self::CancelReceive { .. } => write!(f, "CANCEL_RECEIVE_MESSAGES"),
-            Self::ReceiveReconnect { .. } => write!(f, "RECEIVE_RECONNECT"),
-            Self::CancelReceiveReconnect { .. } => write!(f, "CANCEL_RECEIVE_RECONNECT"),
             Self::EmitStatus(status) => write!(f, "EMIT_STATUS({status:?})"),
             Self::EmitMessages(messages, _) => write!(f, "EMIT_MESSAGES({messages:?})"),
             Self::TerminateEventEngine => write!(f, "TERMINATE_EVENT_ENGINE"),

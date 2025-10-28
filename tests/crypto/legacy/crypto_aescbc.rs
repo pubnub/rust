@@ -145,7 +145,7 @@ impl AesCbcCrypto {
             Some(iv) => Vec::from(iv.as_slice()),
             None => {
                 let mut random = [0u8; AES_BLOCK_SIZE];
-                getrandom::getrandom(&mut random).ok();
+                getrandom::fill(&mut random).ok();
                 Vec::from(random)
             }
         }

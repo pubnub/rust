@@ -5,10 +5,7 @@
 
 use derive_builder::Builder;
 #[cfg(feature = "std")]
-use futures::{
-    future::BoxFuture,
-    {select_biased, FutureExt},
-};
+use futures::{select_biased, FutureExt};
 
 use crate::{
     core::{
@@ -33,10 +30,10 @@ use crate::{
     },
 };
 
+#[cfg(feature = "std")]
+use crate::core::event_engine::cancel::CancellationTask;
 #[cfg(all(feature = "presence", feature = "std"))]
 use crate::lib::alloc::vec;
-#[cfg(feature = "std")]
-use crate::{core::event_engine::cancel::CancellationTask, lib::alloc::sync::Arc};
 
 /// The [`SubscribeRequestBuilder`] is used to build subscribe request which
 /// will be used for real-time updates notification from the [`PubNub`] network.
@@ -63,7 +60,11 @@ pub(crate) struct SubscribeRequest<T, D> {
     ///
     /// List of channels on which [`PubNubClient`] will subscribe and notify
     /// about received real-time updates.
-    #[builder(field(vis = "pub(in crate::dx::subscribe)"), default = "Vec::new()")]
+    #[builder(
+        field(vis = "pub(in crate::dx::subscribe)"),
+        setter(custom, strip_option),
+        default = "Vec::new()"
+    )]
     pub(in crate::dx::subscribe) channels: Vec<String>,
 
     /// Channel groups from which real-time updates should be received.
@@ -72,7 +73,7 @@ pub(crate) struct SubscribeRequest<T, D> {
     /// notify about received real-time updates.
     #[builder(
         field(vis = "pub(in crate::dx::subscribe)"),
-        setter(strip_option),
+        setter(custom, strip_option),
         default = "Vec::new()"
     )]
     pub(in crate::dx::subscribe) channel_groups: Vec<String>,
@@ -146,6 +147,32 @@ pub(crate) struct SubscribeRequest<T, D> {
 }
 
 impl<T, D> SubscribeRequestBuilder<T, D> {
+    /// Channel(s) from which real-time updates should be received.
+    pub fn channels<L>(mut self, channels: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channels.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channels = Some(unique);
+        self
+    }
+
+    /// Channel group(s) from which real-time updates should be received.
+    pub fn channel_groups<L>(mut self, channel_groups: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channel_groups.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channel_groups = Some(unique);
+        self
+    }
+
     /// A state that should be associated with the `user_id`.
     ///
     /// `state` object should be a `HashMap` with channel names as keys and
@@ -265,38 +292,22 @@ where
             .await
     }
 
-    /// Build and call asynchronous request after delay.
+    /// Build and call asynchronous request with cancellation ability.
     ///
     /// Perform delayed request call with ability to cancel it before call.
     #[cfg(feature = "std")]
-    pub async fn execute_with_cancel_and_delay<F>(
+    pub async fn execute_with_cancel(
         self,
-        delay: Arc<F>,
         cancel_task: CancellationTask,
-    ) -> Result<SubscribeResult, PubNubError>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
+    ) -> Result<SubscribeResult, PubNubError> {
         select_biased! {
             _ = cancel_task.wait_for_cancel().fuse() => {
                 Err(PubNubError::EffectCanceled)
             },
-            response = self.execute_with_delay(delay).fuse() => {
+            response = self.execute().fuse() => {
                 response
             }
         }
-    }
-
-    /// Build and call asynchronous request after configured delay.
-    #[cfg(feature = "std")]
-    async fn execute_with_delay<F>(self, delay: Arc<F>) -> Result<SubscribeResult, PubNubError>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
-        // Postpone request execution.
-        delay().await;
-
-        self.execute().await
     }
 }
 
@@ -325,7 +336,6 @@ where
 mod should {
     use super::*;
     use crate::{core::TransportResponse, PubNubClientBuilder};
-    use futures::future::ready;
 
     #[tokio::test]
     async fn be_able_to_cancel_subscribe_call() {
@@ -357,7 +367,7 @@ mod should {
             .unwrap()
             .subscribe_request()
             .channels(vec!["test".into()])
-            .execute_with_cancel_and_delay(Arc::new(|| ready(()).boxed()), cancel_task)
+            .execute_with_cancel(cancel_task)
             .await;
 
         assert!(matches!(result, Err(PubNubError::EffectCanceled)));

@@ -39,11 +39,11 @@
 //! ```toml
 //! # default features
 //! [dependencies]
-//! pubnub = "0.6.0"
+//! pubnub = "0.7.0"
 //!
 //! # all features
 //! [dependencies]
-//! pubnub = { version = "0.6.0", features = ["full"] }
+//! pubnub = { version = "0.7.0", features = ["full"] }
 //! ```
 //!
 //! ### Example
@@ -167,11 +167,11 @@
 //! ```toml
 //! # only blocking and access + default features
 //! [dependencies]
-//! pubnub = { version = "0.6.0", features = ["blocking", "access"] }
+//! pubnub = { version = "0.7.0", features = ["blocking", "access"] }
 //!
 //! # only parse_token + default features
 //! [dependencies]
-//! pubnub = { version = "0.6.0", features = ["parse_token"] }
+//! pubnub = { version = "0.7.0", features = ["parse_token"] }
 //! ```
 //!
 //! ### Available features
@@ -210,7 +210,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pubnub = { version = "0.6.0", default-features = false, features = ["serde", "publish",
+//! pubnub = { version = "0.7.0", default-features = false, features = ["serde", "publish",
 //! "blocking"] }
 //! ```
 //!
@@ -322,11 +322,11 @@ mod lib {
         pub(crate) use hash_map::HashMap;
 
         pub(crate) mod hash_map {
-            /// Depending of the `std` feature, this module will re-export
-            /// either `std::collections::HashMap` or `hashbrown::HashMap`.
-            /// This is needed because there is no `no_std` HashMap available.
-            /// We decided to use `hashbrown` because it is fast and has the
-            /// same API as `std` HashMap.
+            //! Depending on the `std` feature, this module will re-export
+            //! either `std::collections::HashMap` or `hashbrown::HashMap`.
+            //! This is needed because there is no `no_std` HashMap available.
+            //! We decided to use `hashbrown` because it is fast and has the
+            //! same API as `std` HashMap.
 
             #[cfg(not(feature = "std"))]
             pub(crate) use hashbrown::HashMap;
@@ -335,17 +335,4 @@ mod lib {
             pub(crate) use std::collections::HashMap;
         }
     }
-}
-
-// Mocking random for checking if `no_std` compiles.
-// Don't use that feature in production.
-#[cfg(feature = "mock_getrandom")]
-mod mock_getrandom {
-    use getrandom::{register_custom_getrandom, Error};
-
-    pub fn do_nothing(_buf: &mut [u8]) -> Result<(), Error> {
-        Ok(())
-    }
-
-    register_custom_getrandom!(do_nothing);
 }

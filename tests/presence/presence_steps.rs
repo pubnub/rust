@@ -6,7 +6,6 @@ use std::fs::read_to_string;
 
 use crate::clear_log_file;
 use crate::common::PubNubWorld;
-use pubnub::core::RequestRetryConfiguration;
 use pubnub::subscribe::{
     EventEmitter, EventSubscriber, Presence, Subscriber, SubscriptionOptions, SubscriptionSet,
 };
@@ -25,19 +24,11 @@ fn events_and_invocations_history() -> Vec<Vec<String>> {
         "LEFT_ALL",
         "HEARTBEAT_SUCCESS",
         "HEARTBEAT_FAILURE",
-        "HEARTBEAT_GIVEUP",
         "RECONNECT",
         "DISCONNECT",
         "TIMES_UP",
     ];
-    let known_invocations = [
-        "HEARTBEAT",
-        "DELAYED_HEARTBEAT",
-        "CANCEL_DELAYED_HEARTBEAT",
-        "LEAVE",
-        "WAIT",
-        "CANCEL_WAIT",
-    ];
+    let known_invocations = ["HEARTBEAT", "LEAVE", "WAIT", "CANCEL_WAIT"];
 
     for line in written_log.lines() {
         if !line.contains(" DEBUG ") {
@@ -188,22 +179,13 @@ async fn wait_presence_join(world: &mut PubNubWorld) {
 }
 
 #[then("I receive an error in my heartbeat response")]
-async fn receive_an_error_heartbeat_retry(world: &mut PubNubWorld) {
+async fn receive_an_error_heartbeat_retry(_world: &mut PubNubWorld) {
     tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
 
     let history = events_and_invocations_history();
-    let expected_retry_count: usize = usize::from(match &world.retry_policy.clone().unwrap() {
-        RequestRetryConfiguration::Linear { max_retry, .. }
-        | RequestRetryConfiguration::Exponential { max_retry, .. } => *max_retry,
-        _ => 0,
-    });
 
     assert_eq!(
         event_occurrence_count(history.clone(), "HEARTBEAT_FAILURE".into()),
-        expected_retry_count + 1
-    );
-    assert_eq!(
-        event_occurrence_count(history, "HEARTBEAT_GIVEUP".into()),
         1
     );
 }

@@ -4,8 +4,6 @@
 //! announce specified `user_id` presence in the provided channels and groups.
 
 use derive_builder::Builder;
-#[cfg(feature = "std")]
-use futures::{future::BoxFuture, select_biased, FutureExt};
 
 use crate::{
     core::{
@@ -30,9 +28,6 @@ use crate::{
         collections::HashMap,
     },
 };
-
-#[cfg(feature = "std")]
-use crate::{core::event_engine::cancel::CancellationTask, lib::alloc::sync::Arc};
 
 /// The [`HeartbeatRequestsBuilder`] is used to build a `user_id` presence
 /// announcement request that is sent to the [`PubNub`] network.
@@ -61,7 +56,7 @@ pub struct HeartbeatRequest<T, D> {
     /// Channel(s) for announcement.
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
-        setter(strip_option, into),
+        setter(custom, strip_option),
         default = "vec![]"
     )]
     pub(in crate::dx::presence) channels: Vec<String>,
@@ -69,7 +64,7 @@ pub struct HeartbeatRequest<T, D> {
     /// Channel group(s) for announcement.
     #[builder(
         field(vis = "pub(in crate::dx::presence)"),
-        setter(into, strip_option),
+        setter(custom, strip_option),
         default = "vec![]"
     )]
     pub(in crate::dx::presence) channel_groups: Vec<String>,
@@ -125,6 +120,69 @@ pub struct HeartbeatRequest<T, D> {
 }
 
 impl<T, D> HeartbeatRequestBuilder<T, D> {
+    /// Channel(s) for announcement.
+    pub fn channels<L>(mut self, channels: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channels.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channels = Some(unique);
+        self
+    }
+
+    /// Channel group(s) for announcement.
+    pub fn channel_groups<L>(mut self, channel_groups: L) -> Self
+    where
+        L: Into<Vec<String>>,
+    {
+        let mut unique = channel_groups.into();
+        unique.sort_unstable();
+        unique.dedup();
+
+        self.channel_groups = Some(unique);
+        self
+    }
+
+    /// A state that should be associated with the `user_id`.
+    ///
+    /// `state` object should be a `HashMap` with channel names as keys and
+    /// nested `HashMap` with values. State with heartbeat can be set **only**
+    /// for channels.
+    ///
+    /// # Example:
+    /// ```rust,no_run
+    /// # use std::collections::HashMap;
+    /// # use pubnub::core::Serialize;
+    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
+    /// let state: HashMap<String, HashMap<String, bool>> = HashMap::from([(
+    ///     "announce".to_string(),
+    ///     HashMap::<String, bool>::from([
+    ///         ("is_owner".to_string(), false),
+    ///         ("is_admin".to_string(), true)
+    ///     ])
+    /// )]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn state(mut self, state: HashMap<String, Vec<u8>>) -> Self {
+        let mut serialized_state = vec![b'{'];
+        for (key, mut value) in state {
+            serialized_state.append(&mut format!("\"{}\":", key).as_bytes().to_vec());
+            serialized_state.append(&mut value);
+            serialized_state.push(b',');
+        }
+        if serialized_state.last() == Some(&b',') {
+            serialized_state.pop();
+        }
+        serialized_state.push(b'}');
+
+        self.state = Some(Some(serialized_state));
+        self
+    }
+
     /// Validate user-provided data for request builder.
     ///
     /// Validator ensure that provided information is enough to build valid
@@ -189,45 +247,6 @@ impl<T, D> HeartbeatRequest<T, D> {
     }
 }
 
-impl<T, D> HeartbeatRequestBuilder<T, D> {
-    /// A state that should be associated with the `user_id`.
-    ///
-    /// `state` object should be a `HashMap` with channel names as keys and
-    /// nested `HashMap` with values. State with heartbeat can be set **only**
-    /// for channels.
-    ///
-    /// # Example:
-    /// ```rust,no_run
-    /// # use std::collections::HashMap;
-    /// # use pubnub::core::Serialize;
-    /// # fn main() -> Result<(), pubnub::core::PubNubError> {
-    /// let state: HashMap<String, HashMap<String, bool>> = HashMap::from([(
-    ///     "announce".to_string(),
-    ///     HashMap::<String, bool>::from([
-    ///         ("is_owner".to_string(), false),
-    ///         ("is_admin".to_string(), true)
-    ///     ])
-    /// )]);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn state(mut self, state: HashMap<String, Vec<u8>>) -> Self {
-        let mut serialized_state = vec![b'{'];
-        for (key, mut value) in state {
-            serialized_state.append(&mut format!("\"{}\":", key).as_bytes().to_vec());
-            serialized_state.append(&mut value);
-            serialized_state.push(b',');
-        }
-        if serialized_state.last() == Some(&b',') {
-            serialized_state.pop();
-        }
-        serialized_state.push(b'}');
-
-        self.state = Some(Some(serialized_state));
-        self
-    }
-}
-
 impl<T, D> HeartbeatRequestBuilder<T, D>
 where
     T: Transport + 'static,
@@ -251,40 +270,6 @@ where
             )
             .await
     }
-
-    /// Build and call asynchronous request after delay.
-    ///
-    /// Perform delayed request call with ability to cancel it before call.
-    #[cfg(feature = "std")]
-    pub(in crate::dx::presence) async fn execute_with_cancel_and_delay<F>(
-        self,
-        delay: Arc<F>,
-        cancel_task: CancellationTask,
-    ) -> Result<HeartbeatResult, PubNubError>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
-        select_biased! {
-            _ = cancel_task.wait_for_cancel().fuse() => {
-                Err(PubNubError::EffectCanceled)
-            },
-            response = self.execute_with_delay(delay).fuse() => {
-                response
-            }
-        }
-    }
-
-    /// Build and call asynchronous request after configured delay.
-    #[cfg(feature = "std")]
-    async fn execute_with_delay<F>(self, delay: Arc<F>) -> Result<HeartbeatResult, PubNubError>
-    where
-        F: Fn() -> BoxFuture<'static, ()> + Send + Sync + 'static,
-    {
-        // Postpone request execution.
-        delay().await;
-
-        self.execute().await
-    }
 }
 
 #[cfg(feature = "blocking")]
@@ -301,49 +286,5 @@ where
         let deserializer = client.deserializer.clone();
         transport_request
             .send_blocking::<HeartbeatResponseBody, _, _, _>(&client.transport, deserializer)
-    }
-}
-
-#[cfg(feature = "std")]
-#[cfg(test)]
-mod it_should {
-    use super::*;
-    use crate::{core::TransportResponse, PubNubClientBuilder};
-    use futures::future::ready;
-
-    #[tokio::test]
-    async fn be_able_to_cancel_delayed_heartbeat_call() {
-        struct MockTransport;
-
-        #[async_trait::async_trait]
-        impl Transport for MockTransport {
-            async fn send(&self, _req: TransportRequest) -> Result<TransportResponse, PubNubError> {
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await; // Simulate long request.
-
-                Ok(TransportResponse::default())
-            }
-        }
-
-        let (tx, rx) = async_channel::bounded(1);
-
-        let cancel_task = CancellationTask::new(rx, "test".into());
-
-        tx.send("test".into()).await.unwrap();
-
-        let result = PubNubClientBuilder::with_transport(MockTransport)
-            .with_keyset(crate::Keyset {
-                subscribe_key: "test",
-                publish_key: Some("test"),
-                secret_key: None,
-            })
-            .with_user_id("test")
-            .build()
-            .unwrap()
-            .heartbeat()
-            .channels(vec!["test".into()])
-            .execute_with_cancel_and_delay(Arc::new(|| ready(()).boxed()), cancel_task)
-            .await;
-
-        assert!(matches!(result, Err(PubNubError::EffectCanceled)));
     }
 }

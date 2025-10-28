@@ -49,7 +49,7 @@ impl AesCbcCryptor {
 
     fn initialization_vector(&self) -> [u8; AES_BLOCK_SIZE] {
         let mut random = [0u8; AES_BLOCK_SIZE];
-        getrandom::getrandom(&mut random).ok();
+        getrandom::fill(&mut random).ok();
         random
     }
 

@@ -81,6 +81,24 @@ pub struct HereNowRequest<T, D> {
         default = "false"
     )]
     pub(in crate::dx::presence) include_state: bool,
+
+    /// Maximum number of occupants to return per channel.
+    ///
+    /// > **Important**: Maximum and default value is `1000` users per request.
+    #[builder(
+        field(vis = "pub(in crate::dx::presence)"),
+        setter(strip_option),
+        default = "1000"
+    )]
+    pub(in crate::dx::presence) limit: usize,
+
+    /// Zero-based starting index for pagination.
+    #[builder(
+        field(vis = "pub(in crate::dx::presence)"),
+        setter(strip_option),
+        default
+    )]
+    pub(in crate::dx::presence) offset: Option<usize>,
 }
 
 impl<T, D> HereNowRequestBuilder<T, D> {
@@ -126,6 +144,12 @@ impl<T, D> HereNowRequest<T, D> {
         (!self.include_user_id).then(|| {
             query.insert("disable_uuids".into(), "1".into());
         });
+
+        query.insert("limit".into(), self.limit.to_string());
+
+        if let Some(offset) = self.offset {
+            (offset > 0).then(|| query.insert("offset".into(), offset.to_string()));
+        }
 
         Ok(TransportRequest {
             path: format!(
