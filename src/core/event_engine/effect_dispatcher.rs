@@ -159,7 +159,6 @@ where
 mod should {
     use super::*;
     use crate::core::event_engine::Event;
-    use std::future::Future;
 
     struct TestEvent;
 
