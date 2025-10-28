@@ -1,9 +1,24 @@
 name: rust
-version: 0.6.0
+version: 0.7.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2025-10-28
+    version: 0.7.0
+    changes:
+      - type: feature
+        text: "Add `limit` (default `1000`) and `offset` parameters for `here_now` to fetch presence in portions."
+      - type: feature
+        text: "Use default retry configuration for `subscribe` and `presence` REST API calls."
+      - type: bug
+        text: "Fix the issue because of which it was possible to add the same channel / group multiple times to the `subscribe`, `heartbeat`, or `leave` requests."
+      - type: bug
+        text: "Fix the `Presence` enum variant to not intercept user-published messages that partly match the `Presence` variant."
+      - type: improvement
+        text: "Synchronize subscription flow with other SDKs."
+      - type: improvement
+        text: "Synchronize presence flow with other SDKs."
   - date: 2024-02-07
     version: 0.6.0
     changes:
