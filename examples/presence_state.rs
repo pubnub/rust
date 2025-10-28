@@ -8,13 +8,6 @@ struct State {
     flag: bool,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, serde::Serialize)]
-struct State2 {
-    is_doing: String,
-    business: String,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
     // let publish_key = env::var("SDK_PUB_KEY")?;

@@ -21,7 +21,6 @@ struct Message {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn snafu::Error>> {
-    env_logger::init();
     let publish_key = env::var("SDK_PUB_KEY")?;
     let subscribe_key = env::var("SDK_SUB_KEY")?;
 
@@ -105,17 +104,6 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
             .files_stream()
             .for_each(|file| async move { println!("(b) file: {:?}", file) }),
     );
-    // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-    println!("\nWaiting for message");
-    //
-    // println!("\nPublish a message:");
-    //
-    // pubnub
-    //     .publish_message("{\"event\":\"flag_changed\",\"timestamp\":
-    // 1758130367173}")     .channel("my_channel")
-    //     .execute()
-    //     .await?;
-    // println!("\nDone!");
 
     // Sleep for a minute. Now you can send messages to the channels
     // "my_channel" and "other_channel" and see them printed in the console.
