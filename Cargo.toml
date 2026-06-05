@@ -94,7 +94,9 @@ serde = { version = "1.0", features = ["derive", "alloc"], optional = true, defa
 serde_json = { version = "1.0", optional = true, features = ["alloc"], default-features = false }
 
 # reqwest
-reqwest = { version = "0.12", optional = true }
+# `native-tls-alpn` enables ALPN on the default native-tls backend so HTTP/2
+# (`h2`) can be negotiated; without it reqwest falls back to HTTP/1.1.
+reqwest = { version = "0.12", optional = true, features = ["native-tls-alpn"] }
 bytes = { version = "1.4", default-features = false, optional = true }
 
 # crypto
