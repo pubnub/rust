@@ -48,9 +48,10 @@ pub enum Endpoint {
 }
 
 /// Request retry policy.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum RequestRetryConfiguration {
     /// Requests shouldn't be tried again.
+    #[default]
     None,
 
     /// Retry the request after the same amount of time.
@@ -313,12 +314,6 @@ impl RequestRetryConfiguration {
         }
 
         Some(delay + u64::from_be_bytes(random_bytes) % MICROS_IN_SECOND)
-    }
-}
-
-impl Default for RequestRetryConfiguration {
-    fn default() -> Self {
-        Self::None
     }
 }
 
