@@ -85,6 +85,8 @@ impl Transport for TransportReqwest {
         );
 
         let headers = prepare_headers(&request.headers)?;
+        let method = request.method.clone();
+        let path = request.path.clone();
         #[cfg(feature = "std")]
         let timeout = request.timeout;
 
@@ -118,7 +120,10 @@ impl Transport for TransportReqwest {
 
         let headers = result.headers().clone();
         let status = result.status();
-        debug!("Negotiated protocol: {:?} ({})", result.version(), status);
+        debug!(
+            "Request completed: method={method} path={path} protocol={:?}",
+            result.version()
+        );
         result
             .bytes()
             .await
@@ -412,6 +417,8 @@ pub mod blocking {
                 request.method, request.headers, request_url
             );
             let headers = prepare_headers(&request.headers)?;
+            let method = request.method.clone();
+            let path = request.path.clone();
             #[cfg(feature = "std")]
             let timeout = request.timeout;
 
@@ -444,7 +451,10 @@ pub mod blocking {
 
             let headers = result.headers().clone();
             let status = result.status();
-            debug!("Negotiated protocol: {:?} ({})", result.version(), status);
+            debug!(
+                "Request completed: method={method} path={path} protocol={:?}",
+                result.version()
+            );
             result
                 .bytes()
                 .map_err(|e| PubNubError::Transport {
