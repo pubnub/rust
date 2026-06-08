@@ -1,9 +1,18 @@
 name: rust
-version: 0.7.0
+version: 0.8.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2026-06-08
+    version: 0.8.0
+    changes:
+      - type: feature
+        text: "Enable HTTP/2 negotiation on the default `TransportReqwest` by turning on reqwest’s `native-tls-alpn` feature, so ALPN can select `h2` when the origin supports it while preserving HTTP/1.1 fallback."
+      - type: bug
+        text: "Fix a Clippy `derivable_impls` lint in `RequestRetryConfiguration` (derive `Default` on the enum instead of a manual impl)."
+      - type: improvement
+        text: " Add debug-level protocol logging in async and blocking `TransportReqwest::send()` after each completed request, including HTTP method, path, and the Reqwest-reported protocol version."
   - date: 2025-10-28
     version: 0.7.0
     changes:
