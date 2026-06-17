@@ -240,8 +240,6 @@ pub struct Envelope {
     pub channel: String,
 
     /// Event payload.
-    ///
-    /// Depending from
     #[cfg_attr(feature = "serde", serde(rename = "d"))]
     pub payload: EnvelopePayload,
 
