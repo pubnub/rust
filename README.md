@@ -1,16 +1,7 @@
+<img width="1920" height="600" alt="rust-header" src="https://github.com/user-attachments/assets/d8ef34f3-bbe3-49cb-bbbd-3accea563444" />
+
+
 # PubNub Rust SDK
-
-<div align = "center">
-
-![PubNub](https://raw.githubusercontent.com/pubnub/rust/master/logo.svg)
-
-![Tests](https://github.com/pubnub/rust/actions/workflows/run-tests.yml/badge.svg)
-![Validations](https://github.com/pubnub/rust/actions/workflows/run-validations.yml/badge.svg)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/pubnub/rust/LICENSE)
-
-**Make your app come alive with real-time experiences!**
-
-</div>
 
 ## Overview
 
