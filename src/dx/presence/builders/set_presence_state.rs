@@ -171,7 +171,7 @@ impl<T, D> SetStateRequest<T, D> {
         Ok(TransportRequest {
             path: format!(
                 "/v2/presence/sub-key/{}/channel/{}/uuid/{}/data",
-                &config.subscribe_key,
+                config.subscribe_key,
                 url_encoded_channels(&self.channels),
                 url_encode_extended(self.user_id.as_bytes(), UrlEncodeExtension::NonChannelPath)
             ),

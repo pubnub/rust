@@ -89,7 +89,7 @@ impl<T, D> WhereNowRequest<T, D> {
         Ok(TransportRequest {
             path: format!(
                 "/v2/presence/sub-key/{}/uuid/{}",
-                &config.subscribe_key,
+                config.subscribe_key,
                 url_encode_extended(user_id.as_bytes(), UrlEncodeExtension::NonChannelPath)
             ),
             query_parameters: HashMap::new(),

@@ -234,7 +234,7 @@ impl<T, D> HeartbeatRequest<T, D> {
         Ok(TransportRequest {
             path: format!(
                 "/v2/presence/sub_key/{}/channel/{}/heartbeat",
-                &config.subscribe_key,
+                config.subscribe_key,
                 url_encoded_channels(&self.channels)
             ),
             query_parameters: query,

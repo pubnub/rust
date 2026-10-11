@@ -52,7 +52,7 @@ impl<T, D> RevokeTokenRequest<T, D> {
         TransportRequest {
             path: format!(
                 "/v3/pam/{}/grant/{}",
-                &config.subscribe_key,
+                config.subscribe_key,
                 url_encode(self.token.as_bytes())
             ),
             method: TransportMethod::Delete,
