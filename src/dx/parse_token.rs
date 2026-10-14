@@ -5,6 +5,7 @@
 
 use crate::core::Deserializer;
 use crate::{
+    core::utils::permission_bits as permissions,
     core::PubNubError,
     lib::{
         alloc::{
@@ -146,14 +147,14 @@ pub struct TokenCategories {
 impl From<u8> for ResourcePermissions {
     fn from(int: u8) -> Self {
         ResourcePermissions {
-            read: int & 1 != 0,
-            write: int & 2 != 0,
-            manage: int & 4 != 0,
-            delete: int & 8 != 0,
-            create: int & 16 != 0,
-            get: int & 32 != 0,
-            update: int & 64 != 0,
-            join: int & 128 != 0,
+            read: int & permissions::READ != 0,
+            write: int & permissions::WRITE != 0,
+            manage: int & permissions::MANAGE != 0,
+            delete: int & permissions::DELETE != 0,
+            create: int & permissions::CREATE != 0,
+            get: int & permissions::GET != 0,
+            update: int & permissions::UPDATE != 0,
+            join: int & permissions::JOIN != 0,
         }
     }
 }
@@ -194,7 +195,9 @@ pub struct ResourcePermissions {
 
 impl From<u8> for CategoryPermissions {
     fn from(int: u8) -> Self {
-        CategoryPermissions { get: int & 32 != 0 }
+        CategoryPermissions {
+            get: int & permissions::GET != 0,
+        }
     }
 }
 

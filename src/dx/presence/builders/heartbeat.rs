@@ -7,7 +7,6 @@ use derive_builder::Builder;
 
 use crate::{
     core::{
-        blocking,
         utils::{
             encoding::{url_encoded_channel_groups, url_encoded_channels},
             headers::{APPLICATION_JSON, CONTENT_TYPE},
@@ -28,6 +27,9 @@ use crate::{
         collections::HashMap,
     },
 };
+
+#[cfg(feature = "blocking")]
+use crate::core::blocking;
 
 /// The [`HeartbeatRequestsBuilder`] is used to build a `user_id` presence
 /// announcement request that is sent to the [`PubNub`] network.

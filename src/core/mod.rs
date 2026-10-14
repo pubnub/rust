@@ -75,8 +75,10 @@ pub use runtime::Runtime;
 #[cfg(all(feature = "std", feature = "subscribe"))]
 pub mod runtime;
 
+#[cfg(feature = "subscribe")]
 #[doc(inline)]
 pub use data_stream::DataStream;
+#[cfg(feature = "subscribe")]
 pub mod data_stream;
 
 pub(crate) mod utils;

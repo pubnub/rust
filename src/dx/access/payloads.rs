@@ -16,11 +16,12 @@ use crate::{
     },
 };
 
-/// Resource and pattern-based permissions payload.
+/// Resource and pattern-based permissions' payload.
 ///
 /// This type used by [`GrantTokenPayload`] to store permissions for specific
 /// resource type.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GrantTokenResourcesPayload {
     /// Specific channels permissions for `channel`-based endpoints access.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
@@ -41,6 +42,7 @@ pub struct GrantTokenResourcesPayload {
 /// This type used by [`GrantTokenPayload`] to store permissions for specific
 /// resource type.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GrantTokenCategoriesPayload {
     /// Category permissions for `channels` enumeration endpoint access.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
@@ -56,6 +58,7 @@ pub struct GrantTokenCategoriesPayload {
 /// This type used by [`GrantTokenPayload`] to store information about requested
 /// token permissions.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GrantTokenPermissionsPayload<'request> {
     /// A user ID, which is authorized to use the token to make API requests to
     /// PubNub.
@@ -85,6 +88,7 @@ pub struct GrantTokenPermissionsPayload<'request> {
 /// A list of resource names and patterns and permissions which should be
 /// granted for them is contained in the payload.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GrantTokenPayload<'request> {
     /// How long (in minutes) the generated token should be valid.
     pub ttl: usize,

@@ -161,7 +161,12 @@ impl PubNubError {
     ///
     /// This function used to inform about not initialized request parameters or
     /// validation failure.
-    #[cfg(any(feature = "publish", feature = "access", feature = "subscribe"))]
+    #[cfg(any(
+        feature = "publish",
+        feature = "access",
+        feature = "subscribe",
+        feature = "presence"
+    ))]
     pub(crate) fn general_api_error<S>(
         message: S,
         status: Option<u16>,
@@ -198,7 +203,12 @@ impl PubNubError {
     ///
     /// For better understanding some errors may provide additional information
     /// right from service response.
-    #[cfg(any(feature = "publish", feature = "access", feature = "subscribe"))]
+    #[cfg(any(
+        feature = "publish",
+        feature = "access",
+        feature = "subscribe",
+        feature = "presence"
+    ))]
     pub(crate) fn attach_response(self, service_response: TransportResponse) -> Self {
         match &self {
             PubNubError::API {

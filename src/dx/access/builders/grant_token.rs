@@ -148,8 +148,8 @@ where
 
             if let Some(categories) = self.categories.flatten() {
                 categories.iter().try_for_each(|cat| {
-                    if !["channels", "uuids"].contains(&cat.id().as_str()) {
-                        return Err(format!("Unexpected category type: {}", cat.id()));
+                    if !matches!(cat.resource_type(), ResourceType::ChannelsCategory | ResourceType::UuidsCategory) {
+                        return Err(format!("Unexpected category type: {:?}", cat.resource_type()));
                     }
 
                     if *cat.value() != permissions::GET {

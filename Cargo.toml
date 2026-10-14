@@ -18,7 +18,7 @@ build = "build.rs"
 full = ["publish", "subscribe", "presence", "access", "serde", "reqwest", "crypto", "parse_token", "blocking", "std", "tokio"]
 
 # Enables all default features
-default = ["publish", "subscribe", "serde", "reqwest", "std", "blocking", "tokio", "access"]
+default = ["publish", "subscribe", "serde", "reqwest", "std", "blocking", "tokio"]
 
 # [PubNub features]
 
@@ -33,6 +33,12 @@ crypto = ["dep:aes", "dep:cbc", "getrandom"]
 
 ## Enables token parsing
 parse_token = ["dep:ciborium"]
+
+## Enables subscribe API
+subscribe = ["dep:futures"]
+
+## Enables presence API
+presence = ["dep:futures"]
 
 # [Implementation features]
 
@@ -68,9 +74,6 @@ contract_test = ["parse_token", "publish", "access", "crypto", "std", "subscribe
 full_no_std = ["serde", "reqwest", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
 full_no_std_platform_independent = ["serde", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
 pubnub_only = ["crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
-# TODO: temporary treated as internal until we officially release it
-subscribe = ["dep:futures"]
-presence = ["dep:futures"]
 
 [dependencies]
 async-trait = "0.1"

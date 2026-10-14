@@ -7,20 +7,9 @@
 
 use crate::lib::{alloc::boxed::Box, alloc::string::String};
 
-/// Resource **read** permissions.
-pub(super) const READ: u8 = 0b0000_0001;
-/// Resource **write** permissions.
-pub(super) const WRITE: u8 = 0b0000_0010;
-/// Resource **manage** permissions.
-pub(super) const MANAGE: u8 = 0b0000_0100;
-/// Resource **delete** permissions.
-pub(super) const DELETE: u8 = 0b0000_1000;
-/// Resource **get** permissions.
-pub(super) const GET: u8 = 0b0010_0000;
-/// Resource **update** permissions.
-pub(super) const UPDATE: u8 = 0b0100_0000;
-/// Resource **join** permissions.
-pub(super) const JOIN: u8 = 0b1000_0000;
+pub(in crate::dx) use crate::core::utils::permission_bits::{
+    DELETE, GET, JOIN, MANAGE, READ, UPDATE, WRITE,
+};
 
 /// Resource-based endpoint access permission.
 ///
@@ -42,6 +31,7 @@ pub trait Permission {
 }
 
 /// Type of resource for permissions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResourceType {
     /// `Channel`-based resource permissions.
     Channel,
@@ -68,7 +58,7 @@ pub enum ResourceType {
 ///     .get()
 ///     .manage();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChannelPermission {
     /// Name of channel for which permission level specified.
     pub name: String,
@@ -89,7 +79,7 @@ pub struct ChannelPermission {
 /// #    permissions::channel_group("my-channel-group")
 ///     .read();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChannelGroupPermission {
     /// Name of channel group for which permission level specified.
     pub name: String,
@@ -110,7 +100,7 @@ pub struct ChannelGroupPermission {
 /// #    permissions::user_id("my-user-id")
 ///     .update();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UserIdPermission {
     /// User id for which permission level specified.
     pub id: String,
@@ -131,7 +121,7 @@ pub struct UserIdPermission {
 /// #    permissions::channels_category()
 ///     .get();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChannelsCategoryPermission {
     /// Name of channels category name for which permission level specified.
     name: String,
@@ -152,7 +142,7 @@ pub struct ChannelsCategoryPermission {
 /// #    permissions::uuids_category()
 ///     .get();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UuidsCategoryPermission {
     /// Name of uuids category name for which permission level specified.
     name: String,
