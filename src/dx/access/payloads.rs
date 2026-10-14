@@ -16,11 +16,12 @@ use crate::{
     },
 };
 
-/// Resource and pattern-based permissions payload.
+/// Resource and pattern-based permissions' payload.
 ///
 /// This type used by [`GrantTokenPayload`] to store permissions for specific
 /// resource type.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GrantTokenResourcesPayload {
     /// Specific channels permissions for `channel`-based endpoints access.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
@@ -36,18 +37,36 @@ pub struct GrantTokenResourcesPayload {
     pub uuids: Option<HashMap<String, u8>>,
 }
 
+/// Categories permissions payload.
+///
+/// This type used by [`GrantTokenPayload`] to store permissions for specific
+/// resource type.
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GrantTokenCategoriesPayload {
+    /// Category permissions for `channels` enumeration endpoint access.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub channels: Option<u8>,
+
+    /// Category permissions for `uuids` enumeration endpoint access.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub uuids: Option<u8>,
+}
+
 /// Token permissions.
 ///
 /// This type used by [`GrantTokenPayload`] to store information about requested
 /// token permissions.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GrantTokenPermissionsPayload<'request> {
     /// A user ID, which is authorized to use the token to make API requests to
     /// PubNub.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub uuid: &'request Option<String>,
 
-    /// Extra metadata to be published with the request. Values must be scalar only.
+    /// Extra metadata to be published with the request. Values must be scalar
+    /// only.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub meta: &'request Option<HashMap<String, MetaValue>>,
 
@@ -58,6 +77,10 @@ pub struct GrantTokenPermissionsPayload<'request> {
     /// List of permissions mapped to RegExp match expressions.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub patterns: Option<GrantTokenResourcesPayload>,
+
+    /// List of permissions for enumerate-able resource categories.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub categories: Option<GrantTokenCategoriesPayload>,
 }
 
 /// Payload for grant token operation.
@@ -65,6 +88,7 @@ pub struct GrantTokenPermissionsPayload<'request> {
 /// A list of resource names and patterns and permissions which should be
 /// granted for them is contained in the payload.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GrantTokenPayload<'request> {
     /// How long (in minutes) the generated token should be valid.
     pub ttl: usize,
@@ -88,6 +112,7 @@ impl<'request> GrantTokenPayload<'request> {
             permissions: Some(GrantTokenPermissionsPayload {
                 patterns: resource_permissions(&request.patterns),
                 resources: resource_permissions(&request.resources),
+                categories: categories_permissions(&request.categories),
                 uuid: &request.authorized_user_id,
                 meta: &request.meta,
             }),
@@ -113,6 +138,7 @@ fn resource_permissions(
             ResourceType::UserId => {
                 uuids.insert(perm.id().to_string(), *perm.value());
             }
+            _ => {}
         });
 
         GrantTokenResourcesPayload {
@@ -121,4 +147,58 @@ fn resource_permissions(
             uuids: (!uuids.is_empty()).then_some(uuids),
         }
     })
+}
+
+/// Extract permissions for categories.
+fn categories_permissions(
+    resources: &Option<&[Box<dyn Permission>]>,
+) -> Option<GrantTokenCategoriesPayload> {
+    resources.map(|res| {
+        let mut channels_category_perm: u8 = 0;
+        let mut uuids_category_perm: u8 = 0;
+        res.iter().for_each(|perm| match perm.resource_type() {
+            ResourceType::ChannelsCategory => channels_category_perm = *perm.value(),
+            ResourceType::UuidsCategory => uuids_category_perm = *perm.value(),
+            _ => {}
+        });
+
+        GrantTokenCategoriesPayload {
+            channels: channels_category_perm
+                .gt(&0)
+                .then_some(channels_category_perm),
+            uuids: uuids_category_perm.gt(&0).then_some(uuids_category_perm),
+        }
+    })
+}
+
+#[cfg(test)]
+mod should {
+    use super::*;
+    use crate::dx::access::permissions::{self, GET};
+
+    #[test]
+    fn build_categories_payload_with_both_categories() {
+        let perms: [Box<dyn Permission>; 2] = [
+            permissions::channels_category().get(),
+            permissions::uuids_category().get(),
+        ];
+        let payload = categories_permissions(&Some(&perms)).unwrap();
+        assert_eq!(payload.channels, Some(GET));
+        assert_eq!(payload.uuids, Some(GET));
+    }
+
+    #[test]
+    fn omit_category_without_permission() {
+        let perms: [Box<dyn Permission>; 1] = [permissions::channels_category().get()];
+        let payload = categories_permissions(&Some(&perms)).unwrap();
+        assert_eq!(payload.channels, Some(GET));
+        assert_eq!(payload.uuids, None);
+    }
+
+    #[test]
+    fn not_treat_category_as_channel_resource() {
+        let perms: [Box<dyn Permission>; 1] = [permissions::channels_category().get()];
+        let payload = resource_permissions(&Some(&perms)).unwrap();
+        assert!(payload.channels.is_none());
+    }
 }

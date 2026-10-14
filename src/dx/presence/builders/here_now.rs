@@ -154,7 +154,7 @@ impl<T, D> HereNowRequest<T, D> {
         Ok(TransportRequest {
             path: format!(
                 "/v2/presence/sub-key/{}/channel/{}",
-                &config.subscribe_key,
+                config.subscribe_key,
                 url_encoded_channels(&self.channels),
             ),
             query_parameters: query,

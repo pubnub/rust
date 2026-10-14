@@ -14,3 +14,6 @@ pub mod encoding;
 pub mod headers;
 
 pub mod metadata;
+
+#[cfg(any(feature = "access", feature = "parse_token"))]
+pub(crate) mod permission_bits;

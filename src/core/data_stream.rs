@@ -152,28 +152,36 @@ impl<D> DataStream<D> {
             return;
         }
 
-        let mut queue_data_slot = self.queue.write();
+        {
+            let mut queue_data_slot = self.queue.write();
 
-        // Dropping the earliest entry to prevent the queue from growing too large.
-        if queue_data_slot.len() == queue_data_slot.capacity() {
-            queue_data_slot.pop_front();
+            // Dropping the earliest entry to prevent the queue from growing too large.
+            if queue_data_slot.len() == queue_data_slot.capacity() {
+                queue_data_slot.pop_front();
+            }
+
+            queue_data_slot.push_back(data);
         }
 
-        queue_data_slot.push_back(data);
-
+        // Wake the listener only after the queue lock has been released.
+        // Waking while holding it can deadlock with a concurrent `poll_next`.
         self.wake_stream();
     }
 
     #[cfg(all(feature = "subscribe", feature = "std"))]
     pub(crate) fn invalidate(&self) {
-        let mut is_valid = self.is_valid.write();
-        *is_valid = false;
+        *self.is_valid.write() = false;
         self.wake_stream();
     }
 
+    /// Wake up the stream listener (if any).
+    ///
+    /// The waker is taken out of its slot first, so no stream lock is held
+    /// while `wake()` runs.
     #[cfg(all(feature = "subscribe", feature = "std"))]
     fn wake_stream(&self) {
-        if let Some(waker) = self.waker.write().take() {
+        let waker = self.waker.write().take();
+        if let Some(waker) = waker {
             waker.wake();
         }
     }
@@ -187,13 +195,248 @@ impl<D> Stream for DataStream<D> {
             return Poll::Ready(None);
         }
 
-        let mut waker_slot = self.waker.write();
-        *waker_slot = Some(ctx.waker().clone());
+        // Register the waker before checking the stream state, so data pushed
+        // (or invalidation) after this point wakes the listener. Locks are
+        // taken one at a time to avoid lock-order deadlocks with producers.
+        *self.waker.write() = Some(ctx.waker().clone());
 
-        if let Some(data) = self.queue.write().pop_front() {
+        if !*self.is_valid.read() {
+            return Poll::Ready(None);
+        }
+
+        let data = self.queue.write().pop_front();
+        if let Some(data) = data {
             Poll::Ready(Some(data))
         } else {
             Poll::Pending
+        }
+    }
+}
+
+#[cfg(all(test, feature = "subscribe", feature = "std"))]
+mod should {
+    use super::*;
+    use std::{
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        },
+        task::Wake,
+        thread,
+        time::{Duration, Instant},
+    };
+
+    /// How long lock-order tests wait for the expected lock state.
+    const LOCK_WAIT: Duration = Duration::from_secs(2);
+
+    /// Waker which records whether it has been called.
+    #[derive(Default)]
+    struct FlagWaker {
+        woken: AtomicBool,
+    }
+
+    impl Wake for FlagWaker {
+        fn wake(self: Arc<Self>) {
+            self.woken.store(true, Ordering::SeqCst);
+        }
+    }
+
+    /// Waker which records whether stream locks were free when it has been
+    /// called.
+    struct LockCheckWaker {
+        stream: DataStream<usize>,
+        woken: AtomicBool,
+        locks_free: AtomicBool,
+    }
+
+    impl LockCheckWaker {
+        fn new(stream: DataStream<usize>) -> Self {
+            Self {
+                stream,
+                woken: AtomicBool::new(false),
+                locks_free: AtomicBool::new(false),
+            }
+        }
+    }
+
+    impl Wake for LockCheckWaker {
+        fn wake(self: Arc<Self>) {
+            let locks_free = self.stream.queue.try_write().is_some()
+                && self.stream.waker.try_write().is_some()
+                && self.stream.is_valid.try_write().is_some();
+            self.locks_free.store(locks_free, Ordering::SeqCst);
+            self.woken.store(true, Ordering::SeqCst);
+        }
+    }
+
+    /// Waker which unparks the thread that created it.
+    struct ThreadWaker(thread::Thread);
+
+    impl Wake for ThreadWaker {
+        fn wake(self: Arc<Self>) {
+            self.0.unpark();
+        }
+    }
+
+    fn poll_once<D>(stream: &mut DataStream<D>, waker: &Waker) -> Poll<Option<D>> {
+        let mut ctx = Context::from_waker(waker);
+        Pin::new(stream).poll_next(&mut ctx)
+    }
+
+    #[test]
+    fn release_queue_lock_before_waking_listener() {
+        let stream = DataStream::<usize>::with_queue_size(10);
+        let waker_guard = stream.waker.write();
+
+        let producer_stream = stream.clone();
+        let producer = thread::spawn(move || producer_stream.push_data(1));
+
+        let deadline = Instant::now() + LOCK_WAIT;
+        let mut queue_released = false;
+        while Instant::now() < deadline {
+            if stream
+                .queue
+                .try_read()
+                .is_some_and(|queue| queue.len() == 1)
+            {
+                queue_released = true;
+                break;
+            }
+            thread::yield_now();
+        }
+
+        drop(waker_guard);
+        producer.join().expect("producer thread panicked");
+
+        assert!(
+            queue_released,
+            "push_data() held the queue lock while waiting for the waker lock"
+        );
+    }
+
+    #[test]
+    fn register_waker_without_holding_queue_lock() {
+        let stream = DataStream::<usize>::with_queue_size(10);
+        let queue_guard = stream.queue.write();
+
+        let mut consumer_stream = stream.clone();
+        let consumer = thread::spawn(move || {
+            let waker = Waker::from(Arc::new(FlagWaker::default()));
+            poll_once(&mut consumer_stream, &waker)
+        });
+
+        let deadline = Instant::now() + LOCK_WAIT;
+        let mut waker_released = false;
+        while Instant::now() < deadline {
+            if stream.waker.try_read().is_some_and(|slot| slot.is_some()) {
+                waker_released = true;
+                break;
+            }
+            thread::yield_now();
+        }
+
+        drop(queue_guard);
+        let poll = consumer.join().expect("consumer thread panicked");
+
+        assert!(
+            waker_released,
+            "poll_next() held the waker lock while waiting for the queue lock"
+        );
+        assert!(poll.is_pending());
+    }
+
+    #[test]
+    fn wake_listener_on_push_without_holding_stream_locks() {
+        let mut stream = DataStream::<usize>::with_queue_size(10);
+        let check = Arc::new(LockCheckWaker::new(stream.clone()));
+        let waker = Waker::from(check.clone());
+
+        assert!(poll_once(&mut stream, &waker).is_pending());
+        stream.push_data(1);
+
+        assert!(check.woken.load(Ordering::SeqCst));
+        assert!(
+            check.locks_free.load(Ordering::SeqCst),
+            "push_data() woke the listener while holding a stream lock"
+        );
+    }
+
+    #[test]
+    fn wake_listener_on_invalidate_without_holding_stream_locks() {
+        let mut stream = DataStream::<usize>::with_queue_size(10);
+        let check = Arc::new(LockCheckWaker::new(stream.clone()));
+        let waker = Waker::from(check.clone());
+
+        assert!(poll_once(&mut stream, &waker).is_pending());
+        stream.invalidate();
+
+        assert!(check.woken.load(Ordering::SeqCst));
+        assert!(
+            check.locks_free.load(Ordering::SeqCst),
+            "invalidate() woke the listener while holding a stream lock"
+        );
+    }
+
+    #[test]
+    fn wake_pending_listener_when_data_pushed() {
+        let mut stream = DataStream::<usize>::with_queue_size(10);
+        let flag = Arc::new(FlagWaker::default());
+        let waker = Waker::from(flag.clone());
+
+        assert!(poll_once(&mut stream, &waker).is_pending());
+        stream.push_data(7);
+
+        assert!(flag.woken.load(Ordering::SeqCst));
+        assert_eq!(poll_once(&mut stream, &waker), Poll::Ready(Some(7)));
+        assert!(poll_once(&mut stream, &waker).is_pending());
+    }
+
+    #[test]
+    fn wake_pending_listener_and_end_stream_when_invalidated() {
+        let mut stream = DataStream::<usize>::with_queue_size(10);
+        let flag = Arc::new(FlagWaker::default());
+        let waker = Waker::from(flag.clone());
+
+        assert!(poll_once(&mut stream, &waker).is_pending());
+        stream.invalidate();
+
+        assert!(flag.woken.load(Ordering::SeqCst));
+        assert_eq!(poll_once(&mut stream, &waker), Poll::Ready(None));
+    }
+
+    #[test]
+    fn deliver_all_items_in_order_while_producer_and_listener_race() {
+        const ROUNDS: usize = 200;
+        const ITEMS: usize = 100;
+
+        for round in 0..ROUNDS {
+            let mut consumer_stream = DataStream::<usize>::with_queue_size(ITEMS);
+            let producer_stream = consumer_stream.clone();
+            let (result_tx, result_rx) = mpsc::channel();
+
+            thread::spawn(move || {
+                let waker = Waker::from(Arc::new(ThreadWaker(thread::current())));
+                let mut received = Vec::with_capacity(ITEMS);
+                while received.len() < ITEMS {
+                    match poll_once(&mut consumer_stream, &waker) {
+                        Poll::Ready(Some(item)) => received.push(item),
+                        Poll::Ready(None) => break,
+                        Poll::Pending => thread::park(),
+                    }
+                }
+                let _ = result_tx.send(received);
+            });
+            let producer =
+                thread::spawn(move || (0..ITEMS).for_each(|item| producer_stream.push_data(item)));
+
+            let received = result_rx
+                .recv_timeout(Duration::from_secs(10))
+                .unwrap_or_else(|_| {
+                    panic!("round {round}: listener stuck (deadlock or lost wake-up)")
+                });
+            producer.join().expect("producer thread panicked");
+
+            assert_eq!(received, (0..ITEMS).collect::<Vec<_>>(), "round {round}");
         }
     }
 }
