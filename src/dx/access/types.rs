@@ -9,6 +9,7 @@
 use crate::lib::alloc::string::String;
 
 /// Enum for values associated with token.
+#[derive(Debug, Clone, PartialEq)]
 pub enum MetaValue {
     /// `String` value.
     String(String),

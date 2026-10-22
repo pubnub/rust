@@ -286,11 +286,15 @@ impl EventDispatcher {
 
     /// Invalidates all streams in the instance.
     pub(crate) fn invalidate(&self) {
-        let mut has_streams_slot = self.has_streams.write();
-        if !*has_streams_slot {
-            return;
+        // The flag guard must be released before stream lists are locked:
+        // stream creation locks a list first and the flag second.
+        {
+            let mut has_streams_slot = self.has_streams.write();
+            if !*has_streams_slot {
+                return;
+            }
+            *has_streams_slot = false;
         }
-        *has_streams_slot = false;
 
         if let Some(streams) = self.message_streams.write().as_mut() {
             streams.iter_mut().for_each(|stream| stream.invalidate());
@@ -429,8 +433,7 @@ mod it_should {
                 channel: "test-channel".to_string(),
                 subscription: "test-channel".to_string(),
                 data: "Test message 1".to_string().into_bytes(),
-                r#type: None,
-                space_id: None,
+                custom_message_type: None,
                 user_metadata: None,
                 decryption_error: None,
             }),
@@ -440,8 +443,7 @@ mod it_should {
                 channel: "test-channel".to_string(),
                 subscription: "test-channel".to_string(),
                 data: "Test signal 1".to_string().into_bytes(),
-                r#type: None,
-                space_id: None,
+                custom_message_type: None,
                 user_metadata: None,
                 decryption_error: None,
             }),
@@ -460,8 +462,7 @@ mod it_should {
                 channel: "test-channel".to_string(),
                 subscription: "test-channel".to_string(),
                 data: "Test message 2".to_string().into_bytes(),
-                r#type: None,
-                space_id: None,
+                custom_message_type: None,
                 user_metadata: None,
                 decryption_error: None,
             }),
@@ -548,5 +549,270 @@ mod it_should {
         }
         assert_eq!(events_count, 0);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod should {
+    use super::*;
+    use std::{
+        pin::Pin,
+        sync::{
+            atomic::{AtomicBool, AtomicUsize, Ordering},
+            mpsc, Arc,
+        },
+        task::{Context, Poll, Wake, Waker},
+        thread,
+        time::{Duration, Instant},
+    };
+
+    use futures::Stream;
+
+    /// How long to wait for the expected state before the test fails.
+    const WAIT: Duration = Duration::from_secs(2);
+
+    fn wait_until(mut condition: impl FnMut() -> bool) -> bool {
+        let deadline = Instant::now() + WAIT;
+        while Instant::now() < deadline {
+            if condition() {
+                return true;
+            }
+            thread::yield_now();
+        }
+        condition()
+    }
+
+    /// Dispatcher with `has_streams` set, so `invalidate()` doesn't return early.
+    fn dispatcher_with_stream() -> Arc<EventDispatcher> {
+        let dispatcher = Arc::new(EventDispatcher::new());
+        let _stream = dispatcher.messages_stream();
+        assert!(*dispatcher.has_streams.read());
+        dispatcher
+    }
+
+    #[test]
+    fn create_stream_while_invalidating_without_deadlock() {
+        let dispatcher = dispatcher_with_stream();
+        let creator_holds_list = Arc::new(AtomicBool::new(false));
+        let creator_may_continue = Arc::new(AtomicBool::new(false));
+        let finished = Arc::new(AtomicUsize::new(0));
+
+        // Same two steps as `signals_stream()`: lock the list, then create.
+        {
+            let dispatcher = dispatcher.clone();
+            let holds_list = creator_holds_list.clone();
+            let may_continue = creator_may_continue.clone();
+            let finished = finished.clone();
+            thread::spawn(move || {
+                let list = dispatcher.signal_streams.write();
+                holds_list.store(true, Ordering::SeqCst);
+                while !may_continue.load(Ordering::SeqCst) {
+                    thread::yield_now();
+                }
+                dispatcher.create_stream_in_list(list, None);
+                finished.fetch_add(1, Ordering::SeqCst);
+            });
+        }
+        assert!(wait_until(|| creator_holds_list.load(Ordering::SeqCst)));
+
+        {
+            let dispatcher = dispatcher.clone();
+            let finished = finished.clone();
+            thread::spawn(move || {
+                dispatcher.invalidate();
+                finished.fetch_add(1, Ordering::SeqCst);
+            });
+        }
+
+        // `invalidate()` emptied the first list, so it is waiting for the
+        // `signal_streams` lock held by the creator.
+        assert!(wait_until(|| {
+            dispatcher
+                .message_streams
+                .try_read()
+                .is_some_and(|streams| match streams.as_ref() {
+                    Some(list) => list.is_empty(),
+                    None => true,
+                })
+        }));
+
+        creator_may_continue.store(true, Ordering::SeqCst);
+
+        assert!(
+            wait_until(|| finished.load(Ordering::SeqCst) == 2),
+            "create_stream_in_list() and invalidate() deadlocked"
+        );
+    }
+
+    #[test]
+    fn dispatch_events_while_creating_stream_and_invalidating_without_deadlock() {
+        let dispatcher = dispatcher_with_stream();
+        let creator_holds_list = Arc::new(AtomicBool::new(false));
+        let creator_may_continue = Arc::new(AtomicBool::new(false));
+        let dispatch_holds_list = Arc::new(AtomicBool::new(false));
+        let dispatch_may_continue = Arc::new(AtomicBool::new(false));
+        let finished = Arc::new(AtomicUsize::new(0));
+
+        // Stream creation: lock the list, then create.
+        {
+            let dispatcher = dispatcher.clone();
+            let holds_list = creator_holds_list.clone();
+            let may_continue = creator_may_continue.clone();
+            let finished = finished.clone();
+            thread::spawn(move || {
+                let list = dispatcher.signal_streams.write();
+                holds_list.store(true, Ordering::SeqCst);
+                while !may_continue.load(Ordering::SeqCst) {
+                    thread::yield_now();
+                }
+                dispatcher.create_stream_in_list(list, None);
+                finished.fetch_add(1, Ordering::SeqCst);
+            });
+        }
+        assert!(wait_until(|| creator_holds_list.load(Ordering::SeqCst)));
+
+        // Event dispatch: `handle_events()` keeps read locks on several lists
+        // taken one after another (replicated with two of them).
+        {
+            let dispatcher = dispatcher.clone();
+            let holds_list = dispatch_holds_list.clone();
+            let may_continue = dispatch_may_continue.clone();
+            let finished = finished.clone();
+            thread::spawn(move || {
+                let _messages = dispatcher.message_streams.read();
+                holds_list.store(true, Ordering::SeqCst);
+                while !may_continue.load(Ordering::SeqCst) {
+                    thread::yield_now();
+                }
+                let _signals = dispatcher.signal_streams.read();
+                finished.fetch_add(1, Ordering::SeqCst);
+            });
+        }
+        assert!(wait_until(|| dispatch_holds_list.load(Ordering::SeqCst)));
+
+        {
+            let dispatcher = dispatcher.clone();
+            let finished = finished.clone();
+            thread::spawn(move || {
+                dispatcher.invalidate();
+                finished.fetch_add(1, Ordering::SeqCst);
+            });
+        }
+
+        // `invalidate()` marked the dispatcher as having no streams.
+        assert!(wait_until(|| {
+            match dispatcher.has_streams.try_read() {
+                Some(has_streams) => !*has_streams,
+                None => true,
+            }
+        }));
+
+        creator_may_continue.store(true, Ordering::SeqCst);
+        thread::sleep(Duration::from_millis(100));
+        dispatch_may_continue.store(true, Ordering::SeqCst);
+
+        assert!(
+            wait_until(|| finished.load(Ordering::SeqCst) == 3),
+            "dispatch, create_stream_in_list() and invalidate() deadlocked"
+        );
+    }
+
+    #[test]
+    fn create_and_invalidate_concurrently_without_deadlock() {
+        const ROUNDS: usize = 2_000;
+
+        for round in 0..ROUNDS {
+            let dispatcher = dispatcher_with_stream();
+            let start = Arc::new(AtomicBool::new(false));
+            let finished = Arc::new(AtomicUsize::new(0));
+
+            for create in [true, false] {
+                let dispatcher = dispatcher.clone();
+                let start = start.clone();
+                let finished = finished.clone();
+                thread::spawn(move || {
+                    while !start.load(Ordering::SeqCst) {
+                        std::hint::spin_loop();
+                    }
+                    if create {
+                        let _stream = dispatcher.signals_stream();
+                    } else {
+                        dispatcher.invalidate();
+                    }
+                    finished.fetch_add(1, Ordering::SeqCst);
+                });
+            }
+            start.store(true, Ordering::SeqCst);
+
+            assert!(
+                wait_until(|| finished.load(Ordering::SeqCst) == 2),
+                "signals_stream() and invalidate() deadlocked in round {round}"
+            );
+        }
+    }
+
+    /// Wakes the thread which owns the listener.
+    struct ThreadWaker(thread::Thread);
+
+    impl Wake for ThreadWaker {
+        fn wake(self: Arc<Self>) {
+            self.0.unpark();
+        }
+    }
+
+    fn message(index: usize) -> Update {
+        Update::Message(Message {
+            sender: None,
+            timestamp: 0,
+            channel: "test-channel".to_string(),
+            subscription: "test-channel".to_string(),
+            data: index.to_string().into_bytes(),
+            custom_message_type: None,
+            user_metadata: None,
+            decryption_error: None,
+        })
+    }
+
+    #[test]
+    fn deliver_dispatched_batch_to_listener_without_deadlock() {
+        const ROUNDS: usize = 100;
+        const BATCH: usize = 100;
+
+        for round in 0..ROUNDS {
+            let dispatcher = Arc::new(EventDispatcher::new());
+            let mut stream = dispatcher.messages_stream();
+            let (result_tx, result_rx) = mpsc::channel();
+
+            thread::spawn(move || {
+                let waker = Waker::from(Arc::new(ThreadWaker(thread::current())));
+                let mut context = Context::from_waker(&waker);
+                let mut received = Vec::with_capacity(BATCH);
+                while received.len() < BATCH {
+                    match Pin::new(&mut stream).poll_next(&mut context) {
+                        Poll::Ready(Some(message)) => {
+                            received.push(String::from_utf8(message.data).unwrap())
+                        }
+                        Poll::Ready(None) => break,
+                        Poll::Pending => thread::park(),
+                    }
+                }
+                let _ = result_tx.send(received);
+            });
+
+            let producer = {
+                let dispatcher = dispatcher.clone();
+                thread::spawn(move || dispatcher.handle_events((0..BATCH).map(message).collect()))
+            };
+
+            let received = result_rx
+                .recv_timeout(WAIT * 5)
+                .unwrap_or_else(|_| panic!("round {round}: listener stuck (deadlock)"));
+            producer.join().expect("producer thread panicked");
+
+            let expected = (0..BATCH)
+                .map(|index| index.to_string())
+                .collect::<Vec<_>>();
+            assert_eq!(received, expected, "round {round}");
+        }
     }
 }

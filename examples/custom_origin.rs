@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn snafu::Error>> {
     let result = client
         .publish_message("hello world!")
         .channel("my_channel")
-        .r#type("text-message")
+        .custom_message_type("text-message")
         .execute()
         .await?;
 

@@ -89,6 +89,12 @@ pub struct TransportRequest {
     pub timeout: u64,
 }
 
+#[cfg(any(
+    feature = "publish",
+    feature = "access",
+    feature = "subscribe",
+    feature = "presence"
+))]
 impl TransportRequest {
     /// Send async request and process [`PubNub API`] response.
     ///

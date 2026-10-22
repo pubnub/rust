@@ -163,11 +163,7 @@ where
     #[builder(setter(strip_option), default = "None")]
     pub(super) meta: Option<HashMap<String, String>>,
 
-    /// Space ID to publish to.
-    #[builder(setter(strip_option, into), default = "None")]
-    pub(super) space_id: Option<String>,
-
     /// Message type to publish.
     #[builder(setter(strip_option, into), default = "None")]
-    pub(super) r#type: Option<String>,
+    pub(super) custom_message_type: Option<String>,
 }

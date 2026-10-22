@@ -441,7 +441,7 @@ impl<T, D> PubNubClientInstance<T, D> {
         let mut entities_slot = self.entities.write();
         let name = name.into();
         let entity = entities_slot
-            .entry(format!("{}_ch", &name))
+            .entry(format!("{}_ch", name))
             .or_insert(Channel::new(self, name).into());
 
         match entity {
@@ -541,7 +541,7 @@ impl<T, D> PubNubClientInstance<T, D> {
         let mut entities_slot = self.entities.write();
         let name = name.into();
         let entity = entities_slot
-            .entry(format!("{}_chg", &name))
+            .entry(format!("{}_chg", name))
             .or_insert(ChannelGroup::new(self, name).into());
 
         match entity {
@@ -644,7 +644,7 @@ impl<T, D> PubNubClientInstance<T, D> {
         let mut entities_slot = self.entities.write();
         let id = id.into();
         let entity = entities_slot
-            .entry(format!("{}_chm", &id))
+            .entry(format!("{}_chm", id))
             .or_insert(ChannelMetadata::new(self, id).into());
 
         match entity {
@@ -751,7 +751,7 @@ impl<T, D> PubNubClientInstance<T, D> {
         let mut entities_slot = self.entities.write();
         let id = id.into();
         let entity = entities_slot
-            .entry(format!("{}_uidm", &id))
+            .entry(format!("{}_uidm", id))
             .or_insert(UserMetadata::new(self, id).into());
 
         match entity {

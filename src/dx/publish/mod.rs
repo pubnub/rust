@@ -253,12 +253,11 @@ where
             .not()
             .then(|| query_params.insert("norep".to_string(), true.to_string()));
 
-        if let Some(space_id) = &self.space_id {
-            query_params.insert("space-id".to_string(), space_id.clone());
-        }
-
-        if let Some(r#type) = &self.r#type {
-            query_params.insert("type".to_string(), r#type.clone());
+        if let Some(custom_message_type) = &self.custom_message_type {
+            query_params.insert(
+                "custom_message_type".to_string(),
+                custom_message_type.clone(),
+            );
         }
 
         query_params.insert("seqn".to_string(), self.seqn.to_string());
@@ -350,8 +349,7 @@ where
                 seqn: value.seqn,
                 replicate: value.replicate,
                 use_post: value.use_post,
-                space_id: value.space_id,
-                r#type: value.r#type,
+                custom_message_type: value.custom_message_type,
             },
         }
     }
@@ -385,8 +383,7 @@ struct PublishMessageParams<M> {
     ttl: Option<u32>,
     use_post: bool,
     meta: Option<HashMap<String, String>>,
-    space_id: Option<String>,
-    r#type: Option<String>,
+    custom_message_type: Option<String>,
 }
 
 fn bool_to_numeric(value: bool) -> String {
@@ -487,8 +484,7 @@ mod should {
             .replicate(false)
             .ttl(50)
             .store(true)
-            .space_id("space_id")
-            .r#type("message_type")
+            .custom_message_type("message_type")
             .meta(HashMap::from([("k".to_string(), "v".to_string())]))
             .prepare_context_with_request()
             .unwrap();
@@ -497,8 +493,10 @@ mod should {
             HashMap::<String, String>::from([
                 ("norep".to_string(), "true".to_string()),
                 ("store".to_string(), "1".to_string()),
-                ("space-id".to_string(), "space_id".to_string()),
-                ("type".to_string(), "message_type".to_string()),
+                (
+                    "custom_message_type".to_string(),
+                    "message_type".to_string()
+                ),
                 ("meta".to_string(), "{\"k\":\"v\"}".to_string()),
                 ("ttl".to_string(), "50".to_string()),
                 ("seqn".to_string(), "1".to_string())

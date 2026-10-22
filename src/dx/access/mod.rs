@@ -323,6 +323,36 @@ mod it_should {
         assert!(request.is_err());
     }
 
+    #[test]
+    fn grant_token_with_categories_only() {
+        let categories: Vec<Box<dyn permissions::Permission>> = vec![
+            permissions::channels_category().get(),
+            permissions::uuids_category().get(),
+        ];
+        let client = client(true, true, None, None, None);
+        let request = client.grant_token(10).categories(&categories).build();
+
+        assert!(request.is_ok());
+    }
+
+    #[test]
+    fn not_grant_token_without_resources_patterns_or_categories() {
+        let client = client(true, true, None, None, None);
+        let request = client.grant_token(10).build();
+
+        assert!(request.is_err());
+    }
+
+    #[test]
+    fn not_grant_token_for_category_without_permission() {
+        let categories: Vec<Box<dyn permissions::Permission>> =
+            vec![permissions::channels_category()];
+        let client = client(true, true, None, None, None);
+        let request = client.grant_token(10).categories(&categories).build();
+
+        assert!(request.is_err());
+    }
+
     #[tokio::test]
     async fn grant_token() {
         let permissions = permissions();

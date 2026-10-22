@@ -39,11 +39,11 @@
 //! ```toml
 //! # default features
 //! [dependencies]
-//! pubnub = "0.8.0"
+//! pubnub = "0.9.0"
 //!
 //! # all features
 //! [dependencies]
-//! pubnub = { version = "0.8.0", features = ["full"] }
+//! pubnub = { version = "0.9.0", features = ["full"] }
 //! ```
 //!
 //! ### Example
@@ -139,7 +139,7 @@
 //!     client
 //!         .publish_message("hello world!")
 //!         .channel("my_channel")
-//!         .r#type("text-message")
+//!         .custom_message_type("text-message")
 //!         .execute()
 //!         .await?;
 //!
@@ -147,7 +147,7 @@
 //!     client
 //!         .publish_message("hello world on the other channel!")
 //!         .channel("my_channel_2")
-//!         .r#type("text-message")
+//!         .custom_message_type("text-message")
 //!         .execute()
 //!         .await?;
 //!
@@ -167,11 +167,11 @@
 //! ```toml
 //! # only blocking and access + default features
 //! [dependencies]
-//! pubnub = { version = "0.8.0", features = ["blocking", "access"] }
+//! pubnub = { version = "0.9.0", features = ["blocking", "access"] }
 //!
 //! # only parse_token + default features
 //! [dependencies]
-//! pubnub = { version = "0.8.0", features = ["parse_token"] }
+//! pubnub = { version = "0.9.0", features = ["parse_token"] }
 //! ```
 //!
 //! ### Available features
@@ -210,7 +210,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pubnub = { version = "0.8.0", default-features = false, features = ["serde", "publish",
+//! pubnub = { version = "0.9.0", default-features = false, features = ["serde", "publish",
 //! "blocking"] }
 //! ```
 //!
@@ -257,7 +257,8 @@
 //!
 //! ## License
 //!
-//! This project is licensed under the [MIT license](https://github.com/pubnub/rust/blob/master/LICENSE).
+//! This project is licensed under the [PubNub Software Development Kit license](https://github.com/pubnub/rust/blob/master/LICENSE).
+//! You can read more about it [here](https://www.pubnub.com/docs/sdks#license-faq).
 
 #[cfg(feature = "access")]
 #[doc(inline)]

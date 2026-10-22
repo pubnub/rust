@@ -1,6 +1,6 @@
 [package]
 name = "pubnub"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2021"
 license-file = "LICENSE"
 authors = ["PubNub <support@pubnub.com>"]
@@ -9,6 +9,7 @@ repository = "https://github.com/pubnub/rust"
 documentation = "https://docs.rs/pubnub/latest/pubnub"
 homepage = "https://www.pubnub.com"
 categories = ["api-bindings", "asynchronous", "network-programming", "wasm"]
+keywords = ["pubnub", "realtime", "pubsub", "messaging", "long-poll"]
 build = "build.rs"
 
 [features]
@@ -32,6 +33,12 @@ crypto = ["dep:aes", "dep:cbc", "getrandom"]
 
 ## Enables token parsing
 parse_token = ["dep:ciborium"]
+
+## Enables subscribe API
+subscribe = ["dep:futures"]
+
+## Enables presence API
+presence = ["dep:futures"]
 
 # [Implementation features]
 
@@ -67,9 +74,6 @@ contract_test = ["parse_token", "publish", "access", "crypto", "std", "subscribe
 full_no_std = ["serde", "reqwest", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "tokio", "presence"]
 full_no_std_platform_independent = ["serde", "crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
 pubnub_only = ["crypto", "parse_token", "blocking", "publish", "access", "subscribe", "presence"]
-# TODO: temporary treated as internal until we officially release it
-subscribe = ["dep:futures"]
-presence = ["dep:futures"]
 
 [dependencies]
 async-trait = "0.1"
@@ -121,9 +125,9 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 [dev-dependencies]
 async-trait = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
-wiremock = "0.5"
+wiremock = "0.6.5"
 env_logger = "0.10"
-cucumber = { version = "0.20.2", features = ["output-junit"] }
+cucumber = { version = "0.23.0", features = ["output-junit"] }
 reqwest = { version = "0.12", features = ["json"] }
 test-case = "3.0"
 hashbrown = { version = "0.14.0", features = ["serde"] }
@@ -139,6 +143,11 @@ all-features = true
 name = "contract_test"
 harness = false
 required-features = ["contract_test"]
+
+[[test]]
+name = "integration"
+path = "tests/integration/mod.rs"
+required-features = ["full"]
 
 [[example]]
 name = "crypto"

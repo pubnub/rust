@@ -44,7 +44,7 @@ pub enum SubscribeStreamEvent {
 ///
 /// [`PubNub`]:https://www.pubnub.com/
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(untagged))]
+#[repr(i64)]
 pub enum SubscribeMessageType {
     /// Regular messages.
     ///
@@ -75,6 +75,32 @@ pub enum SubscribeMessageType {
     /// This type is set to the group of events which is related to file
     /// sharing (upload / removal).
     File = 4,
+
+    /// Unknown event type.
+    ///
+    /// Event type which is not known to this SDK version. Such events are
+    /// ignored, because they are likely added to the service after the SDK
+    /// release. Contains `e` value as it was received (JSON text, e.g. `5`).
+    Unknown(String),
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for SubscribeMessageType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let event_type: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
+
+        Ok(match event_type.as_u64() {
+            Some(0) => Self::Message,
+            Some(1) => Self::Signal,
+            Some(2) => Self::Object,
+            Some(3) => Self::MessageAction,
+            Some(4) => Self::File,
+            _ => Self::Unknown(event_type.to_string()),
+        })
+    }
 }
 
 /// Subscription behaviour options.
@@ -470,16 +496,10 @@ pub struct Message {
     pub data: Vec<u8>,
 
     /// User provided message type (set only when [`publish`] called with
-    /// `r#type`).
+    /// `custom_message_type`).
     ///
     /// [`publish`]: crate::dx::publish
-    pub r#type: Option<String>,
-
-    /// Identifier of space into which message has been published (set only when
-    /// [`publish`] called with `space_id`).
-    ///
-    /// [`publish`]: crate::dx::publish
-    pub space_id: Option<String>,
+    pub custom_message_type: Option<String>,
 
     #[cfg(feature = "serde")]
     /// User provided metadata (set only when [`publish`] called with
@@ -577,11 +597,11 @@ pub enum ObjectEvent {
 /// Message's actions update event types.
 #[derive(Debug, Copy, Clone)]
 pub enum MessageActionEvent {
-    /// Message's action has been modified.
-    Update,
+    /// Message's action has been added.
+    Added,
 
-    /// Message's action has been deleted.
-    Delete,
+    /// Message's action has been removed.
+    Removed,
 }
 
 impl SubscriptionCursor {
@@ -729,8 +749,8 @@ impl TryFrom<String> for MessageActionEvent {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
-            "update" => Ok(Self::Update),
-            "delete" => Ok(Self::Delete),
+            "added" => Ok(Self::Added),
+            "removed" => Ok(Self::Removed),
             _ => Err(PubNubError::Deserialization {
                 details: "Unable deserialize: unexpected message action event type".to_string(),
             }),
@@ -1112,8 +1132,7 @@ impl TryFrom<Envelope> for Message {
                 channel: value.channel,
                 subscription,
                 data: value.payload.into(),
-                r#type: value.r#type,
-                space_id: value.space_id,
+                custom_message_type: value.custom_message_type,
                 user_metadata: value.user_metadata,
                 decryption_error: None,
             })

@@ -5,6 +5,7 @@
 
 use crate::core::Deserializer;
 use crate::{
+    core::utils::permission_bits as permissions,
     core::PubNubError,
     lib::{
         alloc::{
@@ -93,13 +94,18 @@ pub struct TokenV2 {
 
     /// Permissions for resources identified by their names.
     #[cfg_attr(feature = "serde", serde(rename = "res"))]
-    pub resources: TokenResources,
+    pub resources: Option<TokenResources>,
 
     /// Permissions for resources identified by regular expressions.
     #[cfg_attr(feature = "serde", serde(rename = "pat"))]
-    pub patterns: TokenResources,
+    pub patterns: Option<TokenResources>,
+
+    /// Permissions for enumerate-able resource categories.
+    #[cfg_attr(feature = "serde", serde(rename = "cat"))]
+    pub categories: Option<TokenCategories>,
 
     /// Extra metadata to which has been included into access token.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub meta: HashMap<String, MetaValue>,
 }
 
@@ -110,31 +116,45 @@ pub struct TokenV2 {
 pub struct TokenResources {
     /// `Channel`-based endpoints permission map between channel name / regexp
     /// and set of permissions.
-    #[cfg_attr(feature = "serde", serde(rename = "chan"))]
+    #[cfg_attr(feature = "serde", serde(rename = "chan", default))]
     pub channels: HashMap<String, ResourcePermissions>,
 
     /// `Channel group`-based endpoints permission map between channel
     /// name / regexp and set of permissions.
-    #[cfg_attr(feature = "serde", serde(rename = "grp"))]
+    #[cfg_attr(feature = "serde", serde(rename = "grp", default))]
     pub groups: HashMap<String, ResourcePermissions>,
 
     /// `UserId`-based endpoints permission map between channel
     /// name / regexp and set of permissions.
-    #[cfg_attr(feature = "serde", serde(rename = "uuid"))]
+    #[cfg_attr(feature = "serde", serde(rename = "uuid", default))]
     pub users: HashMap<String, ResourcePermissions>,
+}
+
+/// Typed category permissions map.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct TokenCategories {
+    /// `Channels` enumeration endpoint permission.
+    #[cfg_attr(feature = "serde", serde(rename = "chan", default))]
+    pub channels: Option<CategoryPermissions>,
+
+    /// `Uuids` enumeration endpoint permission.
+    #[cfg_attr(feature = "serde", serde(rename = "uuid", default))]
+    pub uuids: Option<CategoryPermissions>,
 }
 
 impl From<u8> for ResourcePermissions {
     fn from(int: u8) -> Self {
         ResourcePermissions {
-            read: int & 1 != 0,
-            write: int & 2 != 0,
-            manage: int & 4 != 0,
-            delete: int & 8 != 0,
-            create: int & 16 != 0,
-            get: int & 32 != 0,
-            update: int & 64 != 0,
-            join: int & 128 != 0,
+            read: int & permissions::READ != 0,
+            write: int & permissions::WRITE != 0,
+            manage: int & permissions::MANAGE != 0,
+            delete: int & permissions::DELETE != 0,
+            create: int & permissions::CREATE != 0,
+            get: int & permissions::GET != 0,
+            update: int & permissions::UPDATE != 0,
+            join: int & permissions::JOIN != 0,
         }
     }
 }
@@ -171,6 +191,27 @@ pub struct ResourcePermissions {
 
     /// Whether or not the resource has **join** permission.
     pub join: bool,
+}
+
+impl From<u8> for CategoryPermissions {
+    fn from(int: u8) -> Self {
+        CategoryPermissions {
+            get: int & permissions::GET != 0,
+        }
+    }
+}
+
+/// Category permissions map.
+///
+/// This structure contains information about permissions which has been granted
+/// to specific category.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[cfg_attr(feature = "serde", serde(from = "u8"))]
+pub struct CategoryPermissions {
+    /// Whether or not the category has **get** permission.
+    pub get: bool,
 }
 
 /// Enum for values associated with token.
@@ -228,16 +269,17 @@ mod should {
                 version: 2,
                 ttl: 1337,
                 timestamp: 1681219882,
-                patterns: TokenResources {
+                patterns: Some(TokenResources {
                     channels: [("channel.*".into(), 2.into())].into(),
                     groups: [("channelGroup.*".into(), 4.into())].into(),
                     users: [("uuid.*".into(), 104.into())].into(),
-                },
-                resources: TokenResources {
+                }),
+                resources: Some(TokenResources {
                     users: [].into(),
                     groups: [("channelGroup".into(), 1.into())].into(),
                     channels: [("channelResource".into(), 255.into())].into(),
-                },
+                }),
+                categories: None,
                 authorized_user_id: Some("uuid".into()),
                 meta: HashMap::from([
                     ("meta".into(), String("data".into())),
@@ -248,5 +290,56 @@ mod should {
             }),
             token
         );
+    }
+
+    #[test]
+    fn parse_token_with_categories_only() {
+        let Token::V2(token) = parse_token(
+            "qGF2AmF0GmFLd-NjdHRsGQWgY3Jlc6BjcGF0oGRtZXRhoGNjYXSiZGNoYW4YIGR1dWlkGCBjc2lnRAECAwQ=",
+        )
+        .unwrap();
+        assert_eq!(token.version, 2);
+        assert_eq!(token.timestamp, 1632335843);
+        assert_eq!(token.ttl, 1440);
+        let categories = token.categories.expect("categories should be present");
+        assert_eq!(categories.channels, Some(CategoryPermissions { get: true }));
+        assert_eq!(categories.uuids, Some(CategoryPermissions { get: true }));
+    }
+
+    #[test]
+    fn deserialize_categories_without_uuids() {
+        // CBOR for {"chan": 32}
+        let cbor = [0xa1, 0x64, b'c', b'h', b'a', b'n', 0x18, 0x20];
+        let categories: TokenCategories = ciborium::de::from_reader(&cbor[..]).unwrap();
+        assert_eq!(categories.channels, Some(CategoryPermissions { get: true }));
+        assert_eq!(categories.uuids, None);
+    }
+
+    #[test]
+    fn deserialize_categories_without_channels() {
+        // CBOR for {"uuid": 32}
+        let cbor = [0xa1, 0x64, b'u', b'u', b'i', b'd', 0x18, 0x20];
+        let categories: TokenCategories = ciborium::de::from_reader(&cbor[..]).unwrap();
+        assert_eq!(categories.channels, None);
+        assert_eq!(categories.uuids, Some(CategoryPermissions { get: true }));
+    }
+
+    #[test]
+    fn ignore_unknown_category_keys() {
+        // CBOR for {"chan": 32, "foo": 1}
+        let cbor = [
+            0xa2, 0x64, b'c', b'h', b'a', b'n', 0x18, 0x20, 0x63, b'f', b'o', b'o', 0x01,
+        ];
+        let categories: TokenCategories = ciborium::de::from_reader(&cbor[..]).unwrap();
+        assert_eq!(categories.channels, Some(CategoryPermissions { get: true }));
+    }
+
+    #[test]
+    fn deserialize_empty_resources() {
+        // CBOR for {}
+        let resources: TokenResources = ciborium::de::from_reader(&[0xa0u8][..]).unwrap();
+        assert!(resources.channels.is_empty());
+        assert!(resources.groups.is_empty());
+        assert!(resources.users.is_empty());
     }
 }

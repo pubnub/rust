@@ -82,6 +82,14 @@ where
         default = "None"
     )]
     pub patterns: Option<&'pa [Box<dyn permissions::Permission>]>,
+
+    /// List of permissions for enumerate-able resource categories.
+    #[builder(
+        field(vis = "pub(in crate::dx::access)"),
+        setter(strip_option),
+        default = "None"
+    )]
+    pub categories: Option<&'pa [Box<dyn permissions::Permission>]>,
 }
 
 /// The [`GrantTokenRequestWithSerializerBuilder`] is used to build grant access
@@ -113,7 +121,7 @@ where
         let body = self.serializer.serialize(&payload).unwrap_or(vec![]);
 
         TransportRequest {
-            path: format!("/v3/pam/{}/grant", &config.subscribe_key),
+            path: format!("/v3/pam/{}/grant", config.subscribe_key),
             query_parameters: Default::default(),
             method: TransportMethod::Post,
             headers: [(CONTENT_TYPE.to_string(), APPLICATION_JSON.to_string())].into(),
@@ -133,7 +141,31 @@ where
     /// Validator ensure that list of provided data is enough to build valid
     /// request instance.
     fn validate(&self) -> Result<(), String> {
-        builders::validate_configuration(&self.pubnub_client)
+        builders::validate_configuration(&self.pubnub_client).and_then(|_| {
+            let has_resources = self.resources.flatten().is_some_and(|r| !r.is_empty());
+            let has_patterns = self.patterns.flatten().is_some_and(|p| !p.is_empty());
+            let has_categories = self.categories.flatten().is_some_and(|c| !c.is_empty());
+
+            if let Some(categories) = self.categories.flatten() {
+                categories.iter().try_for_each(|cat| {
+                    if !matches!(cat.resource_type(), ResourceType::ChannelsCategory | ResourceType::UuidsCategory) {
+                        return Err(format!("Unexpected category type: {:?}", cat.resource_type()));
+                    }
+
+                    if *cat.value() != permissions::GET {
+                        return Err(format!("Unexpected category permission: {}", *cat.value()));
+                    }
+
+                    Ok(())
+                })?;
+            }
+
+            if !has_resources && !has_patterns && !has_categories {
+                Err("At least one of the following should be provided: resources, patterns, categories.".into())
+            } else {
+                Ok(())
+            }
+        })
     }
 }
 

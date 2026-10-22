@@ -1,25 +1,15 @@
 //! Resource permissions module.
 //!
 //! This module contains: [`Permission`] struct and it's implementation of
-//! [`ChannelPermission`],  [`ChannelGroupPermission`] and [`UserIdPermission`]
+//! [`ChannelPermission`],  [`ChannelGroupPermission`],  [`UserIdPermission`],
+//! [`ChannelsCategoryPermission`], and [`UuidsCategoryPermission`]
 //! traits.
 
 use crate::lib::{alloc::boxed::Box, alloc::string::String};
 
-/// Resource **read** permissions.
-const READ: u8 = 0b0000_0001;
-/// Resource **write** permissions.
-const WRITE: u8 = 0b0000_0010;
-/// Resource **manage** permissions.
-const MANAGE: u8 = 0b0000_0100;
-/// Resource **delete** permissions.
-const DELETE: u8 = 0b0000_1000;
-/// Resource **get** permissions.
-const GET: u8 = 0b0010_0000;
-/// Resource **update** permissions.
-const UPDATE: u8 = 0b0100_0000;
-/// Resource **join** permissions.
-const JOIN: u8 = 0b1000_0000;
+pub(in crate::dx) use crate::core::utils::permission_bits::{
+    DELETE, GET, JOIN, MANAGE, READ, UPDATE, WRITE,
+};
 
 /// Resource-based endpoint access permission.
 ///
@@ -28,7 +18,7 @@ const JOIN: u8 = 0b1000_0000;
 /// allowed resources within the provided permissions.
 ///
 /// [`PubNub Access Manager`]: https://www.pubnub.com/docs/general/security/access-control
-pub trait Permission {
+pub trait Permission: Send + Sync {
     /// The name or pattern of the channel name for which permissions were
     /// specified.
     fn id(&self) -> &String;
@@ -41,6 +31,7 @@ pub trait Permission {
 }
 
 /// Type of resource for permissions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResourceType {
     /// `Channel`-based resource permissions.
     Channel,
@@ -48,6 +39,10 @@ pub enum ResourceType {
     ChannelGroup,
     /// `UserId`-based resource permissions.
     UserId,
+    /// Channels category permissions.
+    ChannelsCategory,
+    /// Uuids category permissions.
+    UuidsCategory,
 }
 
 /// `Channel` permission.
@@ -63,7 +58,7 @@ pub enum ResourceType {
 ///     .get()
 ///     .manage();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChannelPermission {
     /// Name of channel for which permission level specified.
     pub name: String,
@@ -84,7 +79,7 @@ pub struct ChannelPermission {
 /// #    permissions::channel_group("my-channel-group")
 ///     .read();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChannelGroupPermission {
     /// Name of channel group for which permission level specified.
     pub name: String,
@@ -105,10 +100,52 @@ pub struct ChannelGroupPermission {
 /// #    permissions::user_id("my-user-id")
 ///     .update();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UserIdPermission {
     /// User id for which permission level specified.
     pub id: String,
+
+    /// Bitmask with configured permission level.
+    pub bits: u8,
+}
+
+/// `Channels category` permission.
+///
+/// Single `channels category` category permission information.
+///
+/// # Example
+/// ```rust, no_run
+/// # use pubnub::dx::access::permissions::{self, ChannelsCategoryPermission, Permission};
+/// #
+/// let channels_category_permission = // Channels category
+/// #    permissions::channels_category()
+///     .get();
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChannelsCategoryPermission {
+    /// Name of channels category name for which permission level specified.
+    name: String,
+
+    /// Bitmask with configured permission level.
+    pub bits: u8,
+}
+
+/// `Uuids category` permission.
+///
+/// Single `uuids category` permission information.
+///
+/// # Example
+/// ```rust, no_run
+/// # use pubnub::dx::access::permissions::{self, UuidsCategoryPermission, Permission};
+/// #
+/// let uuids_category_permission = // Uuids category
+/// #    permissions::uuids_category()
+///     .get();
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UuidsCategoryPermission {
+    /// Name of uuids category name for which permission level specified.
+    name: String,
 
     /// Bitmask with configured permission level.
     pub bits: u8,
@@ -309,6 +346,58 @@ impl Permission for UserIdPermission {
     }
 }
 
+/// `Channels category` enumeration endpoint permissions.
+impl ChannelsCategoryPermission {
+    /// Resource **get** permissions.
+    ///
+    /// This permission for channels category allows to:
+    /// * get all channels metadata
+    pub fn get(mut self) -> Box<Self> {
+        self.bits |= GET;
+        Box::new(self)
+    }
+}
+
+impl Permission for ChannelsCategoryPermission {
+    fn id(&self) -> &String {
+        &self.name
+    }
+
+    fn value(&self) -> &u8 {
+        &self.bits
+    }
+
+    fn resource_type(&self) -> ResourceType {
+        ResourceType::ChannelsCategory
+    }
+}
+
+/// `Uuids category` enumeration endpoint permissions.
+impl UuidsCategoryPermission {
+    /// Resource **get** permissions.
+    ///
+    /// This permission for uuids category allows to:
+    /// * get all uuids metadata
+    pub fn get(mut self) -> Box<Self> {
+        self.bits |= GET;
+        Box::new(self)
+    }
+}
+
+impl Permission for UuidsCategoryPermission {
+    fn id(&self) -> &String {
+        &self.name
+    }
+
+    fn value(&self) -> &u8 {
+        &self.bits
+    }
+
+    fn resource_type(&self) -> ResourceType {
+        ResourceType::UuidsCategory
+    }
+}
+
 /// Grant permission to the `channel`.
 ///
 /// Create a `channel` permission information object that can be used to specify
@@ -377,6 +466,44 @@ where
     })
 }
 
+/// Grant permission to the `channel category`.
+///
+/// Create a `channel category` permission information object that can be used
+/// to specify required permissions.
+///
+/// # Example
+/// ```rust
+/// # use pubnub::dx::access::permissions::{self, Permission, ChannelsCategoryPermission};
+/// #
+/// let channels_category_permission = permissions::channels_category().get();
+/// # assert_eq!(channels_category_permission.value(), &0b0010_0000);
+/// ```
+pub fn channels_category() -> Box<ChannelsCategoryPermission> {
+    Box::new(ChannelsCategoryPermission {
+        name: String::from("channels"),
+        bits: 0,
+    })
+}
+
+/// Grant permission to the `uuid category`.
+///
+/// Create a `uuid category` permission information object that can be used
+/// to specify required permissions.
+///
+/// # Example
+/// ```rust
+/// # use pubnub::dx::access::permissions::{self, Permission, UuidsCategoryPermission};
+/// #
+/// let uuids_category_permission = permissions::uuids_category().get();
+/// # assert_eq!(uuids_category_permission.value(), &0b0010_0000);
+/// ```
+pub fn uuids_category() -> Box<UuidsCategoryPermission> {
+    Box::new(UuidsCategoryPermission {
+        name: String::from("uuids"),
+        bits: 0,
+    })
+}
+
 #[cfg(test)]
 mod it_should {
     use super::*;
@@ -415,5 +542,19 @@ mod it_should {
         let permission = user_id(user_id_value).get().update();
         assert_eq!(permission.value(), &0b0110_0000);
         assert_eq!(permission.id(), user_id_value);
+    }
+
+    #[test]
+    fn create_channels_category_get_permission() {
+        let permission = channels_category().get();
+        assert_eq!(permission.value(), &0b0010_0000);
+        assert_eq!(permission.id(), "channels");
+    }
+
+    #[test]
+    fn create_uuids_category_get_permission() {
+        let permission = uuids_category().get();
+        assert_eq!(permission.value(), &0b0010_0000);
+        assert_eq!(permission.id(), "uuids");
     }
 }

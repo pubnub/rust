@@ -1,9 +1,34 @@
 name: rust
-version: 0.8.0
+version: 0.9.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2026-10-22
+    version: 0.9.0
+    changes:
+      - type: feature
+        text: "Add `ChannelsCategoryPermission` and `UuidsCategoryPermission`, the `categories` option for `grant_token`, and parsing of category permissions in `parse_token`. Parsed token `resources` and `patterns` are optional now."
+      - type: feature
+        text: "Allow `Permission` implementations to be shared across threads."
+      - type: bug
+        text: "Fix `DataStream` deadlock between `push_data` and `poll_next` which took `queue` and `waker` locks in opposite order, and `EventDispatcher` deadlock between stream creation and `invalidate`."
+      - type: improvement
+        text: "Remove redundant references in `format!` arguments of `PubNubClientInstance`, access and presence request builders."
+      - type: improvement
+        text: "Replace `r#type` with `custom_message_type` publish setter sent as `custom_message_type` query param. Received `Message` exposes the same field, and examples and docs use the new name."
+      - type: improvement
+        text: "Unknown `e` values and malformed envelopes are skipped instead of failing the whole subscribe response. Payload is picked by event type first, then by `-pnpres` channel suffix."
+      - type: improvement
+        text: "Add `keywords`, enable `access` feature by default, update `wiremock` and `cucumber`, and register the `integration` test target."
+      - type: improvement
+        text: "Update `README.md` PubNub Rust SDK header."
+      - type: improvement
+        text: "Add unit and integration tests for categories-only grants, all permission kinds, token parsing and malformed tokens."
+      - type: improvement
+        text: "Add tests for `DataStream` and `EventDispatcher` lock ordering, listener wake-ups and delivery of dispatched batches."
+      - type: improvement
+        text: "Cover type-first classification, presence channel suffix, unknown event types, malformed entries and message action `added` and `removed` events."
   - date: 2026-06-08
     version: 0.8.0
     changes:

@@ -250,6 +250,9 @@ fn token_contains_resource(
         } else {
             token.patterns
         };
+        let Some(resources) = resources else {
+            panic!("token has no {category} permissions");
+        };
 
         if resource == "CHANNEL" && resources.channels.contains_key(name.as_str()) {
             world.pam_state.resource_type = PAMCurrentResourceType::Channel;
@@ -281,6 +284,9 @@ fn token_resource_has_permission(world: &mut PubNubWorld, category: String, perm
             token.resources
         } else {
             token.patterns
+        };
+        let Some(resources) = resources else {
+            panic!("token has no {category} permissions");
         };
         let resource_permission = match world.pam_state.resource_type {
             PAMCurrentResourceType::Channel => resources.channels,
