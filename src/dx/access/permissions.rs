@@ -18,7 +18,7 @@ pub(in crate::dx) use crate::core::utils::permission_bits::{
 /// allowed resources within the provided permissions.
 ///
 /// [`PubNub Access Manager`]: https://www.pubnub.com/docs/general/security/access-control
-pub trait Permission {
+pub trait Permission: Send + Sync {
     /// The name or pattern of the channel name for which permissions were
     /// specified.
     fn id(&self) -> &String;

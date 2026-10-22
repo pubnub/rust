@@ -190,41 +190,61 @@ pub struct APISuccessBody {
     ///
     /// Contains list of real-time updates received using previous subscription
     /// cursor.
-    #[cfg_attr(feature = "serde", serde(rename = "m"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "m", deserialize_with = "deserialize_envelopes")
+    )]
     pub messages: Vec<Envelope>,
+}
+
+/// Deserialize subscribe response entries.
+///
+/// Malformed entry is logged and skipped, so it doesn't drop other entries.
+#[cfg(feature = "serde")]
+fn deserialize_envelopes<'de, D>(deserializer: D) -> Result<Vec<Envelope>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let entries: Vec<serde_json::Value> = serde::Deserialize::deserialize(deserializer)?;
+
+    Ok(entries
+        .into_iter()
+        .filter_map(|entry| match serde_json::from_value::<Envelope>(entry) {
+            Ok(envelope) => Some(envelope),
+            Err(error) => {
+                log::warn!("Skipping malformed subscribe entry: {:?}", error);
+                None
+            }
+        })
+        .collect())
 }
 
 /// Single entry from subscribe response
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize),
+    serde(try_from = "EnvelopeRaw")
+)]
 pub struct Envelope {
     /// Shard number on which the event has been stored.
-    #[cfg_attr(feature = "serde", serde(rename = "a"))]
     pub shard: String,
 
     /// A numeric representation of enabled debug flags.
-    #[cfg_attr(feature = "serde", serde(rename = "f"))]
     pub debug_flags: u32,
 
     /// PubNub defined event type.
-    #[cfg_attr(
-        feature = "serde",
-        serde(rename = "e"),
-        serde(default = "Envelope::default_message_type")
-    )]
     pub message_type: SubscribeMessageType,
 
     /// Identifier of client which sent message (set only when [`publish`]
     /// called with `uuid`).
     ///
     /// [`publish`]: crate::dx::publish
-    #[cfg_attr(feature = "serde", serde(rename = "i"), serde(default))]
     pub sender: Option<String>,
 
     /// Sequence number (set only when [`publish`] called with `seqn`).
     ///
     /// [`publish`]: crate::dx::publish
-    #[cfg_attr(feature = "serde", serde(rename = "s"), serde(default))]
     pub sequence_number: Option<u32>,
 
     /// Message "publish" time.
@@ -232,17 +252,12 @@ pub struct Envelope {
     /// This is the time when message has been received by [`PubNub`] network.
     ///
     /// [`PubNub`]: https://www.pubnub.com
-    #[cfg_attr(feature = "serde", serde(rename = "p"))]
     pub published: SubscriptionCursor,
 
     /// Name of channel where update received.
-    #[cfg_attr(feature = "serde", serde(rename = "c"))]
     pub channel: String,
 
     /// Event payload.
-    ///
-    /// Depending from
-    #[cfg_attr(feature = "serde", serde(rename = "d"))]
     pub payload: EnvelopePayload,
 
     /// Actual name of subscription through which event has been delivered.
@@ -253,29 +268,19 @@ pub struct Envelope {
     /// channels to [`subscribe`] method call.
     ///
     /// [`subscribe`]: crate::dx::subscribe
-    #[cfg_attr(feature = "serde", serde(rename = "b"), serde(default))]
     pub subscription: Option<String>,
 
     /// User provided message type (set only when [`publish`] called with
-    /// `r#type`).
+    /// `custom_message_type`).
     ///
     /// [`publish`]: crate::dx::publish
-    #[cfg_attr(feature = "serde", serde(rename = "cmt"), serde(default))]
-    pub r#type: Option<String>,
-
-    /// Identifier of space into which message has been published (set only when
-    /// [`publish`] called with `space_id`).
-    ///
-    /// [`publish`]: crate::dx::publish
-    #[cfg_attr(feature = "serde", serde(rename = "si"), serde(default))]
-    pub space_id: Option<String>,
+    pub custom_message_type: Option<String>,
 
     #[cfg(feature = "serde")]
     /// User provided metadata (set only when [`publish`] called with
     /// `meta`).
     ///
     /// [`publish`]: crate::dx::publish
-    #[cfg_attr(feature = "serde", serde(rename = "u"))]
     pub user_metadata: Option<serde_json::Value>,
 
     #[cfg(not(feature = "serde"))]
@@ -283,7 +288,6 @@ pub struct Envelope {
     /// `meta`).
     ///
     /// [`publish`]: crate::dx::publish
-    #[cfg_attr(feature = "serde", serde(rename = "u"))]
     pub user_metadata: Option<Vec<u8>>,
 }
 
@@ -571,6 +575,11 @@ impl TryFrom<SubscribeResponseBody> for SubscribeResult {
             SubscribeResponseBody::SuccessResponse(resp) => {
                 let mut messages = Vec::new();
                 for message in resp.messages {
+                    if let SubscribeMessageType::Unknown(event_type) = &message.message_type {
+                        log::debug!("Unknown event type ({}) has been received", event_type);
+                        continue;
+                    }
+
                     messages.push(message.try_into()?)
                 }
 
@@ -584,11 +593,124 @@ impl TryFrom<SubscribeResponseBody> for SubscribeResult {
     }
 }
 
+/// Single entry from subscribe response as it is received.
+///
+/// Payload is kept as raw JSON until channel and event type are known.
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+struct EnvelopeRaw {
+    #[serde(rename = "a")]
+    shard: String,
+
+    #[serde(rename = "f")]
+    debug_flags: u32,
+
+    #[serde(rename = "e", default = "Envelope::default_message_type")]
+    message_type: SubscribeMessageType,
+
+    #[serde(rename = "i", default)]
+    sender: Option<String>,
+
+    #[serde(rename = "s", default)]
+    sequence_number: Option<u32>,
+
+    #[serde(rename = "p")]
+    published: SubscriptionCursor,
+
+    #[serde(rename = "c")]
+    channel: String,
+
+    #[serde(rename = "d")]
+    payload: serde_json::Value,
+
+    #[serde(rename = "b", default)]
+    subscription: Option<String>,
+
+    #[serde(rename = "cmt", default)]
+    custom_message_type: Option<String>,
+
+    #[serde(rename = "u")]
+    user_metadata: Option<serde_json::Value>,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<EnvelopeRaw> for Envelope {
+    type Error = PubNubError;
+
+    fn try_from(value: EnvelopeRaw) -> Result<Self, Self::Error> {
+        let payload =
+            EnvelopePayload::from_raw(&value.channel, &value.message_type, value.payload)?;
+
+        Ok(Self {
+            shard: value.shard,
+            debug_flags: value.debug_flags,
+            message_type: value.message_type,
+            sender: value.sender,
+            sequence_number: value.sequence_number,
+            published: value.published,
+            channel: value.channel,
+            payload,
+            subscription: value.subscription,
+            custom_message_type: value.custom_message_type,
+            user_metadata: value.user_metadata,
+        })
+    }
+}
+
 #[cfg(feature = "serde")]
 impl Envelope {
     /// Default message type.
     fn default_message_type() -> SubscribeMessageType {
         SubscribeMessageType::Message
+    }
+}
+
+#[cfg(feature = "serde")]
+impl EnvelopePayload {
+    /// Select payload variant using event type and channel.
+    ///
+    /// Event type is checked first. Presence is detected only for events
+    /// without known event type and received on `-pnpres` channel. Everything
+    /// else which doesn't match is a message.
+    fn from_raw(
+        channel: &str,
+        message_type: &SubscribeMessageType,
+        payload: serde_json::Value,
+    ) -> Result<Self, PubNubError> {
+        match message_type {
+            SubscribeMessageType::Message if channel.ends_with("-pnpres") => {
+                match <Self as serde::Deserialize>::deserialize(&payload) {
+                    Ok(
+                        presence @ (Self::PresenceStateChange { .. }
+                        | Self::PresenceAnnounce { .. }
+                        | Self::PresenceInterval { .. }),
+                    ) => Ok(presence),
+                    _ => Ok(Self::Message(payload)),
+                }
+            }
+            SubscribeMessageType::Message
+            | SubscribeMessageType::Signal
+            | SubscribeMessageType::Unknown(_) => Ok(Self::Message(payload)),
+            SubscribeMessageType::Object
+            | SubscribeMessageType::MessageAction
+            | SubscribeMessageType::File => {
+                let parsed =
+                    <Self as serde::Deserialize>::deserialize(&payload).map_err(|error| {
+                        PubNubError::Deserialization {
+                            details: error.to_string(),
+                        }
+                    })?;
+
+                match (message_type, &parsed) {
+                    (SubscribeMessageType::Object, Self::Object { .. })
+                    | (SubscribeMessageType::MessageAction, Self::MessageAction { .. })
+                    | (SubscribeMessageType::File, Self::File { .. }) => Ok(parsed),
+                    _ => Err(PubNubError::Deserialization {
+                        details: "Payload doesn't match event type".to_string(),
+                    }),
+                }
+            }
+        }
     }
 }
 
@@ -678,5 +800,219 @@ impl From<EnvelopePayload> for Vec<u8> {
             return payload;
         }
         vec![]
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod should {
+    use super::*;
+    use crate::dx::subscribe::types::MessageActionEvent;
+
+    const PRESENCE_PAYLOAD: &str = r#"{"action":"join","timestamp":1,"occupancy":1,"uuid":"u1"}"#;
+
+    const OBJECT_PAYLOAD: &str = r#"{"event":"update","type":"channel","data":{"id":"ch1","updated":"2020-01-01T00:00:00Z","eTag":"tag1"},"source":"objects","version":"v2"}"#;
+
+    const MESSAGE_ACTION_PAYLOAD: &str = r#"{"event":"added","data":{"messageTimetoken":"1","actionTimetoken":"2","type":"reaction","value":"smiley"},"source":"actions","version":"v2"}"#;
+
+    const FILE_PAYLOAD: &str = r#"{"message":"hi","file":{"id":"f1","name":"a.txt"}}"#;
+
+    /// Parses subscribe response with given envelopes and returns built updates.
+    fn updates_from(envelopes: &str) -> Vec<Update> {
+        let body = format!(r#"{{"t":{{"t":"16866076578137008","r":43}},"m":[{envelopes}]}}"#);
+        let response = serde_json::from_str::<SubscribeResponseBody>(&body)
+            .expect("subscribe response should be parsed");
+
+        SubscribeResult::try_from(response)
+            .expect("subscribe result should be built")
+            .messages
+    }
+
+    #[test]
+    fn classify_envelope_without_event_type_on_regular_channel_as_message() {
+        let updates = updates_from(
+            r#"{"a":"1","f":0,"p":{"t":"16866076578137009","r":1},"c":"ch","d":"hi"}"#,
+        );
+
+        assert_eq!(updates.len(), 1);
+        assert!(matches!(updates[0], Update::Message(_)), "{:?}", updates[0]);
+    }
+
+    #[test]
+    fn classify_envelope_without_event_type_on_presence_channel_as_presence() {
+        let updates = updates_from(&format!(
+            r#"{{"a":"1","f":0,"p":{{"t":"16866076578137009","r":1}},"c":"ch-pnpres","d":{PRESENCE_PAYLOAD}}}"#
+        ));
+
+        assert_eq!(updates.len(), 1);
+        assert!(
+            matches!(updates[0], Update::Presence(_)),
+            "{:?}",
+            updates[0]
+        );
+    }
+
+    #[test]
+    fn keep_presence_shaped_payload_on_regular_channel_as_message() {
+        let updates = updates_from(&format!(
+            r#"{{"a":"1","f":0,"p":{{"t":"16866076578137009","r":1}},"c":"ch","d":{PRESENCE_PAYLOAD}}}"#
+        ));
+
+        assert_eq!(updates.len(), 1);
+        assert!(matches!(updates[0], Update::Message(_)), "{:?}", updates[0]);
+    }
+
+    #[test]
+    fn classify_envelope_with_message_event_type_as_message() {
+        let updates = updates_from(
+            r#"{"a":"1","f":0,"e":0,"p":{"t":"16866076578137009","r":1},"c":"ch","d":"hi"}"#,
+        );
+
+        assert_eq!(updates.len(), 1);
+        assert!(matches!(updates[0], Update::Message(_)), "{:?}", updates[0]);
+    }
+
+    #[test]
+    fn classify_envelope_with_signal_event_type_as_signal() {
+        let updates = updates_from(
+            r#"{"a":"1","f":0,"e":1,"p":{"t":"16866076578137009","r":1},"c":"ch","d":"hi"}"#,
+        );
+
+        assert_eq!(updates.len(), 1);
+        assert!(matches!(updates[0], Update::Signal(_)), "{:?}", updates[0]);
+    }
+
+    #[test]
+    fn classify_envelope_with_object_event_type_as_app_context() {
+        let updates = updates_from(&format!(
+            r#"{{"a":"1","f":0,"e":2,"p":{{"t":"16866076578137009","r":1}},"c":"ch","d":{OBJECT_PAYLOAD}}}"#
+        ));
+
+        assert_eq!(updates.len(), 1);
+        assert!(
+            matches!(updates[0], Update::AppContext(_)),
+            "{:?}",
+            updates[0]
+        );
+    }
+
+    #[test]
+    fn classify_envelope_with_message_action_event_type_as_message_action() {
+        let updates = updates_from(&format!(
+            r#"{{"a":"1","f":0,"e":3,"p":{{"t":"16866076578137009","r":1}},"c":"ch","d":{MESSAGE_ACTION_PAYLOAD}}}"#
+        ));
+
+        assert_eq!(updates.len(), 1);
+        assert!(
+            matches!(
+                &updates[0],
+                Update::MessageAction(action) if matches!(action.event, MessageActionEvent::Added)
+            ),
+            "{:?}",
+            updates[0]
+        );
+    }
+
+    #[test]
+    fn classify_message_action_removed_event_as_removed() {
+        let updates = updates_from(
+            r#"{"a":"1","f":0,"e":3,"p":{"t":"16866076578137009","r":1},"c":"ch","d":{"event":"removed","data":{"messageTimetoken":"1","actionTimetoken":"2","type":"reaction","value":"smiley"},"source":"actions","version":"v2"}}"#,
+        );
+
+        assert_eq!(updates.len(), 1);
+        assert!(
+            matches!(
+                &updates[0],
+                Update::MessageAction(action) if matches!(action.event, MessageActionEvent::Removed)
+            ),
+            "{:?}",
+            updates[0]
+        );
+    }
+
+    #[test]
+    fn parse_message_action_event_names() {
+        assert!(matches!(
+            MessageActionEvent::try_from("added".to_string()),
+            Ok(MessageActionEvent::Added)
+        ));
+        assert!(matches!(
+            MessageActionEvent::try_from("removed".to_string()),
+            Ok(MessageActionEvent::Removed)
+        ));
+    }
+
+    #[test]
+    fn reject_legacy_message_action_event_names() {
+        assert!(MessageActionEvent::try_from("update".to_string()).is_err());
+        assert!(MessageActionEvent::try_from("delete".to_string()).is_err());
+    }
+
+    #[test]
+    fn keep_received_value_for_unknown_event_type() {
+        let event_type = serde_json::from_str::<SubscribeMessageType>("5");
+
+        assert_eq!(
+            event_type.expect("event type should be parsed"),
+            SubscribeMessageType::Unknown("5".into())
+        );
+    }
+
+    #[test]
+    fn classify_envelope_with_file_event_type_as_file() {
+        let updates = updates_from(&format!(
+            r#"{{"a":"1","f":0,"e":4,"p":{{"t":"16866076578137009","r":1}},"c":"ch","d":{FILE_PAYLOAD}}}"#
+        ));
+
+        assert_eq!(updates.len(), 1);
+        assert!(matches!(updates[0], Update::File(_)), "{:?}", updates[0]);
+    }
+
+    #[test]
+    fn prefer_event_type_over_presence_channel_suffix() {
+        let updates = updates_from(&format!(
+            r#"{{"a":"1","f":0,"e":2,"p":{{"t":"16866076578137009","r":1}},"c":"ch-pnpres","d":{OBJECT_PAYLOAD}}}"#
+        ));
+
+        assert_eq!(updates.len(), 1);
+        assert!(
+            matches!(updates[0], Update::AppContext(_)),
+            "{:?}",
+            updates[0]
+        );
+    }
+
+    #[test]
+    fn skip_envelope_with_unknown_numeric_event_type_and_keep_others() {
+        let updates = updates_from(
+            r#"{"a":"1","f":0,"e":0,"p":{"t":"16866076578137009","r":1},"c":"ch","d":"first"},
+               {"a":"1","f":0,"e":5,"p":{"t":"16866076578137010","r":1},"c":"ch","d":{"x":1}},
+               {"a":"1","f":0,"e":0,"p":{"t":"16866076578137011","r":1},"c":"ch","d":"last"}"#,
+        );
+
+        assert_eq!(updates.len(), 2);
+        assert!(matches!(updates[0], Update::Message(_)), "{:?}", updates[0]);
+        assert!(matches!(updates[1], Update::Message(_)), "{:?}", updates[1]);
+    }
+
+    #[test]
+    fn skip_envelope_with_unknown_string_event_type_on_presence_channel() {
+        let updates = updates_from(&format!(
+            r#"{{"a":"1","f":0,"e":"new","p":{{"t":"16866076578137009","r":1}},"c":"ch-pnpres","d":{PRESENCE_PAYLOAD}}}"#
+        ));
+
+        assert!(updates.is_empty(), "{:?}", updates);
+    }
+
+    #[test]
+    fn skip_malformed_envelope_and_keep_others() {
+        let updates = updates_from(
+            r#"{"a":"1","f":0,"p":{"t":"16866076578137009","r":1},"c":"ch","d":"first"},
+               {"a":"1","f":0,"p":{"t":"16866076578137010","r":1},"d":"no channel"},
+               {"a":"1","f":0,"p":{"t":"16866076578137011","r":1},"c":"ch","d":"last"}"#,
+        );
+
+        assert_eq!(updates.len(), 2);
+        assert!(matches!(updates[0], Update::Message(_)), "{:?}", updates[0]);
+        assert!(matches!(updates[1], Update::Message(_)), "{:?}", updates[1]);
     }
 }

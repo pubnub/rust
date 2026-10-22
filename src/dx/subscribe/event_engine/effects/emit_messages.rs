@@ -34,8 +34,7 @@ mod should {
             channel: "test".to_string(),
             subscription: "test-group".to_string(),
             data: vec![],
-            r#type: None,
-            space_id: None,
+            custom_message_type: None,
             user_metadata: None,
             decryption_error: None,
         };

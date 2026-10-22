@@ -738,7 +738,10 @@ mod should {
     fn verify_query_params_merge() {
         let query_params = HashMap::<String, String>::from([
             ("norep".into(), "true".into()),
-            ("space-id".to_string(), "space_id".to_string()),
+            (
+                "custom_message_type".to_string(),
+                "message_type".to_string(),
+            ),
             ("meta".to_string(), "{\"k\":\"v\"}".to_string()),
             ("seqn".to_string(), "1".to_string()),
             ("pnsdk".to_string(), "rust/1.2".to_string()),
