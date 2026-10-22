@@ -553,7 +553,7 @@ mod it_should {
 }
 
 #[cfg(test)]
-mod lock_order {
+mod should {
     use super::*;
     use std::{
         pin::Pin,

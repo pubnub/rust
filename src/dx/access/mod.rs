@@ -278,12 +278,12 @@ mod it_should {
             response: None,
             request_handler: None,
         }))
-        .with_keyset(Keyset {
-            subscribe_key: if with_subscribe_key { "demo" } else { "" },
-            publish_key: Some(""),
-            secret_key: with_secret_key.then_some("demo"),
-        })
-        .with_user_id("user");
+            .with_keyset(Keyset {
+                subscribe_key: if with_subscribe_key { "demo" } else { "" },
+                publish_key: Some(""),
+                secret_key: with_secret_key.then_some("demo"),
+            })
+            .with_user_id("user");
 
         if let Some(auth_key) = with_auth_key {
             builder = builder.with_auth_key(auth_key);

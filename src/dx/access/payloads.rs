@@ -138,7 +138,13 @@ fn resource_permissions(
             ResourceType::UserId => {
                 uuids.insert(perm.id().to_string(), *perm.value());
             }
-            _ => {}
+            resource_type @ (ResourceType::ChannelsCategory | ResourceType::UuidsCategory) => {
+                log::error!(
+                    "Categories permissions can't be used for `resources` or `patterns`, \
+                     skipping `{:?}`",
+                    resource_type
+                );
+            }
         });
 
         GrantTokenResourcesPayload {
@@ -154,21 +160,44 @@ fn categories_permissions(
     resources: &Option<&[Box<dyn Permission>]>,
 ) -> Option<GrantTokenCategoriesPayload> {
     resources.map(|res| {
-        let mut channels_category_perm: u8 = 0;
-        let mut uuids_category_perm: u8 = 0;
+        let mut channels_category_perm: Option<u8> = None;
+        let mut uuids_category_perm: Option<u8> = None;
         res.iter().for_each(|perm| match perm.resource_type() {
-            ResourceType::ChannelsCategory => channels_category_perm = *perm.value(),
-            ResourceType::UuidsCategory => uuids_category_perm = *perm.value(),
-            _ => {}
+            ResourceType::ChannelsCategory => fold_category_permission(
+                &mut channels_category_perm,
+                perm.resource_type(),
+                perm.value(),
+            ),
+            ResourceType::UuidsCategory => fold_category_permission(
+                &mut uuids_category_perm,
+                perm.resource_type(),
+                perm.value(),
+            ),
+            resource_type => log::error!(
+                "Only `ResourceType::ChannelsCategory` or `ResourceType::UuidsCategory` accepted \
+                 for categories, but received `{:?}`",
+                resource_type
+            ),
         });
 
         GrantTokenCategoriesPayload {
-            channels: channels_category_perm
-                .gt(&0)
-                .then_some(channels_category_perm),
-            uuids: uuids_category_perm.gt(&0).then_some(uuids_category_perm),
+            channels: channels_category_perm.filter(|perm| *perm > 0),
+            uuids: uuids_category_perm.filter(|perm| *perm > 0),
         }
     })
+}
+
+/// Combine category permission with previously provided ones.
+///
+/// Permissions are bit flags, so repeated entries are merged using bitwise OR.
+fn fold_category_permission(category: &mut Option<u8>, resource_type: ResourceType, value: &u8) {
+    if category.is_some() {
+        log::warn!(
+            "Multiple `{:?}` permissions provided, combining them into one",
+            resource_type
+        );
+    }
+    *category = Some(category.unwrap_or(0) | *value);
 }
 
 #[cfg(test)]
@@ -200,5 +229,39 @@ mod should {
         let perms: [Box<dyn Permission>; 1] = [permissions::channels_category().get()];
         let payload = resource_permissions(&Some(&perms)).unwrap();
         assert!(payload.channels.is_none());
+    }
+
+    #[test]
+    fn omit_categories_from_resources() {
+        let perms: [Box<dyn Permission>; 2] = [
+            permissions::channels_category().get(),
+            permissions::uuids_category().get(),
+        ];
+        let payload = resource_permissions(&Some(&perms)).unwrap();
+        assert!(payload.channels.is_none());
+        assert!(payload.groups.is_none());
+        assert!(payload.uuids.is_none());
+    }
+
+    #[test]
+    fn combine_repeated_channels_category_permissions_with_bitwise_or() {
+        let perms: [Box<dyn Permission>; 2] = [
+            permissions::channels_category().get(),
+            permissions::channels_category().get(),
+        ];
+        let payload = categories_permissions(&Some(&perms)).unwrap();
+        assert_eq!(payload.channels, Some(GET));
+        assert_eq!(payload.uuids, None);
+    }
+
+    #[test]
+    fn ignore_resource_type_which_is_not_category() {
+        let perms: [Box<dyn Permission>; 2] = [
+            permissions::channels_category().get(),
+            permissions::channel("my-channel").get(),
+        ];
+        let payload = categories_permissions(&Some(&perms)).unwrap();
+        assert_eq!(payload.channels, Some(GET));
+        assert_eq!(payload.uuids, None);
     }
 }
