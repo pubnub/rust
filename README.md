@@ -12,11 +12,11 @@ Publish and receive messages in Rust. Use this SDK for Rust server, desktop, Web
 
 ## Requirements
 
-| Requirement | Supported version or setup |
-| --- | --- |
-| Rust | [Rust 1.65.0 or later](https://www.pubnub.com/docs/sdks/rust/platform-support) |
-| Targets | [Windows, macOS, Unix/Linux, WebAssembly, and embedded systems](https://www.pubnub.com/docs/sdks/rust/platform-support) |
-| Cargo dependencies | The async Quickstart uses PubNub, Tokio, Futures, and serde_json. |
+| Requirement        | Supported version or setup                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Rust               | [Rust 1.65.0 or later](https://www.pubnub.com/docs/sdks/rust/platform-support)                                          |
+| Targets            | [Windows, macOS, Unix/Linux, WebAssembly, and embedded systems](https://www.pubnub.com/docs/sdks/rust/platform-support) |
+| Cargo dependencies | The async Quickstart uses PubNub, Tokio, Futures, and serde_json.                                                       |
 
 ## Installation
 
@@ -105,13 +105,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Run the example
 
-```
+```bash
 cargo run
 ```
 
 The terminal should show:
 
-```
+```bash
 Hello world
 ```
 
@@ -121,12 +121,12 @@ For a complete application, see the [getting started guide](https://www.pubnub.c
 
 ## Next steps
 
-| Task | Documentation |
-| --- | --- |
-| Configure the client | [Configuration](https://www.pubnub.com/docs/sdks/rust/api-reference/configuration) |
+| Task                                 | Documentation                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Configure the client                 | [Configuration](https://www.pubnub.com/docs/sdks/rust/api-reference/configuration)               |
 | Work with subscriptions and messages | [Publish & Subscribe](https://www.pubnub.com/docs/sdks/rust/api-reference/publish-and-subscribe) |
-| Check channel occupancy | [Presence](https://www.pubnub.com/docs/sdks/rust/api-reference/presence) |
-| Secure resources | [Access Manager](https://www.pubnub.com/docs/sdks/rust/api-reference/access-manager) |
+| Check channel occupancy              | [Presence](https://www.pubnub.com/docs/sdks/rust/api-reference/presence)                         |
+| Secure resources                     | [Access Manager](https://www.pubnub.com/docs/sdks/rust/api-reference/access-manager)             |
 
 ## Build with an AI coding assistant
 
@@ -144,12 +144,12 @@ Live delivery through PubNub SDKs is at-most-once. A subscriber can miss message
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
+| Symptom                                                                 | Check                                                                                                                                                                                         |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The Quickstart has unresolved imports for Tokio, Futures, or serde_json | Add every dependency shown in the Quickstart to `Cargo.toml`; the runnable example needs more than the `pubnub` crate alone. See the [Rust SDK guide](https://www.pubnub.com/docs/sdks/rust). |
-| A publish succeeds but no message appears | Check the message handler, subscription readiness, keyset, and channel name. |
-| A PubNub API is unavailable at compile time | Enable the crate feature that provides that API. See [Rust Configuration](https://www.pubnub.com/docs/sdks/rust/api-reference/configuration). |
-| Extra clients or duplicate messages during development | Stop the previous process before restarting. Each live client that subscribes to a channel receives its own copy of every message, so a leftover process doubles them. |
+| A publish succeeds but no message appears                               | Check the message handler, subscription readiness, keyset, and channel name.                                                                                                                  |
+| A PubNub API is unavailable at compile time                             | Enable the crate feature that provides that API. See [Rust Configuration](https://www.pubnub.com/docs/sdks/rust/api-reference/configuration).                                                 |
+| Extra clients or duplicate messages during development                  | Stop the previous process before restarting. Each live client that subscribes to a channel receives its own copy of every message, so a leftover process doubles them.                        |
 
 For setup help, see [troubleshooting](https://www.pubnub.com/docs/sdks/rust). Check [network status](https://status.pubnub.com/) for service incidents.
 
