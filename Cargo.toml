@@ -29,7 +29,7 @@ publish = []
 access = []
 
 ## Enables crypto module
-crypto = ["dep:aes", "dep:cbc", "getrandom"]
+crypto = ["dep:aes", "dep:cbc", "dep:aes-gcm", "getrandom"]
 
 ## Enables token parsing
 parse_token = ["dep:ciborium"]
@@ -106,6 +106,7 @@ bytes = { version = "1.4", default-features = false, optional = true }
 # crypto
 aes = { version = "0.8.2", optional = true }
 cbc = { version = "0.1.2", optional = true }
+aes-gcm = { version = "0.10", optional = true, default-features = false, features = ["aes", "alloc"] }
 getrandom = { version = "0.3", optional = true }
 
 # parse_token
