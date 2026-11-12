@@ -15,3 +15,6 @@ pub mod legacy;
 #[doc(inline)]
 pub use aes_cbc::AesCbcCryptor;
 pub mod aes_cbc;
+
+// Decryption-only. Not a public cryptor: phase 1 does not expose encryption.
+pub(crate) mod aes_gcm;
