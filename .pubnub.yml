@@ -146,7 +146,7 @@ sdks:
                 supported-operating-systems:
                   Linux:
                     runtime-version:
-                      - Rust 1.65.0+
+                      - Rust 1.90.0+
                     minimum-os-version:
                       - Ubuntu 12.04
                     maximum-os-version:
@@ -155,7 +155,7 @@ sdks:
                       - x86-64
                   macOS:
                     runtime-version:
-                      - Rust 1.65.0+
+                      - Rust 1.90.0+
                     minimum-os-version:
                       - macOS 10.12
                     maximum-os-version:
@@ -164,7 +164,7 @@ sdks:
                       - x86-64
                   Windows:
                     runtime-version:
-                      - Rust 1.65.0+
+                      - Rust 1.90.0+
                     minimum-os-version:
                       - Windows Vista Ultimate
                     maximum-os-version:

@@ -1,9 +1,10 @@
 //! Crypto module
 //!
 //! This module contains a [`CryptoModule`] which allows to handle encrypted
-//! data in backward compatible way. [`AesCbcCryptor`] and [`LegacyCryptor`]
-//! cryptors available for [`CryptoModule`] configuration for data _encryption_
-//! and _decryption_.
+//! data in a backward compatible way. [`AesCbcCryptor`] and [`LegacyCryptor`]
+//! are available for [`CryptoModule`] configuration. The built-in modules also
+//! decrypt AES-256-GCM (`ACGM`) payloads. AES-256-GCM encryption is not
+//! available.
 
 #[doc(inline)]
 pub use cryptors::{AesCbcCryptor, LegacyCryptor};
@@ -22,14 +23,16 @@ use crate::{
     lib::alloc::{boxed::Box, vec, vec::Vec},
 };
 
+use cryptors::aes_gcm::AesGcmCryptor;
+
 /// [`CryptoModule`] module extension with convenience methods.
 impl CryptoModule {
     /// AES-CBC cryptor based module.
     ///
     /// Data _encryption_ and _decryption_ will be done by default using the
-    /// [`AesCbcCryptor`]. In addition to the [`AesCbcCryptor`] for data
-    /// _decryption_, the [`LegacyCryptor`] will be registered for
-    /// backward-compatibility.
+    /// [`AesCbcCryptor`]. For data _decryption_, the [`LegacyCryptor`] and
+    /// AES-256-GCM (`ACGM`) are also registered. AES-256-GCM encryption is not
+    /// available.
     ///
     /// Returns error if `cipher_key` is empty.
     pub fn new_aes_cbc_module<K>(cipher_key: K, use_random_iv: bool) -> Result<Self, PubNubError>
@@ -46,19 +49,19 @@ impl CryptoModule {
 
         Ok(Self::new(
             Box::new(AesCbcCryptor::new(cipher_key.clone())?),
-            Some(vec![Box::new(LegacyCryptor::new(
-                cipher_key,
-                use_random_iv,
-            )?)]),
+            Some(vec![
+                Box::new(LegacyCryptor::new(cipher_key.clone(), use_random_iv)?),
+                Box::new(AesGcmCryptor::new(cipher_key)?),
+            ]),
         ))
     }
 
     /// Legacy AES-CBC cryptor based module.
     ///
     /// Data _encryption_ and _decryption_ will be done by default using the
-    /// [`LegacyCryptor`]. In addition to the [`LegacyCryptor`] for data
-    /// _decryption_, the [`AesCbcCryptor`] will be registered for
-    /// future-compatibility (which will help with gradual application updates).
+    /// [`LegacyCryptor`]. For data _decryption_, the [`AesCbcCryptor`] and
+    /// AES-256-GCM (`ACGM`) are also registered so older and newer payloads can
+    /// be read. AES-256-GCM encryption is not available.
     ///
     /// Returns error if `cipher_key` is empty.
     pub fn new_legacy_module<K>(cipher_key: K, use_random_iv: bool) -> Result<Self, PubNubError>
@@ -75,7 +78,10 @@ impl CryptoModule {
 
         Ok(Self::new(
             Box::new(LegacyCryptor::new(cipher_key.clone(), use_random_iv)?),
-            Some(vec![Box::new(AesCbcCryptor::new(cipher_key)?)]),
+            Some(vec![
+                Box::new(AesCbcCryptor::new(cipher_key.clone())?),
+                Box::new(AesGcmCryptor::new(cipher_key)?),
+            ]),
         ))
     }
 }
