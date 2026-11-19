@@ -1,9 +1,16 @@
 name: rust
-version: 0.9.0
+version: 0.10.0
 schema: 1
 scm: github.com/pubnub/rust
 files: []
 changelog:
+  - date: 2026-11-19
+    version: 0.10.0
+    changes:
+      - type: feature
+        text: "`CryptoModule::new_aes_cbc_module` and `CryptoModule::new_legacy_module` decrypt AES-256-GCM (`ACGM`) payloads. AES-256-GCM encryption is not available yet."
+      - type: improvement
+        text: "Recover missing changes."
   - date: 2026-10-22
     version: 0.9.0
     changes:
@@ -146,7 +153,7 @@ sdks:
                 supported-operating-systems:
                   Linux:
                     runtime-version:
-                      - Rust 1.65.0+
+                      - Rust 1.90.0+
                     minimum-os-version:
                       - Ubuntu 12.04
                     maximum-os-version:
@@ -155,7 +162,7 @@ sdks:
                       - x86-64
                   macOS:
                     runtime-version:
-                      - Rust 1.65.0+
+                      - Rust 1.90.0+
                     minimum-os-version:
                       - macOS 10.12
                     maximum-os-version:
@@ -164,7 +171,7 @@ sdks:
                       - x86-64
                   Windows:
                     runtime-version:
-                      - Rust 1.65.0+
+                      - Rust 1.90.0+
                     minimum-os-version:
                       - Windows Vista Ultimate
                     maximum-os-version:
