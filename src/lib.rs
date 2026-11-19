@@ -27,7 +27,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pubnub = "0.8.0"
+//! pubnub = "0.10.0"
 //! futures = "0.3"
 //! serde_json = "1.0"
 //! tokio = { version = "1", features = ["full"] }
